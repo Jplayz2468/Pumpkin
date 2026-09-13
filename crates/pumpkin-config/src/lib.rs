@@ -17,6 +17,8 @@ use tracing::{debug, error, warn};
 
 /// Fun and experimental configuration options.
 pub mod fun;
+/// Temporary gameplay safeguards maintained by this fork.
+pub mod local_safety;
 /// Server logging configuration options.
 pub mod logging;
 /// Networking and protocol configuration options.
@@ -140,6 +142,8 @@ impl LoadConfiguration for PumpkinConfig {
 #[derive(Deserialize, Serialize, Default)]
 #[serde(default)]
 pub struct AdvancedConfiguration {
+    /// Independently switchable safeguards for incomplete gameplay mechanics.
+    pub local_safety: local_safety::LocalSafetyConfig,
     /// Logging-related configuration such as log levels and output behaviour.
     pub logging: LoggingConfig,
     /// Resource pack configuration, including enforcement and pack metadata.

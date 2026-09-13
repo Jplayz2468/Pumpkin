@@ -5515,6 +5515,20 @@ impl World {
             return None;
         }
 
+        if let Some(server) = self.server.upgrade() {
+            if let Some(player) = cause {
+                if !crate::local_safety::allow_block_action(player, &server, broken_block) {
+                    player.reset_block_change(*position);
+                    return None;
+                }
+            } else if crate::local_safety::shulker_box_disabled(
+                &server.advanced_config.local_safety,
+                broken_block,
+            ) {
+                return None;
+            }
+        }
+
         let mut event = BlockBreakEvent::new(
             cause.cloned(),
             broken_block,

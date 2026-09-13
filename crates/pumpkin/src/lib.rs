@@ -57,6 +57,7 @@ pub mod enchantment;
 pub mod entity;
 pub mod error;
 pub mod item;
+pub mod local_safety;
 pub mod logging;
 pub mod net;
 pub mod plugin;
