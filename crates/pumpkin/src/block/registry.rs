@@ -616,6 +616,21 @@ impl BlockRegistry {
         location: BlockPos,
         face: BlockDirection,
     ) -> Result<Option<(BlockPos, BlockStateId)>, BlockPlacingError> {
+        if !crate::local_safety::allow_block_action(player, server, placed_block) {
+            // Undo client prediction without consuming the held item.
+            player.reset_block_change(location);
+            player.reset_block_change(BlockPos(location.0 + face.to_offset()));
+            let inventory = player.inventory();
+            player.sync_hand_slot(
+                inventory.get_selected_slot() as usize,
+                inventory.held_item(),
+            );
+            player.sync_hand_slot(
+                pumpkin_inventory::player::player_inventory::PlayerInventory::OFF_HAND_SLOT,
+                inventory.off_hand_item(),
+            );
+            return Ok(None);
+        }
         let entity = &player.get_entity();
 
         match player.gamemode.load() {
@@ -938,6 +953,9 @@ impl BlockRegistry {
         server: &Server,
         world: &Arc<World>,
     ) -> BlockActionResult {
+        if !crate::local_safety::allow_block_action(player, server, block) {
+            return BlockActionResult::Consume;
+        }
         let pumpkin_block = self.get_pumpkin_block(block.id);
         if let Some(pumpkin_block) = pumpkin_block {
             return pumpkin_block.normal_use(NormalUseArgs {
@@ -960,6 +978,9 @@ impl BlockRegistry {
         server: &Server,
         world: &Arc<World>,
     ) -> Option<Box<dyn ScreenHandlerFactory>> {
+        if !crate::local_safety::allow_block_action(player, server, block) {
+            return None;
+        }
         let pumpkin_block = self.get_pumpkin_block(block.id);
         if let Some(pumpkin_block) = pumpkin_block {
             return pumpkin_block.get_screen_handler_factory(GetScreenHandlerFactoryArgs {
@@ -996,6 +1017,9 @@ impl BlockRegistry {
         server: &Server,
         world: &Arc<World>,
     ) -> BlockActionResult {
+        if !crate::local_safety::allow_block_action(player, server, block) {
+            return BlockActionResult::Consume;
+        }
         let pumpkin_block = self.get_pumpkin_block(block.id);
         if let Some(pumpkin_block) = pumpkin_block {
             return pumpkin_block.use_with_item(UseWithItemArgs {

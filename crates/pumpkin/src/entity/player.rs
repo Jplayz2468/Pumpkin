@@ -395,6 +395,8 @@ pub enum SpamType {
 }
 
 pub struct Player {
+    /// Rate-limits temporary gameplay notices independently for each player.
+    pub safety_notices: crate::local_safety::SafetyNotices,
     /// The underlying living entity object that represents the player.
     pub living_entity: LivingEntity,
     /// The player's game profile information, including their username and UUID.
@@ -760,6 +762,7 @@ impl Player {
                 NonZero::new(1).unwrap_or(NonZero::<u8>::MIN),
             )),
             last_action_time: AtomicCell::new(std::time::Instant::now()),
+            safety_notices: crate::local_safety::SafetyNotices::default(),
             ping: AtomicU32::new(0),
             last_attacked_ticks: AtomicU32::new(0),
             client_loaded: AtomicBool::new(initially_loaded),

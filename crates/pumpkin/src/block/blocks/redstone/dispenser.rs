@@ -311,6 +311,18 @@ impl DispenserBlock {
     const FIREWORK_PROJECTILE_UNCERTAINTY: f64 = 1.0;
 
     fn dispense(ctx: &DispenseContext<'_>, dispenser: &DispenserBlockEntity, item: &mut ItemStack) {
+        if let Some(server) = ctx.world.server.upgrade()
+            && let Some(block) = Block::from_item_id(item.item.id)
+            && crate::local_safety::shulker_box_disabled(
+                &server.advanced_config.local_safety,
+                block,
+            )
+        {
+            // Keep the box in the dispenser; do not place, eject, or consume it.
+            ctx.world
+                .sync_world_event(WorldEvent::SoundDispenserFail, *ctx.position, 0);
+            return;
+        }
         let mut event = crate::plugin::api::events::block::block_dispense::BlockDispenseEvent::new(
             *ctx.position,
             item.item.registry_key.to_string(),
