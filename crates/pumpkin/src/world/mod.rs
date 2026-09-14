@@ -273,6 +273,11 @@ pub struct World {
     pub scoreboard: std::sync::Mutex<Scoreboard>,
     /// The world's worldborder, defining the playable area and controlling its expansion or contraction.
     pub worldborder: std::sync::Mutex<Worldborder>,
+    /// Vanilla `ServerLevel.handlingTick` (`ServerLevel.java:217`): true from the start of
+    /// the tick through `runBlockEvents`, false during entity and block-entity ticking.
+    /// `PistonBaseBlock.checkIfExtend` reads it to decide whether a retracting sticky
+    /// piston still drags its block.
+    handling_tick: std::sync::atomic::AtomicBool,
     /// The world's time, including counting ticks for weather, time cycles, and statistics.
     pub level_time: std::sync::Mutex<LevelTime>,
     /// The type of dimension the world is in.
@@ -411,6 +416,7 @@ impl World {
             players: ArcSwap::new(Arc::new(Vec::new())),
             entities: ArcSwap::new(Arc::new(Vec::new())),
             scoreboard: std::sync::Mutex::new(Scoreboard::default()),
+            handling_tick: std::sync::atomic::AtomicBool::new(false),
             worldborder: std::sync::Mutex::new(Worldborder::new(
                 0.0,
                 0.0,
@@ -1590,6 +1596,11 @@ impl World {
     pub fn tick(self: &Arc<Self>, server: &Arc<Server>) {
         let start = std::time::Instant::now();
 
+        // Vanilla sets `handlingTick` at the top of `ServerLevel.tick` (`:355`) and
+        // clears it immediately after `runBlockEvents` (`:407`).
+        self.handling_tick
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+
         self.flush_block_updates();
         self.update_active_chunks();
 
@@ -1632,6 +1643,11 @@ impl World {
         // 5. Block events (synced block events, e.g. pistons triggered by redstone/scheduled ticks)
         // Reference: Vanilla Java 26.2 `ServerLevel.java:402-405` (`blockEvents` / `runBlockEvents`)
         self.flush_synced_block_events();
+
+        // Vanilla clears `handlingTick` here (`ServerLevel.java:407`), immediately after
+        // block events and before entities and block entities tick.
+        self.handling_tick
+            .store(false, std::sync::atomic::Ordering::Relaxed);
 
         // 6. Broadcast chunk changes resulting from chunk ticks & block events
         // Reference: Vanilla Java 26.2 `ServerChunkCache.java:350-367` (`broadcastChangedChunks`)
@@ -6386,6 +6402,11 @@ impl World {
     pub const fn get_bottom_y(&self) -> i32 {
         self.dimension.min_y
     }
+    /// Vanilla `ServerLevel.isHandlingTick()` (`ServerLevel.java:646`).
+    pub fn is_handling_tick(&self) -> bool {
+        self.handling_tick.load(std::sync::atomic::Ordering::Relaxed)
+    }
+
     pub const fn get_top_y(&self) -> i32 {
         self.dimension.min_y + self.dimension.height - 1
     }

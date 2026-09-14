@@ -18,6 +18,10 @@ pub struct PistonBlockEntity {
     pub last_progress: AtomicCell<f32>,
     pub extending: bool,
     pub source: bool,
+    /// Vanilla `PistonMovingBlockEntity.lastTicked` (`PistonMovingBlockEntity.java:47`),
+    /// set each tick and read by `PistonBaseBlock.checkIfExtend` to decide whether a
+    /// retraction drags the block it is pulling.
+    pub last_ticked: AtomicCell<i64>,
 }
 
 impl PistonBlockEntity {
@@ -223,6 +227,8 @@ impl BlockEntity for PistonBlockEntity {
     }
 
     fn tick(&self, world: &Arc<World>) {
+        // Vanilla `PistonMovingBlockEntity.tick` (`PistonMovingBlockEntity.java:311`).
+        self.last_ticked.store(world.get_world_age());
         let current_progress = self.current_progress.load();
         self.last_progress.store(current_progress);
         if current_progress >= 1.0 {
@@ -271,6 +277,8 @@ impl BlockEntity for PistonBlockEntity {
             last_progress: last_progress.into(),
             extending,
             source,
+            // Not persisted in vanilla either; it is re-established on the next tick.
+            last_ticked: AtomicCell::new(0),
         }
     }
 

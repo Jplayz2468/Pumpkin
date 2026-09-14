@@ -37,14 +37,30 @@ impl BlockMetadata for PistonBlock {
 
 impl PistonBlock {
     #[must_use]
+    /// Vanilla `PistonBaseBlock.isPushable` (`PistonBaseBlock.java:226`).
     pub fn is_movable(
+        world: &World,
+        pos: &BlockPos,
         block: &Block,
         state: &BlockState,
         dir: BlockDirection,
         can_break: bool,
         piston_dir: BlockDirection,
     ) -> bool {
-        // TODO: more checks
+        // Outside build height or beyond the world border is never pushable. Without
+        // these a piston at the height limit or at the border moves blocks vanilla
+        // refuses to move, which can duplicate or delete them.
+        if pos.0.y < world.get_bottom_y()
+            || pos.0.y > world.get_top_y()
+            || !world
+                .worldborder
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .contains_block(pos.0.x, pos.0.z)
+        {
+            return false;
+        }
+
         if state.is_air() {
             return true;
         }
@@ -54,6 +70,13 @@ impl PistonBlock {
             || block == &Block::RESPAWN_ANCHOR
             || block == &Block::REINFORCED_DEEPSLATE
         {
+            return false;
+        }
+        // A block cannot be pushed out through the bottom or top of the world.
+        if dir == BlockDirection::Down && pos.0.y == world.get_bottom_y() {
+            return false;
+        }
+        if dir == BlockDirection::Up && pos.0.y == world.get_top_y() {
             return false;
         }
         if block == &Block::PISTON || block == &Block::STICKY_PISTON {
@@ -238,6 +261,7 @@ impl PistonBlock {
             last_progress: 0.0.into(),
             extending: false,
             source: true,
+            last_ticked: 0.into(),
         }));
 
         world.set_block_state(
@@ -259,8 +283,8 @@ impl PistonBlock {
             } else {
                 let is_air = state.is_air();
                 if !is_air
-                    && (Self::is_movable(block, state, dir, false, dir.opposite())
-                        || Self::is_movable(block, state, dir, false, dir))
+                    && (Self::is_movable(world, &pos, block, state, dir, false, dir.opposite())
+                        || Self::is_movable(world, &pos, block, state, dir, false, dir))
                     && (state.piston_behavior == PistonBehavior::Normal
                         || block == &Block::PISTON
                         || block == &Block::STICKY_PISTON)
@@ -348,10 +372,20 @@ pub fn try_move(world: &Arc<World>, _block: &Block, block_pos: &BlockPos) {
                 let Some(piston) = entity.as_any().downcast_ref::<PistonBlockEntity>() else {
                     return;
                 };
-                if piston.extending && piston.current_progress.load() < 0.5
-                // TODO: more stuff...
+                // Vanilla `PistonBaseBlock.checkIfExtend` (`PistonBaseBlock.java:119`):
+                //   isExtending() && (getProgress(0.0F) < 0.5F
+                //                     || gameTime == getLastTicked()
+                //                     || level.isHandlingTick())
+                // Only the first clause was checked here. The other two are what make a
+                // sticky piston still drag its block when the retraction lands on the
+                // same tick the mover was ticked, or while the level is still inside the
+                // block-tick/block-event portion of the tick -- the short-pulse cases.
+                if piston.extending
+                    && (piston.current_progress.load() < 0.5
+                        || world.get_world_age() == piston.last_ticked.load()
+                        || world.is_handling_tick())
                 {
-                    // Piston reduced too quickly, if its a stick piston no blocks will be dragged
+                    // Piston reduced too quickly, if its a sticky piston no blocks will be dragged
                     r#type = 2;
                 }
             }
@@ -431,6 +465,7 @@ fn move_piston(
                 last_progress: 0.0.into(),
                 extending: extend,
                 source: false,
+                last_ticked: 0.into(),
             }));
         }
         affected_block_states.push(block_state);
@@ -462,6 +497,7 @@ fn move_piston(
             last_progress: 0.0.into(),
             extending: true,
             source: true,
+            last_ticked: 0.into(),
         }));
     }
 
