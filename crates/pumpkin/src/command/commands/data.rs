@@ -831,10 +831,10 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
         (TargetKind::Storage, "storage"),
     ];
 
-    let mut data_cmd = command("data", DESCRIPTION).requires(PERMISSION);
-
     // Merge & Get & Remove
     for &(target_kind, name) in &all_target_kinds {
+        // Builders replace repeated child names; the dispatcher merges registered trees.
+        let mut data_cmd = command("data", DESCRIPTION).requires(PERMISSION);
         // data merge <target> <nbt>
         data_cmd = data_cmd.then(literal("merge").then(literal(name).then(
             make_target_arg(target_kind, "target_target").then(
@@ -877,6 +877,7 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                 argument("path", NbtPathArgumentType).executes(RemoveExecutor { target_kind }),
             ),
         )));
+        dispatcher.register(data_cmd);
     }
 
     // data modify <target> <targetPath> (insert <index> | prepend | append | set | merge) ...
@@ -889,6 +890,7 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
     ];
 
     for &(target_kind, target_name) in &all_target_kinds {
+        let mut data_cmd = command("data", DESCRIPTION).requires(PERMISSION);
         let mut target_path_arg = argument("targetPath", NbtPathArgumentType);
 
         for &(mod_name, mod_mode) in &modify_modes {
@@ -1001,7 +1003,30 @@ pub fn register(dispatcher: &mut CommandDispatcher, registry: &PermissionRegistr
                     .then(make_target_arg(target_kind, "target_target").then(target_path_arg)),
             ),
         );
+        dispatcher.register(data_cmd);
     }
+}
 
-    dispatcher.register(data_cmd);
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn registers_each_data_target_without_overwriting_siblings() {
+        let mut dispatcher = CommandDispatcher::new();
+        register(&mut dispatcher, &PermissionRegistry::default());
+        let source = Arc::new(crate::command::context::command_source::CommandSource::dummy());
+        for target in ["block 4 280 3", "entity @e[limit=1]", "storage test:probe"] {
+            for input in [
+                format!("data get {target}"),
+                format!(
+                    "data merge {target} {{Items:[{{Slot:0b,id:\"minecraft:bone_meal\",count:3}}]}}"
+                ),
+                format!("data remove {target} Items"),
+            ] {
+                let parsed = dispatcher.parse_input(&input, &source);
+                assert!(parsed.errors.is_empty(), "{input}");
+                assert!(!parsed.reader.can_read_char(), "unparsed input: {input}");
+            }
+        }
+    }
 }
