@@ -375,6 +375,23 @@ impl From<NbtCompound> for NbtTag {
     }
 }
 
+/// Quoted SNBT text, including keys that cannot be bare identifiers.
+fn write_snbt_string(f: &mut Formatter<'_>, value: &str) -> std::fmt::Result {
+    f.write_str("\"")?;
+    for c in value.chars() {
+        match c {
+            '"' => f.write_str("\\\"")?,
+            '\\' => f.write_str("\\\\")?,
+            '\n' => f.write_str("\\n")?,
+            '\r' => f.write_str("\\r")?,
+            '\t' => f.write_str("\\t")?,
+            c if c.is_control() => write!(f, "\\u{:04x}", c as u32)?,
+            c => write!(f, "{c}")?,
+        }
+    }
+    f.write_str("\"")
+}
+
 /// SNBT display implementation for `NbtCompound`
 impl Display for NbtCompound {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -383,7 +400,16 @@ impl Display for NbtCompound {
             if i > 0 {
                 f.write_str(", ")?;
             }
-            write!(f, "{key}: {value}")?;
+            if !key.is_empty()
+                && key
+                    .chars()
+                    .all(|c| c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '+'))
+            {
+                f.write_str(key)?;
+            } else {
+                write_snbt_string(f, key)?;
+            }
+            write!(f, ": {value}")?;
         }
         f.write_str("}")
     }
@@ -399,7 +425,7 @@ impl Display for NbtTag {
             Self::Long(v) => write!(f, "{v}L"),
             Self::Float(v) => write!(f, "{v}f"),
             Self::Double(v) => write!(f, "{v}d"),
-            Self::String(v) => write!(f, "\"{v}\""), // TODO: Proper escaping needed for robust SNBT
+            Self::String(v) => write_snbt_string(f, v),
             Self::Compound(v) => write!(f, "{v}"),
             Self::ByteArray(v) => {
                 f.write_str("[B;")?;
@@ -462,5 +488,14 @@ mod tests {
         let mut short = NbtCompound::new();
         short.put("UUID", crate::tag::NbtTag::IntArray(vec![1, 2, 3]));
         assert_eq!(short.get_uuid("UUID"), None);
+    }
+    #[test]
+    fn snbt_quotes_namespaced_keys_and_escapes_strings() {
+        let mut nbt = NbtCompound::new();
+        nbt.put_int("minecraft:iron_ingot_from_smelting_iron_ore", 5);
+        nbt.put_string("name", "Pet \"Gold\"\\Trail\n".into());
+        let text = nbt.to_string();
+        assert!(text.contains("\"minecraft:iron_ingot_from_smelting_iron_ore\": 5"));
+        assert!(text.contains("name: \"Pet \\\"Gold\\\"\\\\Trail\\n\""));
     }
 }
