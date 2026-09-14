@@ -5,7 +5,7 @@
 use super::behavior::{Behavior, BehaviorContext, BehaviorSlot, BehaviorStatus};
 use super::memory::{MemoryMap, MemoryStatus, MemorySlot, MemoryValue};
 use super::registry::{Activity, MemoryModuleType, SensorType};
-use super::sensor::{Sensor, SensorSlot};
+use super::sensor::{Sensor, SensorContext, SensorSlot};
 use super::Brain;
 
 /// Deterministic stand-in for `level.getRandom().nextInt(bound)`.
@@ -113,23 +113,23 @@ impl Recorder {
     }
 }
 
-impl Behavior for Recorder {
+impl Behavior<()> for Recorder {
     fn entry_conditions(&self) -> &[(MemoryModuleType, MemoryStatus)] {
         &self.conditions
     }
-    fn check_extra_start_conditions(&mut self, _ctx: &mut BehaviorContext<'_>) -> bool {
+    fn check_extra_start_conditions(&mut self, _ctx: &mut BehaviorContext<'_, ()>) -> bool {
         self.extra_start
     }
-    fn start(&mut self, _ctx: &mut BehaviorContext<'_>) {
+    fn start(&mut self, _ctx: &mut BehaviorContext<'_, ()>) {
         self.record("start");
     }
-    fn tick(&mut self, _ctx: &mut BehaviorContext<'_>) {
+    fn tick(&mut self, _ctx: &mut BehaviorContext<'_, ()>) {
         self.record("tick");
     }
-    fn stop(&mut self, _ctx: &mut BehaviorContext<'_>) {
+    fn stop(&mut self, _ctx: &mut BehaviorContext<'_, ()>) {
         self.record("stop");
     }
-    fn can_still_use(&mut self, _ctx: &mut BehaviorContext<'_>) -> bool {
+    fn can_still_use(&mut self, _ctx: &mut BehaviorContext<'_, ()>) -> bool {
         self.keep_running
     }
     fn debug_name(&self) -> &'static str {
@@ -151,6 +151,7 @@ fn behavior_does_not_start_without_its_required_memories() {
     memories.register(MemoryModuleType::AttackTarget);
 
     let mut ctx = BehaviorContext {
+        actor: &(),
         memories: &mut memories,
         time: 0,
     };
@@ -170,6 +171,7 @@ fn extra_start_conditions_can_veto_a_start() {
     let mut slot = BehaviorSlot::new(Box::new(Recorder::new("b", entries.clone()).blocked()));
     let mut memories = MemoryMap::new();
     let mut ctx = BehaviorContext {
+        actor: &(),
         memories: &mut memories,
         time: 0,
     };
@@ -185,6 +187,7 @@ fn behavior_stops_after_one_tick_by_default() {
     let mut slot = BehaviorSlot::new(Box::new(Recorder::new("b", entries.clone())));
     let mut memories = MemoryMap::new();
     let mut ctx = BehaviorContext {
+        actor: &(),
         memories: &mut memories,
         time: 0,
     };
@@ -206,6 +209,7 @@ fn behavior_times_out_even_while_it_wants_to_continue() {
 
     {
         let mut ctx = BehaviorContext {
+            actor: &(),
             memories: &mut memories,
             time: 0,
         };
@@ -213,6 +217,7 @@ fn behavior_times_out_even_while_it_wants_to_continue() {
     }
     for time in [1, 2] {
         let mut ctx = BehaviorContext {
+            actor: &(),
             memories: &mut memories,
             time,
         };
@@ -220,6 +225,7 @@ fn behavior_times_out_even_while_it_wants_to_continue() {
         assert_eq!(slot.status(), BehaviorStatus::Running, "stopped at {time}");
     }
     let mut ctx = BehaviorContext {
+        actor: &(),
         memories: &mut memories,
         time: 3,
     };
@@ -230,8 +236,8 @@ fn behavior_times_out_even_while_it_wants_to_continue() {
 
 // --- brain ----------------------------------------------------------------------
 
-fn brain_with(entries: &std::sync::Arc<std::sync::Mutex<Vec<String>>>) -> Brain {
-    let mut brain = Brain::new(Activity::Idle);
+fn brain_with(entries: &std::sync::Arc<std::sync::Mutex<Vec<String>>>) -> Brain<()> {
+    let mut brain: Brain<()> = Brain::new(Activity::Idle);
     brain.add_activity(
         Activity::Idle,
         vec![
@@ -261,7 +267,7 @@ fn behaviors_start_in_ascending_priority_order() {
     let entries = log();
     let mut brain = brain_with(&entries);
     brain.set_active_activity_if_possible(Activity::Idle);
-    brain.tick(0, &mut zero_rng());
+    brain.tick(&(), 0, &mut zero_rng());
 
     let starts: Vec<String> = entries
         .lock()
@@ -277,7 +283,7 @@ fn behaviors_start_in_ascending_priority_order() {
 /// missing requirement set as "not met" rather than "no conditions, therefore fine".
 #[test]
 fn unknown_activity_is_never_eligible() {
-    let brain = Brain::new(Activity::Idle);
+    let brain: Brain<()> = Brain::new(Activity::Idle);
     assert!(!brain.activity_requirements_are_met(Activity::Fight));
 }
 
@@ -368,11 +374,12 @@ struct CountingSensor {
     rate: i32,
 }
 
-impl Sensor for CountingSensor {
-    fn do_tick(&mut self, memories: &mut MemoryMap, _time: i64) {
+impl Sensor<()> for CountingSensor {
+    fn do_tick(&mut self, ctx: &mut SensorContext<'_, ()>) {
         self.scans
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        memories.set(MemoryModuleType::AttackTarget, MemoryValue::Unit);
+        ctx.memories
+            .set(MemoryModuleType::AttackTarget, MemoryValue::Unit);
     }
     fn scan_rate(&self) -> i32 {
         self.rate
@@ -393,16 +400,28 @@ fn sensor_scans_immediately_then_on_its_scan_rate() {
     }));
     let mut memories = MemoryMap::new();
 
-    slot.tick(&mut memories, 0);
+    slot.tick(&mut SensorContext {
+            actor: &(),
+            memories: &mut memories,
+            time: 0,
+        });
     assert_eq!(scans.load(std::sync::atomic::Ordering::Relaxed), 1);
 
     // Next three ticks are within the scan interval.
     for _ in 0..3 {
-        slot.tick(&mut memories, 0);
+        slot.tick(&mut SensorContext {
+            actor: &(),
+            memories: &mut memories,
+            time: 0,
+        });
     }
     assert_eq!(scans.load(std::sync::atomic::Ordering::Relaxed), 1);
 
-    slot.tick(&mut memories, 0);
+    slot.tick(&mut SensorContext {
+            actor: &(),
+            memories: &mut memories,
+            time: 0,
+        });
     assert_eq!(scans.load(std::sync::atomic::Ordering::Relaxed), 2);
 }
 
@@ -418,7 +437,7 @@ fn sensor_output_is_visible_to_behaviors_in_the_same_tick() {
     let entries = log();
     let scans = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
-    let mut brain = Brain::new(Activity::Idle);
+    let mut brain: Brain<()> = Brain::new(Activity::Idle);
     brain.register_memory(MemoryModuleType::AttackTarget);
     brain.add_sensor(SensorSlot::new(Box::new(CountingSensor {
         scans,
@@ -437,7 +456,7 @@ fn sensor_output_is_visible_to_behaviors_in_the_same_tick() {
     );
     brain.set_active_activity_if_possible(Activity::Idle);
 
-    brain.tick(0, &mut zero_rng());
+    brain.tick(&(), 0, &mut zero_rng());
     assert_eq!(
         &*entries.lock().unwrap(),
         &["needs_memory:start", "needs_memory:stop"],

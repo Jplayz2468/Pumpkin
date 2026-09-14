@@ -94,6 +94,9 @@ pub mod zombified_piglin;
 pub struct MobEntity {
     pub living_entity: LivingEntity,
     pub goals_selector: std::sync::Mutex<GoalSelector>,
+    /// Vanilla's brain mobs keep one of these; goal mobs do not. `None` for every mob
+    /// that has not been ported onto the Brain framework yet.
+    pub brain: std::sync::Mutex<Option<crate::entity::ai::brain::MobBrain>>,
     pub target_selector: std::sync::Mutex<GoalSelector>,
     pub navigator: std::sync::Mutex<Navigator>,
     pub target: std::sync::Mutex<Option<Arc<dyn EntityBase>>>,
@@ -183,6 +186,7 @@ impl MobEntity {
         Self {
             living_entity: LivingEntity::new(entity),
             goals_selector: std::sync::Mutex::new(GoalSelector::default()),
+            brain: std::sync::Mutex::new(None),
             target_selector: std::sync::Mutex::new(GoalSelector::default()),
             navigator: std::sync::Mutex::new(Navigator::default()),
             target: std::sync::Mutex::new(None),
@@ -829,6 +833,45 @@ pub trait Mob: EntityBase + Send + Sync {
         true
     }
 
+    /// Ticks this mob's [`Brain`](crate::entity::ai::brain::Brain) if it has one.
+    ///
+    /// Taken out of the mutex for the duration of the tick, the same way the goal
+    /// selectors are: behaviours are handed `&dyn Mob`, so holding the brain's lock across
+    /// the call would alias the mob with its own brain.
+    fn tick_brain(&self, caller: &dyn EntityBase) {
+        let mob_entity = self.get_mob_entity();
+        let Some(mut brain) = ({
+            let mut guard = mob_entity
+                .brain
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            guard.take()
+        }) else {
+            return;
+        };
+
+        let world = caller.get_entity().world.load_full();
+        let time = world.get_world_age();
+        let actor = crate::entity::ai::brain::MobActor {
+            world: world.clone(),
+            mob_id: mob_entity.living_entity.entity.entity_id,
+            position: mob_entity.living_entity.entity.pos.load(),
+        };
+        let mut rng = |bound: i32| {
+            if bound <= 0 {
+                0
+            } else {
+                world.rand_bounded_i32(bound)
+            }
+        };
+        brain.tick(&actor, time, &mut rng);
+
+        *mob_entity
+            .brain
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(brain);
+    }
+
     /// Brain-driven mobs can reserve melee through their own attack cooldown memory.
     fn can_use_melee_attack(&self) -> bool {
         true
@@ -1329,7 +1372,23 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         }
         self.mob_tick(caller);
 
-        if !mob_entity.is_no_ai() && self.run_goal_ai() {
+        // Lab switch (`local_safety.only_zombie_ai`, off by default): silence every mob
+        // except zombies so a test world is quiet enough to watch one mob. Deliberate
+        // divergence from vanilla, not a parity behaviour.
+        let silenced_by_lab = caller
+            .get_entity()
+            .world
+            .load()
+            .server
+            .upgrade()
+            .is_some_and(|server| server.advanced_config.local_safety.only_zombie_ai)
+            && self.as_zombie_base().is_none();
+
+        if !silenced_by_lab {
+            self.tick_brain(caller);
+        }
+
+        if !mob_entity.is_no_ai() && self.run_goal_ai() && !silenced_by_lab {
             mob_entity.no_action_time.fetch_add(1, Relaxed);
             let tick_count = mob_entity.living_entity.entity.tick_count.load(Relaxed);
             let entity_id = mob_entity.living_entity.entity.entity_id;

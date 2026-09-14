@@ -25,15 +25,21 @@ mod tests;
 
 use std::collections::BTreeMap;
 
+use crate::entity::mob::Mob;
+use crate::world::World;
+
 use behavior::{BehaviorContext, BehaviorSlot, BehaviorStatus};
 use memory::{MemoryMap, MemoryStatus};
 use registry::{Activity, MemoryModuleType};
-use sensor::SensorSlot;
+use sensor::{SensorContext, SensorSlot};
 
-/// Port of vanilla `Brain`.
-pub struct Brain {
+/// Port of vanilla `Brain<E extends LivingEntity>`.
+///
+/// `A` is the actor behaviours act on. The live server passes [`MobActor`]; scheduling
+/// tests pass `()`.
+pub struct Brain<A: ?Sized> {
     memories: MemoryMap,
-    sensors: Vec<SensorSlot>,
+    sensors: Vec<SensorSlot<A>>,
 
     /// Behaviours keyed by priority, then by the activity that enables them.
     ///
@@ -41,7 +47,7 @@ pub struct Brain {
     /// `TreeMap<Integer, Map<Activity, Set<BehaviorControl>>>` and iterates it in
     /// ascending priority order, so lower-priority behaviours get their chance to start
     /// only after higher-priority ones. Iteration order here is part of the contract.
-    behaviors: BTreeMap<i32, BTreeMap<Activity, Vec<BehaviorSlot>>>,
+    behaviors: BTreeMap<i32, BTreeMap<Activity, Vec<BehaviorSlot<A>>>>,
 
     /// Memory conditions that must hold for an activity to be eligible.
     activity_requirements: BTreeMap<Activity, Vec<(MemoryModuleType, MemoryStatus)>>,
@@ -53,7 +59,7 @@ pub struct Brain {
     default_activity: Activity,
 }
 
-impl Brain {
+impl<A: ?Sized> Brain<A> {
     #[must_use]
     pub fn new(default_activity: Activity) -> Self {
         Self {
@@ -80,7 +86,7 @@ impl Brain {
         self.memories.register(memory);
     }
 
-    pub fn add_sensor(&mut self, sensor: SensorSlot) {
+    pub fn add_sensor(&mut self, sensor: SensorSlot<A>) {
         self.sensors.push(sensor);
     }
 
@@ -88,7 +94,7 @@ impl Brain {
     pub fn add_activity(
         &mut self,
         activity: Activity,
-        behaviors: Vec<(i32, BehaviorSlot)>,
+        behaviors: Vec<(i32, BehaviorSlot<A>)>,
         requirements: Vec<(MemoryModuleType, MemoryStatus)>,
         erase_when_stopped: Vec<MemoryModuleType>,
     ) {
@@ -194,21 +200,31 @@ impl Brain {
     /// pass, a behaviour started this tick is *also* ticked this tick -- which is why a
     /// behaviour whose `can_still_use` is the default `false` starts and stops within a
     /// single brain tick rather than lasting until the next one.
-    pub fn tick(&mut self, time: i64, rng: &mut impl FnMut(i32) -> i32) {
+    pub fn tick(&mut self, actor: &A, time: i64, rng: &mut impl FnMut(i32) -> i32) {
         self.memories.tick();
-        self.tick_sensors(time);
-        self.start_each_non_running_behavior(time, rng);
-        self.tick_each_running_behavior(time);
+        self.tick_sensors(actor, time);
+        self.start_each_non_running_behavior(actor, time, rng);
+        self.tick_each_running_behavior(actor, time);
     }
 
-    fn tick_sensors(&mut self, time: i64) {
+    fn tick_sensors(&mut self, actor: &A, time: i64) {
         for sensor in &mut self.sensors {
-            sensor.tick(&mut self.memories, time);
+            let mut ctx = SensorContext {
+                actor,
+                memories: &mut self.memories,
+                time,
+            };
+            sensor.tick(&mut ctx);
         }
     }
 
     /// Vanilla `Brain.startEachNonRunningBehavior`.
-    fn start_each_non_running_behavior(&mut self, time: i64, rng: &mut impl FnMut(i32) -> i32) {
+    fn start_each_non_running_behavior(
+        &mut self,
+        actor: &A,
+        time: i64,
+        rng: &mut impl FnMut(i32) -> i32,
+    ) {
         let active = self.active_activities.clone();
         for by_activity in self.behaviors.values_mut() {
             for (activity, slots) in by_activity.iter_mut() {
@@ -223,6 +239,7 @@ impl Brain {
                     // Vanilla: minDuration + random.nextInt(maxDuration + 1 - minDuration)
                     let duration = min + rng(max + 1 - min);
                     let mut ctx = BehaviorContext {
+                        actor,
                         memories: &mut self.memories,
                         time,
                     };
@@ -233,7 +250,7 @@ impl Brain {
     }
 
     /// Vanilla `Brain.tickEachRunningBehavior`.
-    fn tick_each_running_behavior(&mut self, time: i64) {
+    fn tick_each_running_behavior(&mut self, actor: &A, time: i64) {
         for by_activity in self.behaviors.values_mut() {
             for slots in by_activity.values_mut() {
                 for slot in slots.iter_mut() {
@@ -241,6 +258,7 @@ impl Brain {
                         continue;
                     }
                     let mut ctx = BehaviorContext {
+                        actor,
                         memories: &mut self.memories,
                         time,
                     };
@@ -251,7 +269,7 @@ impl Brain {
     }
 
     /// Vanilla `Brain.stopAll`.
-    pub fn stop_all(&mut self, time: i64) {
+    pub fn stop_all(&mut self, actor: &A, time: i64) {
         for by_activity in self.behaviors.values_mut() {
             for slots in by_activity.values_mut() {
                 for slot in slots.iter_mut() {
@@ -259,6 +277,7 @@ impl Brain {
                         continue;
                     }
                     let mut ctx = BehaviorContext {
+                        actor,
                         memories: &mut self.memories,
                         time,
                     };
@@ -280,3 +299,28 @@ impl Brain {
             .collect()
     }
 }
+
+/// What behaviours act on in the live server.
+///
+/// Owned rather than borrowed on purpose. `Brain<A>` names `A` in its stored fields, so a
+/// borrowing actor would force a lifetime through every one of them -- and a bare
+/// `dyn Trait` actor defaults to `'static`, which a borrowing host can never satisfy. The
+/// mob is carried as an entity id and resolved through the world when a behaviour needs
+/// the whole mob, which also means a memory can never keep a removed entity alive.
+pub struct MobActor {
+    pub world: std::sync::Arc<World>,
+    pub mob_id: i32,
+    /// The mob's position at the start of this tick, since nearly every sensor wants it.
+    pub position: pumpkin_util::math::vector3::Vector3<f64>,
+}
+
+impl MobActor {
+    /// Resolves the mob this brain belongs to, if it is still in the world.
+    #[must_use]
+    pub fn entity(&self) -> Option<std::sync::Arc<dyn crate::entity::EntityBase>> {
+        self.world.get_entity_by_id(self.mob_id)
+    }
+}
+
+/// The brain type mobs actually carry.
+pub type MobBrain = Brain<MobActor>;

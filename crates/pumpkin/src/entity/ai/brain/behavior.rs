@@ -14,12 +14,18 @@ pub enum BehaviorStatus {
     Running,
 }
 
-/// Everything a behaviour needs that is not the mob itself.
+/// Vanilla passes `(ServerLevel level, E body, long timestamp)` into every behaviour hook.
 ///
-/// Vanilla passes `(ServerLevel, E body, long timestamp)` into every hook. The mob is
-/// supplied separately by the caller because Rust cannot hand out a `&mut` to the owning
-/// entity while the brain is borrowed from it.
-pub struct BehaviorContext<'a> {
+/// `A` is whatever the caller needs behaviours to act on -- vanilla's `Brain<E extends
+/// LivingEntity>` is generic for the same reason. The live server passes a struct holding
+/// the world and the mob; scheduling tests pass `()`, which keeps the ordering and expiry
+/// logic testable without standing up a world.
+///
+/// The actor arrives by shared reference for the same reason `GoalSelector::tick` takes
+/// `&dyn Mob`: the brain lives in a `Mutex` on the mob, so the guard already holds the mob
+/// borrowed and a second shared handle coexists with the `&mut` on the memories inside it.
+pub struct BehaviorContext<'a, A: ?Sized> {
+    pub actor: &'a A,
     pub memories: &'a mut MemoryMap,
     /// Vanilla's `timestamp` -- the level game time, not a per-behaviour counter.
     pub time: i64,
@@ -32,7 +38,7 @@ pub struct BehaviorContext<'a> {
 /// `start` / `tick` / `stop` / `can_still_use` / `check_extra_start_conditions`. Keeping
 /// that split is what guarantees the status flag and timeout can never drift out of sync
 /// with whether the behaviour is actually running.
-pub trait Behavior: Send + Sync {
+pub trait Behavior<A: ?Sized>: Send + Sync {
     /// Memories that must hold the given status for this behaviour to start. Vanilla's
     /// `entryCondition`.
     fn entry_conditions(&self) -> &[(MemoryModuleType, MemoryStatus)] {
@@ -45,19 +51,19 @@ pub trait Behavior: Send + Sync {
         (60, 60)
     }
 
-    fn check_extra_start_conditions(&mut self, _ctx: &mut BehaviorContext<'_>) -> bool {
+    fn check_extra_start_conditions(&mut self, _ctx: &mut BehaviorContext<'_, A>) -> bool {
         true
     }
 
-    fn start(&mut self, _ctx: &mut BehaviorContext<'_>) {}
+    fn start(&mut self, _ctx: &mut BehaviorContext<'_, A>) {}
 
-    fn tick(&mut self, _ctx: &mut BehaviorContext<'_>) {}
+    fn tick(&mut self, _ctx: &mut BehaviorContext<'_, A>) {}
 
-    fn stop(&mut self, _ctx: &mut BehaviorContext<'_>) {}
+    fn stop(&mut self, _ctx: &mut BehaviorContext<'_, A>) {}
 
     /// Vanilla's default is `false`, i.e. a behaviour runs for exactly one tick unless it
     /// opts into continuing.
-    fn can_still_use(&mut self, _ctx: &mut BehaviorContext<'_>) -> bool {
+    fn can_still_use(&mut self, _ctx: &mut BehaviorContext<'_, A>) -> bool {
         false
     }
 
@@ -66,15 +72,15 @@ pub trait Behavior: Send + Sync {
 
 /// Wraps a [`Behavior`] with the status and timeout bookkeeping vanilla keeps in the
 /// `Behavior` base class, so implementations cannot get it wrong.
-pub struct BehaviorSlot {
-    behavior: Box<dyn Behavior>,
+pub struct BehaviorSlot<A: ?Sized> {
+    behavior: Box<dyn Behavior<A>>,
     status: BehaviorStatus,
     end_timestamp: i64,
 }
 
-impl BehaviorSlot {
+impl<A: ?Sized> BehaviorSlot<A> {
     #[must_use]
-    pub fn new(behavior: Box<dyn Behavior>) -> Self {
+    pub fn new(behavior: Box<dyn Behavior<A>>) -> Self {
         Self {
             behavior,
             status: BehaviorStatus::Stopped,
@@ -103,7 +109,7 @@ impl BehaviorSlot {
     ///
     /// `duration` is rolled once at start from `[min, max]` inclusive, and the behaviour
     /// is stopped when the timestamp passes it.
-    pub fn try_start(&mut self, ctx: &mut BehaviorContext<'_>, duration: i32) -> bool {
+    pub fn try_start(&mut self, ctx: &mut BehaviorContext<'_, A>, duration: i32) -> bool {
         if !self.has_required_memories(ctx.memories) {
             return false;
         }
@@ -117,7 +123,7 @@ impl BehaviorSlot {
     }
 
     /// Vanilla `Behavior.tickOrStop`.
-    pub fn tick_or_stop(&mut self, ctx: &mut BehaviorContext<'_>) {
+    pub fn tick_or_stop(&mut self, ctx: &mut BehaviorContext<'_, A>) {
         if !self.timed_out(ctx.time) && self.behavior.can_still_use(ctx) {
             self.behavior.tick(ctx);
         } else {
@@ -126,7 +132,7 @@ impl BehaviorSlot {
     }
 
     /// Vanilla `Behavior.doStop`.
-    pub fn do_stop(&mut self, ctx: &mut BehaviorContext<'_>) {
+    pub fn do_stop(&mut self, ctx: &mut BehaviorContext<'_, A>) {
         self.status = BehaviorStatus::Stopped;
         self.behavior.stop(ctx);
     }

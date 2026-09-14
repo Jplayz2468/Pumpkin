@@ -1,4 +1,6 @@
 use super::{Mob, MobEntity};
+pub mod brain_lab;
+
 use crate::entity::ai::goal::break_door::BreakDoorGoal;
 use crate::entity::ai::goal::destroy_egg::DestroyEggGoal;
 use crate::entity::ai::goal::look_around::RandomLookAroundGoal;
@@ -44,6 +46,21 @@ impl ZombieEntityBase {
             can_break_doors: AtomicBool::new(can_break_doors),
         };
         let mob_arc = Arc::new(zombie);
+
+        // Lab only (`local_safety.zombie_brain_lab`, off by default): vanilla zombies have
+        // no brain. See `brain_lab` for why this exists.
+        {
+            let world = mob_arc.mob_entity.living_entity.entity.world.load_full();
+            if brain_lab::enabled(&world) {
+                *mob_arc
+                    .mob_entity
+                    .brain
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                    Some(brain_lab::build());
+            }
+        }
+
         let mob_weak: Weak<dyn Mob> = {
             let mob_arc: Arc<dyn Mob> = mob_arc.clone();
             Arc::downgrade(&mob_arc)
