@@ -1,3 +1,4 @@
+pub mod extra_knockback;
 use std::sync::atomic::Ordering;
 
 use crate::entity::EntityBase;

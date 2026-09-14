@@ -500,6 +500,31 @@ impl MobEntity {
         );
 
         if damaged {
+            if let Some(target_living) = target.get_living_entity() {
+                let actor = &self.living_entity.entity;
+                let victim = target.get_entity();
+                let a = actor.velocity.load();
+                let v = victim.velocity.load();
+                let change = crate::entity::combat::extra_knockback::apply(
+                    self.living_entity
+                        .get_attribute_value(&Attributes::ATTACK_KNOCKBACK),
+                    actor.yaw.load(),
+                    true,
+                    target_living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE),
+                    victim.on_ground.load(Relaxed),
+                    [a.x, a.y, a.z],
+                    [v.x, v.y, v.z],
+                );
+                if change.strength > 0.0 {
+                    let [x, y, z] = change.actor_velocity;
+                    actor.velocity.store(Vector3::new(x, y, z));
+                }
+                if change.sync {
+                    let [x, y, z] = change.target_velocity;
+                    victim.velocity.store(Vector3::new(x, y, z));
+                    victim.velocity_dirty.store(true, Relaxed);
+                }
+            }
             self.living_entity
                 .last_attacking_id
                 .store(target.get_entity().entity_id, Relaxed);

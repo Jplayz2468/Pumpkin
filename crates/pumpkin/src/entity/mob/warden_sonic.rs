@@ -106,7 +106,7 @@ impl Beam {
     pub fn new(origin: [f64; 3], eye: [f64; 3]) -> Self {
         let delta = [eye[0] - origin[0], eye[1] - origin[1], eye[2] - origin[2]];
         let length = (delta[0] * delta[0] + delta[1] * delta[1] + delta[2] * delta[2]).sqrt();
-        let direction = if length < 1.0e-5 {
+        let direction = if length < f64::from(1.0e-5_f32) {
             [0.0; 3]
         } else {
             [delta[0] / length, delta[1] / length, delta[2] / length]
