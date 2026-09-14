@@ -155,7 +155,13 @@ impl EntityBase for EggEntity {
                 let yaw = rand::random::<f32>() * 360.0;
                 let new_entity = mob.get_entity();
                 new_entity.set_rotation(yaw, 0.0);
-                new_entity.set_age(-24000);
+                if let Some(ageable) = mob.get_mob().and_then(crate::entity::mob::Mob::as_ageable) {
+                    ageable.set_baby(true);
+                } else if let Some(zombie) = mob.get_mob()
+                    && crate::entity::mob::zombie::is_zombie_family(hatching_type.resource_name)
+                {
+                    crate::entity::mob::zombie::set_baby(zombie, true);
+                }
                 if let Some(name) = &variant_name {
                     mob.set_variant_name(name);
                 }

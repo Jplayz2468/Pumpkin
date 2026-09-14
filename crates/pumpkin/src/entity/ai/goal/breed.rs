@@ -97,7 +97,9 @@ impl BreedGoal {
 
         let parent_pos = entity.pos.load();
         let baby = from_type(entity.entity_type, parent_pos, &world, Uuid::new_v4());
-        baby.get_entity().set_age(-24000);
+        if let Some(ageable) = baby.get_mob().and_then(Mob::as_ageable) {
+            ageable.set_baby(true);
+        }
         let world_full = entity.world.load_full();
         world_full.spawn_entity(baby);
     }

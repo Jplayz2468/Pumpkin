@@ -25,7 +25,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4594212051873190380"
   },
   "minecraft:axolotl": {
     "adult": {
@@ -53,7 +54,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4607182418800017408"
   },
   "minecraft:bee": {
     "adult": {
@@ -81,7 +83,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4599075939685498880"
   },
   "minecraft:camel": {
     "adult": {
@@ -109,7 +112,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4591149604384276480"
   },
   "minecraft:camel_husk": {
     "adult": {
@@ -137,7 +141,8 @@
       ]
     },
     "can_be_baby": false,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4591149604384276480"
   },
   "minecraft:chicken": {
     "adult": {
@@ -165,7 +170,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4598175219545276416"
   },
   "minecraft:cow": {
     "adult": {
@@ -193,7 +199,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4596373779801702400"
   },
   "minecraft:mooshroom": {
     "adult": {
@@ -221,7 +228,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4596373779801702400"
   },
   "minecraft:dolphin": {
     "adult": {
@@ -249,7 +257,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4608083138940239872"
   },
   "minecraft:donkey": {
     "adult": {
@@ -277,7 +286,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4595473059661479936"
   },
   "minecraft:horse": {
     "adult": {
@@ -305,7 +315,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4597274499405053952"
   },
   "minecraft:llama": {
     "adult": {
@@ -333,7 +344,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4595473059661479936"
   },
   "minecraft:mule": {
     "adult": {
@@ -361,7 +373,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4595473059661479936"
   },
   "minecraft:skeleton_horse": {
     "adult": {
@@ -389,7 +402,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4596373779801702400"
   },
   "minecraft:trader_llama": {
     "adult": {
@@ -417,7 +431,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4595473059661479936"
   },
   "minecraft:zombie_horse": {
     "adult": {
@@ -445,7 +460,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4597274499405053952"
   },
   "minecraft:cat": {
     "adult": {
@@ -473,7 +489,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4599075939685498880"
   },
   "minecraft:ocelot": {
     "adult": {
@@ -501,7 +518,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4599075939685498880"
   },
   "minecraft:fox": {
     "adult": {
@@ -529,7 +547,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4599075939685498880"
   },
   "minecraft:frog": {
     "adult": {
@@ -557,7 +576,8 @@
       ]
     },
     "can_be_baby": false,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4607182418800017408"
   },
   "minecraft:goat": {
     "adult": {
@@ -585,7 +605,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4596373779801702400"
   },
   "minecraft:happy_ghast": {
     "adult": {
@@ -613,7 +634,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4587366580439587226"
   },
   "minecraft:nautilus": {
     "adult": {
@@ -641,7 +663,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4607182418800017408"
   },
   "minecraft:zombie_nautilus": {
     "adult": {
@@ -669,7 +692,8 @@
       ]
     },
     "can_be_baby": false,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4607632778870128640"
   },
   "minecraft:panda": {
     "adult": {
@@ -697,7 +721,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4594572340058128384"
   },
   "minecraft:parrot": {
     "adult": {
@@ -725,7 +750,8 @@
       ]
     },
     "can_be_baby": false,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4596373779801702400"
   },
   "minecraft:pig": {
     "adult": {
@@ -753,7 +779,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4598175219545276416"
   },
   "minecraft:polar_bear": {
     "adult": {
@@ -781,7 +808,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4598175219545276416"
   },
   "minecraft:rabbit": {
     "adult": {
@@ -809,7 +837,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4599075939685498880"
   },
   "minecraft:sheep": {
     "adult": {
@@ -837,7 +866,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4597454643755220992"
   },
   "minecraft:sniffer": {
     "adult": {
@@ -865,7 +895,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -48000
+    "baby_start_age": -48000,
+    "speed_bits": "4591870180174331904"
   },
   "minecraft:glow_squid": {
     "adult": {
@@ -893,7 +924,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4604480259023595110"
   },
   "minecraft:squid": {
     "adult": {
@@ -921,7 +953,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4604480259023595110"
   },
   "minecraft:turtle": {
     "adult": {
@@ -949,7 +982,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4598175219545276416"
   },
   "minecraft:wolf": {
     "adult": {
@@ -977,7 +1011,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4599075939685498880"
   },
   "minecraft:strider": {
     "adult": {
@@ -1005,7 +1040,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4595473059661479936"
   },
   "minecraft:magma_cube": {
     "adult": {
@@ -1033,7 +1069,8 @@
       ]
     },
     "can_be_baby": false,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4596373779801702400"
   },
   "minecraft:slime": {
     "adult": {
@@ -1061,7 +1098,8 @@
       ]
     },
     "can_be_baby": false,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4604480259023595110"
   },
   "minecraft:sulfur_cube": {
     "adult": {
@@ -1089,7 +1127,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4604480259023595110"
   },
   "minecraft:hoglin": {
     "adult": {
@@ -1117,7 +1156,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4599075939685498880"
   },
   "minecraft:drowned": {
     "adult": {
@@ -1143,7 +1183,8 @@
         1065017672,
         1061578342
       ]
-    }
+    },
+    "speed_bits": "4597454643755220992"
   },
   "minecraft:husk": {
     "adult": {
@@ -1169,7 +1210,8 @@
         1065017672,
         1062417203
       ]
-    }
+    },
+    "speed_bits": "4597454643755220992"
   },
   "minecraft:zombie": {
     "adult": {
@@ -1195,7 +1237,8 @@
         1065017672,
         1061578342
       ]
-    }
+    },
+    "speed_bits": "4597454643755220992"
   },
   "minecraft:zombie_villager": {
     "adult": {
@@ -1221,7 +1264,8 @@
         1065017672,
         1059816735
       ]
-    }
+    },
+    "speed_bits": "4597454643755220992"
   },
   "minecraft:zombified_piglin": {
     "adult": {
@@ -1247,7 +1291,8 @@
         1065017672,
         1061662228
       ]
-    }
+    },
+    "speed_bits": "4597454643755220992"
   },
   "minecraft:villager": {
     "adult": {
@@ -1275,7 +1320,8 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4602678819172646912"
   },
   "minecraft:wandering_trader": {
     "adult": {
@@ -1303,6 +1349,7 @@
       ]
     },
     "can_be_baby": true,
-    "baby_start_age": -24000
+    "baby_start_age": -24000,
+    "speed_bits": "4604480259023595110"
   }
 }

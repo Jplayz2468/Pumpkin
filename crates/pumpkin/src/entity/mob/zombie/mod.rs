@@ -222,10 +222,11 @@ pub fn is_zombie_family(name: &str) -> bool {
 /// Zombie babies retain IsBaby forever; AgeableMob growth does not apply.
 pub fn set_baby<M: Mob + ?Sized>(mob: &M, baby: bool) {
     let living = &mob.get_mob_entity().living_entity;
-    living
+    let previous_baby = living
         .entity
         .age
-        .store(if baby { -24000 } else { 0 }, Ordering::Relaxed);
+        .swap(if baby { -24000 } else { 0 }, Ordering::Relaxed)
+        < 0;
     living
         .entity
         .set_synced_data(pumpkin_data::tracked_data::zombie::BABY, baby);
@@ -242,5 +243,7 @@ pub fn set_baby<M: Mob + ?Sized>(mob: &M, baby: bool) {
             }
         },
     );
-    crate::entity::baby_dimensions::refresh(living, baby);
+    if previous_baby != baby {
+        crate::entity::baby_dimensions::refresh(living, baby);
+    }
 }

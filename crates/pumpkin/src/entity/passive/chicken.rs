@@ -190,6 +190,14 @@ impl Mob for ChickenEntity {
         if (!on_ground) && current_velocity.y < 0.0 {
             entity.set_velocity(current_velocity.multiply(1.0, 0.6, 1.0));
         }
+    }
+
+    // Chicken.aiStep calls the ageable superclass before the egg timer.
+    fn post_tick(&self) {
+        if self.mob_entity.living_entity.dead.load(Relaxed) {
+            return;
+        }
+        let entity = &self.mob_entity.living_entity.entity;
         if !self.is_baby()
             && !self.is_chicken_jockey.load(Relaxed)
             && self.egg_lay_time.fetch_sub(1, Ordering::Relaxed) <= 1

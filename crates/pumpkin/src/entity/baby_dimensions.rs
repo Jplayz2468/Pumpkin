@@ -41,6 +41,18 @@ mod tests {
         .unwrap();
         for (id, c) in cases.as_object().unwrap() {
             let name = id.strip_prefix("minecraft:").unwrap();
+            let entity_type = pumpkin_data::entity::EntityType::from_name(name).unwrap();
+            let speed = entity_type
+                .attributes
+                .iter()
+                .find(|(a, _)| a.id == Attributes::MOVEMENT_SPEED.id)
+                .unwrap()
+                .1;
+            assert_eq!(
+                speed.to_bits(),
+                c["speed_bits"].as_str().unwrap().parse::<u64>().unwrap(),
+                "{id}: default speed lost precision"
+            );
             if let Some(allowed) = c["can_be_baby"].as_bool() {
                 assert_eq!(can_be_baby(name), allowed, "{id}");
             }

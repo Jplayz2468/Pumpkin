@@ -137,6 +137,7 @@ pub struct LivingEntity {
 
     /// The attributes of the entity
     pub attributes: RwLock<FxHashMap<u8, AttributeInstance>>,
+    pub dimensions_dirty: AtomicBool,
     /// Modifier ids applied from the current item in each equipment slot.
     /// Used to remove them on unequip without the previous stack.
     equipment_attribute_modifier_ids: std::sync::Mutex<FxHashMap<EquipmentSlot, Vec<(u8, String)>>>,
@@ -270,6 +271,7 @@ impl LivingEntity {
         let mut max_health: f32 = 20.0; // Overridden by attribute base below
         Self {
             // Populate local attribute instances from the default registry and get initial vars
+            dimensions_dirty: AtomicBool::new(false),
             attributes: {
                 let mut m = FxHashMap::default();
 
@@ -881,6 +883,9 @@ impl LivingEntity {
 
         f(inst);
         inst.dirty.store(true, Ordering::Relaxed);
+        if attribute.id == Attributes::SCALE.id {
+            self.dimensions_dirty.store(true, Relaxed);
+        }
     }
 
     /// Returns the computed value for `attribute` using the local instance, falling back

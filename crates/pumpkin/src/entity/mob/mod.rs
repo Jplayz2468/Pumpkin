@@ -1102,7 +1102,6 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         } else if let Some(ageable) = self.as_ageable() {
             let baby = ageable.is_baby();
             entity.set_synced_data(tracked_data::ageable_mob::DATA_BABY_ID, baby);
-            crate::entity::baby_dimensions::refresh(&self.get_mob_entity().living_entity, baby);
         }
     }
 
@@ -1231,6 +1230,21 @@ impl<T: Mob + Send + 'static> EntityBase for T {
             ageable.ageable_ai_step();
         }
         self.post_tick();
+        // Java refreshes dirty scale attributes at the end of LivingEntity.tick.
+        if mob_entity
+            .living_entity
+            .dimensions_dirty
+            .swap(false, Relaxed)
+        {
+            let baby = self.as_ageable().map_or_else(
+                || {
+                    zombie::is_zombie_family(self.get_entity().entity_type.resource_name)
+                        && self.get_entity().age.load(Relaxed) < 0
+                },
+                crate::entity::ageable::AgeableMob::is_baby,
+            );
+            crate::entity::baby_dimensions::refresh(&mob_entity.living_entity, baby);
+        }
 
         // --- Packet logic remains the same ---
         let entity = &mob_entity.living_entity.entity;
