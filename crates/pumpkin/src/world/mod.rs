@@ -5505,7 +5505,9 @@ impl World {
                 }
             }
 
-            if !flags.contains(BlockFlags::MOVED) {
+            // Preserve legacy MOVED behavior while giving strict placement its
+            // own shape suppression. The remaining Java flag mapping is separate.
+            if !flags.intersects(BlockFlags::MOVED | BlockFlags::SKIP_SHAPE_UPDATES) {
                 let mut neighbour_update_flags = flags;
                 neighbour_update_flags.remove(BlockFlags::NOTIFY_NEIGHBORS);
                 neighbour_update_flags.remove(BlockFlags::SKIP_REDSTONE_WIRE_STATE_REPLACEMENT);

@@ -199,6 +199,7 @@ fn fill_blocks(
                     let flags = if strict {
                         BlockFlags::NOTIFY_LISTENERS
                             | BlockFlags::SKIP_BLOCK_ADDED_CALLBACK
+                            | BlockFlags::SKIP_SHAPE_UPDATES
                             | BlockFlags::FORCE_STATE
                     } else {
                         BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE
