@@ -1,6 +1,9 @@
 use crate::entity::ai::control::{Control, MoveControlTrait};
 use crate::entity::mob::Mob;
-use pumpkin_data::attributes::Attributes;
+use pumpkin_data::{
+    attributes::Attributes,
+    tag::{self, Taggable},
+};
 use pumpkin_util::math::vector3::Vector3;
 use std::sync::atomic::Ordering;
 
@@ -56,34 +59,42 @@ impl MoveControlTrait for MoveControl {
         } else if self.operation == Operation::MoveTo {
             self.operation = Operation::Wait;
             let pos = entity.pos.load();
-            let xd = self.wanted_x - pos.x;
-            let zd = self.wanted_z - pos.z;
-            let yd = self.wanted_y - pos.y;
-            let dd = xd * xd + yd * yd + zd * zd;
-
-            if dd < 2.5000003E-7 {
-                living_entity
-                    .movement_input
-                    .store(Vector3::new(0.0, 0.0, 0.0));
+            let block_pos = entity.block_pos.load();
+            let world = entity.world.load();
+            let state = world.get_block_state(&block_pos);
+            let block = state.id.to_block();
+            let collision_top = state
+                .get_block_collision_shapes_at(&block_pos)
+                .map(|shape| shape.max.y + f64::from(block_pos.0.y))
+                .reduce(f64::max);
+            let command = super::movement_command::command(super::movement_command::Facts {
+                delta: [
+                    self.wanted_x - pos.x,
+                    self.wanted_y - pos.y,
+                    self.wanted_z - pos.z,
+                ],
+                yaw: entity.yaw.load(),
+                attribute: living_entity.get_attribute_value(&Attributes::MOVEMENT_SPEED),
+                modifier: self.speed_modifier,
+                step_height: living_entity.get_attribute_value(&Attributes::STEP_HEIGHT) as f32,
+                width: entity.entity_dimension.load().width as f32,
+                feet_y: pos.y,
+                collision_top,
+                door_or_fence: block.has_tag(&tag::Block::MINECRAFT_DOORS)
+                    || block.has_tag(&tag::Block::MINECRAFT_FENCES),
+            });
+            let mut input = living_entity.movement_input.load();
+            input.z = if command.stop_forward {
+                0.0
+            } else {
+                f64::from(command.speed)
+            };
+            living_entity.movement_input.store(input);
+            if command.stop_forward {
                 return;
             }
-
-            let y_rot_d = (zd.atan2(xd).to_degrees() as f32) - 90.0;
-            entity
-                .yaw
-                .store(self.change_angle(entity.yaw.load(), y_rot_d, 90.0));
-
-            let movement_speed = living_entity.get_attribute_value(&Attributes::MOVEMENT_SPEED);
-            let speed = self.speed_modifier * movement_speed;
-            living_entity
-                .movement_input
-                .store(Vector3::new(0.0, 0.0, speed));
-
-            // TODO: Jump if needed (based on collision and height difference)
-            let step_height = living_entity.get_attribute_value(&Attributes::STEP_HEIGHT);
-            if yd > step_height
-                && xd * xd + zd * zd < 1.0f64.max(entity.entity_dimension.load().width as f64)
-            {
+            entity.yaw.store(command.yaw);
+            if command.jump {
                 living_entity.jumping.store(true, Ordering::SeqCst);
                 self.operation = Operation::Jumping;
             }
