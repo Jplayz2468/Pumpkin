@@ -767,7 +767,6 @@ impl WardenEntity {
                 show_icon: false,
                 blend: true,
             };
-            player.send_effect(&effect);
             player.living_entity.add_effect(effect);
         }
     }

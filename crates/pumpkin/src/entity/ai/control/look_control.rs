@@ -126,12 +126,7 @@ impl LookControl {
         let d = position.x - mob_position.x;
         let e = position.y - mob.living_entity.entity.get_eye_y();
         let f = position.z - mob_position.z;
-        let g = d.hypot(f);
-        if e.abs() <= 1.0E-5 && g.abs() <= 1.0E-5 {
-            None
-        } else {
-            Some(-(e.atan2(g) as f32).to_degrees())
-        }
+        super::look_math::pitch(d, e, f)
     }
 
     fn get_target_yaw(&self, mob: &MobEntity) -> Option<f32> {
@@ -139,10 +134,6 @@ impl LookControl {
         let mob_position = mob.living_entity.entity.pos.load();
         let d = position.x - mob_position.x;
         let e = position.z - mob_position.z;
-        if e.abs() <= 1.0E-5 && d.abs() <= 1.0E-5 {
-            None
-        } else {
-            Some((e.atan2(d) as f32).to_degrees() - 90.0)
-        }
+        super::look_math::yaw(d, e)
     }
 }
