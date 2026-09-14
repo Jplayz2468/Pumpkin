@@ -1,10 +1,13 @@
 use super::BlockEntity;
+use crate::world::{World, vibration::Receiver};
+use std::sync::Arc;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use std::sync::Mutex;
 
 pub struct SculkSensorBlockEntity {
     pub position: BlockPos,
+    pub(crate) vibration: Receiver,
     pub last_vibration_frequency: Mutex<i32>,
 }
 
@@ -25,10 +28,14 @@ impl BlockEntity for SculkSensorBlockEntity {
         Self {
             position,
             last_vibration_frequency: Mutex::new(last_vibration_frequency),
+            vibration: Receiver::read(nbt),
         }
     }
 
+    fn tick(&self, world: &Arc<World>) { self.vibration.tick_sensor(world, self.position); }
+
     fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.vibration.write(nbt);
         if let Ok(last_vibration_frequency) = self.last_vibration_frequency.lock() {
             nbt.put_int("last_vibration_frequency", *last_vibration_frequency);
         }
@@ -51,10 +58,11 @@ impl BlockEntity for SculkSensorBlockEntity {
 impl SculkSensorBlockEntity {
     pub const ID: &'static str = "minecraft:sculk_sensor";
     #[must_use]
-    pub const fn new(position: BlockPos) -> Self {
+    pub fn new(position: BlockPos) -> Self {
         Self {
             position,
             last_vibration_frequency: Mutex::new(0),
+            vibration: Receiver::default(),
         }
     }
 }

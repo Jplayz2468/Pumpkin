@@ -19,6 +19,8 @@ use tracing::{debug, error, info, trace, warn};
 
 mod active_chunks;
 pub mod chunker;
+pub(crate) mod vibration;
+mod vibration_runtime;
 pub mod explosion;
 pub mod generation_cache;
 pub mod loot;
@@ -7308,12 +7310,19 @@ impl World {
     }
 
     pub fn emit_game_event(&self, event_key: impl Into<String>, position: Vector3<f64>) {
-        let mut event = crate::plugin::api::events::world::generic_game::GenericGameEvent::new(
-            event_key.into(),
-            position,
-        );
+        self.emit_game_event_from(event_key, position, None, None);
+    }
+
+    pub fn emit_game_event_from(
+        &self, event_key: impl Into<String>, position: Vector3<f64>,
+        source: Option<&dyn EntityBase>, affected_state: Option<BlockStateId>,
+    ) {
+        let mut event = crate::plugin::api::events::world::generic_game::GenericGameEvent::new(event_key.into(), position);
         if let Some(server) = self.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);
+        }
+        if !event.cancelled {
+            self.dispatch_vibration(&event.event_key, event.position, source, affected_state);
         }
     }
 
