@@ -74,6 +74,7 @@ pub mod warden_emergence;
 mod warden_melee;
 pub mod warden_roar;
 mod warden_sensor;
+mod warden_sniff;
 mod warden_sonic;
 pub mod warden_target;
 pub mod witch;
