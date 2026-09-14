@@ -31,7 +31,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 use std::{
     path::PathBuf,
-    sync::atomic::{AtomicBool, AtomicU64, Ordering},
+    sync::atomic::{AtomicBool, AtomicI64, Ordering},
     thread,
 };
 use tokio::time::timeout;
@@ -82,7 +82,7 @@ pub struct Level {
     pub lighting_config: LightingEngineConfig,
 
     /// Counts the number of ticks that have been scheduled for this world
-    schedule_tick_counts: AtomicU64,
+    schedule_tick_counts: AtomicI64,
 
     // Chunks that are paired with chunk watchers. When a chunk is no longer watched, it is removed
     // from the loaded chunks map and sent to the underlying ChunkIO
@@ -275,7 +275,7 @@ impl Level {
             light_engine: DynamicLightEngine::new(),
             chunk_saver,
             entity_saver,
-            schedule_tick_counts: AtomicU64::new(0),
+            schedule_tick_counts: AtomicI64::new(0),
             loaded_chunks: Arc::new(DashMap::new()),
             loaded_chunk_changes: Arc::new(SegQueue::new()),
             loaded_entity_chunks: Arc::new(DashMap::new()),
