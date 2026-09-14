@@ -54,7 +54,9 @@ impl CommandExecutor for SetBlockExecutor {
                 world.set_block_state(
                     &pos,
                     block_state_id,
-                    BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE,
+                    BlockFlags::NOTIFY_ALL
+                        | BlockFlags::FORCE_STATE
+                        | BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
                 );
                 true
             }
@@ -62,7 +64,9 @@ impl CommandExecutor for SetBlockExecutor {
                 world.set_block_state(
                     &pos,
                     block_state_id,
-                    BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE,
+                    BlockFlags::NOTIFY_ALL
+                        | BlockFlags::FORCE_STATE
+                        | BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
                 );
                 true
             }
@@ -72,7 +76,9 @@ impl CommandExecutor for SetBlockExecutor {
                     world.set_block_state(
                         &pos,
                         block_state_id,
-                        BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE,
+                        BlockFlags::NOTIFY_ALL
+                            | BlockFlags::FORCE_STATE
+                            | BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
                     );
                     true
                 } else {
@@ -86,6 +92,7 @@ impl CommandExecutor for SetBlockExecutor {
                     BlockFlags::NOTIFY_LISTENERS
                         | BlockFlags::SKIP_BLOCK_ADDED_CALLBACK
                         | BlockFlags::SKIP_SHAPE_UPDATES
+                        | BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK
                         | BlockFlags::FORCE_STATE,
                 );
                 true

@@ -204,6 +204,9 @@ fn fill_blocks(
                     } else {
                         BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE
                     };
+                    // Java command placement skips block-entity side effects.
+                    // Destroy mode already ran the ordinary destruction above.
+                    let flags = flags | BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK;
                     let previous = world.set_block_state(&pos, state_id, flags);
                     if previous != state_id || mode == FillMode::Destroy {
                         changed_positions.push((pos, state_id));
