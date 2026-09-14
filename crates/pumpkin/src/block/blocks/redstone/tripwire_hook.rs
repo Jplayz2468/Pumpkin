@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use pumpkin_data::{
     Block, BlockDirection, BlockStateId, HorizontalFacingExt,
+    game_event::GameEvent,
     sound::{Sound, SoundCategory},
 };
 use pumpkin_macros::pumpkin_block;
@@ -10,7 +11,6 @@ use pumpkin_world::{
     tick::TickPriority,
     world::{BlockAccessor, BlockFlags},
 };
-use rand::{RngExt, rng};
 
 use crate::{
     block::{
@@ -282,25 +282,37 @@ impl TripwireHookBlock {
         world: &Arc<World>,
         block_pos: &BlockPos,
         attached: bool,
-        on: bool,
-        detached: bool,
-        off: bool,
+        powered: bool,
+        was_attached: bool,
+        was_powered: bool,
     ) {
         let cat = SoundCategory::Blocks;
         let pos = block_pos.to_f64();
-        if on && !off {
+        if powered && !was_powered {
             world.play_sound_raw(Sound::BlockTripwireClickOn as u16, cat, &pos, 0.4, 0.6);
-            // TODO world.emitGameEvent((Entity)null, GameEvent.BLOCK_ACTIVATE, pos);
-        } else if !on && off {
+            world.emit_game_event(
+                GameEvent::BlockActivate.name(),
+                block_pos.to_centered_f64(),
+            );
+        } else if !powered && was_powered {
             world.play_sound_raw(Sound::BlockTripwireClickOff as u16, cat, &pos, 0.4, 0.5);
-            // TODO world.emitGameEvent((Entity)null, GameEvent.BLOCK_DEACTIVATE, pos);
-        } else if attached && !detached {
+            world.emit_game_event(
+                GameEvent::BlockDeactivate.name(),
+                block_pos.to_centered_f64(),
+            );
+        } else if attached && !was_attached {
             world.play_sound_raw(Sound::BlockTripwireAttach as u16, cat, &pos, 0.4, 0.7);
-            // TODO world.emitGameEvent((Entity)null, GameEvent.BLOCK_ATTACH, pos);
-        } else if !attached && detached {
-            let pitch = 1.2 / rng().random::<f32>().mul_add(0.2, 0.9);
+            world.emit_game_event(
+                GameEvent::BlockAttach.name(),
+                block_pos.to_centered_f64(),
+            );
+        } else if !attached && was_attached {
+            let pitch = 1.2 / world.rand_f32().mul_add(0.2, 0.9);
             world.play_sound_raw(Sound::BlockTripwireDetach as u16, cat, &pos, 0.4, pitch);
-            // TODO world.emitGameEvent((Entity)null, GameEvent.BLOCK_DETACH, pos);
+            world.emit_game_event(
+                GameEvent::BlockDetach.name(),
+                block_pos.to_centered_f64(),
+            );
         }
     }
 
@@ -315,5 +327,43 @@ impl TripwireHookBlock {
             &block_pos.offset(direction.opposite().to_offset()),
             Some(direction),
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::block_properties::HorizontalFacing;
+
+    #[test]
+    fn test_tripwire_hook_power_output() {
+        let block = &Block::TRIPWIRE_HOOK;
+        let mut props = TripwireHookProperties::default(block);
+        props.facing = HorizontalFacing::South;
+        props.powered = false;
+
+        let weak_power = |p: TripwireHookProperties| if p.powered { 15 } else { 0 };
+        let strong_power = |p: TripwireHookProperties, dir: BlockDirection| {
+            if p.powered && dir.to_horizontal_facing().is_some_and(|f| p.facing == f) {
+                15
+            } else {
+                0
+            }
+        };
+
+        // When unpowered: no weak, no strong
+        assert_eq!(weak_power(props), 0);
+        assert_eq!(strong_power(props, BlockDirection::South), 0);
+        assert_eq!(strong_power(props, BlockDirection::North), 0);
+
+        // When powered: weak power everywhere, strong power only in facing direction (South)
+        props.powered = true;
+        assert_eq!(weak_power(props), 15);
+        assert_eq!(strong_power(props, BlockDirection::South), 15);
+        assert_eq!(strong_power(props, BlockDirection::North), 0);
+        assert_eq!(strong_power(props, BlockDirection::East), 0);
+        assert_eq!(strong_power(props, BlockDirection::West), 0);
+        assert_eq!(strong_power(props, BlockDirection::Up), 0);
+        assert_eq!(strong_power(props, BlockDirection::Down), 0);
     }
 }

@@ -18,7 +18,7 @@ impl BlockBehaviour for RedstoneBlock {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pumpkin_data::Block;
+    use pumpkin_data::{Block, BlockDirection};
 
     #[test]
     fn redstone_block_constants() {
@@ -28,6 +28,12 @@ mod tests {
         // ownSignal() -> 15 (weak power)
         // getDirectSignal() -> 0 (strong power, default implementation)
         assert_eq!(block.id, Block::REDSTONE_BLOCK.id);
+        let rb = RedstoneBlock;
+        assert!(rb.emits_redstone_power(EmitsRedstonePowerArgs {
+            block,
+            state: &block.default_state,
+            direction: BlockDirection::North,
+        }));
     }
 }
 

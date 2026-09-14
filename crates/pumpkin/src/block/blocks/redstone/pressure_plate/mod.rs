@@ -1,5 +1,7 @@
 use std::sync::Arc;
 
+use pumpkin_data::game_event::GameEvent;
+use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{Block, BlockDirection, BlockState, BlockStateId};
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos};
 use pumpkin_world::{tick::TickPriority, world::BlockFlags};
@@ -23,6 +25,44 @@ const PRESSURE_PLATE_DETECTION_BOX: BoundingBox = BoundingBox::new_array(
 
 fn detection_box_at(pos: &BlockPos) -> BoundingBox {
     PRESSURE_PLATE_DETECTION_BOX.at_pos(*pos)
+}
+
+pub fn get_pressure_plate_sounds(block: &Block) -> (Sound, Sound) {
+    if block == &Block::LIGHT_WEIGHTED_PRESSURE_PLATE
+        || block == &Block::HEAVY_WEIGHTED_PRESSURE_PLATE
+    {
+        (
+            Sound::BlockMetalPressurePlateClickOn,
+            Sound::BlockMetalPressurePlateClickOff,
+        )
+    } else if block == &Block::STONE_PRESSURE_PLATE
+        || block == &Block::POLISHED_BLACKSTONE_PRESSURE_PLATE
+    {
+        (
+            Sound::BlockStonePressurePlateClickOn,
+            Sound::BlockStonePressurePlateClickOff,
+        )
+    } else if block == &Block::BAMBOO_PRESSURE_PLATE {
+        (
+            Sound::BlockBambooWoodPressurePlateClickOn,
+            Sound::BlockBambooWoodPressurePlateClickOff,
+        )
+    } else if block == &Block::CHERRY_PRESSURE_PLATE {
+        (
+            Sound::BlockCherryWoodPressurePlateClickOn,
+            Sound::BlockCherryWoodPressurePlateClickOff,
+        )
+    } else if block == &Block::CRIMSON_PRESSURE_PLATE || block == &Block::WARPED_PRESSURE_PLATE {
+        (
+            Sound::BlockNetherWoodPressurePlateClickOn,
+            Sound::BlockNetherWoodPressurePlateClickOff,
+        )
+    } else {
+        (
+            Sound::BlockWoodenPressurePlateClickOn,
+            Sound::BlockWoodenPressurePlateClickOff,
+        )
+    }
 }
 
 pub(crate) trait PressurePlate {
@@ -50,6 +90,7 @@ pub(crate) trait PressurePlate {
     ) {
         let calc_output = self.calculate_redstone_output(world, block, pos);
         let has_output = calc_output > 0;
+        let was_pressed = output > 0;
         if calc_output != output {
             let next_output = if let Some(server) = world.server.upgrade() {
                 let mut event = crate::plugin::block::block_redstone::BlockRedstoneEvent::new(
@@ -72,6 +113,16 @@ pub(crate) trait PressurePlate {
             world.update_neighbors(pos, None);
             world.update_neighbors(&pos.down(), None);
         }
+
+        let (click_on, click_off) = get_pressure_plate_sounds(block);
+        if !has_output && was_pressed {
+            world.play_block_sound(click_off, SoundCategory::Blocks, *pos);
+            world.emit_game_event(GameEvent::BlockDeactivate.name(), pos.to_centered_f64());
+        } else if has_output && !was_pressed {
+            world.play_block_sound(click_on, SoundCategory::Blocks, *pos);
+            world.emit_game_event(GameEvent::BlockActivate.name(), pos.to_centered_f64());
+        }
+
         if has_output {
             world.schedule_block_tick(block, *pos, self.tick_rate(), TickPriority::Normal);
         }

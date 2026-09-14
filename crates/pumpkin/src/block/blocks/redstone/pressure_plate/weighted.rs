@@ -83,23 +83,21 @@ impl PressurePlate for WeightedPressurePlateBlock {
     }
 
     fn calculate_redstone_output(&self, world: &World, block: &Block, pos: &BlockPos) -> u8 {
-        // light = Gold
-        // heavy = Iron
+        // light = Gold (15)
+        // heavy = Iron (150)
         let weight = if block == &Block::LIGHT_WEIGHTED_PRESSURE_PLATE {
-            // Gold
             15
         } else {
-            // Iron
             150
         };
         let aabb = detection_box_at(pos);
-        let len = world.get_entities_at_box(&aabb).len() + world.get_players_at_box(&aabb).len();
-        let len = len.min(weight);
-        if len > 0 {
-            let f = (weight.min(len) / weight) as f32;
-            return (f * 15.0).ceil() as u8;
-        }
-        0
+        let entities = world.get_entities_at_box(&aabb).len();
+        let players = world
+            .get_players_at_box(&aabb)
+            .into_iter()
+            .filter(|p| p.gamemode.load() != pumpkin_util::GameMode::Spectator)
+            .count();
+        calculate_weighted_signal(entities + players, weight)
     }
 
     fn set_redstone_output(&self, block: &Block, state: &BlockState, output: u8) -> BlockStateId {
@@ -110,5 +108,56 @@ impl PressurePlate for WeightedPressurePlateBlock {
 
     fn tick_rate(&self) -> u8 {
         10
+    }
+}
+
+/// Computes redstone signal strength for weighted pressure plates.
+/// Matches vanilla formula in WeightedPressurePlateBlock.java:44-45:
+/// `float percent = (float)Math.min(this.maxWeight, count) / this.maxWeight; return Mth.ceil(percent * 15.0F);`
+#[must_use]
+pub fn calculate_weighted_signal(count: usize, weight: usize) -> u8 {
+    let count = count.min(weight);
+    if count > 0 && weight > 0 {
+        let f = count as f32 / weight as f32;
+        (f * 15.0).ceil() as u8
+    } else {
+        0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_light_weighted_plate_math() {
+        // Gold plate: max weight 15 (1 entity = 1 power level)
+        let weight = 15;
+        assert_eq!(calculate_weighted_signal(0, weight), 0);
+        assert_eq!(calculate_weighted_signal(1, weight), 1);
+        assert_eq!(calculate_weighted_signal(5, weight), 5);
+        assert_eq!(calculate_weighted_signal(14, weight), 14);
+        assert_eq!(calculate_weighted_signal(15, weight), 15);
+        assert_eq!(calculate_weighted_signal(100, weight), 15); // capped at max weight
+    }
+
+    #[test]
+    fn test_heavy_weighted_plate_math() {
+        // Iron plate: max weight 150 (up to 10 entities per power level)
+        let weight = 150;
+        assert_eq!(calculate_weighted_signal(0, weight), 0);
+        assert_eq!(calculate_weighted_signal(1, weight), 1);
+        assert_eq!(calculate_weighted_signal(10, weight), 1);
+        assert_eq!(calculate_weighted_signal(11, weight), 2);
+        assert_eq!(calculate_weighted_signal(20, weight), 2);
+        assert_eq!(calculate_weighted_signal(21, weight), 3);
+        assert_eq!(calculate_weighted_signal(150, weight), 15);
+        assert_eq!(calculate_weighted_signal(300, weight), 15); // capped at max weight
+    }
+
+    #[test]
+    fn test_weighted_plate_tick_rate() {
+        // Weighted pressure plates tick every 10 ticks (WeightedPressurePlateBlock.java:63)
+        assert_eq!(WeightedPressurePlateBlock.tick_rate(), 10);
     }
 }

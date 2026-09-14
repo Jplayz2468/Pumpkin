@@ -81,8 +81,13 @@ impl BlockBehaviour for TripwireBlock {
                 props.to_state_id(args.block),
                 BlockFlags::empty(),
             );
-            // TODO world.emitGameEvent(player, GameEvent.SHEAR, pos);
-            // TODO: Deduct 1 durability from held shears (skip in Creative mode).
+            args.world.emit_game_event(
+                pumpkin_data::game_event::GameEvent::Shear.name(),
+                args.position.to_centered_f64(),
+            );
+            if args.player.gamemode.load() != pumpkin_util::GameMode::Creative {
+                args.player.damage_held_item(1);
+            }
         }
     }
 
@@ -113,10 +118,14 @@ impl BlockBehaviour for TripwireBlock {
         }
 
         let aabb = BoundingBox::from_block(args.position);
-        // TODO entity.canAvoidTraps()
-        if args.world.get_entities_at_box(&aabb).is_empty()
-            && args.world.get_players_at_box(&aabb).is_empty()
-        {
+        let has_entities = !args.world.get_entities_at_box(&aabb).is_empty();
+        let has_players = args
+            .world
+            .get_players_at_box(&aabb)
+            .into_iter()
+            .any(|p| p.gamemode.load() != pumpkin_util::GameMode::Spectator);
+
+        if !has_entities && !has_players {
             props.powered = false;
             let state_id = props.to_state_id(args.block);
             args.world
@@ -132,7 +141,9 @@ impl BlockBehaviour for TripwireBlock {
         if args.moved || Block::from_state_id(args.old_state_id) == args.block {
             return;
         }
-        let state_id = args.world.get_block_state_id(args.position);
+        let mut props = TripwireProperties::from_state_id(args.old_state_id);
+        props.powered = true;
+        let state_id = props.to_state_id(args.block);
         Self::update(args.world, args.position, state_id);
     }
 }
@@ -178,5 +189,46 @@ impl TripwireBlock {
         } else {
             block == &Block::TRIPWIRE
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_tripwire_should_connect_to_tripwire() {
+        let wire_state = Block::TRIPWIRE.default_state.id;
+        for dir in [
+            BlockDirection::North,
+            BlockDirection::South,
+            BlockDirection::East,
+            BlockDirection::West,
+        ] {
+            assert!(TripwireBlock::should_connect_to(wire_state, dir));
+        }
+    }
+
+    #[test]
+    fn test_tripwire_should_connect_to_matching_hook() {
+        // A hook facing South connects to a tripwire to its South (direction from wire is North)
+        let mut hook_props = TripwireHookProperties::default(&Block::TRIPWIRE_HOOK);
+        hook_props.facing = HorizontalFacing::South;
+        let hook_state = hook_props.to_state_id(&Block::TRIPWIRE_HOOK);
+
+        // When looking North from wire towards hook, facing.opposite() is South -> matches
+        assert!(TripwireBlock::should_connect_to(hook_state, BlockDirection::North));
+        // Other directions should not match
+        assert!(!TripwireBlock::should_connect_to(hook_state, BlockDirection::South));
+        assert!(!TripwireBlock::should_connect_to(hook_state, BlockDirection::East));
+        assert!(!TripwireBlock::should_connect_to(hook_state, BlockDirection::West));
+    }
+
+    #[test]
+    fn test_tripwire_should_not_connect_to_other_blocks() {
+        let air = Block::AIR.default_state.id;
+        let stone = Block::STONE.default_state.id;
+        assert!(!TripwireBlock::should_connect_to(air, BlockDirection::North));
+        assert!(!TripwireBlock::should_connect_to(stone, BlockDirection::South));
     }
 }

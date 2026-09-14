@@ -82,14 +82,24 @@ impl PressurePlate for PressurePlateBlock {
         if props.powered { 15 } else { 0 }
     }
 
-    fn calculate_redstone_output(&self, world: &World, _block: &Block, pos: &BlockPos) -> u8 {
+    fn calculate_redstone_output(&self, world: &World, block: &Block, pos: &BlockPos) -> u8 {
         let aabb = detection_box_at(pos);
-        if !world.get_entities_at_box(&aabb).is_empty()
-            || !world.get_players_at_box(&aabb).is_empty()
-        {
-            return 15;
-        }
-        0
+        let is_mobs_only = Self::is_mobs_only(block);
+
+        let has_entity = world.get_entities_at_box(&aabb).iter().any(|e| {
+            if is_mobs_only {
+                e.get_living_entity().is_some()
+            } else {
+                true
+            }
+        });
+
+        let has_player = world
+            .get_players_at_box(&aabb)
+            .iter()
+            .any(|p| p.gamemode.load() != pumpkin_util::GameMode::Spectator);
+
+        if has_entity || has_player { 15 } else { 0 }
     }
 
     fn set_redstone_output(&self, block: &Block, state: &BlockState, output: u8) -> BlockStateId {
@@ -98,3 +108,70 @@ impl PressurePlate for PressurePlateBlock {
         props.to_state_id(block)
     }
 }
+
+impl PressurePlateBlock {
+    #[must_use]
+    pub fn is_mobs_only(block: &Block) -> bool {
+        block == &Block::STONE_PRESSURE_PLATE || block == &Block::POLISHED_BLACKSTONE_PRESSURE_PLATE
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::Block;
+
+    #[test]
+    fn plate_sensitivity() {
+        // Vanilla: Stone & Polished Blackstone plates only trigger for LivingEntity (mobs & players)
+        assert!(PressurePlateBlock::is_mobs_only(&Block::STONE_PRESSURE_PLATE));
+        assert!(PressurePlateBlock::is_mobs_only(
+            &Block::POLISHED_BLACKSTONE_PRESSURE_PLATE
+        ));
+
+        // Vanilla: Wooden plates trigger for EVERYTHING (including items, arrows, projectiles)
+        assert!(!PressurePlateBlock::is_mobs_only(&Block::OAK_PRESSURE_PLATE));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::SPRUCE_PRESSURE_PLATE
+        ));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::BIRCH_PRESSURE_PLATE
+        ));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::JUNGLE_PRESSURE_PLATE
+        ));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::ACACIA_PRESSURE_PLATE
+        ));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::DARK_OAK_PRESSURE_PLATE
+        ));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::MANGROVE_PRESSURE_PLATE
+        ));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::CHERRY_PRESSURE_PLATE
+        ));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::BAMBOO_PRESSURE_PLATE
+        ));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::CRIMSON_PRESSURE_PLATE
+        ));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::WARPED_PRESSURE_PLATE
+        ));
+    }
+
+    #[test]
+    fn plate_power_output_mapping() {
+        let block = &Block::OAK_PRESSURE_PLATE;
+        let mut props = PressurePlateProps::default(block);
+        props.powered = false;
+        assert_eq!(PressurePlateBlock.get_redstone_output(block, props.to_state_id(block)), 0);
+
+        props.powered = true;
+        assert_eq!(PressurePlateBlock.get_redstone_output(block, props.to_state_id(block)), 15);
+    }
+}
+
