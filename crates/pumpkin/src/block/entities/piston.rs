@@ -212,6 +212,69 @@ impl PistonBlockEntity {
     }
 }
 
+
+/// Serialize a block state as vanilla's `BlockState.CODEC` does -- a compound holding the
+/// namespaced `Name` and, when the block has any, a `Properties` compound of string
+/// key/value pairs. Mirrors the palette encoding already used for chunk sections.
+fn block_state_to_nbt(state: &'static BlockState) -> NbtCompound {
+    let block = Block::from_state_id(state.id);
+    let mut compound = NbtCompound::new();
+    let name = if block.name.starts_with("minecraft:") {
+        block.name.to_string()
+    } else {
+        format!("minecraft:{}", block.name)
+    };
+    compound.put_string(BLOCK_STATE_NAME, name);
+
+    if let Some(props) = block.properties(state.id) {
+        let pairs = props.to_props();
+        if !pairs.is_empty() {
+            let mut props_compound = NbtCompound::new();
+            for (key, value) in pairs {
+                props_compound.put_string(key, value.to_string());
+            }
+            compound.put_compound(BLOCK_STATE_PROPERTIES, props_compound);
+        }
+    }
+    compound
+}
+
+/// Inverse of [`block_state_to_nbt`]. Falls back to air when the entry is missing or names
+/// a block that no longer exists, which is what vanilla's `orElse(DEFAULT_BLOCK_STATE)`
+/// does on a failed decode.
+fn block_state_from_nbt(compound: &NbtCompound) -> &'static BlockState {
+    let Some(name) = compound.get_string(BLOCK_STATE_NAME) else {
+        return Block::AIR.default_state;
+    };
+    let Some(block) = Block::from_name(name) else {
+        return Block::AIR.default_state;
+    };
+
+    let Some(props_compound) = compound.get_compound(BLOCK_STATE_PROPERTIES) else {
+        return block.default_state;
+    };
+
+    let owned: Vec<(String, String)> = props_compound
+        .child_tags
+        .iter()
+        .filter_map(|(key, tag)| {
+            tag.extract_string()
+                .map(|value| (key.to_string(), value.to_string()))
+        })
+        .collect();
+    let borrowed: Vec<(&str, &str)> = owned
+        .iter()
+        .map(|(k, v)| (k.as_str(), v.as_str()))
+        .collect();
+
+    let state_id = block.from_properties(&borrowed).to_state_id(block);
+    BlockState::from_id(state_id)
+}
+
+const BLOCK_STATE_NAME: &str = "Name";
+const BLOCK_STATE_PROPERTIES: &str = "Properties";
+
+const BLOCK_STATE: &str = "blockState";
 const FACING: &str = "facing";
 const LAST_PROGRESS: &str = "progress";
 const EXTENDING: &str = "extending";
@@ -263,8 +326,12 @@ impl BlockEntity for PistonBlockEntity {
     where
         Self: Sized,
     {
-        // TODO
-        let pushed_block_state = Block::AIR.default_state;
+        // Vanilla `PistonMovingBlockEntity.loadAdditional` (`:348`) reads "blockState"
+        // through BlockState.CODEC, defaulting to air. Without this a world saved mid-push
+        // lost the block being moved.
+        let pushed_block_state = nbt
+            .get_compound(BLOCK_STATE)
+            .map_or_else(|| Block::AIR.default_state, block_state_from_nbt);
         let facing = nbt.get_byte(FACING).unwrap_or(0);
         let last_progress = nbt.get_float(LAST_PROGRESS).unwrap_or(0.0);
         let extending = nbt.get_bool(EXTENDING).unwrap_or(false);
@@ -283,7 +350,7 @@ impl BlockEntity for PistonBlockEntity {
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
-        // TODO: pushed_block_state
+        nbt.put_compound(BLOCK_STATE, block_state_to_nbt(self.pushed_block_state));
         nbt.put_byte(FACING, self.facing.to_index() as i8);
         nbt.put_float(LAST_PROGRESS, self.last_progress.load());
         nbt.put_bool(EXTENDING, self.extending);
@@ -292,7 +359,7 @@ impl BlockEntity for PistonBlockEntity {
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
         let mut nbt = NbtCompound::new();
-        // TODO: pushed_block_state
+        nbt.put_compound(BLOCK_STATE, block_state_to_nbt(self.pushed_block_state));
         nbt.put_byte(FACING, self.facing.to_index() as i8);
         nbt.put_float(LAST_PROGRESS, self.last_progress.load());
         nbt.put_bool(EXTENDING, self.extending);
@@ -303,5 +370,64 @@ impl BlockEntity for PistonBlockEntity {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod block_state_nbt_tests {
+    use super::*;
+
+    /// A piston saved mid-push must restore the exact state it was moving. Vanilla stores
+    /// it under "blockState" via `BlockState.CODEC` (`PistonMovingBlockEntity.java:359`);
+    /// this previously wrote nothing and loaded air, silently deleting the block.
+    #[test]
+    fn round_trips_states_with_and_without_properties() {
+        // No properties -- Name only, no Properties compound.
+        let plain = Block::STONE.default_state;
+        let encoded = block_state_to_nbt(plain);
+        assert_eq!(encoded.get_string(BLOCK_STATE_NAME), Some("minecraft:stone"));
+        assert!(encoded.get_compound(BLOCK_STATE_PROPERTIES).is_none());
+        assert_eq!(block_state_from_nbt(&encoded).id, plain.id);
+
+        // With properties -- a non-default state must survive, not collapse to default.
+        let repeater = &Block::REPEATER;
+        let non_default = BlockState::from_id(
+            repeater
+                .from_properties(&[
+                    ("delay", "3"),
+                    ("facing", "west"),
+                    ("locked", "true"),
+                    ("powered", "true"),
+                ])
+                .to_state_id(repeater),
+        );
+        assert_ne!(
+            non_default.id, repeater.default_state.id,
+            "test needs a genuinely non-default state"
+        );
+        let encoded = block_state_to_nbt(non_default);
+        assert!(encoded.get_compound(BLOCK_STATE_PROPERTIES).is_some());
+        assert_eq!(
+            block_state_from_nbt(&encoded).id,
+            non_default.id,
+            "a state carrying properties must round-trip exactly"
+        );
+    }
+
+    /// Vanilla's decode is `orElse(DEFAULT_BLOCK_STATE)`, so malformed or unknown entries
+    /// fall back to air rather than failing the chunk load.
+    #[test]
+    fn unknown_or_missing_entries_fall_back_to_air() {
+        assert_eq!(
+            block_state_from_nbt(&NbtCompound::new()).id,
+            Block::AIR.default_state.id
+        );
+
+        let mut bogus = NbtCompound::new();
+        bogus.put_string(BLOCK_STATE_NAME, "minecraft:not_a_real_block".to_string());
+        assert_eq!(
+            block_state_from_nbt(&bogus).id,
+            Block::AIR.default_state.id
+        );
     }
 }

@@ -9,7 +9,10 @@ use pumpkin_macros::pumpkin_block;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::entities::creaking_heart::CreakingHeartBlockEntity;
-use crate::block::{BlockBehaviour, BrokenArgs, OnNeighborUpdateArgs, OnPlaceArgs, PlacedArgs};
+use crate::block::{
+    BlockBehaviour, BrokenArgs, GetComparatorOutputArgs, OnNeighborUpdateArgs, OnPlaceArgs,
+    PlacedArgs,
+};
 
 #[pumpkin_block("minecraft:creaking_heart")]
 pub struct CreakingHeartBlock;
@@ -38,6 +41,21 @@ impl CreakingHeartBlock {
 }
 
 impl BlockBehaviour for CreakingHeartBlock {
+    /// Vanilla `CreakingHeartBlock.getAnalogOutputSignal` (`CreakingHeartBlock.java:199`):
+    /// an uprooted heart reports nothing, otherwise the block entity's cached signal.
+    fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
+        let props = CreakingHeartLikeProperties::from_state_id(args.state.id);
+        if props.creaking_heart_state == CreakingHeartState::Uprooted {
+            return Some(0);
+        }
+
+        let entity = args.world.get_block_entity(args.position)?;
+        let heart = entity
+            .as_any()
+            .downcast_ref::<CreakingHeartBlockEntity>()?;
+        Some(heart.analog_output_signal())
+    }
+
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = CreakingHeartLikeProperties::from_state_id(args.block.default_state.id);
         props.axis = match args.direction {
