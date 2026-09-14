@@ -90,6 +90,7 @@ pub mod breath;
 pub mod custom_sound;
 pub mod decoration;
 pub mod effect;
+pub mod effect_instance;
 pub mod experience_orb;
 pub mod falling;
 pub mod hunger;

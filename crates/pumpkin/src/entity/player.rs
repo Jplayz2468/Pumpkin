@@ -5128,7 +5128,10 @@ impl Player {
             .active_effects
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        effects.values().cloned().collect()
+        effects
+            .values()
+            .map(|instance| instance.effect.clone())
+            .collect()
     }
 
     #[must_use]

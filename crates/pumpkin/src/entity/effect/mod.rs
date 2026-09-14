@@ -107,15 +107,13 @@ impl NBTStorageInit for pumpkin_data::potion::Effect {
             warn!("Unable to read effect. Unknown effect type: {effect_id}");
             return None;
         };
-        let Some(show_icon) = nbt.get_byte("show_icon") else {
-            warn!("Unable to read effect. Show icon is not present");
-            return None;
-        };
-        let amplifier = nbt.get_int("amplifier").unwrap_or(0) as u8;
+        let amplifier = nbt.get_int("amplifier").unwrap_or(0).clamp(0, 255) as u8;
         let duration = nbt.get_int("duration").unwrap_or(0);
-        let ambient = nbt.get_byte("ambient").unwrap_or(0) == 1;
-        let show_particles = nbt.get_byte("show_particles").unwrap_or(1) == 1;
-        let show_icon = show_icon == 1;
+        let ambient = nbt.get_byte("ambient").unwrap_or(0) != 0;
+        let show_particles = nbt.get_byte("show_particles").unwrap_or(1) != 0;
+        let show_icon = nbt
+            .get_byte("show_icon")
+            .map_or(show_particles, |value| value != 0);
         Some(Self {
             effect_type,
             duration,
@@ -125,5 +123,28 @@ impl NBTStorageInit for pumpkin_data::potion::Effect {
             show_icon,
             blend: false,
         })
+    }
+}
+
+impl NBTStorage for crate::entity::effect_instance::EffectInstance {
+    fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.effect.write_nbt(nbt);
+        if let Some(hidden) = &self.hidden {
+            let mut child = NbtCompound::new();
+            hidden.write_nbt(&mut child);
+            child.child_tags.remove("id");
+            nbt.put_compound("hidden_effect", child);
+        }
+    }
+}
+impl NBTStorageInit for crate::entity::effect_instance::EffectInstance {
+    fn create_from_nbt(nbt: &mut NbtCompound) -> Option<Self> {
+        let effect = pumpkin_data::potion::Effect::create_from_nbt(nbt)?;
+        let hidden = nbt.get_compound("hidden_effect").and_then(|child| {
+            let mut child = child.clone();
+            child.put_string("id", effect.effect_type.minecraft_name.to_string());
+            Self::create_from_nbt(&mut child).map(Box::new)
+        });
+        Some(Self { effect, hidden })
     }
 }

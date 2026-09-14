@@ -21,6 +21,7 @@ use std::sync::atomic::{
 };
 use tracing::warn;
 
+use super::effect_instance::EffectInstance;
 use super::experience_orb::ExperienceOrbEntity;
 use super::{Entity, EntityBase, NBTStorageInit};
 use crate::block::OnLandedUponArgs;
@@ -92,7 +93,7 @@ pub struct LivingEntity {
     pub dead: AtomicBool,
     /// The distance the entity has been falling.
     pub fall_distance: AtomicCell<f32>,
-    pub active_effects: std::sync::Mutex<FxHashMap<&'static StatusEffect, Effect>>,
+    pub active_effects: std::sync::Mutex<FxHashMap<&'static StatusEffect, EffectInstance>>,
     pub entity_equipment: Arc<std::sync::Mutex<EntityEquipment>>,
     pub equipment_drop_chances: Arc<std::sync::Mutex<FxHashMap<EquipmentSlot, f32>>>,
     pub movement_input: AtomicCell<Vector3<f64>>,
@@ -827,8 +828,8 @@ impl LivingEntity {
 
     /// Sets the current absorption amount for this entity (yellow hearts)
     pub fn set_absorption(&self, new_abs: f32) {
-        // Must be at least 0
-        let new_abs = new_abs.max(0.0);
+        let maximum = self.get_attribute_value(&Attributes::MAX_ABSORPTION) as f32;
+        let new_abs = new_abs.max(0.0).min(maximum);
 
         // Set local state
         self.absorption.store(new_abs);
@@ -955,8 +956,25 @@ impl LivingEntity {
         self.entity.entity_id
     }
 
-    #[expect(clippy::too_many_lines)]
     pub fn add_effect(&self, effect: Effect) {
+        self.try_add_effect(effect);
+    }
+
+    pub fn try_add_effect(&self, effect: Effect) -> bool {
+        let entity_type = self.entity.entity_type;
+        let eligible = if entity_type.has_tag(&tag::EntityType::MINECRAFT_IMMUNE_TO_INFESTED) {
+            effect.effect_type != &StatusEffect::INFESTED
+        } else if entity_type.has_tag(&tag::EntityType::MINECRAFT_IMMUNE_TO_OOZING) {
+            effect.effect_type != &StatusEffect::OOZING
+        } else if entity_type.has_tag(&tag::EntityType::MINECRAFT_IGNORES_POISON_AND_REGEN) {
+            effect.effect_type != &StatusEffect::POISON
+                && effect.effect_type != &StatusEffect::REGENERATION
+        } else {
+            true
+        };
+        if !eligible {
+            return false;
+        }
         let mut effect_event =
             crate::plugin::api::events::entity::entity_potion_effect::EntityPotionEffectEvent::new(
                 self.entity.entity_id,
@@ -970,7 +988,7 @@ impl LivingEntity {
                 .fire_blocking(&server, &mut effect_event);
         }
         if effect_event.cancelled {
-            return;
+            return false;
         }
 
         // Apply instant effects immediately before storing
@@ -978,7 +996,7 @@ impl LivingEntity {
             let heal_amount = 4.0 * (1 << effect.amplifier) as f32;
             self.heal(heal_amount);
             // Like vanilla, instant effects are never sent or stored as active effects.
-            return;
+            return true;
         } else if effect.effect_type == &StatusEffect::INSTANT_DAMAGE {
             let damage_amount = 6.0 * (1 << effect.amplifier) as f32;
             let dyn_self = self
@@ -989,9 +1007,35 @@ impl LivingEntity {
             if let Some(dyn_self) = dyn_self {
                 let _ = dyn_self.damage(&*dyn_self, damage_amount, DamageType::MAGIC);
             }
-            return;
+            return true;
         }
 
+        let (changed, effective) = {
+            let mut effects = self
+                .active_effects
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(current) = effects.get_mut(effect.effect_type) {
+                let changed = current.update(&effect);
+                (changed, current.effect.clone())
+            } else {
+                effects.insert(effect.effect_type, EffectInstance::new(effect.clone()));
+                (true, effect.clone())
+            }
+        };
+        if changed {
+            self.on_effect_updated(effective);
+        }
+        // Java calls onEffectStarted even if an update only changes hidden state.
+        if effect.effect_type == &StatusEffect::ABSORPTION {
+            let requested = 4.0 * (f32::from(effect.amplifier) + 1.0);
+            self.set_absorption(self.absorption.load().max(requested));
+        }
+        changed
+    }
+
+    #[expect(clippy::too_many_lines)]
+    fn on_effect_updated(&self, effect: Effect) {
         // Apply non-instant effects
 
         // Effects that modify attributes (ex. speed) should also update the
@@ -1030,12 +1074,9 @@ impl LivingEntity {
             }
         }
 
-        // Apply absorption effect (+4 absorption per level)
+        // Attribute changes can lower the absorption cap during a hidden downgrade.
         if effect.effect_type == &StatusEffect::ABSORPTION {
-            let added = 4.0 * (effect.amplifier as f32 + 1.0);
-            let max_abs = self.get_attribute_value(&Attributes::MAX_ABSORPTION) as f32;
-            let new_abs = (self.absorption.load() + added).min(max_abs);
-            self.set_absorption(new_abs);
+            self.set_absorption(self.absorption.load());
         }
 
         // Apply invisible effect
@@ -1087,14 +1128,6 @@ impl LivingEntity {
             .world
             .load()
             .broadcast_to_chunk_editioned(chunk_pos, &je_packet, &be_packet);
-        if effect.effect_type != &StatusEffect::INSTANT_HEALTH
-            && effect.effect_type != &StatusEffect::INSTANT_DAMAGE
-        {
-            self.active_effects
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .insert(effect.effect_type, effect);
-        }
         self.sync_effect_particles();
     }
 
@@ -1108,7 +1141,7 @@ impl LivingEntity {
             effects
                 .values()
                 .filter(|effect| effect.show_particles)
-                .map(EffectParticle::from_effect)
+                .map(|effect| EffectParticle::from_effect(&effect.effect))
                 .collect(),
         );
         let ambient = effects
@@ -1210,7 +1243,7 @@ impl LivingEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .get(&effect)
-            .cloned()
+            .map(|instance| instance.effect.clone())
     }
 
     pub fn is_in_fall_damage_resetting(&self) -> (bool, &Block) {
@@ -2282,6 +2315,7 @@ impl LivingEntity {
     fn tick_effects(&self) {
         let mut effects_to_remove = Vec::new();
         let mut effects_to_apply = Vec::new();
+        let mut effects_to_refresh = Vec::new();
 
         {
             let Ok(mut effects) = self.active_effects.try_lock() else {
@@ -2289,7 +2323,7 @@ impl LivingEntity {
             };
             let entity_age = self.entity.tick_count.load(Relaxed);
             for effect in effects.values_mut() {
-                if effect.duration == 0 {
+                if !effect.has_remaining_duration() {
                     effects_to_remove.push(effect.effect_type);
                     continue;
                 }
@@ -2306,10 +2340,18 @@ impl LivingEntity {
                     effects_to_apply.push((mob_effect, effect.amplifier));
                 }
 
-                if effect.duration != -1 {
-                    effect.duration -= 1;
+                let (alive, downgraded) = effect.tick_duration();
+                if downgraded {
+                    effects_to_refresh.push(effect.effect.clone());
+                }
+                if !alive {
+                    effects_to_remove.push(effect.effect_type);
                 }
             }
+        }
+
+        for effect in effects_to_refresh {
+            self.on_effect_updated(effect);
         }
 
         // Call the central removal function for each expired effect
@@ -2633,7 +2675,7 @@ impl LivingEntity {
         nbt.put_short("DeathTime", i16::from(self.death_time.load(Relaxed)));
         nbt.put_bool("FallFlying", self.entity.is_fall_flying());
         {
-            let effects_vec: Vec<pumpkin_data::potion::Effect> = {
+            let effects_vec: Vec<EffectInstance> = {
                 let effects = self
                     .active_effects
                     .lock()
@@ -2759,29 +2801,25 @@ impl LivingEntity {
             self.health.load() > 0.0 && nbt.get_bool("FallFlying").unwrap_or(false),
         );
         {
-            let nbt_effects = nbt.get_list("active_effects");
-            if let Some(nbt_effects) = nbt_effects {
-                let mut read_effects = Vec::new();
-                for effect in nbt_effects {
-                    if let NbtTag::Compound(effect_nbt) = effect {
-                        if let Some(mut effect) = Effect::create_from_nbt(&mut effect_nbt.clone()) {
-                            effect.blend = true; // TODO: change, is taken from effect give command
-                            read_effects.push(effect);
-                        } else {
-                            warn!("Unable to read effect from nbt");
-                        }
-                    }
-                }
-                if !read_effects.is_empty() {
-                    let mut active_effects = self
-                        .active_effects
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    for effect in read_effects {
-                        active_effects.insert(effect.effect_type, effect);
-                    }
+            let mut loaded = FxHashMap::default();
+            if let Some(tags) = nbt.get_list("active_effects") {
+                for tag in tags {
+                    let parsed = match tag {
+                        NbtTag::Compound(nbt) => EffectInstance::create_from_nbt(&mut nbt.clone()),
+                        _ => None,
+                    };
+                    let Some(mut effect) = parsed else {
+                        loaded.clear();
+                        break;
+                    };
+                    effect.blend = true;
+                    loaded.insert(effect.effect_type, effect);
                 }
             }
+            *self
+                .active_effects
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = loaded;
         }
         // todo more...
     }
