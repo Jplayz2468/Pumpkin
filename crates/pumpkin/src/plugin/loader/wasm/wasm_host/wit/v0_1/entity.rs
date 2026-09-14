@@ -526,7 +526,7 @@ impl HostEntity for PluginHostState {
         let entity = entity_from_resource(self, &entity)?;
         Ok(entity
             .get_entity()
-            .age
+            .tick_count
             .load(std::sync::atomic::Ordering::Relaxed))
     }
 
@@ -538,7 +538,7 @@ impl HostEntity for PluginHostState {
         let entity = entity_from_resource(self, &entity)?;
         entity
             .get_entity()
-            .age
+            .tick_count
             .store(ticks, std::sync::atomic::Ordering::Relaxed);
         Ok(())
     }

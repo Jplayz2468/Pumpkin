@@ -859,8 +859,12 @@ pub struct Entity {
     pub leashed_to: std::sync::Mutex<Option<Arc<dyn EntityBase>>>,
     /// Cooldown before entity can mount again after dismounting
     pub riding_cooldown: AtomicI32,
-    /// The age of the entity in ticks. Negative values indicate a baby.
+    /// Biological age / breeding cooldown, in ticks. Negative values indicate a baby.
+    /// Kept on Entity for existing mob and plugin access; only biological aging changes it.
     pub age: AtomicI32,
+    /// Elapsed entity ticks (Java Entity.tickCount), independent of age and inactivity.
+    /// Transient: loading an entity starts this clock at zero.
+    pub tick_count: AtomicI32,
 
     pub current_biome: ArcSwap<&'static Biome>,
     pub last_biome_update_pos: AtomicCell<BlockPos>,
@@ -1013,6 +1017,7 @@ impl Entity {
 
             riding_cooldown: AtomicI32::new(0),
             age: AtomicI32::new(0),
+            tick_count: AtomicI32::new(0),
             current_biome: ArcSwap::new(Arc::new(current_biome)),
             last_biome_update_pos: AtomicCell::new(BlockPos::new(floor_x, floor_y, floor_z)),
             portal_cooldown: AtomicU32::new(0),
@@ -1106,7 +1111,7 @@ impl Entity {
         metadata
     }
 
-    /// Sets the entity's age in ticks.
+    /// Sets the entity's biological age in ticks; does not change ticks lived.
     /// Negative values indicate that the entity is a baby.
     pub fn set_age(&self, age: i32) {
         self.age.store(age, Relaxed);
@@ -2622,7 +2627,7 @@ impl Entity {
         // Vanilla parity: full-freeze damage is tick-phase based.
         if can_freeze
             && new_frozen_ticks >= Self::MAX_FROZEN_TICKS
-            && self.age.load(Ordering::Relaxed) % Self::FREEZE_DAMAGE_INTERVAL == 0
+            && self.tick_count.load(Ordering::Relaxed) % Self::FREEZE_DAMAGE_INTERVAL == 0
         {
             let world = self.world.load_full();
             if world.level_info.load().game_rules.freeze_damage

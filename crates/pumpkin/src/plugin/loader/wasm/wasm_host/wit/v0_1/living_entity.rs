@@ -459,7 +459,10 @@ impl HostLivingEntity for PluginHostState {
     async fn get_age(&mut self, this: Resource<WitLivingEntity>) -> wasmtime::Result<i32> {
         let entity = living_entity_from_resource(self, &this)?;
         Ok(entity.get_living_entity().map_or(0, |living| {
-            living.entity.age.load(std::sync::atomic::Ordering::Relaxed)
+            living
+                .entity
+                .tick_count
+                .load(std::sync::atomic::Ordering::Relaxed)
         }))
     }
 
@@ -468,7 +471,7 @@ impl HostLivingEntity for PluginHostState {
         if let Some(living) = entity.get_living_entity() {
             living
                 .entity
-                .age
+                .tick_count
                 .store(age, std::sync::atomic::Ordering::Relaxed);
         }
         Ok(())

@@ -341,7 +341,7 @@ impl MobEntity {
     }
 
     pub fn is_breeding_ready(&self) -> bool {
-        self.living_entity.entity.age.load(Relaxed) >= 0
+        self.living_entity.entity.age.load(Relaxed) == 0
             && self.breeding_cooldown.load(Relaxed) <= 0
     }
 
@@ -474,7 +474,7 @@ impl MobEntity {
                 .store(target.get_entity().entity_id, Relaxed);
             self.living_entity
                 .last_attack_time
-                .store(self.living_entity.entity.age.load(Relaxed), Relaxed);
+                .store(self.living_entity.entity.tick_count.load(Relaxed), Relaxed);
         }
     }
 
@@ -1147,7 +1147,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
         if !mob_entity.is_no_ai() {
             mob_entity.no_action_time.fetch_add(1, Relaxed);
-            let age = mob_entity.living_entity.entity.age.load(Relaxed);
+            let tick_count = mob_entity.living_entity.entity.tick_count.load(Relaxed);
             let entity_id = mob_entity.living_entity.entity.entity_id;
 
             // 1. "Take" selectors out of the mutexes
@@ -1167,7 +1167,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
             };
 
             // 2. Perform AI logic
-            if (age + entity_id) % 2 != 0 && age > 1 {
+            if tick_count.wrapping_add(entity_id) % 2 != 0 && tick_count > 1 {
                 target_selector.tick_goals(self, false);
                 goals_selector.tick_goals(self, false);
             } else {
@@ -1230,6 +1230,11 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         }
 
         mob_entity.living_entity.tick(caller, server);
+        // AgeableMob.aiStep ages once after living movement, including NoAI mobs.
+        // Centralizing this prevents species overrides from skipping or doubling growth.
+        if let Some(ageable) = self.as_ageable() {
+            ageable.ageable_ai_step();
+        }
         self.post_tick();
 
         // --- Packet logic remains the same ---

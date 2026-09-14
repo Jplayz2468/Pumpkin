@@ -1,3 +1,4 @@
+use crate::entity::ageable::{AgeableData, AgeableMob};
 use std::sync::{
     Arc, Weak,
     atomic::{AtomicBool, AtomicU8, Ordering},
@@ -73,6 +74,7 @@ fn get_dye_color_from_item(item: &Item) -> Option<u8> {
 
 pub struct CatEntity {
     pub mob_entity: MobEntity,
+    pub ageable_data: AgeableData,
     pub variant: AtomicU8,
     pub sound_variant: AtomicU8,
     pub collar_color: AtomicU8,
@@ -86,6 +88,7 @@ impl CatEntity {
         let mob_entity = MobEntity::new(entity);
         let cat = Self {
             mob_entity,
+            ageable_data: AgeableData::default(),
             variant: AtomicU8::new(1),       // Default to black
             sound_variant: AtomicU8::new(0), // Default to classic
             collar_color: AtomicU8::new(14), // Default to red
@@ -257,7 +260,17 @@ impl TamableAnimal for CatEntity {
     }
 }
 
+impl AgeableMob for CatEntity {
+    fn get_ageable_data(&self) -> &AgeableData {
+        &self.ageable_data
+    }
+}
+
 impl Mob for CatEntity {
+    fn as_ageable(&self) -> Option<&dyn AgeableMob> {
+        Some(self)
+    }
+
     fn as_animal(&self) -> Option<&dyn Animal> {
         Some(self)
     }

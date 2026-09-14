@@ -36,7 +36,7 @@ impl EscapeDangerGoal {
         if last_attacked == 0 {
             return false;
         }
-        let age = living.entity.age.load(Relaxed);
+        let age = living.entity.tick_count.load(Relaxed);
         age - last_attacked < RECENT_DAMAGE_TICKS
     }
 

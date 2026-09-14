@@ -1,3 +1,4 @@
+use crate::entity::ageable::{AgeableData, AgeableMob};
 use crossbeam::atomic::AtomicCell;
 use std::sync::{
     Arc, Mutex,
@@ -26,6 +27,7 @@ use crate::entity::{
 
 pub struct NautilusEntity {
     pub mob_entity: MobEntity,
+    pub ageable_data: AgeableData,
     pub is_tame: AtomicBool,
     pub owner: AtomicCell<Option<Uuid>>,
     pub is_dashing: AtomicBool,
@@ -39,6 +41,7 @@ impl NautilusEntity {
         let mob_entity = MobEntity::new(entity);
         let nautilus = Self {
             mob_entity,
+            ageable_data: AgeableData::default(),
             is_tame: AtomicBool::new(false),
             owner: AtomicCell::new(None),
             is_dashing: AtomicBool::new(false),
@@ -203,7 +206,17 @@ impl CustomSound for NautilusEntity {
     }
 }
 
+impl AgeableMob for NautilusEntity {
+    fn get_ageable_data(&self) -> &AgeableData {
+        &self.ageable_data
+    }
+}
+
 impl Mob for NautilusEntity {
+    fn as_ageable(&self) -> Option<&dyn AgeableMob> {
+        Some(self)
+    }
+
     fn as_custom_sound(&self) -> Option<&dyn crate::entity::custom_sound::CustomSound> {
         Some(self)
     }

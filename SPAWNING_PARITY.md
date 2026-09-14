@@ -71,3 +71,25 @@ The controlled NoAI arena caught an NBT initialization discrepancy: specifying
 NoAI without Health reset a spider to 20 HP despite its 16 HP attribute.
 `read_living_nbt_non_mut` now defaults missing Health to the entity's maximum
 and uses `set_health` to clamp explicit values, as Java's reader does.
+
+## Biological age and tick-clock foundation
+
+`Entity.tick_count` now measures ticks lived independently of biological `age`
+and `MobEntity.no_action_time`. World/player ticking, goal-selector cadence,
+combat timestamps, panic/raid/spell timers, permanent effects, freeze damage,
+projectile grace periods and ticks-lived APIs use the elapsed-tick clock.
+Biological age remains on Entity for compatibility with existing mob consumers.
+
+Ageable mobs now age once in the shared post-movement tick path, including
+NoAI mobs, while dead/removed mobs do not grow. Species no longer add a second
+aging step. Cats, ocelots, nautiluses and villagers now expose their ageable data
+through the shared trait, including Age/ForcedAge/AgeLocked persistence. The
+age-locked metadata flag is synchronized. Positive biological age blocks mating.
+Animal feeding uses Java's whole-second rounding and forced-growth accounting.
+
+The independent `AgeOracle.java` executes the pinned server's actual `ageUp`
+method with only storage access stubbed. Its 1,728 cases cover intermediate age
+writes, forced-age accumulation/timer behavior and Java int overflow; 12 feeding
+boundaries check rounding. The hoster's `age_runtime_test.py` additionally
+compares saved age state after controlled ticks. Neither these tests nor this
+clock split establish full group spawning, dimensions, or mob-AI parity.

@@ -1,3 +1,4 @@
+use crate::entity::ageable::{AgeableData, AgeableMob};
 use rustc_hash::FxHashMap;
 use std::sync::atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering};
 use std::sync::{Arc, Weak};
@@ -253,6 +254,7 @@ pub(crate) fn apply_potion(stack: &mut ItemStack, potion_name: &str) {
 
 pub struct VillagerEntity {
     pub mob_entity: MobEntity,
+    pub ageable_data: AgeableData,
     pub villager_data: std::sync::Mutex<VillagerData>,
     pub food_level: AtomicI32,
     pub xp: AtomicI32,
@@ -322,6 +324,7 @@ impl VillagerEntity {
 
         let villager = Self {
             mob_entity,
+            ageable_data: AgeableData::default(),
             villager_data: std::sync::Mutex::new(villager_data),
             food_level: AtomicI32::new(0),
             xp: AtomicI32::new(0),
@@ -1608,8 +1611,8 @@ impl VillagerEntity {
         self.decay_gossips(game_time);
         self.work_at_job_site(game_time, day_time, day);
 
-        let age = self.get_entity().age.load(Ordering::Relaxed);
-        if age % 20 != 0 {
+        let tick_count = self.get_entity().tick_count.load(Ordering::Relaxed);
+        if tick_count % 20 != 0 {
             return;
         }
         self.update_job_site(&world);
@@ -1770,9 +1773,11 @@ impl VillagerEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .profession_enum();
-        if profession != VillagerProfession::Nitwit && age >= 0 {
+        if profession != VillagerProfession::Nitwit
+            && self.get_entity().age.load(Ordering::Relaxed) >= 0
+        {
             // Checked every 20 ticks, golem spawn check every ~100 ticks
-            if age % 100 == 0 && self.get_home().is_some() {
+            if tick_count % 100 == 0 && self.get_home().is_some() {
                 // Check if panicked or talked recently to spawn an Iron Golem
                 let has_bed = self.get_home().is_some();
                 let has_worked =
@@ -1829,7 +1834,17 @@ impl VillagerEntity {
     }
 }
 
+impl AgeableMob for VillagerEntity {
+    fn get_ageable_data(&self) -> &AgeableData {
+        &self.ageable_data
+    }
+}
+
 impl Mob for VillagerEntity {
+    fn as_ageable(&self) -> Option<&dyn AgeableMob> {
+        Some(self)
+    }
+
     #[expect(clippy::too_many_lines)]
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
         {
