@@ -1378,9 +1378,13 @@ impl LivingEntity {
 
         let mut movement_input = self.movement_input.load();
 
-        movement_input.x *= 0.98;
-
-        movement_input.z *= 0.98;
+        if self.controlled_speed.load().is_some() {
+            movement_input.x = f64::from(movement_input.x as f32 * 0.98_f32);
+            movement_input.z = f64::from(movement_input.z as f32 * 0.98_f32);
+        } else {
+            movement_input.x *= 0.98;
+            movement_input.z *= 0.98;
+        }
 
         self.movement_input.store(movement_input);
 
@@ -1522,6 +1526,21 @@ impl LivingEntity {
         self.entity.velocity.store(velo);
     }
 
+    fn apply_movement_input(&self, input: Vector3<f64>, speed: f64) {
+        if self.controlled_speed.load().is_some() {
+            let [x, y, z] = crate::entity::ai::control::travel_input::velocity(
+                [input.x, input.y, input.z],
+                speed as f32,
+                self.entity.yaw.load(),
+            );
+            self.entity
+                .velocity
+                .store(self.entity.velocity.load() + Vector3::new(x, y, z));
+        } else {
+            self.entity.update_velocity_from_input(input, speed);
+        }
+    }
+
     fn travel_in_air(&self, caller: &dyn EntityBase) {
         // applyMovementInput
 
@@ -1549,8 +1568,30 @@ impl LivingEntity {
             (speed, 0.91)
         };
 
-        self.entity
-            .update_velocity_from_input(self.movement_input.load(), speed);
+        let (speed, friction) = if let Some(controlled) = self.controlled_speed.load() {
+            use crate::entity::ai::control::travel_input;
+            let ground = self.entity.on_ground.load(Relaxed);
+            let slipperiness = if ground {
+                travel_input::modified_friction(
+                    self.entity
+                        .get_block_with_y_offset(0.500_001)
+                        .1
+                        .slipperiness,
+                    self.get_attribute_value(&Attributes::FRICTION_MODIFIER) as f32,
+                )
+            } else {
+                1.0
+            };
+            let speed = travel_input::air_speed(controlled, ground, slipperiness, false);
+            let drag = travel_input::modified_friction(
+                0.91,
+                self.get_attribute_value(&Attributes::AIR_DRAG_MODIFIER) as f32,
+            );
+            (f64::from(speed), f64::from(slipperiness * drag))
+        } else {
+            (speed, friction)
+        };
+        self.apply_movement_input(self.movement_input.load(), speed);
 
         self.apply_climbing_speed();
 
@@ -1592,7 +1633,12 @@ impl LivingEntity {
             if caller.is_flutterer() {
                 friction
             } else {
-                0.98
+                self.controlled_speed.load().map_or(0.98, |_| {
+                    f64::from(crate::entity::ai::control::travel_input::modified_friction(
+                        0.98,
+                        self.get_attribute_value(&Attributes::AIR_DRAG_MODIFIER) as f32,
+                    ))
+                })
             }
         });
 
@@ -1632,8 +1678,7 @@ impl LivingEntity {
                 friction = 0.96;
             }
 
-            self.entity
-                .update_velocity_from_input(movement_input, speed);
+            self.apply_movement_input(movement_input, speed);
 
             self.make_move(caller);
 
@@ -1647,7 +1692,7 @@ impl LivingEntity {
             self.apply_fluid_moving_speed(&mut velo.y, gravity, falling);
             self.entity.velocity.store(velo);
         } else {
-            self.entity.update_velocity_from_input(movement_input, 0.02);
+            self.apply_movement_input(movement_input, 0.02);
 
             self.make_move(caller);
 

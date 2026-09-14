@@ -5,11 +5,12 @@ pub mod body_rotation_control;
 pub mod flying_move_control;
 pub mod jump_control;
 pub mod look_control;
-mod look_math;
-mod movement_command;
+pub(crate) mod look_math;
 pub mod move_control;
+mod movement_command;
 pub mod smooth_swimming_look_control;
 pub mod smooth_swimming_move_control;
+pub(crate) mod travel_input;
 
 pub trait Control: Send + Sync {
     fn change_angle(&self, start: f32, end: f32, max_change: f32) -> f32 {

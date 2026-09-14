@@ -73,12 +73,17 @@ pub mod warden_damage;
 mod warden_darkness;
 pub mod warden_dig;
 pub mod warden_emergence;
+mod warden_idle;
+mod warden_investigate;
 mod warden_look;
 mod warden_melee;
+mod warden_move;
+mod warden_random_pos;
 pub mod warden_roar;
 mod warden_sensor;
 mod warden_sniff;
 mod warden_sonic;
+mod warden_swim;
 pub mod warden_target;
 pub mod witch;
 pub mod zoglin;
@@ -812,6 +817,11 @@ pub trait Mob: EntityBase + Send + Sync {
         true
     }
 
+    /// Brain navigation runs before the mob-specific Brain, then its controllers.
+    fn uses_brain_navigation(&self) -> bool {
+        false
+    }
+
     fn run_goal_ai(&self) -> bool {
         true
     }
@@ -1292,6 +1302,22 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
         mob_entity.check_despawn(self);
 
+        if !mob_entity.is_no_ai() && self.uses_brain_navigation() {
+            mob_entity.no_action_time.fetch_add(1, Relaxed);
+            mob_entity.living_entity.jumping.store(false, Relaxed);
+            let mut navigator = {
+                let mut guard = mob_entity
+                    .navigator
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                std::mem::take(&mut *guard)
+            };
+            navigator.tick_mob(self);
+            *mob_entity
+                .navigator
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = navigator;
+        }
         self.mob_tick(caller);
 
         if !mob_entity.is_no_ai() && self.run_goal_ai() {
@@ -1370,6 +1396,17 @@ impl<T: Mob + Send + 'static> EntityBase for T {
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 move_control.tick(self);
             };
+        } else if !mob_entity.is_no_ai() && self.uses_brain_navigation() {
+            mob_entity
+                .move_control
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .tick(self);
+            mob_entity
+                .look_control
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .tick(self);
         } else {
             mob_entity
                 .living_entity

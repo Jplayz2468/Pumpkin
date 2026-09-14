@@ -103,6 +103,21 @@ impl MoveControlTrait for MoveControl {
             }
         } else if self.operation == Operation::Jumping {
             let movement_speed = living_entity.get_attribute_value(&Attributes::MOVEMENT_SPEED);
+            if living_entity.controlled_speed.load().is_some() {
+                let speed = (self.speed_modifier * movement_speed) as f32;
+                living_entity.controlled_speed.store(Some(speed));
+                let mut input = living_entity.movement_input.load();
+                input.z = f64::from(speed);
+                living_entity.movement_input.store(input);
+                // Warden is affected by fluids. Other navigators keep their own control mode.
+                if entity.on_ground.load(Ordering::Relaxed)
+                    || entity.is_in_water()
+                    || entity.touching_lava.load(Ordering::Relaxed)
+                {
+                    self.operation = Operation::Wait;
+                }
+                return;
+            }
             let speed = self.speed_modifier * movement_speed;
             living_entity
                 .movement_input
@@ -111,9 +126,13 @@ impl MoveControlTrait for MoveControl {
             if entity.on_ground.load(Ordering::Relaxed) {
                 self.operation = Operation::Wait;
             }
+        } else if living_entity.controlled_speed.load().is_some() {
+            let mut input = living_entity.movement_input.load();
+            input.z = 0.0;
+            living_entity.movement_input.store(input);
         }
 
-        // Navigator owns movement input while this controller waits.
+        // Legacy navigators own movement input while this controller waits.
     }
 
     fn set_wanted_position(&mut self, x: f64, y: f64, z: f64, speed_modifier: f64) {

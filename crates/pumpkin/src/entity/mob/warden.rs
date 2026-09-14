@@ -1,3 +1,5 @@
+#[path = "warden_navigation.rs"]
+mod navigation;
 use std::sync::{Arc, Mutex, atomic::Ordering};
 
 use super::{
@@ -50,7 +52,6 @@ pub fn dimensions(pose: EntityPose) -> EntityDimensions {
 
 use crate::entity::{
     Entity,
-    ai::goal::{melee_attack::MeleeAttackGoal, swim::SwimGoal, wander_around::WanderAroundGoal},
     mob::{Mob, MobEntity},
 };
 
@@ -66,6 +67,10 @@ pub struct WardenEntity {
     look_sink: Mutex<LookSink>,
     look_memory: Mutex<Option<(LookTarget, i64)>>,
     fight_look_range_squared: f64,
+    movement: Mutex<navigation::MovementState>,
+    idle: Mutex<super::warden_idle::Idle>,
+    swim: Mutex<super::warden_swim::Swim>,
+    idle_random: Mutex<pumpkin_util::random::legacy_rand::LegacyRand>,
     sniff_active: std::sync::atomic::AtomicBool,
     investigate_active: std::sync::atomic::AtomicBool,
     idle_active: std::sync::atomic::AtomicBool,
@@ -118,6 +123,12 @@ impl WardenEntity {
             look_sink: Mutex::new(LookSink::default()),
             look_memory: Mutex::new(None),
             fight_look_range_squared: f64::from(look_range * look_range),
+            movement: Mutex::new(navigation::MovementState::default()),
+            idle: Mutex::new(super::warden_idle::Idle::default()),
+            swim: Mutex::new(super::warden_swim::Swim::default()),
+            idle_random: Mutex::new(pumpkin_util::random::legacy_rand::LegacyRand::from_seed(
+                rand::random(),
+            )),
             sniff_active: std::sync::atomic::AtomicBool::new(false),
             investigate_active: std::sync::atomic::AtomicBool::new(false),
             idle_active: std::sync::atomic::AtomicBool::new(true),
@@ -125,20 +136,32 @@ impl WardenEntity {
             client_anger: std::sync::atomic::AtomicI32::new(0),
             random: Mutex::new(random),
         };
-        let mob_arc = Arc::new(warden);
-        {
-            let mut goal_selector = mob_arc
-                .mob_entity
-                .goals_selector
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.2, true)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(0.5)));
-        };
-
-        mob_arc
+        let mut navigator = crate::entity::ai::pathfinder::Navigator::java_ground();
+        navigator.set_can_float(true);
+        navigator.set_can_pass_doors(false);
+        use crate::entity::ai::pathfinder::node::PathType;
+        for (kind, malus) in [
+            (PathType::Water, 8.0),
+            (PathType::UnpassableRail, 0.0),
+            (PathType::DamageOther, 8.0),
+            (PathType::PowderSnow, 8.0),
+            (PathType::Lava, 8.0),
+            (PathType::DamageFire, 0.0),
+            (PathType::DangerFire, 0.0),
+        ] {
+            navigator.set_pathfinding_malus(kind, malus);
+        }
+        *warden
+            .mob_entity
+            .navigator
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = navigator;
+        warden
+            .mob_entity
+            .living_entity
+            .controlled_speed
+            .store(Some(0.0));
+        Arc::new(warden)
     }
 
     pub fn can_target_entity(&self, target: &dyn EntityBase) -> bool {
@@ -370,13 +393,7 @@ impl WardenEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let transition = match phase {
             Phase::Start => {
-                // Replaced by WALK_TARGET presence with the movement sink.
-                let walk = !self
-                    .mob_entity
-                    .navigator
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .is_idle();
+                let walk = self.has_walk_target();
                 if walk {
                     Default::default()
                 } else {
@@ -531,11 +548,7 @@ impl WardenEntity {
         };
         if let Some(id) = change.start {
             entity.set_pose(EntityPose::Roaring);
-            self.mob_entity
-                .navigator
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .stop();
+            self.clear_walk_target();
             if let Some(target) = world.get_entity_by_id(id) {
                 self.set_look_target(LookTarget::Entity(target.clone()), i64::MAX);
                 if self.can_target_entity(target.as_ref()) {
@@ -844,10 +857,10 @@ impl WardenEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .attack_target;
+        self.reset_dig_cooldown();
         let Some(id) = id else {
             return;
         };
-        self.reset_dig_cooldown();
         let target = self.get_entity().world.load().get_entity_by_id(id);
         let eligible = target
             .as_ref()
@@ -885,14 +898,7 @@ impl WardenEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
-        // Navigation still bridges the old movement controller until its Brain
-        // WALK_TARGET storage is replaced; waiting paths are not interrupted.
-        let walk = !self
-            .mob_entity
-            .navigator
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .is_idle();
+        let walk = self.has_walk_target();
         let mut digging = self
             .digging
             .lock()
@@ -1034,13 +1040,7 @@ impl WardenEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .attack_target
             .is_some();
-        // This bridge is replaced by the shared WALK_TARGET/MoveToTargetSink work.
-        let walk = !self
-            .mob_entity
-            .navigator
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .is_idle();
+        let walk = self.has_walk_target();
         let facts = warden_sniff::Facts {
             idle_active: self.idle_active.load(Ordering::Relaxed),
             sniff_active: self.sniff_active.load(Ordering::Relaxed),
@@ -1070,11 +1070,7 @@ impl WardenEntity {
             entity.set_pose(EntityPose::Sniffing);
         }
         if change.forget_walk {
-            self.mob_entity
-                .navigator
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .stop();
+            self.clear_walk_target();
         }
         if change.sound {
             world.play_sound_fine(
@@ -1169,11 +1165,7 @@ impl WardenEntity {
         drop(dig);
         if changed {
             self.set_look_target(LookTarget::Block(position), 100);
-            self.mob_entity
-                .navigator
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .stop();
+            self.clear_walk_target();
         }
     }
 
@@ -1342,6 +1334,11 @@ impl Mob for WardenEntity {
             match (behavior, phase) {
                 (Behavior::SetLook, Phase::Start) => self.select_look_target(),
                 (Behavior::Look, _) => self.tick_look(phase),
+                (Behavior::Move, _) => self.tick_move(phase),
+                (Behavior::Swim, _) => self.tick_swim(phase),
+                (Behavior::Idle, _) => self.tick_idle(phase),
+                (Behavior::Investigate, Phase::Start) => self.investigate(),
+                (Behavior::Pursue, Phase::Start) => self.pursue(),
                 (Behavior::Emerge, _) => self.tick_emergence(phase),
                 (Behavior::Dig, _) => self.tick_digging(phase),
                 (Behavior::SetRoar, Phase::Start) => self.set_roar_target(),
@@ -1351,8 +1348,6 @@ impl Mob for WardenEntity {
                 (Behavior::FightLook, Phase::Start) => self.select_fight_look_target(),
                 (Behavior::Sonic, _) => self.tick_sonic(phase),
                 (Behavior::Melee, Phase::Start) => self.tick_melee(),
-                // Movement/swimming still use the retained goals until their own
-                // Brain memory/path contracts are implemented and verified.
                 _ => {}
             }
         });
@@ -1364,15 +1359,6 @@ impl Mob for WardenEntity {
             self.tick_anger();
         }
         self.select_activity();
-        // Generic movement goals are paused during these activities. Java's core
-        // look behavior and head controller still run every AI tick.
-        if !self.run_goal_ai() {
-            self.mob_entity
-                .look_control
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .tick(self);
-        }
     }
 
     fn use_goal_look_control(&self) -> bool {
@@ -1380,18 +1366,15 @@ impl Mob for WardenEntity {
     }
 
     fn run_goal_ai(&self) -> bool {
-        !self.is_digging_or_emerging()
-            && !self
-                .roar
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .active
-            && !self.sniff_active.load(Ordering::Relaxed)
+        false
+    }
+
+    fn uses_brain_navigation(&self) -> bool {
+        true
     }
 
     fn can_use_melee_attack(&self) -> bool {
-        // The retained goal currently supplies navigation only. Brain melee owns
-        // attack timing and the shared SonicBoom cooldown; never attack twice.
+        // Brain melee owns the attack and SonicBoom cooldown memories.
         false
     }
 
