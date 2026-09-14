@@ -23,6 +23,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 pub mod amphibious_node_evaluator;
 pub mod binary_heap;
+mod block_position;
 pub mod fly_node_evaluator;
 mod navigation_tick;
 pub mod node;
@@ -619,7 +620,11 @@ impl PathNavigation {
     ) -> Option<Path> {
         let start_pos_f = entity.entity.pos.load();
         let start_block_vec = if self.java_tick.is_some() {
-            start_pos_f.to_block_pos().0
+            {
+                let [x, y, z] =
+                    block_position::containing([start_pos_f.x, start_pos_f.y, start_pos_f.z]);
+                Vector3::new(x, y, z)
+            }
         } else {
             start_pos_f.to_i32()
         };
@@ -659,7 +664,11 @@ impl PathNavigation {
             finder.set_horizontal_cost(self.java_horizontal_cost);
             let path = finder.find_path_single(
                 &mut self.evaluator,
-                destination.to_block_pos(),
+                {
+                    let [x, y, z] =
+                        block_position::containing([destination.x, destination.y, destination.z]);
+                    BlockPos::new(x, y, z)
+                },
                 range,
                 reach_range,
                 self.max_visited_nodes_multiplier,
@@ -1537,7 +1546,13 @@ impl PathNavigationTrait for GroundPathNavigation {
         destination: Vector3<f64>,
         reach_range: i32,
     ) -> Option<Path> {
-        let mut dest_pos = destination.to_block_pos();
+        let mut dest_pos = if self.inner.java_tick.is_some() {
+            let [x, y, z] =
+                block_position::containing([destination.x, destination.y, destination.z]);
+            BlockPos::new(x, y, z)
+        } else {
+            destination.to_block_pos()
+        };
         if self.inner.java_tick.is_some() {
             let base = &entity.entity;
             let world = base.world.load();
