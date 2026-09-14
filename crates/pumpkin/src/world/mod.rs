@@ -26,6 +26,7 @@ pub mod map;
 pub mod portal;
 pub mod raid;
 pub mod random_sequences;
+mod scheduled_dispatch;
 pub mod stopwatches;
 pub mod time;
 pub mod villager_poi;
@@ -1947,27 +1948,28 @@ impl World {
         let tick_data = self.level.get_tick_data(&active_chunks, random_tick_speed);
         let handle = server.runtime.clone();
 
-        // 1. Parallel Block Ticks via Rayon
-        let world = self.clone();
-        let block_handle = handle.clone();
-        tick_data
-            .block_ticks
-            .par_chunks(BATCH_SIZE)
-            .for_each(|batch| {
-                let _guard = block_handle.enter();
-                let world = world.clone();
-                for scheduled_tick in batch {
-                    let pos = scheduled_tick.position;
-                    let block = world.get_block(&pos);
-                    if let Some(pumpkin_block) = world.block_registry.get_pumpkin_block(block.id) {
+        // Java delivers scheduled block callbacks serially and checks the target
+        // type at delivery time. A callback can invalidate another collected tick.
+        {
+            let _guard = handle.enter();
+            scheduled_dispatch::dispatch(
+                tick_data
+                    .block_ticks
+                    .into_iter()
+                    .map(|tick| (tick.position, tick.value)),
+                |pos| self.get_block(pos),
+                |current, expected| current.id == expected.id,
+                |block, pos| {
+                    if let Some(pumpkin_block) = self.block_registry.get_pumpkin_block(block.id) {
                         pumpkin_block.on_scheduled_tick(OnScheduledTickArgs {
-                            world: &world,
+                            world: self,
                             block,
-                            position: &pos,
+                            position: pos,
                         });
                     }
-                }
-            });
+                },
+            );
+        }
 
         // 2. Parallel Fluid Ticks via Rayon
         let world = self.clone();
