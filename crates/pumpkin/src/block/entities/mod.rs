@@ -1,5 +1,6 @@
 use std::{any::Any, sync::Arc};
 
+use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::{Block, block_properties::BLOCK_ENTITY_TYPES};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
@@ -110,6 +111,17 @@ pub trait BlockEntity: Any + Send + Sync {
             .position(|block_entity_name| *block_entity_name == name)
             .unwrap_or(0) as u32
     }
+
+    /// Java `BlockEntity.collectImplicitComponents`: the components this block
+    /// entity contributes to the stack its block drops. Vanilla applies them
+    /// through the block's `copy_components` loot function with the
+    /// `block_entity` source, so only block entities whose loot table declares
+    /// that function may implement this.
+    fn write_dropped_stack_components(&self, _stack: &mut ItemStack) {}
+
+    /// Java `BlockEntity.applyComponentsFromItemStack`, called from
+    /// `BlockItem.updateBlockEntityComponents` once the block has been placed.
+    fn apply_components_from_item_stack(&self, _stack: &ItemStack) {}
 
     /// Obtain NBT data for sending to the client in `ChunkData`
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {

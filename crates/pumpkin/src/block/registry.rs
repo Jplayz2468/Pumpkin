@@ -189,6 +189,7 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockDirection, BlockId, BlockState};
 use pumpkin_inventory::screen_handler::ScreenHandlerFactory;
+use pumpkin_util::Hand;
 use pumpkin_protocol::java::server::play::SUseItemOn;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
@@ -818,6 +819,18 @@ impl BlockRegistry {
             face,
             player,
         );
+
+        // Java `BlockItem.updateBlockEntityComponents`: the stack that was
+        // placed hands its components to the fresh block entity, which is how a
+        // shulker box carries its contents back into the world.
+        if let Ok(hand) = Hand::from_packet_id(use_item_on.hand.0)
+            && let Some(block_entity) = world.get_block_entity(&final_block_pos)
+        {
+            let stack = player.inventory().get_stack_in_hand(hand);
+            if !stack.is_empty() {
+                block_entity.apply_components_from_item_stack(&stack);
+            }
+        }
 
         player.trigger_advancement(
             crate::entity::player::advancement::trigger::AdvancementTrigger::PlacedBlock {

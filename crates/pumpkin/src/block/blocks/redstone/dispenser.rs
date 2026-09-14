@@ -1177,10 +1177,14 @@ impl DispenserBlock {
             Facing::Up
         };
 
-        // TODO: Carry over the contents of the box
-        let _ = item.split(1);
+        let placed = item.split(1);
         ctx.world
             .set_block_state(&target, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+        // Same hand-off as a player placement: the dispensed stack gives its
+        // minecraft:container back to the new block entity.
+        if let Some(block_entity) = ctx.world.get_block_entity(&target) {
+            block_entity.apply_components_from_item_stack(&placed);
+        }
         Self::play_dispense_effects(ctx, WorldEvent::SoundDispenserDispense);
 
         true

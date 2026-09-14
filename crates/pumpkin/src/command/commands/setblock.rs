@@ -46,10 +46,13 @@ impl CommandExecutor for SetBlockExecutor {
 
         let success = match mode {
             Mode::Destroy => {
+                // Java runs Level.destroyBlock(pos, true) here, so the block's
+                // own loot table drops as well as any scattered container
+                // contents. Skipping drops silently destroyed the block item.
                 world.break_block(
                     &pos,
                     None,
-                    BlockFlags::SKIP_DROPS | BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE,
+                    BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE,
                 );
                 world.set_block_state(
                     &pos,

@@ -1,5 +1,7 @@
+use pumpkin_data::data_component_impl::ContainerImpl;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::Taggable;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use std::any::Any;
@@ -85,6 +87,48 @@ impl BlockEntity for ShulkerBoxBlockEntity {
 
     fn clear_dirty(&self) {
         self.dirty.store(false, Ordering::Relaxed);
+    }
+
+    /// Vanilla's `blocks/shulker_box` loot table copies `minecraft:container`
+    /// off the block entity, which is what carries the contents through the
+    /// break -> item -> place cycle. An all-empty box contributes no component,
+    /// matching a vanilla drop.
+    fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
+        let items = self
+            .items
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let contents: Vec<(u8, ItemStack)> = items
+            .iter()
+            .enumerate()
+            .filter(|(_, slot)| !slot.is_empty())
+            .map(|(slot, stack)| (slot as u8, stack.clone()))
+            .collect();
+        if contents.is_empty() {
+            return;
+        }
+        stack.set_data_component(ContainerImpl { items: contents });
+    }
+
+    /// Restores the contents when a box carrying `minecraft:container` is
+    /// placed, by a player or by a dispenser.
+    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+        let Some(container) = stack.get_data_component::<ContainerImpl>() else {
+            return;
+        };
+        {
+            let mut items = self
+                .items
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            items.fill_with(|| ItemStack::EMPTY.clone());
+            for (slot, stored) in &container.items {
+                if let Some(target) = items.get_mut(*slot as usize) {
+                    *target = stored.clone();
+                }
+            }
+        }
+        self.mark_dirty();
     }
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
@@ -200,6 +244,14 @@ impl Inventory for ShulkerBoxBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         items[slot] = stack;
         self.mark_dirty();
+    }
+
+    /// Java `ShulkerBoxBlockEntity.canPlaceItemThroughFace`: a shulker box
+    /// never accepts another shulker box, so hoppers and droppers cannot nest
+    /// them.
+    fn is_valid_slot_for(&self, _slot: usize, stack: &ItemStack) -> bool {
+        !pumpkin_data::Block::from_item_id(stack.item.id)
+            .is_some_and(|block| block.is_tagged_with("minecraft:shulker_boxes") == Some(true))
     }
 
     fn on_open(&self) {
