@@ -208,7 +208,7 @@ fn is_allowed_by_team_rules(
 
 /// Resolves an entity's scoreboard team. Players are
 /// tracked by name; all other entities are tracked by their UUID string.
-fn get_entity_team(entity: &dyn EntityBase) -> Option<crate::world::scoreboard::Team> {
+pub(crate) fn get_entity_team(entity: &dyn EntityBase) -> Option<crate::world::scoreboard::Team> {
     if let Some(player) = entity.get_player() {
         return player.get_team();
     }

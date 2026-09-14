@@ -1,7 +1,13 @@
 use std::sync::{Arc, Mutex, Weak, atomic::Ordering};
 
-use super::warden_emergence::Emergence;
+use super::{
+    warden_anger::{AngerManagement, Removal, Suspect},
+    warden_anger_nbt,
+    warden_emergence::Emergence,
+    warden_target::{self, TargetFacts},
+};
 use crate::entity::{EntityBase, spawn::SpawnReason};
+use crate::entity::{RemovalReason, living::get_entity_team};
 use pumpkin_data::{
     damage::DamageType,
     entity::{EntityPose, EntityType},
@@ -14,6 +20,7 @@ use pumpkin_protocol::{codec::var_int::VarInt, java::client::play::Metadata};
 use pumpkin_util::{
     math::boundingbox::EntityDimensions, random::RandomImpl, version::JavaMinecraftVersion,
 };
+use std::collections::HashMap;
 
 pub fn dimensions(pose: EntityPose) -> EntityDimensions {
     if matches!(pose, EntityPose::Emerging | EntityPose::Digging) {
@@ -40,7 +47,24 @@ use crate::entity::{
 pub struct WardenEntity {
     pub mob_entity: MobEntity,
     pub emergence: Mutex<Emergence>,
+    anger: Mutex<AngerState>,
+    client_anger: std::sync::atomic::AtomicI32,
     random: Mutex<pumpkin_util::random::legacy_rand::LegacyRand>,
+}
+
+struct AngerState {
+    manager: AngerManagement,
+    removed: HashMap<i32, Removal>,
+}
+
+fn suspect(entity: &dyn EntityBase) -> Suspect {
+    let base = entity.get_entity();
+    Suspect {
+        id: base.entity_id,
+        uuid: base.entity_uuid.as_u128(),
+        player: entity.get_player().is_some(),
+        living: entity.get_living_entity().is_some(),
+    }
 }
 
 impl WardenEntity {
@@ -49,6 +73,11 @@ impl WardenEntity {
         let warden = Self {
             mob_entity,
             emergence: Mutex::new(Emergence::default()),
+            anger: Mutex::new(AngerState {
+                manager: AngerManagement::new(rand::random_range(0..=2), &[]),
+                removed: HashMap::new(),
+            }),
+            client_anger: std::sync::atomic::AtomicI32::new(0),
             random: Mutex::new(pumpkin_util::random::legacy_rand::LegacyRand::from_seed(
                 rand::random(),
             )),
@@ -89,6 +118,107 @@ impl WardenEntity {
         mob_arc
     }
 
+    pub fn can_target_entity(&self, target: &dyn EntityBase) -> bool {
+        let entity = target.get_entity();
+        let own_world = self.get_entity().world.load();
+        let target_world = entity.world.load();
+        let own_team = get_entity_team(self);
+        let target_team = get_entity_team(target);
+        let allied = own_team
+            .zip(target_team)
+            .is_some_and(|(a, b)| a.name == b.name);
+        let living = target.get_living_entity();
+        let bounds = entity.bounding_box.load();
+        let border = own_world
+            .worldborder
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let half = border.new_diameter / 2.0;
+        let limit = f64::from(border.portal_teleport_boundary);
+        warden_target::eligible(
+            &TargetFacts {
+                living: living.is_some(),
+                same_world: Arc::ptr_eq(&own_world, &target_world),
+                creative_or_spectator: target
+                    .get_player()
+                    .is_some_and(|p| p.is_creative() || p.is_spectator()),
+                allied,
+                armor_stand_or_warden: matches!(
+                    entity.entity_type.resource_name,
+                    "armor_stand" | "warden"
+                ),
+                invulnerable: entity.invulnerable.load(Ordering::Relaxed),
+                dead_or_dying: living
+                    .is_some_and(|l| l.health.load() <= 0.0 || l.dead.load(Ordering::Relaxed)),
+            },
+            [bounds.min.x, bounds.min.z, bounds.max.x, bounds.max.z],
+            [
+                (border.center_x - half).max(-limit),
+                (border.center_z - half).max(-limit),
+                (border.center_x + half).min(limit),
+                (border.center_z + half).min(limit),
+            ],
+        )
+    }
+
+    fn tick_anger(&self) {
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        let value = {
+            let mut state = self
+                .anger
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let AngerState { manager, removed } = &mut *state;
+            manager.tick(
+                |uuid| {
+                    let uuid = uuid::Uuid::from_u128(uuid);
+                    world
+                        .get_entity_by_uuid(uuid)
+                        .or_else(|| {
+                            world
+                                .get_player_by_uuid(uuid)
+                                .map(|p| p as Arc<dyn EntityBase>)
+                        })
+                        .map(|e| suspect(e.as_ref()))
+                },
+                |id| {
+                    if let Some(reason) = removed.get(&id) {
+                        return (false, Some(*reason));
+                    }
+                    world.get_entity_by_id(id).map_or((false, None), |e| {
+                        (
+                            self.can_target_entity(e.as_ref()),
+                            e.get_entity().removal_reason.load().map(|r| {
+                                if r.should_destroy() {
+                                    Removal::Discarded
+                                } else {
+                                    Removal::Unloaded
+                                }
+                            }),
+                        )
+                    })
+                },
+            );
+            removed.clear();
+            let target = self
+                .mob_entity
+                .target
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            manager.anger(target.as_ref().map(|e| e.get_entity().entity_id))
+        };
+        if self.client_anger.swap(value, Ordering::Relaxed) != value {
+            entity.send_meta_data(
+                &[
+                    Metadata::new(tracked_data::warden::CLIENT_ANGER_LEVEL, VarInt(value)),
+                    Metadata::new(tracked_data::warden::ANGER, VarInt(value)),
+                ],
+                None,
+            );
+        }
+    }
+
     fn is_digging_or_emerging(&self) -> bool {
         matches!(
             self.get_entity().pose.load(),
@@ -100,6 +230,23 @@ impl WardenEntity {
 impl Mob for WardenEntity {
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    fn mob_observe_removal(&self, id: i32, reason: RemovalReason) {
+        let mut state = self
+            .anger
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if state.manager.suspects.iter().any(|s| s.id == id) {
+            state.removed.insert(
+                id,
+                if reason.should_destroy() {
+                    Removal::Discarded
+                } else {
+                    Removal::Unloaded
+                },
+            );
+        }
     }
 
     fn remove_when_far_away(&self, _distance_sq: f64) -> bool {
@@ -161,6 +308,9 @@ impl Mob for WardenEntity {
         if transition.stop && entity.pose.load() == EntityPose::Emerging {
             entity.set_pose(EntityPose::Standing);
         }
+        if !self.mob_entity.is_no_ai() && entity.tick_count.load(Ordering::Relaxed) % 20 == 0 {
+            self.tick_anger();
+        }
     }
 
     fn run_goal_ai(&self) -> bool {
@@ -184,6 +334,14 @@ impl Mob for WardenEntity {
         )
         .write(&mut metadata, &version)
         .ok()?;
+        for field in [
+            tracked_data::warden::CLIENT_ANGER_LEVEL,
+            tracked_data::warden::ANGER,
+        ] {
+            Metadata::new(field, VarInt(self.client_anger.load(Ordering::Relaxed)))
+                .write(&mut metadata, &version)
+                .ok()?;
+        }
         metadata.push(255);
         Some(metadata.into_boxed_slice())
     }
@@ -210,9 +368,24 @@ impl Mob for WardenEntity {
         let mut brain = NbtCompound::new();
         brain.put_compound("memories", memories);
         nbt.put_compound("Brain", brain);
+        drop(state);
+        let anger = self
+            .anger
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some(saved) = warden_anger_nbt::write(&anger.manager) {
+            nbt.put_compound("anger", saved);
+        }
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
+        *self
+            .anger
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = AngerState {
+            manager: warden_anger_nbt::read(nbt.get_compound("anger"), rand::random_range(0..=2)),
+            removed: HashMap::new(),
+        };
         let memories = nbt
             .get_compound("Brain")
             .and_then(|b| b.get_compound("memories"));

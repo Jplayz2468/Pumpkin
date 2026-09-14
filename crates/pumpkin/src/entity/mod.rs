@@ -3229,7 +3229,8 @@ impl Entity {
         let aabb = BoundingBox::new_from_pos(position.x, position.y, position.z, &dimension);
         self.pose.store(pose);
         if self.entity_type == &EntityType::WARDEN {
-            self.data.store(i32::from(pose == EntityPose::Emerging), Relaxed);
+            self.data
+                .store(i32::from(pose == EntityPose::Emerging), Relaxed);
         }
         self.bounding_box.store(aabb);
         self.entity_dimension.store(dimension);

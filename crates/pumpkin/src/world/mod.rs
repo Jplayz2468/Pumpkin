@@ -30,9 +30,9 @@ mod scheduled_dispatch;
 pub mod stopwatches;
 pub mod time;
 pub mod villager_poi;
-pub mod warden_spawn_position;
-pub mod warden_spawn_attempts;
 pub mod warden_spawn;
+pub mod warden_spawn_attempts;
+pub mod warden_spawn_position;
 
 use crate::block::RandomTickArgs;
 use crate::world::chunker::is_within_chebyshev_distance;
@@ -5155,6 +5155,14 @@ impl World {
             new_list
         });
         if let Some(ref player) = removed_player {
+            self.notify_mob_observers_of_removal(
+                player.get_entity().entity_id,
+                if fire_event {
+                    RemovalReason::UnloadedWithPlayer
+                } else {
+                    RemovalReason::ChangedDimension
+                },
+            );
             self.entity_tracker
                 .remove_entity(player.as_ref() as &dyn EntityBase, self);
             let uuid = player.gameprofile.id;
@@ -5300,6 +5308,14 @@ impl World {
         });
     }
 
+    fn notify_mob_observers_of_removal(&self, id: i32, reason: RemovalReason) {
+        for observer in self.entities.load().iter() {
+            if let Some(mob) = observer.get_mob() {
+                mob.mob_observe_removal(id, reason);
+            }
+        }
+    }
+
     pub fn remove_entity(&self, entity: &dyn EntityBase) {
         let base_entity = entity.get_entity();
         if base_entity
@@ -5310,6 +5326,8 @@ impl World {
             return;
         }
         base_entity.removed.store(true, Ordering::Release);
+
+        self.notify_mob_observers_of_removal(base_entity.entity_id, RemovalReason::Discarded);
 
         self.spawn_state.load().remove_entity(self, entity);
         self.entity_tracker.remove_entity(entity, self);
@@ -5346,6 +5364,10 @@ impl World {
         });
 
         for entity in entities_to_remove {
+            self.notify_mob_observers_of_removal(
+                entity.get_entity().entity_id,
+                RemovalReason::UnloadedToChunk,
+            );
             self.entity_tracker.remove_entity(entity.as_ref(), self);
             self.save_entity(&entity).await;
             self.spawn_state.load().remove_entity(self, entity.as_ref());

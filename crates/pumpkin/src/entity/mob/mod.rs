@@ -66,7 +66,10 @@ pub mod spider;
 pub mod vex;
 pub mod vindicator;
 pub mod warden;
+pub mod warden_anger;
+pub mod warden_anger_nbt;
 pub mod warden_emergence;
+pub mod warden_target;
 pub mod witch;
 pub mod zoglin;
 pub mod zombie;
@@ -711,6 +714,10 @@ pub trait Mob: EntityBase + Send + Sync {
     }
 
     fn get_mob_entity(&self) -> &MobEntity;
+
+    /// Preserve observer state when another entity leaves this world. The
+    /// notification carries no Arc, so remembering suspects cannot retain mobs.
+    fn mob_observe_removal(&self, _id: i32, _reason: crate::entity::RemovalReason) {}
 
     fn mob_bedrock_identifier(&self) -> Option<&'static str> {
         None
