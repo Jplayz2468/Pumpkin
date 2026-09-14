@@ -26,7 +26,8 @@ impl JavaClient {
                     if event.is_flying {
                         player.living_entity.fall_distance.store(0.0);
                     }
-                    player.abilities.lock().unwrap_or_else(std::sync::PoisonError::into_inner).flying = event.is_flying;
+                    player.abilities.lock().unwrap_or_else(std::sync::PoisonError::into_inner).flying = event.is_flying && allow_flying;
+                    player.update_gliding();
                 }
                 'cancelled: {
                     player.send_abilities_update();

@@ -1896,10 +1896,12 @@ impl LivingEntity {
             );
         }
 
-        let safe_fall_distance = self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE) as f32;
-        let unsafe_fall_distance = fall_distance + 1.0E-6 - safe_fall_distance;
-
-        let damage = (unsafe_fall_distance * damage_per_distance).floor();
+        let damage = calculate_fall_damage(
+            f64::from(fall_distance),
+            self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE),
+            f64::from(damage_per_distance),
+            self.get_attribute_value(&Attributes::FALL_DAMAGE_MULTIPLIER),
+        );
         if damage > 0.0 {
             let check_damage = self.damage(caller, damage, DamageType::FALL); // Fall
             if check_damage {
@@ -1978,6 +1980,7 @@ impl LivingEntity {
             .compare_exchange(false, true, Relaxed, Relaxed)
             .is_ok()
         {
+            self.entity.set_fall_flying(false);
             self.movement_input.store(Vector3::default());
             self.jumping.store(false, Relaxed);
 
@@ -2662,9 +2665,9 @@ impl LivingEntity {
         if let Some(death_time) = nbt.get_short("DeathTime") {
             self.death_time.store(death_time as u8, Relaxed);
         }
-        self.entity
-            .fall_flying
-            .store(nbt.get_bool("FallFlying").unwrap_or(false), Relaxed);
+        self.entity.set_fall_flying(
+            self.health.load() > 0.0 && nbt.get_bool("FallFlying").unwrap_or(false),
+        );
         {
             let nbt_effects = nbt.get_list("active_effects");
             if let Some(nbt_effects) = nbt_effects {
@@ -3777,6 +3780,16 @@ const fn attribute_modifier_slot_matches(
 /// Mirrors vanilla's strict `random < probability` consume-effect gate.
 const fn consume_effect_probability_applies(probability: f32, random: f32) -> bool {
     random < probability
+}
+
+/// LivingEntity.calculateFallDamage in Mojang Java 26.2.
+pub(super) fn calculate_fall_damage(
+    distance: f64,
+    safe: f64,
+    block_multiplier: f64,
+    attribute_multiplier: f64,
+) -> f32 {
+    ((distance + 1.0E-6 - safe) * block_multiplier * attribute_multiplier).floor() as f32
 }
 
 #[cfg(test)]
