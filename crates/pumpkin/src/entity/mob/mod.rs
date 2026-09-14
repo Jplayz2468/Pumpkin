@@ -66,6 +66,8 @@ pub mod spider;
 pub mod vex;
 pub mod vindicator;
 pub mod warden;
+mod warden_brain;
+mod warden_look;
 pub mod warden_anger;
 pub mod warden_anger_nbt;
 pub mod warden_damage;
@@ -804,6 +806,9 @@ pub trait Mob: EntityBase + Send + Sync {
 
     /// Per-mob tick hook called each tick before AI runs. Override for mob-specific logic.
     fn mob_tick(&self, _caller: &dyn EntityBase) {}
+
+    /// Brain-owned LOOK_TARGET takes precedence over navigation-only melee goals.
+    fn use_goal_look_control(&self) -> bool { true }
 
     fn run_goal_ai(&self) -> bool {
         true

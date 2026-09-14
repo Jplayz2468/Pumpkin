@@ -2,9 +2,12 @@ use std::sync::{Arc, Mutex, atomic::Ordering};
 
 use super::{
     warden_anger::{AngerManagement, Removal, Suspect},
-    warden_anger_nbt, warden_damage, warden_darkness,
+    warden_anger_nbt,
+    warden_brain::{self, Activity, Behavior, Phase},
+    warden_damage, warden_darkness,
     warden_dig::{self, Digging},
     warden_emergence::Emergence,
+    warden_look::LookSink,
     warden_melee,
     warden_roar::Roar,
     warden_sensor::{self, Sensor},
@@ -47,10 +50,7 @@ pub fn dimensions(pose: EntityPose) -> EntityDimensions {
 
 use crate::entity::{
     Entity,
-    ai::goal::{
-        look_around::RandomLookAroundGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
-    },
+    ai::goal::{melee_attack::MeleeAttackGoal, swim::SwimGoal, wander_around::WanderAroundGoal},
     mob::{Mob, MobEntity},
 };
 
@@ -63,12 +63,21 @@ pub struct WardenEntity {
     sonic: Mutex<SonicBoom>,
     sensor: Mutex<Sensor>,
     sniff: Mutex<Sniffing>,
+    look_sink: Mutex<LookSink>,
+    look_memory: Mutex<Option<(LookTarget, i64)>>,
+    fight_look_range_squared: f64,
     sniff_active: std::sync::atomic::AtomicBool,
     investigate_active: std::sync::atomic::AtomicBool,
     idle_active: std::sync::atomic::AtomicBool,
     fight_active: std::sync::atomic::AtomicBool,
     client_anger: std::sync::atomic::AtomicI32,
     random: Mutex<pumpkin_util::random::legacy_rand::LegacyRand>,
+}
+
+#[derive(Clone)]
+enum LookTarget {
+    Block([i32; 3]),
+    Entity(Arc<dyn EntityBase>),
 }
 
 struct AngerState {
@@ -89,6 +98,9 @@ fn suspect(entity: &dyn EntityBase) -> Suspect {
 impl WardenEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
+        let look_range = mob_entity
+            .living_entity
+            .get_attribute_value(&Attributes::FOLLOW_RANGE) as f32;
         let mut random = pumpkin_util::random::legacy_rand::LegacyRand::from_seed(rand::random());
         let sensor = Sensor::new(|bound| random.next_bounded_i32(bound));
         let warden = Self {
@@ -103,6 +115,9 @@ impl WardenEntity {
             sonic: Mutex::new(SonicBoom::default()),
             sensor: Mutex::new(sensor),
             sniff: Mutex::new(Sniffing::default()),
+            look_sink: Mutex::new(LookSink::default()),
+            look_memory: Mutex::new(None),
+            fight_look_range_squared: f64::from(look_range * look_range),
             sniff_active: std::sync::atomic::AtomicBool::new(false),
             investigate_active: std::sync::atomic::AtomicBool::new(false),
             idle_active: std::sync::atomic::AtomicBool::new(true),
@@ -121,7 +136,6 @@ impl WardenEntity {
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.2, true)));
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(0.5)));
-            goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
         };
 
         mob_arc
@@ -168,6 +182,228 @@ impl WardenEntity {
                 (border.center_z + half).min(limit),
             ],
         )
+    }
+
+    fn next_world_int(&self, bound: i32) -> i32 {
+        self.get_entity()
+            .world
+            .load()
+            .random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_bounded_i32(bound)
+    }
+
+    fn active_activity(&self) -> Activity {
+        if self
+            .emergence
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .active
+        {
+            Activity::Emerge
+        } else if self
+            .digging
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .active
+        {
+            Activity::Dig
+        } else if self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .active
+        {
+            Activity::Roar
+        } else if self.fight_active.load(Ordering::Relaxed) {
+            Activity::Fight
+        } else if self.investigate_active.load(Ordering::Relaxed) {
+            Activity::Investigate
+        } else if self.sniff_active.load(Ordering::Relaxed) {
+            Activity::Sniff
+        } else {
+            Activity::Idle
+        }
+    }
+
+    fn set_look_target(&self, target: LookTarget, ttl: i64) {
+        *self
+            .look_memory
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((target, ttl));
+    }
+
+    fn select_look_target(&self) {
+        let roar = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        if roar.attack_target.is_some() {
+            return;
+        }
+        let target = roar
+            .target
+            .and_then(|id| self.get_entity().world.load().get_entity_by_id(id))
+            .map(|e| {
+                let p = e.get_entity().pos.load();
+                [p.x.floor() as i32, p.y.floor() as i32, p.z.floor() as i32]
+            })
+            .or_else(|| {
+                self.sniff
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .disturbance
+                    .map(|(p, _)| p)
+            });
+        if let Some(p) = target {
+            self.set_look_target(LookTarget::Block(p), i64::MAX);
+        }
+    }
+
+    fn look_entity_visible(&self, target: &dyn EntityBase) -> bool {
+        let facts = self.sensor_target(target);
+        if !facts.alive {
+            return false;
+        }
+        let entity = self.get_entity();
+        let p = entity.pos.load();
+        let attack = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .attack_target;
+        let mut sensor = self
+            .sensor
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        sensor.present
+            && sensor.contains([p.x, p.y, p.z], attack, &facts, |_| {
+                entity
+                    .world
+                    .load()
+                    .has_line_of_sight(entity.get_eye_pos(), target.get_entity().get_eye_pos())
+            })
+    }
+
+    fn select_fight_look_target(&self) {
+        if self
+            .look_memory
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_some()
+        {
+            return;
+        }
+        let id = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .attack_target;
+        let Some(target) = id.and_then(|id| self.get_entity().world.load().get_entity_by_id(id))
+        else {
+            return;
+        };
+        let delta = target.get_entity().pos.load() - self.get_entity().pos.load();
+        if delta.x * delta.x + delta.y * delta.y + delta.z * delta.z
+            <= self.fight_look_range_squared
+            && !self.has_passenger(target.as_ref())
+            && self.look_entity_visible(target.as_ref())
+        {
+            self.set_look_target(LookTarget::Entity(target), i64::MAX);
+        }
+    }
+
+    fn tick_look(&self, phase: Phase) {
+        let memory = self
+            .look_memory
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        let time = self.get_entity().world.load().get_world_age();
+        let mut sink = self
+            .look_sink
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if phase == Phase::Start {
+            sink.start(time, memory.is_some(), |bound| self.next_world_int(bound));
+            return;
+        }
+        let visible = if sink.end_timestamp.is_some_and(|end| time <= end) {
+            match &memory {
+                Some((LookTarget::Entity(e), _)) => self.look_entity_visible(e.as_ref()),
+                _ => true,
+            }
+        } else {
+            true
+        };
+        let (call, clear) = sink.run(time, memory.is_some(), visible);
+        drop(sink);
+        if clear {
+            *self
+                .look_memory
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        }
+        if call {
+            let position = match memory.unwrap().0 {
+                LookTarget::Block([x, y, z]) => {
+                    Vector3::new(f64::from(x) + 0.5, f64::from(y) + 0.5, f64::from(z) + 0.5)
+                }
+                LookTarget::Entity(e) => e.get_entity().get_eye_pos(),
+            };
+            self.mob_entity
+                .look_control
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .look_at_position(self, position);
+        }
+    }
+
+    fn tick_emergence(&self, phase: Phase) {
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        let mut emergence = self
+            .emergence
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let transition = match phase {
+            Phase::Start => {
+                // Replaced by WALK_TARGET presence with the movement sink.
+                let walk = !self
+                    .mob_entity
+                    .navigator
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .is_idle();
+                if walk {
+                    Default::default()
+                } else {
+                    emergence.start_behavior(world.get_world_age(), |bound| {
+                        self.next_world_int(bound);
+                    })
+                }
+            }
+            Phase::Run => super::warden_emergence::Transition {
+                stop: emergence.run_behavior(world.get_world_age()),
+                ..Default::default()
+            },
+        };
+        drop(emergence);
+        if transition.start {
+            entity.set_pose(EntityPose::Emerging);
+            world.play_sound_fine(
+                Sound::EntityWardenEmerge,
+                SoundCategory::Hostile,
+                &entity.pos.load(),
+                5.0,
+                1.0,
+            );
+        }
+        if transition.stop && entity.pose.load() == EntityPose::Emerging {
+            entity.set_pose(EntityPose::Standing);
+        }
     }
 
     fn tick_anger(&self) {
@@ -242,7 +478,7 @@ impl WardenEntity {
         }
     }
 
-    fn tick_roar(&self) {
+    fn set_roar_target(&self) {
         if self.mob_entity.is_no_ai() {
             return;
         }
@@ -269,21 +505,29 @@ impl WardenEntity {
         } else {
             None
         };
+        let mut roar = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if roar.target.is_none() && roar.attack_target.is_none() {
+            roar.target = candidate;
+        }
+    }
+
+    fn tick_roar(&self, phase: Phase) {
+        let entity = self.get_entity();
+        let world = entity.world.load();
         let change = {
             let mut roar = self
                 .roar
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if roar.target.is_none() && roar.attack_target.is_none() {
-                roar.target = candidate;
+            match phase {
+                Phase::Start => roar.start_behavior(world.get_world_age(), |bound| {
+                    self.next_world_int(bound);
+                }),
+                Phase::Run => roar.run_behavior(world.get_world_age()),
             }
-            roar.tick_behavior(world.get_world_age(), |bound| {
-                world
-                    .random
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .next_bounded_i32(bound);
-            })
         };
         if let Some(id) = change.start {
             entity.set_pose(EntityPose::Roaring);
@@ -293,11 +537,7 @@ impl WardenEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .stop();
             if let Some(target) = world.get_entity_by_id(id) {
-                self.mob_entity
-                    .look_control
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .look_at_entity_with_range(&target, 45.0, 90.0);
+                self.set_look_target(LookTarget::Entity(target.clone()), i64::MAX);
                 if self.can_target_entity(target.as_ref()) {
                     self.reset_dig_cooldown();
                     self.anger
@@ -464,11 +704,7 @@ impl WardenEntity {
         if !attack {
             return;
         }
-        self.mob_entity
-            .look_control
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .look_at_entity(self, &target);
+        self.set_look_target(LookTarget::Entity(target.clone()), i64::MAX);
         self.mob_entity.living_entity.swing_hand();
         world.send_entity_status(entity, EntityStatus::StartAttacking, None);
         let pitch = {
@@ -493,7 +729,7 @@ impl WardenEntity {
         self.mob_entity.try_attack(self, target.as_ref());
     }
 
-    fn tick_sonic(&self) {
+    fn tick_sonic(&self, phase: Phase) {
         if self.mob_entity.is_no_ai() {
             return;
         }
@@ -514,27 +750,29 @@ impl WardenEntity {
             let eligible = target
                 .as_ref()
                 .is_some_and(|t| self.can_target_entity(t.as_ref()));
-            let change = self
+            let facts = warden_sonic::Facts {
+                active: self.fight_active.load(Ordering::Relaxed),
+                attack: target.is_some(),
+                eligible,
+                in_range,
+            };
+            let mut sonic = self
                 .sonic
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .tick_behavior(
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let change = match phase {
+                Phase::Start => sonic.start_behavior(
                     world.get_world_age(),
-                    &mut roar.sonic_cooldown,
-                    &warden_sonic::Facts {
-                        active: self.fight_active.load(Ordering::Relaxed),
-                        attack: target.is_some(),
-                        eligible,
-                        in_range,
-                    },
+                    &roar.sonic_cooldown,
+                    &facts,
                     |bound| {
-                        world
-                            .random
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner)
-                            .next_bounded_i32(bound);
+                        self.next_world_int(bound);
                     },
-                );
+                ),
+                Phase::Run => {
+                    sonic.run_behavior(world.get_world_age(), &mut roar.sonic_cooldown, &facts)
+                }
+            };
             (change, target)
         };
         if change.start {
@@ -634,7 +872,7 @@ impl WardenEntity {
         }
     }
 
-    fn tick_digging(&self) {
+    fn tick_digging(&self, phase: Phase) {
         let entity = self.get_entity();
         let world = entity.world.load();
         let emergence = self
@@ -655,11 +893,17 @@ impl WardenEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .is_idle();
-        let change = self
+        let mut digging = self
             .digging
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .tick(
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let change = if phase == Phase::Run {
+            warden_dig::Transition {
+                remove: digging.run_behavior(world.get_world_age(), entity.is_removed()),
+                ..Default::default()
+            }
+        } else {
+            digging.start_behavior(
                 world.get_world_age(),
                 &warden_dig::Facts {
                     no_ai: self.mob_entity.is_no_ai(),
@@ -699,7 +943,9 @@ impl WardenEntity {
                         entity.touching_lava.load(Ordering::Relaxed),
                     )
                 },
-            );
+            )
+        };
+        drop(digging);
         if change.start {
             entity.set_pose(EntityPose::Digging);
             world.play_sound_fine(
@@ -771,7 +1017,7 @@ impl WardenEntity {
         }
     }
 
-    fn tick_sniff(&self) {
+    fn tick_sniff(&self, behavior: Behavior, phase: Phase) {
         if self.mob_entity.is_no_ai() {
             return;
         }
@@ -795,27 +1041,31 @@ impl WardenEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .is_idle();
-        let change = self
-            .sniff
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .tick_behavior(
-                world.get_world_age(),
-                &warden_sniff::Facts {
-                    idle_active: self.idle_active.load(Ordering::Relaxed),
-                    sniff_active: self.sniff_active.load(Ordering::Relaxed),
-                    nearest: nearest.is_some(),
-                    attack,
-                    walk,
-                },
-                |bound| {
-                    world
-                        .random
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .next_bounded_i32(bound)
-                },
-            );
+        let facts = warden_sniff::Facts {
+            idle_active: self.idle_active.load(Ordering::Relaxed),
+            sniff_active: self.sniff_active.load(Ordering::Relaxed),
+            nearest: nearest.is_some(),
+            attack,
+            walk,
+        };
+        let change = {
+            let mut sniff = self
+                .sniff
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            match (behavior, phase) {
+                (Behavior::TrySniff, Phase::Start) => {
+                    sniff.try_sniff(&facts, |bound| self.next_world_int(bound))
+                }
+                (Behavior::Sniff, Phase::Start) => {
+                    sniff.start_behavior(world.get_world_age(), &facts, |bound| {
+                        self.next_world_int(bound)
+                    })
+                }
+                (Behavior::Sniff, Phase::Run) => sniff.run_behavior(world.get_world_age()),
+                _ => Default::default(),
+            }
+        };
         if change.pose {
             entity.set_pose(EntityPose::Sniffing);
         }
@@ -918,6 +1168,7 @@ impl WardenEntity {
             .disturb(position, inside, angry, attack, &mut dig.dig_cooldown);
         drop(dig);
         if changed {
+            self.set_look_target(LookTarget::Block(position), 100);
             self.mob_entity
                 .navigator
                 .lock()
@@ -935,7 +1186,11 @@ impl WardenEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
-        let emerging = emergence.active;
+        let emerging = emergence.emerging_memory.is_some();
+        self.emergence
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .active = emerging;
         let mut roar = self
             .roar
             .lock()
@@ -945,11 +1200,16 @@ impl WardenEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .active = digging;
-        roar.active = !emerging && !digging && roar.target.is_some();
-        self.fight_active.store(
-            !emerging && !digging && !roar.active && roar.attack_target.is_some(),
-            Ordering::Relaxed,
-        );
+        let roaring = !emerging && !digging && roar.target.is_some();
+        if roar.active && !roaring {
+            roar.target = None;
+        }
+        roar.active = roaring;
+        let fighting = !emerging && !digging && !roaring && roar.attack_target.is_some();
+        if self.fight_active.swap(fighting, Ordering::Relaxed) && !fighting {
+            roar.attack_target = None;
+            self.mob_entity.set_target(None);
+        }
         let calm = !emerging && !digging && !roar.active && roar.attack_target.is_none();
         let mut sniff = self
             .sniff
@@ -1041,8 +1301,10 @@ impl Mob for WardenEntity {
             self.reset_dig_cooldown();
         }
         let entity = self.get_entity();
-        let world = entity.world.load();
-        if !self.mob_entity.is_no_ai() {
+        if self.mob_entity.is_no_ai() {
+            return;
+        }
+        {
             self.emergence
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -1060,48 +1322,61 @@ impl Mob for WardenEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .tick_memories();
         }
-        self.tick_sensor();
-        let transition = if self.mob_entity.is_no_ai() {
-            super::warden_emergence::Transition::default()
-        } else {
-            self.emergence
+        {
+            let mut memory = self
+                .look_memory
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .tick_behavior(world.get_world_age(), |bound| {
-                    world
-                        .random
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner)
-                        .next_bounded_i32(bound);
-                })
-        };
-        if transition.start {
-            entity.set_pose(EntityPose::Emerging);
-            world.play_sound_fine(
-                Sound::EntityWardenEmerge,
-                SoundCategory::Hostile,
-                &entity.pos.load(),
-                5.0,
-                1.0,
-            );
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some((_, ttl)) = &mut *memory {
+                if *ttl != i64::MAX {
+                    if *ttl <= 0 {
+                        *memory = None;
+                    } else {
+                        *ttl -= 1;
+                    }
+                }
+            }
         }
-        if transition.stop && entity.pose.load() == EntityPose::Emerging {
-            entity.set_pose(EntityPose::Standing);
-        }
-        self.tick_digging();
+        self.tick_sensor();
+        warden_brain::behaviors(self.active_activity(), |behavior, phase| {
+            match (behavior, phase) {
+                (Behavior::SetLook, Phase::Start) => self.select_look_target(),
+                (Behavior::Look, _) => self.tick_look(phase),
+                (Behavior::Emerge, _) => self.tick_emergence(phase),
+                (Behavior::Dig, _) => self.tick_digging(phase),
+                (Behavior::SetRoar, Phase::Start) => self.set_roar_target(),
+                (Behavior::Roar, _) => self.tick_roar(phase),
+                (Behavior::Sniff | Behavior::TrySniff, _) => self.tick_sniff(behavior, phase),
+                (Behavior::ValidateAttack, Phase::Start) => self.validate_fight_target(),
+                (Behavior::FightLook, Phase::Start) => self.select_fight_look_target(),
+                (Behavior::Sonic, _) => self.tick_sonic(phase),
+                (Behavior::Melee, Phase::Start) => self.tick_melee(),
+                // Movement/swimming still use the retained goals until their own
+                // Brain memory/path contracts are implemented and verified.
+                _ => {}
+            }
+        });
         if entity.is_removed() {
             return;
         }
-        self.tick_roar();
-        self.tick_sniff();
-        self.validate_fight_target();
-        self.tick_sonic();
-        self.tick_melee();
         self.tick_darkness();
         if !self.mob_entity.is_no_ai() && entity.tick_count.load(Ordering::Relaxed) % 20 == 0 {
             self.tick_anger();
         }
         self.select_activity();
+        // Generic movement goals are paused during these activities. Java's core
+        // look behavior and head controller still run every AI tick.
+        if !self.run_goal_ai() {
+            self.mob_entity
+                .look_control
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .tick(self);
+        }
+    }
+
+    fn use_goal_look_control(&self) -> bool {
+        false
     }
 
     fn run_goal_ai(&self) -> bool {
@@ -1364,6 +1639,14 @@ impl Mob for WardenEntity {
             cooldown: read("minecraft:sniff_cooldown"),
             ..Sniffing::default()
         };
+        *self
+            .look_memory
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        *self
+            .look_sink
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = LookSink::default();
         self.sniff_active.store(false, Ordering::Relaxed);
         self.investigate_active.store(false, Ordering::Relaxed);
         self.idle_active.store(true, Ordering::Relaxed);

@@ -146,11 +146,13 @@ impl Goal for MeleeAttackGoal {
             return;
         };
 
-        mob.get_mob_entity()
-            .look_control
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .look_at_entity_with_range(&target, 30.0, 30.0);
+        if mob.use_goal_look_control() {
+            mob.get_mob_entity()
+                .look_control
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .look_at_entity_with_range(&target, 30.0, 30.0);
+        }
 
         self.update_countdown_ticks = (self.update_countdown_ticks - 1).max(0);
 

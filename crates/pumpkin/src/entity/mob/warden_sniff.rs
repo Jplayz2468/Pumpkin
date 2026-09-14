@@ -52,6 +52,7 @@ impl Sniffing {
         tick_location(&mut self.disturbance);
         tick_location(&mut self.look);
     }
+    #[allow(dead_code)] // Standalone actual-Java contract entry point.
     pub fn tick_behavior(
         &mut self,
         time: i64,
