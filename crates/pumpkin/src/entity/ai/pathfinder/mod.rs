@@ -40,6 +40,7 @@ const MAX_YAW_TURN_PER_TICK: f32 = 90.0;
 
 pub struct PathFinder {
     max_visited_nodes: usize,
+    horizontal_cost: bool,
     open_set: BinaryHeap,
     neighbors_buf: Vec<Node>,
     all_nodes: FxHashMap<Vector3<i32>, Node>,
@@ -50,10 +51,15 @@ impl PathFinder {
     pub fn new(max_visited_nodes: usize) -> Self {
         Self {
             max_visited_nodes,
+            horizontal_cost: false,
             open_set: BinaryHeap::new(),
             neighbors_buf: Vec::with_capacity(32),
             all_nodes: FxHashMap::default(),
         }
+    }
+
+    pub const fn set_horizontal_cost(&mut self, horizontal: bool) {
+        self.horizontal_cost = horizontal;
     }
 
     pub const fn set_max_visited_nodes(&mut self, max_visited_nodes: usize) {
@@ -133,11 +139,11 @@ impl PathFinder {
 
             current.closed = true;
             self.all_nodes.insert(current.pos.0, current);
+            evaluator.update_node(current);
 
             for (idx, (target, _)) in target_entries.iter_mut().enumerate() {
                 if current.distance_manhattan_node(&target.node) <= reach_range as f32 {
                     target.set_reached();
-                    target.update_best(0.0, &current);
                     if !reached_targets.contains(&idx) {
                         reached_targets.push(idx);
                     }
@@ -153,7 +159,18 @@ impl PathFinder {
                 evaluator.get_neighbors(&current, &mut self.neighbors_buf);
 
                 for mut neighbor in self.neighbors_buf.drain(..) {
-                    let distance = current.distance_to_node(&neighbor);
+                    if let Some(previous) = self.all_nodes.get(&neighbor.pos.0) {
+                        let malus = neighbor.cost_malus;
+                        let kind = neighbor.path_type;
+                        neighbor = *previous;
+                        neighbor.cost_malus = malus;
+                        neighbor.path_type = kind;
+                    }
+                    let distance = if self.horizontal_cost {
+                        current.distance_xz(&neighbor)
+                    } else {
+                        current.distance_to_node(&neighbor)
+                    };
                     neighbor.walked_dist = current.walked_dist + distance;
                     let tentative_g = current.g + distance + neighbor.cost_malus;
 
@@ -177,8 +194,13 @@ impl PathFinder {
                         } else {
                             self.open_set.insert(neighbor);
                         }
-                        self.all_nodes.insert(neighbor.pos.0, neighbor);
+                    } else if in_open {
+                        // Java updates walkedDistance even when the proposed g is
+                        // rejected; the queued node is the same mutable object.
+                        self.open_set.update_node(&neighbor, neighbor);
                     }
+                    self.all_nodes.insert(neighbor.pos.0, neighbor);
+                    evaluator.update_node(neighbor);
                 }
             }
         }
@@ -220,7 +242,7 @@ impl PathFinder {
         all_nodes: &FxHashMap<Vector3<i32>, Node>,
     ) -> Path {
         let mut nodes = Vec::new();
-        let mut current = *closest;
+        let mut current = all_nodes.get(&closest.pos.0).copied().unwrap_or(*closest);
         nodes.push(current);
         let mut visited = FxHashSet::default();
         visited.insert(current.pos.0);
@@ -285,6 +307,17 @@ pub enum EvaluatorKind {
 }
 
 impl EvaluatorKind {
+    /// Publish search state to the evaluator's node cache, matching Java's shared
+    /// Node references. In particular, neighbors must observe closed nodes.
+    fn update_node(&mut self, node: Node) {
+        let base = match self {
+            Self::Walk(e) => &mut e.base,
+            Self::Fly(e) => &mut e.walk.base,
+            Self::Swim(e) => &mut e.base,
+            Self::Amphibious(e) => &mut e.walk.base,
+        };
+        base.nodes.insert(node.pos.0, node);
+    }
     pub fn prepare(&mut self, context: PathfindingContext, mob_data: MobData) {
         match self {
             Self::Walk(e) => e.prepare(context, mob_data),
@@ -419,6 +452,7 @@ pub trait PathNavigationTrait: Send + Sync {
 
 pub struct PathNavigation {
     java_tick: Option<navigation_tick::NavigationTick>,
+    java_horizontal_cost: bool,
     pub current_goal: Option<NavigatorGoal>,
     pub evaluator: EvaluatorKind,
     pub path: Option<Path>,
@@ -468,6 +502,7 @@ impl PathNavigation {
     pub fn new(evaluator: EvaluatorKind) -> Self {
         Self {
             java_tick: None,
+            java_horizontal_cost: false,
             current_goal: None,
             evaluator,
             path: None,
@@ -583,13 +618,23 @@ impl PathNavigation {
         reach_range: i32,
     ) -> Option<Path> {
         let start_pos_f = entity.entity.pos.load();
-        let start_block_vec = start_pos_f.to_i32();
+        let start_block_vec = if self.java_tick.is_some() {
+            start_pos_f.to_block_pos().0
+        } else {
+            start_pos_f.to_i32()
+        };
         let mob_position = Vector3::new(start_block_vec.x, start_block_vec.y, start_block_vec.z);
 
         let context = PathfindingContext::new(mob_position, entity.entity.world.load_full());
         let mut mob_data = MobData::new(start_pos_f, self.mob_width, self.mob_height, 1.0);
         mob_data.on_ground = entity.entity.on_ground.load(Ordering::Relaxed);
         mob_data.can_swim = self.can_float;
+        if self.java_tick.is_some() {
+            mob_data.max_step_height = entity.get_attribute_value(&Attributes::STEP_HEIGHT) as f32;
+            mob_data.is_in_water = entity.entity.is_in_water();
+            mob_data.min_y = entity.entity.world.load().get_bottom_y();
+            mob_data.sea_level = entity.entity.world.load().sea_level;
+        }
 
         mob_data.set_pathfinding_malus(PathType::DangerFire, 16.0);
         mob_data.set_pathfinding_malus(PathType::DamageFire, -1.0);
@@ -607,6 +652,21 @@ impl PathNavigation {
         self.evaluator
             .set_can_walk_over_fences(self.can_walk_over_fences);
         self.evaluator.prepare(context, mob_data);
+
+        if self.java_tick.is_some() {
+            let range = self.mob_max_follow_range(entity);
+            let mut finder = PathFinder::new((range * 16.0_f32) as usize);
+            finder.set_horizontal_cost(self.java_horizontal_cost);
+            let path = finder.find_path_single(
+                &mut self.evaluator,
+                destination.to_block_pos(),
+                range,
+                reach_range,
+                self.max_visited_nodes_multiplier,
+            );
+            self.evaluator.done();
+            return path;
+        }
 
         let mut start_node = self.evaluator.get_start()?;
         let mut target = self.evaluator.get_target(destination.to_block_pos());
@@ -2716,9 +2776,10 @@ impl Default for Navigator {
 
 impl Navigator {
     /// Opt in only after the mob owns WALK_TARGET and its movement controls.
-    pub fn java_ground() -> Self {
+    pub fn java_ground(horizontal_cost: bool) -> Self {
         let mut nav = GroundPathNavigation::new();
         nav.inner.java_tick = Some(navigation_tick::NavigationTick::default());
+        nav.inner.java_horizontal_cost = horizontal_cost;
         Self::new(nav)
     }
 

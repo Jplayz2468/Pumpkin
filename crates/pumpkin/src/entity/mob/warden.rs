@@ -136,7 +136,7 @@ impl WardenEntity {
             client_anger: std::sync::atomic::AtomicI32::new(0),
             random: Mutex::new(random),
         };
-        let mut navigator = crate::entity::ai::pathfinder::Navigator::java_ground();
+        let mut navigator = crate::entity::ai::pathfinder::Navigator::java_ground(true);
         navigator.set_can_float(true);
         navigator.set_can_pass_doors(false);
         use crate::entity::ai::pathfinder::node::PathType;

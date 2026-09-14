@@ -192,30 +192,36 @@ impl BinaryHeap {
 
     fn bubble_down(&mut self, mut index: usize) {
         loop {
-            let left_child = index * 2;
-            let right_child = index * 2 + 1;
-            let mut smallest = index;
-
-            if left_child <= self.size
-                && let (Some(node), Some(left)) = (&self.heap[smallest], &self.heap[left_child])
-                && left.f < node.f
-            {
-                smallest = left_child;
-            }
-
-            if right_child <= self.size
-                && let (Some(node), Some(right)) = (&self.heap[smallest], &self.heap[right_child])
-                && right.f < node.f
-            {
-                smallest = right_child;
-            }
-
-            if smallest == index {
+            let left = index * 2;
+            let right = left + 1;
+            if left > self.size {
                 break;
             }
-
-            self.swap_nodes(index, smallest);
-            index = smallest;
+            let Some(left_node) = self.heap[left] else {
+                break;
+            };
+            let right_score = if right <= self.size {
+                self.heap[right].map_or(f32::INFINITY, |n| n.f)
+            } else {
+                f32::INFINITY
+            };
+            // Java chooses the right child when both child costs are equal.
+            let child = if left_node.f < right_score {
+                left
+            } else {
+                right
+            };
+            let Some(current) = self.heap[index] else {
+                break;
+            };
+            let Some(candidate) = self.heap.get(child).and_then(|n| *n) else {
+                break;
+            };
+            if !(candidate.f < current.f) {
+                break;
+            }
+            self.swap_nodes(index, child);
+            index = child;
         }
     }
 
