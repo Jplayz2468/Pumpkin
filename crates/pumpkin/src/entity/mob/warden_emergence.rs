@@ -56,20 +56,28 @@ impl Emergence {
         tick_memory(&mut self.dig_cooldown);
     }
 
-    pub fn tick_behavior(&mut self, time: i64, mut next_int: impl FnMut(i32)) -> Transition {
+    pub fn tick_behavior(&mut self, time: i64, next_int: impl FnMut(i32)) -> Transition {
+        let mut change = self.start_behavior(time, next_int);
+        change.stop = self.run_behavior(time);
+        self.active = self.emerging_memory.is_some();
+        change
+    }
+    pub fn start_behavior(&mut self, time: i64, mut next_int: impl FnMut(i32)) -> Transition {
         let mut change = Transition::default();
         if self.active && self.end_timestamp.is_none() && self.emerging_memory.is_some() {
             next_int(1);
             self.end_timestamp = Some(time.wrapping_add(EMERGE_DURATION));
             change.start = true;
         }
-        // Running behaviors are ticked even after their activity is no longer active.
+        change
+    }
+    /// Running behaviors continue after their originating activity changes.
+    pub fn run_behavior(&mut self, time: i64) -> bool {
         if self.end_timestamp.is_some_and(|end| time > end) {
             self.end_timestamp = None;
-            change.stop = true;
+            true
+        } else {
+            false
         }
-        // WardenAi.updateActivity runs AFTER Brain.tick, not before starting behaviors.
-        self.active = self.emerging_memory.is_some();
-        change
     }
 }

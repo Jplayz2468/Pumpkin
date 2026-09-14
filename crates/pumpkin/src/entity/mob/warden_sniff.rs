@@ -58,6 +58,12 @@ impl Sniffing {
         facts: &Facts,
         mut next_int: impl FnMut(i32) -> i32,
     ) -> Transition {
+        let mut change = self.try_sniff(facts, &mut next_int);
+        change.sound = self.start_behavior(time, facts, &mut next_int).sound;
+        change.stop = self.run_behavior(time).stop;
+        change
+    }
+    pub fn try_sniff(&mut self, facts: &Facts, mut next_int: impl FnMut(i32) -> i32) -> Transition {
         let mut change = Transition::default();
         if facts.idle_active
             && self.cooldown.is_none()
@@ -69,6 +75,15 @@ impl Sniffing {
             change.pose = true;
             change.forget_walk = true;
         }
+        change
+    }
+    pub fn start_behavior(
+        &mut self,
+        time: i64,
+        facts: &Facts,
+        mut next_int: impl FnMut(i32) -> i32,
+    ) -> Transition {
+        let mut change = Transition::default();
         if facts.sniff_active
             && self.end_timestamp.is_none()
             && self.sniffing.is_some()
@@ -79,6 +94,10 @@ impl Sniffing {
             self.end_timestamp = Some(time.wrapping_add(84));
             change.sound = true;
         }
+        change
+    }
+    pub fn run_behavior(&mut self, time: i64) -> Transition {
+        let mut change = Transition::default();
         if self.end_timestamp.is_some_and(|end| time > end) {
             self.end_timestamp = None;
             self.sniffing = None;

@@ -46,7 +46,14 @@ impl Roar {
         tick_memory(&mut self.sonic_cooldown);
     }
 
-    pub fn tick_behavior(&mut self, time: i64, mut next_int: impl FnMut(i32)) -> Transition {
+    pub fn tick_behavior(&mut self, time: i64, next_int: impl FnMut(i32)) -> Transition {
+        let start = self.start_behavior(time, next_int);
+        let mut change = self.run_behavior(time);
+        change.start = start.start;
+        self.active = self.target.is_some();
+        change
+    }
+    pub fn start_behavior(&mut self, time: i64, mut next_int: impl FnMut(i32)) -> Transition {
         let mut change = Transition::default();
         if self.active && self.end_timestamp.is_none() && self.attack_target.is_none() {
             if let Some(target) = self.target {
@@ -57,6 +64,10 @@ impl Roar {
                 change.start = Some(target);
             }
         }
+        change
+    }
+    pub fn run_behavior(&mut self, time: i64) -> Transition {
+        let mut change = Transition::default();
         if let Some(end) = self.end_timestamp {
             if time > end {
                 self.end_timestamp = None;
@@ -72,7 +83,6 @@ impl Roar {
                 change.sound = true;
             }
         }
-        self.active = self.target.is_some();
         change
     }
 }

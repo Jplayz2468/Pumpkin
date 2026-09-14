@@ -60,6 +60,18 @@ impl SonicBoom {
         time: i64,
         cooldown: &mut Option<i64>,
         facts: &Facts,
+        next_int: impl FnMut(i32),
+    ) -> Transition {
+        let start = self.start_behavior(time, cooldown, facts, next_int);
+        let mut change = self.run_behavior(time, cooldown, facts);
+        change.start = start.start;
+        change
+    }
+    pub fn start_behavior(
+        &mut self,
+        time: i64,
+        cooldown: &Option<i64>,
+        facts: &Facts,
         mut next_int: impl FnMut(i32),
     ) -> Transition {
         let mut change = Transition::default();
@@ -75,6 +87,15 @@ impl SonicBoom {
             self.sound_delay = Some(34);
             change.start = true;
         }
+        change
+    }
+    pub fn run_behavior(
+        &mut self,
+        time: i64,
+        cooldown: &mut Option<i64>,
+        facts: &Facts,
+    ) -> Transition {
+        let mut change = Transition::default();
         if let Some(end) = self.end_timestamp {
             if time > end {
                 self.end_timestamp = None;

@@ -35,6 +35,18 @@ impl Digging {
         if facts.no_ai {
             return Transition::default();
         }
+        let mut change = self.start_behavior(time, facts, &mut next_int, &mut unride);
+        change.remove |= self.run_behavior(time, facts.removed || change.remove);
+        self.active = !facts.emerging && !facts.roar && !facts.cooldown;
+        change
+    }
+    pub fn start_behavior(
+        &mut self,
+        time: i64,
+        facts: &Facts,
+        mut next_int: impl FnMut(i32),
+        mut unride: impl FnMut() -> (bool, bool, bool),
+    ) -> Transition {
         let mut change = Transition::default();
         let (mut ground, mut water, mut lava) = (facts.ground, facts.water, facts.lava);
         if self.active && facts.passenger {
@@ -42,7 +54,7 @@ impl Digging {
             change.unride = true;
             (ground, water, lava) = unride();
         }
-        let mut removed = facts.removed;
+        let removed = facts.removed;
         if self.active
             && self.end_timestamp.is_none()
             && !facts.attack
@@ -56,14 +68,16 @@ impl Digging {
             } else {
                 change.agitated = true;
                 change.remove = !removed;
-                removed = true;
             }
         }
+        change
+    }
+    pub fn run_behavior(&mut self, time: i64, removed: bool) -> bool {
         if self.end_timestamp.is_some_and(|end| time > end || removed) {
             self.end_timestamp = None;
-            change.remove |= !removed;
+            !removed
+        } else {
+            false
         }
-        self.active = !facts.emerging && !facts.roar && !facts.cooldown;
-        change
     }
 }

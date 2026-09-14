@@ -19,7 +19,6 @@ use std::sync::atomic::{
     AtomicBool, AtomicI32, AtomicI64, AtomicU8,
     Ordering::{Relaxed, SeqCst},
 };
-use tracing::warn;
 
 use super::effect_instance::EffectInstance;
 use super::experience_orb::ExperienceOrbEntity;
