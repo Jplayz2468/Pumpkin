@@ -1651,6 +1651,10 @@ impl LivingEntity {
     }
 
     fn travel_in_fluid(&self, caller: &dyn EntityBase, water: bool) {
+        if let Some(speed) = self.controlled_speed.load() {
+            self.travel_in_controlled_fluid(caller, water, speed);
+            return;
+        }
         let movement_input = self.movement_input.load();
 
         let falling = self.entity.velocity.load().y <= 0.0;
@@ -1733,6 +1737,58 @@ impl LivingEntity {
 
             self.entity.velocity.store(velo);
         }
+    }
+
+    fn travel_in_controlled_fluid(&self, caller: &dyn EntityBase, water: bool, speed: f32) {
+        use crate::entity::ai::control::fluid_travel;
+        let old_y = self.entity.pos.load().y;
+        let falling = self.entity.velocity.load().y <= 0.0;
+        let gravity = self.get_effective_gravity(caller);
+        let sprint = self.entity.sprinting.load(Relaxed);
+        let [acceleration, friction] = if water {
+            fluid_travel::water_parameters(
+                sprint,
+                self.water_movement_speed_multiplier,
+                self.get_attribute_value(&Attributes::WATER_MOVEMENT_EFFICIENCY),
+                self.entity.on_ground.load(Relaxed),
+                speed,
+                self.has_effect(&StatusEffect::DOLPHINS_GRACE),
+            )
+        } else {
+            [0.02_f32, 0.0]
+        };
+        self.apply_movement_input(self.movement_input.load(), f64::from(acceleration));
+        self.make_move(caller);
+        let velocity = self.entity.velocity.load();
+        let collision = self.entity.horizontal_collision.load(Relaxed);
+        let mut velocity = fluid_travel::after_move(
+            [velocity.x, velocity.y, velocity.z],
+            water,
+            friction,
+            collision && self.climbing.load(Relaxed),
+            self.entity.lava_height.load() <= self.get_swim_height(),
+            gravity,
+            falling,
+            sprint,
+        );
+        if collision {
+            let query = fluid_travel::escape_query(velocity, self.entity.pos.load().y, old_y);
+            let bounds = self
+                .entity
+                .bounding_box
+                .load()
+                .shift(Vector3::new(query[0], query[1], query[2]));
+            let world = self.entity.world.load();
+            // Solid-entity and world-border collision categories have a separate parity gate.
+            if world.get_block_collisions(bounds, caller).0.is_empty()
+                && !world.contains_any_liquid(bounds)
+            {
+                velocity = fluid_travel::escape_velocity(velocity);
+            }
+        }
+        self.entity
+            .velocity
+            .store(Vector3::new(velocity[0], velocity[1], velocity[2]));
     }
 
     fn apply_fluid_moving_speed(&self, dy: &mut f64, gravity: f64, falling: bool) {
