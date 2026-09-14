@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex, atomic::Ordering};
 use super::{
     warden_anger::{AngerManagement, Removal, Suspect},
     warden_anger_nbt, warden_damage,
+    warden_dig::{self, Digging},
     warden_emergence::Emergence,
     warden_roar::Roar,
     warden_target::{self, TargetFacts},
@@ -49,6 +50,7 @@ pub struct WardenEntity {
     pub emergence: Mutex<Emergence>,
     anger: Mutex<AngerState>,
     roar: Mutex<Roar>,
+    digging: Mutex<Digging>,
     idle_active: std::sync::atomic::AtomicBool,
     fight_active: std::sync::atomic::AtomicBool,
     client_anger: std::sync::atomic::AtomicI32,
@@ -81,6 +83,7 @@ impl WardenEntity {
                 removed: HashMap::new(),
             }),
             roar: Mutex::new(Roar::default()),
+            digging: Mutex::new(Digging::default()),
             idle_active: std::sync::atomic::AtomicBool::new(false),
             fight_active: std::sync::atomic::AtomicBool::new(false),
             client_anger: std::sync::atomic::AtomicI32::new(0),
@@ -337,26 +340,122 @@ impl WardenEntity {
         }
     }
 
+    fn tick_digging(&self) {
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        let emergence = self
+            .emergence
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        let roar = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        // Navigation still bridges the old movement controller until its Brain
+        // WALK_TARGET storage is replaced; waiting paths are not interrupted.
+        let walk = !self
+            .mob_entity
+            .navigator
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_idle();
+        let change = self
+            .digging
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .tick(
+                world.get_world_age(),
+                &warden_dig::Facts {
+                    no_ai: self.mob_entity.is_no_ai(),
+                    ground: entity.on_ground.load(Ordering::Relaxed),
+                    water: entity.is_in_water(),
+                    lava: entity.touching_lava.load(Ordering::Relaxed),
+                    passenger: entity.has_vehicle(),
+                    removed: entity.removal_reason.load().is_some(),
+                    attack: roar.attack_target.is_some(),
+                    walk,
+                    cooldown: emergence.dig_cooldown.is_some(),
+                    roar: roar.target.is_some(),
+                    emerging: emergence.active,
+                },
+                |bound| {
+                    world
+                        .random
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .next_bounded_i32(bound);
+                },
+                || {
+                    let passengers = entity
+                        .passengers
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .clone();
+                    for passenger in passengers {
+                        entity.remove_passenger(passenger.get_entity().entity_id);
+                    }
+                    if let Some(vehicle) = entity.get_vehicle() {
+                        vehicle.get_entity().remove_passenger(entity.entity_id);
+                    }
+                    (
+                        entity.on_ground.load(Ordering::Relaxed),
+                        entity.is_in_water(),
+                        entity.touching_lava.load(Ordering::Relaxed),
+                    )
+                },
+            );
+        if change.start {
+            entity.set_pose(EntityPose::Digging);
+            world.play_sound_fine(
+                Sound::EntityWardenDig,
+                SoundCategory::Hostile,
+                &entity.pos.load(),
+                5.0,
+                1.0,
+            );
+        }
+        if change.agitated {
+            world.play_sound_fine(
+                Sound::EntityWardenAgitated,
+                SoundCategory::Hostile,
+                &entity.pos.load(),
+                5.0,
+                1.0,
+            );
+        }
+        if change.remove {
+            entity.remove();
+        }
+    }
+
     fn select_activity(&self) {
         if self.mob_entity.is_no_ai() {
             return;
         }
-        let emerging = self
+        let emergence = self
             .emergence
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .active;
+            .clone();
+        let emerging = emergence.active;
         let mut roar = self
             .roar
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        roar.active = !emerging && roar.target.is_some();
+        let digging = !emerging && roar.target.is_none() && emergence.dig_cooldown.is_none();
+        self.digging
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .active = digging;
+        roar.active = !emerging && !digging && roar.target.is_some();
         self.fight_active.store(
-            !emerging && !roar.active && roar.attack_target.is_some(),
+            !emerging && !digging && !roar.active && roar.attack_target.is_some(),
             Ordering::Relaxed,
         );
         self.idle_active.store(
-            !emerging && !roar.active && roar.attack_target.is_none(),
+            !emerging && !digging && !roar.active && roar.attack_target.is_none(),
             Ordering::Relaxed,
         );
     }
@@ -389,6 +488,10 @@ impl Mob for WardenEntity {
                 },
             );
         }
+    }
+
+    fn requires_custom_persistence(&self) -> bool {
+        self.get_entity().has_vehicle() || self.get_entity().is_leashed()
     }
 
     fn remove_when_far_away(&self, _distance_sq: f64) -> bool {
@@ -424,6 +527,12 @@ impl Mob for WardenEntity {
     }
 
     fn mob_tick(&self, _caller: &dyn EntityBase) {
+        // Warden.tick refreshes this before Monster.tick, even when NoAI is set.
+        if self.mob_entity.persistence_required.load(Ordering::Relaxed)
+            || self.requires_custom_persistence()
+        {
+            self.reset_dig_cooldown();
+        }
         let entity = self.get_entity();
         let world = entity.world.load();
         let transition = self
@@ -449,6 +558,10 @@ impl Mob for WardenEntity {
         }
         if transition.stop && entity.pose.load() == EntityPose::Emerging {
             entity.set_pose(EntityPose::Standing);
+        }
+        self.tick_digging();
+        if entity.is_removed() {
+            return;
         }
         self.tick_roar();
         self.validate_fight_target();
@@ -641,6 +754,10 @@ impl Mob for WardenEntity {
             sonic_cooldown: read("minecraft:sonic_boom_cooldown"),
             ..Roar::default()
         };
+        *self
+            .digging
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Digging::default();
         self.idle_active.store(false, Ordering::Relaxed);
         self.fight_active.store(false, Ordering::Relaxed);
         self.set_client_anger(0);

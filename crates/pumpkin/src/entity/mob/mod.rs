@@ -69,6 +69,7 @@ pub mod warden;
 pub mod warden_anger;
 pub mod warden_anger_nbt;
 pub mod warden_damage;
+pub mod warden_dig;
 pub mod warden_emergence;
 pub mod warden_roar;
 pub mod warden_target;
