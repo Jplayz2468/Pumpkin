@@ -1304,6 +1304,12 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
         if !mob_entity.is_no_ai() && self.uses_brain_navigation() {
             mob_entity.no_action_time.fetch_add(1, Relaxed);
+            // LivingEntity.applyInput precedes serverAiStep in Java. Controllers
+            // may replace these old inputs later in this same tick.
+            let mut input = mob_entity.living_entity.movement_input.load();
+            input.x = f64::from(input.x as f32 * 0.98_f32);
+            input.z = f64::from(input.z as f32 * 0.98_f32);
+            mob_entity.living_entity.movement_input.store(input);
             mob_entity.living_entity.jumping.store(false, Relaxed);
             let mut navigator = {
                 let mut guard = mob_entity

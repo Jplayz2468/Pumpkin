@@ -66,19 +66,15 @@ impl Adapter<'_> {
         self.nav
             .set_mob_dimensions(size.width as f32, size.height as f32);
         let target = BlockPos::new(target[0], target[1], target[2]);
-        let path = if self.nav.get_target_pos() == Some(target) && !self.nav.is_done() {
-            self.nav.get_path().cloned()
-        } else {
-            self.nav.create_path(
-                living,
-                Vector3::new(
-                    f64::from(target.0.x),
-                    f64::from(target.0.y),
-                    f64::from(target.0.z),
-                ),
-                0,
-            )
-        }?;
+        let path = self.nav.create_path(
+            living,
+            Vector3::new(
+                f64::from(target.0.x),
+                f64::from(target.0.y),
+                f64::from(target.0.z),
+            ),
+            0,
+        )?;
         let result = (path.identity(), path.can_reach());
         self.paths.insert(result.0, path);
         Some(result)

@@ -1378,10 +1378,8 @@ impl LivingEntity {
 
         let mut movement_input = self.movement_input.load();
 
-        if self.controlled_speed.load().is_some() {
-            movement_input.x = f64::from(movement_input.x as f32 * 0.98_f32);
-            movement_input.z = f64::from(movement_input.z as f32 * 0.98_f32);
-        } else {
+        // Brain-navigation inputs were damped before its AI and controllers.
+        if self.controlled_speed.load().is_none() {
             movement_input.x *= 0.98;
             movement_input.z *= 0.98;
         }
@@ -1434,7 +1432,14 @@ impl LivingEntity {
 
         // Strider is the only entity that has canWalkOnFluid = false
 
-        if (touching_water || self.entity.touching_lava.load(SeqCst))
+        let simulate_movement = self.controlled_speed.load().is_none()
+            || caller
+                .get_mob()
+                .is_none_or(|mob| !mob.get_mob_entity().is_no_ai());
+        if !simulate_movement {
+            // Java NoAI disables travel; block effects and collision processing
+            // still run below. Preserve existing velocity instead of adding gravity.
+        } else if (touching_water || self.entity.touching_lava.load(SeqCst))
             && should_swim_in_fluids
             && self.entity.entity_type != &EntityType::STRIDER
         {

@@ -1464,6 +1464,20 @@ impl PathNavigationTrait for GroundPathNavigation {
         reach_range: i32,
     ) -> Option<Path> {
         let mut dest_pos = destination.to_block_pos();
+        if self.inner.java_tick.is_some() {
+            let base = &entity.entity;
+            let world = base.world.load();
+            let (chunk, _) = dest_pos.chunk_and_chunk_relative_position();
+            world.level.read_chunk_sync(&chunk, |_| ())?;
+            if base.pos.load().y < f64::from(world.get_bottom_y())
+                || !(base.on_ground.load(Ordering::Relaxed)
+                    || base.is_in_water()
+                    || base.touching_lava.load(Ordering::Relaxed)
+                    || base.has_vehicle())
+            {
+                return None;
+            }
+        }
         if !self.inner.can_path_to_targets_below_surface {
             let world = entity.entity.world.load();
             dest_pos = PathNavigation::find_surface_position(&world, dest_pos);
@@ -1473,7 +1487,25 @@ impl PathNavigationTrait for GroundPathNavigation {
             f64::from(dest_pos.0.y),
             f64::from(dest_pos.0.z) + 0.5,
         );
-        self.inner.compute_path(entity, dest_v, reach_range)
+        if self.inner.java_tick.is_some()
+            && !self.is_done()
+            && self.inner.target_pos == Some(dest_pos)
+        {
+            return self.inner.path.clone();
+        }
+        let path = self.inner.compute_path(entity, dest_v, reach_range);
+        if let Some(path) = &path
+            && let Some(tick) = self.inner.java_tick.as_mut()
+        {
+            self.inner.target_pos = Some(path.get_target());
+            self.inner.reach_range = reach_range;
+            tick.cached_node = [0; 3];
+            tick.timeout_timer = 0;
+            tick.timeout_limit = 0.0;
+            tick.stuck = false;
+            self.inner.is_stuck = false;
+        }
+        path
     }
 
     fn recompute_path(&mut self, entity: &LivingEntity) {
