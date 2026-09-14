@@ -91,8 +91,9 @@ impl BlockEntity for ShulkerBoxBlockEntity {
 
     /// Vanilla's `blocks/shulker_box` loot table copies `minecraft:container`
     /// off the block entity, which is what carries the contents through the
-    /// break -> item -> place cycle. An all-empty box contributes no component,
-    /// matching a vanilla drop.
+    /// break -> item -> place cycle. An all-empty box adds no patch: the item
+    /// already declares an empty container by default, so the drop reads empty
+    /// just as it does on the reference server.
     fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
         let items = self
             .items
@@ -111,7 +112,10 @@ impl BlockEntity for ShulkerBoxBlockEntity {
     }
 
     /// Restores the contents when a box carrying `minecraft:container` is
-    /// placed, by a player or by a dispenser.
+    /// placed, by a player or by a dispenser. The shulker box item declares an
+    /// empty container by default, so an empty box clears the target exactly as
+    /// Java's `getOrDefault(CONTAINER, ItemContainerContents.EMPTY).copyInto`
+    /// does.
     fn apply_components_from_item_stack(&self, stack: &ItemStack) {
         let Some(container) = stack.get_data_component::<ContainerImpl>() else {
             return;
@@ -280,5 +284,142 @@ impl Clearable for ShulkerBoxBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         items.fill_with(|| ItemStack::EMPTY.clone());
         self.mark_dirty();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::Block;
+    use pumpkin_data::item::Item;
+    use pumpkin_util::math::vector3::Vector3;
+
+    fn box_at() -> ShulkerBoxBlockEntity {
+        ShulkerBoxBlockEntity::new(BlockPos(Vector3::new(0, 0, 0)))
+    }
+
+    fn contents(entity: &ShulkerBoxBlockEntity) -> Vec<(usize, u16, u8)> {
+        let items = entity
+            .items
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        items
+            .iter()
+            .enumerate()
+            .filter(|(_, stack)| !stack.is_empty())
+            .map(|(slot, stack)| (slot, stack.item.id, stack.item_count))
+            .collect()
+    }
+
+    #[test]
+    fn shulker_drop_carries_every_occupied_slot_and_nothing_else() {
+        let entity = box_at();
+        entity.set_stack(0, ItemStack::new(7, &Item::DIAMOND));
+        entity.set_stack(26, ItemStack::new(13, &Item::OAK_LOG));
+
+        let mut dropped = ItemStack::new(1, &Item::RED_SHULKER_BOX);
+        entity.write_dropped_stack_components(&mut dropped);
+
+        let container = dropped
+            .get_data_component::<ContainerImpl>()
+            .expect("a filled box contributes minecraft:container");
+        let mut carried: Vec<(u8, u16, u8)> = container
+            .items
+            .iter()
+            .map(|(slot, stack)| (*slot, stack.item.id, stack.item_count))
+            .collect();
+        carried.sort_unstable();
+        assert_eq!(
+            carried,
+            vec![
+                (0, Item::DIAMOND.id, 7),
+                (26, Item::OAK_LOG.id, 13)
+            ]
+        );
+    }
+
+    #[test]
+    fn shulker_drop_of_an_empty_box_carries_no_stored_items() {
+        // The shulker box item already declares an empty minecraft:container by
+        // default, so an empty box adds no patch and the drop reads as empty -
+        // which is what the reference server writes for an empty box.
+        let mut dropped = ItemStack::new(1, &Item::RED_SHULKER_BOX);
+        box_at().write_dropped_stack_components(&mut dropped);
+        assert!(
+            dropped
+                .get_data_component::<ContainerImpl>()
+                .is_none_or(|container| container.items.is_empty())
+        );
+
+        // Mutation control: the same assertion must fail once a slot is used,
+        // so a hook that never wrote anything could not pass this pair.
+        let filled = box_at();
+        filled.set_stack(5, ItemStack::new(1, &Item::DIAMOND));
+        let mut second = ItemStack::new(1, &Item::RED_SHULKER_BOX);
+        filled.write_dropped_stack_components(&mut second);
+        assert_eq!(
+            second
+                .get_data_component::<ContainerImpl>()
+                .map(|container| container.items.len()),
+            Some(1)
+        );
+    }
+
+    #[test]
+    fn shulker_placement_restores_exactly_the_carried_slots() {
+        let source = box_at();
+        source.set_stack(0, ItemStack::new(7, &Item::DIAMOND));
+        source.set_stack(26, ItemStack::new(13, &Item::OAK_LOG));
+        let mut dropped = ItemStack::new(1, &Item::RED_SHULKER_BOX);
+        source.write_dropped_stack_components(&mut dropped);
+
+        let placed = box_at();
+        // A slot the carried stack does not mention must not survive.
+        placed.set_stack(3, ItemStack::new(1, &Item::STONE));
+        placed.apply_components_from_item_stack(&dropped);
+
+        assert_eq!(
+            contents(&placed),
+            vec![(0, Item::DIAMOND.id, 7), (26, Item::OAK_LOG.id, 13)]
+        );
+        assert!(placed.is_dirty());
+    }
+
+    #[test]
+    fn shulker_placement_from_a_box_with_no_stored_items_clears_the_target() {
+        // Java: applyImplicitComponents does
+        // getOrDefault(CONTAINER, ItemContainerContents.EMPTY).copyInto(items),
+        // so a box with nothing stored empties what it is applied to. The
+        // shulker box item's default empty container gives the same result here.
+        let entity = box_at();
+        entity.set_stack(1, ItemStack::new(4, &Item::EMERALD));
+        entity.apply_components_from_item_stack(&ItemStack::new(1, &Item::RED_SHULKER_BOX));
+        assert_eq!(contents(&entity), Vec::new());
+    }
+
+    #[test]
+    fn shulker_rejects_nested_boxes_from_every_side_but_accepts_ordinary_items() {
+        let entity = box_at();
+        for block in [
+            &Block::SHULKER_BOX,
+            &Block::WHITE_SHULKER_BOX,
+            &Block::CYAN_SHULKER_BOX,
+            &Block::BLACK_SHULKER_BOX,
+        ] {
+            let item = Item::from_registry_key(block.name)
+                .expect("every shulker box block has a matching item");
+            assert!(
+                !entity.is_valid_slot_for(0, &ItemStack::new(1, item)),
+                "{}",
+                block.name
+            );
+        }
+        for item in [&Item::DIAMOND, &Item::CHEST, &Item::BARREL, &Item::STONE] {
+            assert!(
+                entity.is_valid_slot_for(0, &ItemStack::new(1, item)),
+                "{}",
+                item.registry_key
+            );
+        }
     }
 }

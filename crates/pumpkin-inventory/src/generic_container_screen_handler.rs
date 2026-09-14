@@ -17,7 +17,7 @@ use pumpkin_data::{item_stack::ItemStack, screen::WindowType};
 use crate::{
     player::player_inventory::PlayerInventory,
     screen_handler::{InventoryPlayer, ScreenHandler, ScreenHandlerBehaviour},
-    slot::NormalSlot,
+    slot::{NormalSlot, ShulkerBoxSlot},
 };
 
 /// Creates a generic 9x3 container (single chest).
@@ -37,6 +37,29 @@ pub fn create_generic_9x3(
         3,
         9,
         player.is_spectator(),
+    )
+}
+
+/// Creates a shulker box container (9x3).
+///
+/// Identical to a single chest except that its slots refuse items that cannot
+/// fit inside container items, which is how vanilla stops a player nesting one
+/// shulker box inside another.
+pub fn create_shulker_box_9x3(
+    sync_id: u8,
+    player_inventory: &Arc<PlayerInventory>,
+    inventory: Arc<dyn Inventory>,
+    player: &dyn InventoryPlayer,
+) -> GenericContainerScreenHandler {
+    GenericContainerScreenHandler::new_with_slots(
+        WindowType::Generic9x3,
+        sync_id,
+        player_inventory,
+        inventory,
+        3,
+        9,
+        player.is_spectator(),
+        true,
     )
 }
 
@@ -131,6 +154,9 @@ pub struct GenericContainerScreenHandler {
     pub columns: u8,
     /// Whether the opener is in spectator mode.
     pub is_spectator: bool,
+    /// Whether container slots refuse items that cannot fit inside container
+    /// items (shulker boxes).
+    shulker_box_slots: bool,
     /// Core screen handler behavior (slots, sync ID, listeners).
     behaviour: ScreenHandlerBehaviour,
 }
@@ -155,11 +181,35 @@ impl GenericContainerScreenHandler {
         columns: u8,
         is_spectator: bool,
     ) -> Self {
+        Self::new_with_slots(
+            screen_type,
+            sync_id,
+            player_inventory,
+            inventory,
+            rows,
+            columns,
+            is_spectator,
+            false,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn new_with_slots(
+        screen_type: WindowType,
+        sync_id: u8,
+        player_inventory: &Arc<PlayerInventory>,
+        inventory: Arc<dyn Inventory>,
+        rows: u8,
+        columns: u8,
+        is_spectator: bool,
+        shulker_box_slots: bool,
+    ) -> Self {
         let mut handler = Self {
             inventory,
             rows,
             columns,
             is_spectator,
+            shulker_box_slots,
             behaviour: ScreenHandlerBehaviour::new(sync_id, Some(screen_type)),
         };
 
@@ -178,10 +228,12 @@ impl GenericContainerScreenHandler {
     fn add_inventory_slots(&mut self) {
         for i in 0..self.rows {
             for j in 0..self.columns {
-                self.add_slot(Arc::new(NormalSlot::new(
-                    self.inventory.clone(),
-                    (j + i * self.columns) as usize,
-                )));
+                let index = (j + i * self.columns) as usize;
+                if self.shulker_box_slots {
+                    self.add_slot(Arc::new(ShulkerBoxSlot::new(self.inventory.clone(), index)));
+                } else {
+                    self.add_slot(Arc::new(NormalSlot::new(self.inventory.clone(), index)));
+                }
             }
         }
     }

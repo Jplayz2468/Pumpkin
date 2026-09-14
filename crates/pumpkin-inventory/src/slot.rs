@@ -280,6 +280,63 @@ impl Slot for NormalSlot {
     }
 }
 
+/// A shulker box container slot.
+///
+/// `ShulkerBoxSlot.java`: `mayPlace` defers to `Item.canFitInsideContainerItems`,
+/// which `BlockItem` answers with `!(block instanceof ShulkerBoxBlock)`. This is
+/// what stops a player nesting one shulker box inside another through the
+/// container screen; the hopper path is refused separately by the block entity.
+pub struct ShulkerBoxSlot {
+    /// The inventory containing this slot.
+    pub inventory: Arc<dyn Inventory>,
+    /// Index of this slot within its inventory.
+    pub index: usize,
+    /// Protocol ID for this slot (assigned by screen handler).
+    pub id: AtomicU8,
+}
+
+impl ShulkerBoxSlot {
+    /// Creates a new shulker box slot.
+    pub fn new(inventory: Arc<dyn Inventory>, index: usize) -> Self {
+        Self {
+            inventory,
+            index,
+            id: AtomicU8::new(0),
+        }
+    }
+}
+
+/// Java `Item.canFitInsideContainerItems`, which only `BlockItem` narrows, and
+/// only for shulker boxes.
+#[must_use]
+pub fn can_fit_inside_container_items(stack: &ItemStack) -> bool {
+    !pumpkin_data::Block::from_item_id(stack.item.id).is_some_and(|block| {
+        pumpkin_data::tag::Taggable::is_tagged_with(block, "minecraft:shulker_boxes") == Some(true)
+    })
+}
+
+impl Slot for ShulkerBoxSlot {
+    fn get_inventory(&self) -> Arc<dyn Inventory> {
+        self.inventory.clone()
+    }
+
+    fn get_index(&self) -> usize {
+        self.index
+    }
+
+    fn set_id(&self, id: usize) {
+        self.id.store(id as u8, Ordering::Relaxed);
+    }
+
+    fn can_insert(&self, stack: &ItemStack) -> bool {
+        can_fit_inside_container_items(stack)
+    }
+
+    fn mark_dirty(&self) {
+        self.inventory.mark_dirty();
+    }
+}
+
 /// An armor equipment slot.
 ///
 /// Restricts which items can be placed based on the equipment slot type:
@@ -374,5 +431,55 @@ impl Slot for ArmorSlot {
     /// TODO: Check for curse of binding enchantment.
     fn can_take_items(&self, _player: &dyn InventoryPlayer) -> bool {
         true
+    }
+}
+
+#[cfg(test)]
+mod shulker_slot_tests {
+    use super::can_fit_inside_container_items;
+    use pumpkin_data::item::Item;
+    use pumpkin_data::item_stack::ItemStack;
+
+    #[test]
+    fn container_items_refuse_every_shulker_box_and_accept_other_storage() {
+        for item in [
+            &Item::SHULKER_BOX,
+            &Item::WHITE_SHULKER_BOX,
+            &Item::ORANGE_SHULKER_BOX,
+            &Item::MAGENTA_SHULKER_BOX,
+            &Item::LIGHT_BLUE_SHULKER_BOX,
+            &Item::YELLOW_SHULKER_BOX,
+            &Item::LIME_SHULKER_BOX,
+            &Item::PINK_SHULKER_BOX,
+            &Item::GRAY_SHULKER_BOX,
+            &Item::LIGHT_GRAY_SHULKER_BOX,
+            &Item::CYAN_SHULKER_BOX,
+            &Item::PURPLE_SHULKER_BOX,
+            &Item::BLUE_SHULKER_BOX,
+            &Item::BROWN_SHULKER_BOX,
+            &Item::GREEN_SHULKER_BOX,
+            &Item::RED_SHULKER_BOX,
+            &Item::BLACK_SHULKER_BOX,
+        ] {
+            assert!(
+                !can_fit_inside_container_items(&ItemStack::new(1, item)),
+                "{}",
+                item.registry_key
+            );
+        }
+        for item in [
+            &Item::CHEST,
+            &Item::BARREL,
+            &Item::ENDER_CHEST,
+            &Item::BUNDLE,
+            &Item::DIAMOND,
+            &Item::SHULKER_SHELL,
+        ] {
+            assert!(
+                can_fit_inside_container_items(&ItemStack::new(1, item)),
+                "{}",
+                item.registry_key
+            );
+        }
     }
 }
