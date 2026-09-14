@@ -65,7 +65,9 @@ impl ZombieEntityBase {
             if can_break_doors {
                 goal_selector.add_goal(1, Box::new(BreakDoorGoal::default()));
             }
-            goal_selector.add_goal(2, ZombieAttackGoal::new(1.0, false));
+            // Vanilla `Zombie.addBehaviourGoals` puts the attack goal at priority 3
+            // (`Zombie.java:121`); slot 2 is `SpearUseGoal`, which is not implemented here.
+            goal_selector.add_goal(3, ZombieAttackGoal::new(1.0, false));
             goal_selector.add_goal(4, DestroyEggGoal::new(1.0, 3));
             goal_selector.add_goal(7, Box::new(WanderAroundGoal::water_avoiding(1.0)));
             goal_selector.add_goal(
@@ -79,9 +81,12 @@ impl ZombieEntityBase {
                 2,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
             );
+            // Vanilla passes mustSee = false for villagers (`Zombie.java:126`), unlike
+            // every other zombie target: a zombie homes in on a villager it cannot see,
+            // which is what lets it path to one shut inside a house.
             target_selector.add_goal(
                 3,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::VILLAGER, true),
+                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::VILLAGER, false),
             );
             target_selector.add_goal(
                 3,
