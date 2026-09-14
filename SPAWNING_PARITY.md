@@ -66,3 +66,8 @@ pathfinding and movement-controller differences. Full mob spawn finalization
 (group data, babies, difficulty and species extras) remains distinct from the
 existing initialization hook. Paired runtime tests and farm results live in the
 hosting repository. A successful smoke test must not be presented as full parity.
+
+The controlled NoAI arena caught an NBT initialization discrepancy: specifying
+NoAI without Health reset a spider to 20 HP despite its 16 HP attribute.
+`read_living_nbt_non_mut` now defaults missing Health to the entity's maximum
+and uses `set_health` to clamp explicit values, as Java's reader does.

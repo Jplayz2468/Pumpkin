@@ -2634,7 +2634,10 @@ impl LivingEntity {
     }
 
     pub fn read_living_nbt_non_mut(&self, nbt: &NbtCompound) {
-        self.health.store(nbt.get_float("Health").unwrap_or(20.0));
+        self.set_health(
+            nbt.get_float("Health")
+                .unwrap_or_else(|| self.get_max_health()),
+        );
 
         // Clamp any persisted absorption to the entity's configured max
         let raw_abs = nbt.get_float("AbsorptionAmount").unwrap_or(0.0);
