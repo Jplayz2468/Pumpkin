@@ -128,6 +128,9 @@ impl ZombieEntityBase {
 }
 
 impl Mob for ZombieEntityBase {
+    fn as_zombie_base(&self) -> Option<&ZombieEntityBase> {
+        Some(self)
+    }
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }
@@ -207,4 +210,37 @@ impl Mob for ZombieEntityBase {
             self.set_can_break_doors(can_break_doors, self);
         }
     }
+}
+
+pub fn is_zombie_family(name: &str) -> bool {
+    matches!(
+        name,
+        "zombie" | "husk" | "drowned" | "zombie_villager" | "zombified_piglin"
+    )
+}
+
+/// Zombie babies retain IsBaby forever; AgeableMob growth does not apply.
+pub fn set_baby<M: Mob + ?Sized>(mob: &M, baby: bool) {
+    let living = &mob.get_mob_entity().living_entity;
+    living
+        .entity
+        .age
+        .store(if baby { -24000 } else { 0 }, Ordering::Relaxed);
+    living
+        .entity
+        .set_synced_data(pumpkin_data::tracked_data::zombie::BABY, baby);
+    living.update_attribute(
+        &pumpkin_data::attributes::Attributes::MOVEMENT_SPEED,
+        |attribute| {
+            attribute.remove_modifier("minecraft:baby");
+            if baby {
+                attribute.add_or_replace_modifier(crate::entity::attributes::Modifier {
+                    id: "minecraft:baby".to_owned(),
+                    amount: 0.5,
+                    operation: crate::entity::attributes::ModifierOperation::MultiplyBase,
+                });
+            }
+        },
+    );
+    crate::entity::baby_dimensions::refresh(living, baby);
 }

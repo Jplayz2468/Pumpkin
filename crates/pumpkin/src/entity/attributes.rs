@@ -25,6 +25,7 @@ pub struct Modifier {
 pub struct AttributeInstance {
     pub base_value: f64,
     pub modifiers: Vec<Modifier>,
+    permanent_modifiers: std::collections::BTreeSet<String>,
     pub cached_value: AtomicU64,
     pub dirty: AtomicBool,
 }
@@ -35,6 +36,7 @@ impl AttributeInstance {
         Self {
             base_value,
             modifiers: Vec::new(),
+            permanent_modifiers: std::collections::BTreeSet::new(),
             cached_value: AtomicU64::new(base_value.to_bits()),
             dirty: AtomicBool::new(false),
         }
@@ -80,7 +82,74 @@ impl AttributeInstance {
         self.dirty.store(true, Ordering::Relaxed);
     }
 
+    pub fn add_permanent_modifier(&mut self, modifier: Modifier) {
+        self.permanent_modifiers.insert(modifier.id.clone());
+        self.add_or_replace_modifier(modifier);
+    }
+
+    pub fn write_nbt(&self, name: &str) -> pumpkin_nbt::compound::NbtCompound {
+        use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
+        let mut result = NbtCompound::new();
+        result.put_string("id", name.to_owned());
+        result.put_double("base", self.base_value);
+        let modifiers: Vec<_> = self
+            .modifiers
+            .iter()
+            .filter(|m| self.permanent_modifiers.contains(&m.id))
+            .map(|m| {
+                let mut data = NbtCompound::new();
+                data.put_string("id", m.id.clone());
+                data.put_double("amount", m.amount);
+                data.put_string(
+                    "operation",
+                    match m.operation {
+                        ModifierOperation::Add => "add_value",
+                        ModifierOperation::MultiplyBase => "add_multiplied_base",
+                        ModifierOperation::MultiplyTotal => "add_multiplied_total",
+                    }
+                    .to_owned(),
+                );
+                NbtTag::Compound(data)
+            })
+            .collect();
+        if !modifiers.is_empty() {
+            result.put("modifiers", NbtTag::List(modifiers));
+        }
+        result
+    }
+
+    pub fn read_nbt(&mut self, data: &pumpkin_nbt::compound::NbtCompound) {
+        self.base_value = data.get_double("base").unwrap_or(0.0);
+        if let Some(modifiers) = data.get_list("modifiers") {
+            for tag in modifiers {
+                let Some(m) = tag.extract_compound() else {
+                    continue;
+                };
+                let (Some(id), Some(amount), Some(operation)) = (
+                    m.get_string("id"),
+                    m.get_double("amount"),
+                    m.get_string("operation"),
+                ) else {
+                    continue;
+                };
+                let operation = match operation {
+                    "add_value" => ModifierOperation::Add,
+                    "add_multiplied_base" => ModifierOperation::MultiplyBase,
+                    "add_multiplied_total" => ModifierOperation::MultiplyTotal,
+                    _ => continue,
+                };
+                self.add_permanent_modifier(Modifier {
+                    id: id.to_owned(),
+                    amount,
+                    operation,
+                });
+            }
+        }
+        self.dirty.store(true, Ordering::Relaxed);
+    }
+
     pub fn remove_modifier(&mut self, id: &str) {
+        self.permanent_modifiers.remove(id);
         if let Some(pos) = self.modifiers.iter().position(|m| m.id == id) {
             self.modifiers.swap_remove(pos);
         }
@@ -186,6 +255,7 @@ impl Clone for AttributeInstance {
         Self {
             base_value: self.base_value,
             modifiers: self.modifiers.clone(),
+            permanent_modifiers: self.permanent_modifiers.clone(),
             cached_value: AtomicU64::new(self.cached_value.load(Ordering::Relaxed)),
             dirty: AtomicBool::new(self.dirty.load(Ordering::Relaxed)),
         }
@@ -269,6 +339,40 @@ mod tests {
     use super::*;
     use pumpkin_data::attributes::Attributes;
     use pumpkin_data::entity::EntityType;
+
+    #[test]
+    fn permanent_spawn_bonus_survives_nbt_without_baby_speed_duplication() {
+        let mut original = AttributeInstance::new(0.23);
+        original.add_permanent_modifier(Modifier {
+            id: "minecraft:random_spawn_bonus".into(),
+            amount: 0.05,
+            operation: ModifierOperation::MultiplyBase,
+        });
+        original.add_or_replace_modifier(Modifier {
+            id: "minecraft:baby".into(),
+            amount: 0.5,
+            operation: ModifierOperation::MultiplyBase,
+        });
+        let saved = original.write_nbt("minecraft:movement_speed");
+        assert_eq!(saved.get_list("modifiers").unwrap().len(), 1);
+        let mut restored = AttributeInstance::new(0.0);
+        restored.read_nbt(&saved);
+        assert_eq!(restored.base_value, 0.23);
+        assert_eq!(restored.modifiers.len(), 1);
+        restored.add_or_replace_modifier(Modifier {
+            id: "minecraft:baby".into(),
+            amount: 0.5,
+            operation: ModifierOperation::MultiplyBase,
+        });
+        assert_eq!(restored.value(), original.value());
+        restored.remove_modifier("minecraft:random_spawn_bonus");
+        assert!(
+            restored
+                .write_nbt("minecraft:movement_speed")
+                .get_list("modifiers")
+                .is_none()
+        );
+    }
 
     #[test]
     fn player_base_attributes() {

@@ -767,6 +767,14 @@ pub trait Mob: EntityBase + Send + Sync {
         None
     }
 
+    fn as_zombie_base(&self) -> Option<&zombie::ZombieEntityBase> {
+        None
+    }
+
+    fn as_chicken(&self) -> Option<&crate::entity::passive::chicken::ChickenEntity> {
+        None
+    }
+
     fn as_ageable(&self) -> Option<&dyn crate::entity::ageable::AgeableMob> {
         None
     }
@@ -1051,13 +1059,7 @@ pub trait Mob: EntityBase + Send + Sync {
         self.get_entity().entity_type.experience_reward
     }
 
-    fn mob_init_data_tracker(&self) {
-        let entity = self.get_entity();
-        let is_baby = entity.age.load(std::sync::atomic::Ordering::Relaxed) < 0;
-        if is_baby {
-            entity.set_synced_data(tracked_data::ageable_mob::DATA_BABY_ID, true);
-        }
-    }
+    fn mob_init_data_tracker(&self) {}
 
     fn mob_set_variant_name(&self, _name: &str) {}
 
@@ -1094,20 +1096,13 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
     fn init_data_tracker(&self) {
         self.mob_init_data_tracker();
-        let world = self.get_mob_entity().living_entity.entity.world.load();
-        crate::entity::mob::equipment::equip_mob_on_spawn(self as &dyn EntityBase, &world);
-
-        let entity_name = self.get_entity().entity_type.resource_name;
-        if let Some(def) = crate::entity::mob::equipment::EQUIPMENT_REGISTRY.get(entity_name)
-            && def.can_pick_up_loot
-        {
-            let difficulty = crate::entity::mob::equipment::RegionalDifficulty::at(
-                &world,
-                self.get_entity().pos.load(),
-            );
-            let pickup_chance = 0.55 * difficulty.special_multiplier;
-            self.get_mob_entity()
-                .set_can_pick_up_loot(rand::random::<f32>() < pickup_chance);
+        let entity = self.get_entity();
+        if zombie::is_zombie_family(entity.entity_type.resource_name) {
+            zombie::set_baby(self, entity.age.load(Relaxed) < 0);
+        } else if let Some(ageable) = self.as_ageable() {
+            let baby = ageable.is_baby();
+            entity.set_synced_data(tracked_data::ageable_mob::DATA_BABY_ID, baby);
+            crate::entity::baby_dimensions::refresh(&self.get_mob_entity().living_entity, baby);
         }
     }
 
@@ -1370,6 +1365,9 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         if let Some(tamable) = self.as_tamable() {
             tamable.write_tamable_nbt(nbt);
         }
+        if zombie::is_zombie_family(self.get_entity().entity_type.resource_name) {
+            nbt.put_bool("IsBaby", self.get_entity().age.load(Relaxed) < 0);
+        }
         self.mob_write_nbt(nbt);
     }
 
@@ -1384,6 +1382,9 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         if let Some(tamable) = self.as_tamable() {
             tamable.read_tamable_nbt(nbt);
         }
+        if zombie::is_zombie_family(self.get_entity().entity_type.resource_name) {
+            zombie::set_baby(self, nbt.get_bool("IsBaby").unwrap_or(false));
+        }
         self.mob_read_nbt(nbt);
     }
 
@@ -1397,12 +1398,15 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
     fn get_experience_reward(&self, _killer: Option<&dyn EntityBase>) -> u32 {
         if self
-            .get_entity()
-            .age
-            .load(std::sync::atomic::Ordering::Relaxed)
-            < 0
+            .as_ageable()
+            .is_some_and(crate::entity::ageable::AgeableMob::is_baby)
         {
             return 0;
+        }
+        if zombie::is_zombie_family(self.get_entity().entity_type.resource_name)
+            && self.get_entity().age.load(Relaxed) < 0
+        {
+            return (Mob::get_base_experience_reward(self) as f32 * 2.5) as u32;
         }
         // TODO: apply enchantment processing like in vanilla
         Mob::get_base_experience_reward(self)

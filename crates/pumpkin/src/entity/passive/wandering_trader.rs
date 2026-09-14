@@ -577,10 +577,6 @@ impl AgeableMob for WanderingTraderEntity {
     fn get_ageable_data(&self) -> &AgeableData {
         &self.ageable_data
     }
-
-    fn can_be_a_baby(&self) -> bool {
-        false
-    }
 }
 
 impl Mob for WanderingTraderEntity {

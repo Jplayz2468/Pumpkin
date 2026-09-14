@@ -246,6 +246,9 @@ impl PumpkinError for GetBlockError {
 /// - Stores and tracks active `Player` entities within the world.
 /// - Provides a central hub for interacting with the world's entities and environment.
 pub struct World {
+    /// Java-compatible Level random stream. Spawn finalization uses this owner;
+    /// remaining world RNG consumers are migrated separately.
+    pub random: std::sync::Mutex<pumpkin_util::random::legacy_rand::LegacyRand>,
     /// Represents the World's Unique Identifier
     pub uuid: Uuid,
     /// The underlying level, responsible for chunk management and terrain generation.
@@ -386,6 +389,9 @@ impl World {
         };
 
         Self {
+            random: std::sync::Mutex::new(
+                pumpkin_util::random::legacy_rand::LegacyRand::from_seed(get_seed()),
+            ),
             uuid: Uuid::new_v4(),
             level,
             level_info,
@@ -5214,6 +5220,15 @@ impl World {
     }
 
     pub fn spawn_entity(self: &Arc<Self>, entity: Arc<dyn EntityBase>) {
+        self.spawn_entity_inner(entity, true);
+    }
+
+    /// Insert a mob loaded from NBT or already finalized by its spawn source.
+    pub fn spawn_initialized_entity(self: &Arc<Self>, entity: Arc<dyn EntityBase>) {
+        self.spawn_entity_inner(entity, false);
+    }
+
+    fn spawn_entity_inner(self: &Arc<Self>, entity: Arc<dyn EntityBase>, equip: bool) {
         let mut event = crate::plugin::api::events::entity::entity_spawn::EntitySpawnEvent::new(
             entity.get_entity().entity_id,
             entity.get_entity().entity_type.id.to_string(),
@@ -5228,6 +5243,9 @@ impl World {
         }
 
         entity.init_data_tracker();
+        if equip {
+            crate::entity::spawn::initialize_spawn_equipment(entity.as_ref());
+        }
         self.add_entity_silent(entity);
     }
 

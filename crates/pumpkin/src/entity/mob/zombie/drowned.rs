@@ -43,6 +43,10 @@ impl DrownedEntity {
 }
 
 impl Mob for DrownedEntity {
+    fn as_zombie_base(&self) -> Option<&ZombieEntityBase> {
+        Some(&self.entity)
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.entity.mob_entity
     }

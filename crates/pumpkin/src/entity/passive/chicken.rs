@@ -1,6 +1,6 @@
 use std::sync::{
     Arc, Weak,
-    atomic::{AtomicI32, AtomicU8, Ordering, Ordering::Relaxed},
+    atomic::{AtomicBool, AtomicI32, AtomicU8, Ordering, Ordering::Relaxed},
 };
 
 use pumpkin_data::item_stack::ItemStack;
@@ -39,6 +39,7 @@ pub struct ChickenEntity {
     pub mob_entity: MobEntity,
     pub variant: AtomicU8,
     egg_lay_time: AtomicI32,
+    pub is_chicken_jockey: AtomicBool,
     pub ageable_data: crate::entity::ageable::AgeableData,
 }
 
@@ -50,6 +51,7 @@ impl ChickenEntity {
             mob_entity,
             variant: AtomicU8::new(1), // Default to temperate
             egg_lay_time: AtomicI32::new(egg_lay_time),
+            is_chicken_jockey: AtomicBool::new(false),
             ageable_data: crate::entity::ageable::AgeableData::default(),
         };
         let mob_arc = Arc::new(chicken);
@@ -99,6 +101,21 @@ impl Animal for ChickenEntity {
 }
 
 impl Mob for ChickenEntity {
+    fn as_chicken(&self) -> Option<&ChickenEntity> {
+        Some(self)
+    }
+
+    fn remove_when_far_away(&self, _: f64) -> bool {
+        self.is_chicken_jockey.load(Relaxed)
+    }
+
+    fn get_base_experience_reward(&self) -> u32 {
+        if self.is_chicken_jockey.load(Relaxed) {
+            10
+        } else {
+            self.get_entity().entity_type.experience_reward
+        }
+    }
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }
@@ -108,6 +125,7 @@ impl Mob for ChickenEntity {
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
+        nbt.put_bool("IsChickenJockey", self.is_chicken_jockey.load(Relaxed));
         nbt.put_int("EggLayTime", self.egg_lay_time.load(Ordering::Relaxed));
         let variant_str = match self.variant.load(Ordering::Relaxed) {
             0 => "minecraft:cold",
@@ -118,6 +136,8 @@ impl Mob for ChickenEntity {
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
+        self.is_chicken_jockey
+            .store(nbt.get_bool("IsChickenJockey").unwrap_or(false), Relaxed);
         self.egg_lay_time
             .store(nbt.get_int("EggLayTime").unwrap_or(6000), Ordering::Relaxed);
         if let Some(variant_str) = nbt.get_string("variant") {
@@ -170,7 +190,10 @@ impl Mob for ChickenEntity {
         if (!on_ground) && current_velocity.y < 0.0 {
             entity.set_velocity(current_velocity.multiply(1.0, 0.6, 1.0));
         }
-        if self.egg_lay_time.fetch_sub(1, Ordering::Relaxed) <= 1 {
+        if !self.is_baby()
+            && !self.is_chicken_jockey.load(Relaxed)
+            && self.egg_lay_time.fetch_sub(1, Ordering::Relaxed) <= 1
+        {
             let next_time = rand::rng().random_range(6000..12000);
             let world = entity.world.load_full();
             let pos = entity.block_pos.load();

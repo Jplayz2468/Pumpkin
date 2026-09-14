@@ -28,15 +28,21 @@ pub trait AgeableMob: Mob {
     fn get_ageable_data(&self) -> &AgeableData;
 
     fn get_baby_start_age(&self) -> i32 {
-        BABY_START_AGE
+        if self.get_entity().entity_type.resource_name == "sniffer" {
+            -48000
+        } else {
+            BABY_START_AGE
+        }
     }
 
     fn is_baby(&self) -> bool {
-        self.get_mob_entity().living_entity.entity.age.load(Relaxed) < 0
+        self.can_be_a_baby() && self.get_mob_entity().living_entity.entity.age.load(Relaxed) < 0
     }
 
     fn set_baby(&self, baby: bool) {
-        self.set_age(if baby { self.get_baby_start_age() } else { 0 });
+        if self.can_be_a_baby() {
+            self.set_age(if baby { self.get_baby_start_age() } else { 0 });
+        }
     }
 
     fn get_age(&self) -> i32 {
@@ -49,8 +55,9 @@ pub trait AgeableMob: Mob {
         let old_age = entity.age.swap(new_age, Relaxed);
 
         if (old_age < 0 && new_age >= 0) || (old_age >= 0 && new_age < 0) {
-            let is_baby = new_age < 0;
+            let is_baby = self.can_be_a_baby() && new_age < 0;
             entity.set_synced_data(tracked_data::ageable_mob::DATA_BABY_ID, is_baby);
+            crate::entity::baby_dimensions::refresh(&mob.living_entity, is_baby);
         }
     }
 
@@ -110,7 +117,7 @@ pub trait AgeableMob: Mob {
     }
 
     fn can_be_a_baby(&self) -> bool {
-        true
+        crate::entity::baby_dimensions::can_be_baby(self.get_entity().entity_type.resource_name)
     }
 
     fn ageable_ai_step(&self) {

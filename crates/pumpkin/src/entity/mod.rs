@@ -1,3 +1,6 @@
+pub mod baby_dimensions;
+mod baby_dimensions_data;
+pub mod spawn;
 use crate::{
     entity::item::ItemEntity,
     net::{ClientPlatform, bedrock::BedrockClient, java::JavaClient},

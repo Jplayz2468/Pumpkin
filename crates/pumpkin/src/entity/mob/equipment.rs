@@ -997,8 +997,7 @@ fn equip_mob_from_def(
 
 /// Equips a mob with weapons/armor/enchantments when it spawns.
 ///
-/// Called from the blanket `EntityBase::init_data_tracker` implementation for
-/// all mob types. Looks up the mob's equipment definition in
+/// Called explicitly for new spawns, never from metadata initialization or NBT loading. Looks up the mob's equipment definition in
 /// [`EQUIPMENT_REGISTRY`], computes [`RegionalDifficulty`] at the mob's
 /// position, generates equipment, stores it in the entity's equipment slots,
 /// and broadcasts the changes to nearby players.

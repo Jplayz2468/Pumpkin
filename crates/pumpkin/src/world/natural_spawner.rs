@@ -1,5 +1,8 @@
 use crate::block::PathComputationType;
 use crate::entity::EntityBase;
+use crate::entity::spawn::{
+    SpawnContext, SpawnGroupData, SpawnReason, WorldSpawnRandom, finalize_spawn_group,
+};
 use crate::entity::r#type::{check_spawn_rules, from_type};
 use crate::world::World;
 use arc_swap::ArcSwap;
@@ -616,6 +619,7 @@ pub fn spawn_mobs_for_chunk_generation(
             return;
         };
 
+        let mut spawn_group: Option<SpawnGroupData> = None;
         let mut x = xo + rand::random_range(0..16);
         let mut z = zo + rand::random_range(0..16);
         let start_x = x;
@@ -650,7 +654,18 @@ pub fn spawn_mobs_for_chunk_generation(
                         entity
                             .get_entity()
                             .set_rotation(rand::random::<f32>() * 360.0, 0.0);
+                        let equipment_initialized = finalize_spawn_group(
+                            &entity,
+                            &mut SpawnContext {
+                                reason: SpawnReason::ChunkGeneration,
+                                random: &mut WorldSpawnRandom(world),
+                            },
+                            &mut spawn_group,
+                        );
                         entity.init_data_tracker();
+                        if !equipment_initialized {
+                            crate::entity::spawn::initialize_spawn_equipment(entity.as_ref());
+                        }
                         world.spawn_entity_non_save(entity);
                         success = true;
                     }
@@ -772,6 +787,7 @@ pub fn spawn_category_for_position(
         let mut current_spawner: Option<&'static Spawner> = None;
         let mut max = (rng().random::<f32>() * 4.0).ceil() as i32;
         let mut group_size = 0;
+        let mut spawn_group: Option<SpawnGroupData> = None;
         let mut ll = 0;
 
         while ll < max {
@@ -852,7 +868,18 @@ pub fn spawn_category_for_position(
                     });
 
                     if is_valid_for_mob {
+                        let equipment_initialized = finalize_spawn_group(
+                            &entity,
+                            &mut SpawnContext {
+                                reason: SpawnReason::Natural,
+                                random: &mut WorldSpawnRandom(world),
+                            },
+                            &mut spawn_group,
+                        );
                         entity.init_data_tracker();
+                        if !equipment_initialized {
+                            crate::entity::spawn::initialize_spawn_equipment(entity.as_ref());
+                        }
                         cluster_size += 1;
                         group_size += 1;
                         // Make the accepted entity visible before subsequent attempts.

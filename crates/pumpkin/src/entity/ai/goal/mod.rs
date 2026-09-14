@@ -219,6 +219,10 @@ impl Goal for PrioritizedGoal {
         self.goal.tick(mob);
     }
 
+    fn can_stop(&self) -> bool {
+        self.goal.can_stop()
+    }
+
     fn should_run_every_tick(&self) -> bool {
         self.goal.should_run_every_tick()
     }

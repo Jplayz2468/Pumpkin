@@ -84,7 +84,25 @@ impl CommandExecutor for SummonExecutor {
         }
 
         let name = entity.get_display_name();
-        world.spawn_entity(entity);
+        // Java skips finalization whenever an NBT argument is supplied,
+        // including an empty compound. Preserve its explicit equipment/flags.
+        if nbt.is_none() {
+            use crate::entity::spawn::{
+                SpawnContext, SpawnReason, WorldSpawnRandom, finalize_spawn_group,
+                initialize_spawn_equipment,
+            };
+            if !finalize_spawn_group(
+                &entity,
+                &mut SpawnContext {
+                    reason: SpawnReason::Command,
+                    random: &mut WorldSpawnRandom(world),
+                },
+                &mut None,
+            ) {
+                initialize_spawn_equipment(entity.as_ref());
+            }
+        }
+        world.spawn_initialized_entity(entity);
 
         context.source.send_feedback(
             TextComponent::translate_cross(

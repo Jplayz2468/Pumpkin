@@ -257,6 +257,10 @@ impl ZombieVillagerEntity {
 }
 
 impl Mob for ZombieVillagerEntity {
+    fn as_zombie_base(&self) -> Option<&ZombieEntityBase> {
+        Some(&self.mob_entity)
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity.mob_entity
     }

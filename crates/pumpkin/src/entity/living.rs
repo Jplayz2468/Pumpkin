@@ -2597,6 +2597,20 @@ impl LivingEntity {
 
 impl LivingEntity {
     pub fn write_living_nbt(&self, nbt: &mut NbtCompound) {
+        let attributes = self
+            .attributes
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let saved = Attributes::ALL
+            .iter()
+            .filter_map(|a| {
+                attributes
+                    .get(&a.id)
+                    .map(|instance| NbtTag::Compound(instance.write_nbt(a.name)))
+            })
+            .collect();
+        nbt.put("attributes", NbtTag::List(saved));
+        drop(attributes);
         nbt.put("Health", NbtTag::Float(self.health.load()));
         // Avoid persisting a lethal fall distance when the entity is dead to prevent death loops
         let fall_distance = if self.dead.load(Relaxed) {
@@ -2629,11 +2643,82 @@ impl LivingEntity {
                 nbt.put("active_effects", NbtTag::List(effects_list));
             }
         }
-        //TODO: write equipment
+        let mut equipment_nbt = NbtCompound::new();
+        for (slot, stack) in &self
+            .entity_equipment
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .equipment
+        {
+            if !stack.is_empty() {
+                let mut data = NbtCompound::new();
+                stack.write_item_stack(&mut data);
+                equipment_nbt.put_compound(slot.to_name(), data);
+            }
+        }
+        nbt.put_compound("equipment", equipment_nbt);
+        let mut drops = NbtCompound::new();
+        for (slot, chance) in self
+            .equipment_drop_chances
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+        {
+            drops.put_float(slot.to_name(), *chance);
+        }
+        nbt.put_compound("drop_chances", drops);
         // todo more...
     }
 
     pub fn read_living_nbt_non_mut(&self, nbt: &NbtCompound) {
+        // Restore base values before clamping health; only permanent modifiers
+        // are stored. Age/effects/equipment recreate their transient modifiers.
+        if let Some(saved) = nbt.get_list("attributes") {
+            for tag in saved {
+                let Some(data) = tag.extract_compound() else {
+                    continue;
+                };
+                let Some(name) = data.get_string("id") else {
+                    continue;
+                };
+                if let Some(attribute) = Attributes::ALL.iter().find(|a| a.name == name) {
+                    self.update_attribute(attribute, |instance| instance.read_nbt(data));
+                }
+            }
+        }
+        if let Some(saved) = nbt.get_compound("equipment") {
+            let mut equipment = self
+                .entity_equipment
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for (name, value) in &saved.child_tags {
+                if let Some(slot) = EquipmentSlot::get_from_name(name)
+                    && let Some(data) = value.extract_compound()
+                {
+                    // ItemStack's count defaults to one in Java's persistent codec.
+                    let mut data = data.clone();
+                    if data.get_int("count").is_none() {
+                        data.put_int("count", 1);
+                    }
+                    if let Some(stack) = ItemStack::read_item_stack(&data) {
+                        equipment.put(slot, stack);
+                    }
+                }
+            }
+        }
+        if let Some(saved) = nbt.get_compound("drop_chances") {
+            let mut drops = self
+                .equipment_drop_chances
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            for (name, value) in &saved.child_tags {
+                if let Some(slot) = EquipmentSlot::get_from_name(name)
+                    && let NbtTag::Float(chance) = value
+                {
+                    drops.insert(slot.clone(), *chance);
+                }
+            }
+        }
         self.set_health(
             nbt.get_float("Health")
                 .unwrap_or_else(|| self.get_max_health()),
