@@ -660,6 +660,40 @@ impl BlockBehaviour for WeatheringCopperBlock {
     }
 }
 
+/// Waxed copper golem statues.
+///
+/// Vanilla registers the statue family through `WeatheringCopperCollection.registerBlocks`
+/// with `CopperGolemStatueBlock::new` as the waxed factory and
+/// `WeatheringCopperGolemStatueBlock::new` as the weathering one (`Blocks.java:5420`), so
+/// both halves inherit `CopperGolemStatueBlock.getAnalogOutputSignal`. The weathering
+/// half is handled by `WeatheringCopperBlock` above; waxed statues had no behaviour at
+/// all and therefore reported no comparator signal.
+///
+/// They do not oxidize, so a pose readout is the whole of it.
+#[derive(Default)]
+pub struct WaxedCopperGolemStatueBlock;
+
+impl BlockMetadata for WaxedCopperGolemStatueBlock {
+    fn ids() -> Box<[BlockId]> {
+        [
+            BlockId::WAXED_COPPER_GOLEM_STATUE,
+            BlockId::WAXED_EXPOSED_COPPER_GOLEM_STATUE,
+            BlockId::WAXED_WEATHERED_COPPER_GOLEM_STATUE,
+            BlockId::WAXED_OXIDIZED_COPPER_GOLEM_STATUE,
+        ]
+        .into()
+    }
+}
+
+impl BlockBehaviour for WaxedCopperGolemStatueBlock {
+    /// Vanilla `CopperGolemStatueBlock.getAnalogOutputSignal`
+    /// (`CopperGolemStatueBlock.java:147`): `state.getValue(POSE).ordinal() + 1`.
+    fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
+        let props = CopperGolemStatueLikeProperties::from_state_id(args.state.id);
+        Some(props.copper_golem_pose.to_index() as u8 + 1)
+    }
+}
+
 const fn is_copper_golem_statue(id: BlockId) -> bool {
     matches!(
         id,
@@ -999,5 +1033,44 @@ impl BlockBehaviour for WeatheringCopperGrateBlock {
 
     fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         change_over_time(args.world, args.position, args.block, &mut args.random);
+    }
+}
+
+#[cfg(test)]
+mod copper_golem_statue_tests {
+    use super::*;
+    use pumpkin_data::block_properties::CopperGolemPose;
+    use pumpkin_data::block_properties::EnumVariants;
+
+    /// Vanilla `CopperGolemStatueBlock.getAnalogOutputSignal`
+    /// (`CopperGolemStatueBlock.java:147`) is `state.getValue(POSE).ordinal() + 1`, and
+    /// the pose enum is declared STANDING, SITTING, RUNNING, STAR
+    /// (`CopperGolemStatueBlock.java:186-189`). Both the waxed and weathering halves of
+    /// the family inherit it.
+    #[test]
+    fn pose_maps_to_one_based_ordinal() {
+        for (pose, expected) in [
+            (CopperGolemPose::Standing, 1u8),
+            (CopperGolemPose::Sitting, 2),
+            (CopperGolemPose::Running, 3),
+            (CopperGolemPose::Star, 4),
+        ] {
+            assert_eq!(pose.to_index() as u8 + 1, expected, "{pose:?}");
+        }
+    }
+
+    /// The waxed variants are a separate block family in Pumpkin, so they need their own
+    /// registration to report a signal at all -- they had none before.
+    #[test]
+    fn waxed_variants_are_registered() {
+        let ids = WaxedCopperGolemStatueBlock::ids();
+        for id in [
+            BlockId::WAXED_COPPER_GOLEM_STATUE,
+            BlockId::WAXED_EXPOSED_COPPER_GOLEM_STATUE,
+            BlockId::WAXED_WEATHERED_COPPER_GOLEM_STATUE,
+            BlockId::WAXED_OXIDIZED_COPPER_GOLEM_STATUE,
+        ] {
+            assert!(ids.contains(&id), "{id:?} missing from waxed statue ids");
+        }
     }
 }
