@@ -130,10 +130,7 @@ pub fn snbt_colorful_display(tag: &NbtTag, _depth: usize) -> TextComponent {
 
             content.add_child(TextComponent::text("]"))
         }
-        NbtTag::String(value) => {
-            let escaped = value.replace('"', "\\\"");
-            TextComponent::text(format!("\"{escaped}\"")).color_named(NamedColor::Green)
-        }
+        NbtTag::String(_) => TextComponent::text(tag.to_string()).color_named(NamedColor::Green),
         NbtTag::List(value) => {
             let mut content = TextComponent::text("[");
             for (index, tag) in value.iter().take(128).enumerate() {
@@ -155,7 +152,8 @@ pub fn snbt_colorful_display(tag: &NbtTag, _depth: usize) -> TextComponent {
                 let tag = &value.child_tags[key];
                 content = content
                     .add_child(
-                        TextComponent::text(format!("{key}: ")).color_named(NamedColor::Aqua),
+                        TextComponent::text(format!("{}: ", NbtTag::String(key.clone())))
+                            .color_named(NamedColor::Aqua),
                     )
                     .add_child(snbt_colorful_display(tag, 0));
                 if index < value.child_tags.len() - 1 {
@@ -312,10 +310,11 @@ impl DataAccessor for BlockDataAccessor {
         TextComponent::translate_cross(
             translation::java::COMMANDS_DATA_BLOCK_MODIFIED,
             translation::java::COMMANDS_DATA_BLOCK_MODIFIED,
-            [TextComponent::text(format!(
-                "{}, {}, {}",
-                self.pos.0.x, self.pos.0.y, self.pos.0.z
-            ))],
+            [
+                TextComponent::text(self.pos.0.x.to_string()),
+                TextComponent::text(self.pos.0.y.to_string()),
+                TextComponent::text(self.pos.0.z.to_string()),
+            ],
         )
     }
 
@@ -324,10 +323,9 @@ impl DataAccessor for BlockDataAccessor {
             translation::java::COMMANDS_DATA_BLOCK_QUERY,
             translation::java::COMMANDS_DATA_BLOCK_QUERY,
             [
-                TextComponent::text(format!(
-                    "{}, {}, {}",
-                    self.pos.0.x, self.pos.0.y, self.pos.0.z
-                )),
+                TextComponent::text(self.pos.0.x.to_string()),
+                TextComponent::text(self.pos.0.y.to_string()),
+                TextComponent::text(self.pos.0.z.to_string()),
                 snbt_colorful_display(data, 0),
             ],
         )
@@ -1030,5 +1028,17 @@ mod tests {
                 assert!(!parsed.reader.can_read_char(), "unparsed input: {input}");
             }
         }
+    }
+    #[test]
+    fn colored_data_feedback_is_roundtrippable_snbt() {
+        let mut compound = NbtCompound::new();
+        compound.put_int("minecraft:iron_ingot_from_smelting_iron_ore", 5);
+        compound.put_string("name", "Pet \"Gold\"\\Trail\n".into());
+        let expected = NbtTag::Compound(compound);
+        let rendered = snbt_colorful_display(&expected, 0).get_text();
+        let mut reader = crate::command::string_reader::StringReader::new(rendered);
+        let actual = crate::command::snbt::SnbtParser::parse_for_commands(&mut reader).unwrap();
+        assert_eq!(actual, expected);
+        assert!(!reader.can_read_char());
     }
 }
