@@ -297,6 +297,15 @@ impl BlockBehaviour for DoorBlock {
             return;
         }
 
+        // Vanilla `DoorBlock.neighborChanged` (`DoorBlock.java:230`) guards on the block
+        // that *raised* the update: `!this.defaultBlockState().is(block)`. A door ignores
+        // an update sourced from another door of its own type, so two adjacent doors do
+        // not drive each other. This was missing; only the structural check above existed,
+        // which tests this door's other half rather than the update's source.
+        if args.source_block.id == args.block.id {
+            return;
+        }
+
         let powered = block_receives_redstone_power(args.world, args.position)
             || block_receives_redstone_power(args.world, &other_pos);
 
