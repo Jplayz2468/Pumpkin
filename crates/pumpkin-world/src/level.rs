@@ -530,7 +530,7 @@ impl Level {
     ///
     /// Note the bit positions: x from bits 0-3, z from bits 8-11 and y from bits 16-19.
     /// Each call advances the LCG exactly once.
-    fn get_block_random_pos(&self, xo: i32, yo: i32, zo: i32, y_mask: i32) -> BlockPos {
+    pub fn get_block_random_pos(&self, xo: i32, yo: i32, zo: i32, y_mask: i32) -> BlockPos {
         // fetch_update returns the previous value; recompute the new one to use here.
         let previous = self
             .rand_value
@@ -547,24 +547,55 @@ impl Level {
         )
     }
 
-    pub fn get_tick_data(
+    pub fn get_scheduled_ticks(
+        &self,
+    ) -> (
+        Vec<OrderedTick<&'static Block>>,
+        Vec<OrderedTick<&'static Fluid>>,
+    ) {
+        let mut block_ticks = Vec::new();
+        let mut fluid_ticks = Vec::new();
+
+        // Process chunks with scheduled ticks
+        // We collect keys first to avoid holding DashSet shard lock while accessing loaded_chunks (deadlock risk)
+        let scheduled_chunk_pos: Vec<_> = self
+            .chunks_with_scheduled_ticks
+            .iter()
+            .map(|p| *p)
+            .collect();
+        for pos in scheduled_chunk_pos {
+            if let Some(chunk) = self.loaded_chunks.get(&pos) {
+                let chunk = chunk.value();
+                block_ticks.append(&mut chunk.block_ticks.step_tick());
+                fluid_ticks.append(&mut chunk.fluid_ticks.step_tick());
+
+                // Remove from set if it no longer has ticks
+                if !chunk.block_ticks.has_ticks() && !chunk.fluid_ticks.has_ticks() {
+                    self.chunks_with_scheduled_ticks.remove(&pos);
+                }
+            } else {
+                self.chunks_with_scheduled_ticks.remove(&pos); // Chunk unloaded
+            }
+        }
+
+        block_ticks.sort_unstable();
+        fluid_ticks.sort_unstable();
+
+        (block_ticks, fluid_ticks)
+    }
+
+    pub fn get_random_ticks(
         &self,
         active_chunks: &FxHashSet<Vector2<i32>>,
         random_tick_speed: i64,
-    ) -> TickData {
+    ) -> Vec<RandomTickSample> {
         let samples_per_section = random_tick_speed.max(0);
+        let mut random_ticks = Vec::with_capacity(active_chunks.len() * 3);
 
-        let mut ticks = TickData {
-            block_ticks: Vec::new(),
-            fluid_ticks: Vec::new(),
-            random_ticks: Vec::with_capacity(active_chunks.len() * 3),
-        };
-
-        // 1. Process active chunks (random ticks, block entities)
+        // Process active chunks (random ticks)
         //
         // Sorted: active_chunks is an FxHashSet whose iteration order is arbitrary, and
-        // random_ticks is executed in collection order (it is never sorted afterwards the
-        // way block_ticks and fluid_ticks are below).
+        // random_ticks is executed in collection order.
         let mut active_chunks_sorted: Vec<_> = active_chunks.iter().copied().collect();
         active_chunks_sorted.sort_unstable_by_key(|pos| (pos.x, pos.y));
         for pos in &active_chunks_sorted {
@@ -599,7 +630,7 @@ impl Level {
                             let tick_block = has_random_ticks(block_state_id);
                             let tick_fluid = has_random_ticking_fluid(block_state_id);
                             if tick_block || tick_fluid {
-                                ticks.random_ticks.push(RandomTickSample {
+                                random_ticks.push(RandomTickSample {
                                     position: pos,
                                     tick_block,
                                     tick_fluid,
@@ -611,32 +642,21 @@ impl Level {
             }
         }
 
-        // 2. Process chunks with scheduled ticks
-        // We collect keys first to avoid holding DashSet shard lock while accessing loaded_chunks (deadlock risk)
-        let scheduled_chunk_pos: Vec<_> = self
-            .chunks_with_scheduled_ticks
-            .iter()
-            .map(|p| *p)
-            .collect();
-        for pos in scheduled_chunk_pos {
-            if let Some(chunk) = self.loaded_chunks.get(&pos) {
-                let chunk = chunk.value();
-                ticks.block_ticks.append(&mut chunk.block_ticks.step_tick());
-                ticks.fluid_ticks.append(&mut chunk.fluid_ticks.step_tick());
+        random_ticks
+    }
 
-                // Remove from set if it no longer has ticks
-                if !chunk.block_ticks.has_ticks() && !chunk.fluid_ticks.has_ticks() {
-                    self.chunks_with_scheduled_ticks.remove(&pos);
-                }
-            } else {
-                self.chunks_with_scheduled_ticks.remove(&pos); // Chunk unloaded
-            }
+    pub fn get_tick_data(
+        &self,
+        active_chunks: &FxHashSet<Vector2<i32>>,
+        random_tick_speed: i64,
+    ) -> TickData {
+        let (block_ticks, fluid_ticks) = self.get_scheduled_ticks();
+        let random_ticks = self.get_random_ticks(active_chunks, random_tick_speed);
+        TickData {
+            block_ticks,
+            fluid_ticks,
+            random_ticks,
         }
-
-        ticks.block_ticks.sort_unstable();
-        ticks.fluid_ticks.sort_unstable();
-
-        ticks
     }
 
     pub fn clean_entity_chunk(self: &Arc<Self>, chunk: &Vector2<i32>) {

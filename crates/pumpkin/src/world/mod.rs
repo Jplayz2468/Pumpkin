@@ -161,7 +161,6 @@ use pumpkin_world::{
 use pumpkin_world::{chunk::ChunkData, world::BlockAccessor};
 use pumpkin_world::{level::Level, tick::TickPriority};
 pub use pumpkin_world::{world::BlockFlags, world_info::LevelData};
-use rand::seq::SliceRandom;
 use rand::{RngExt, rng};
 use scoreboard::Scoreboard;
 use time::LevelTime;
@@ -1553,13 +1552,21 @@ impl World {
     }
 
     pub fn tick(self: &Arc<Self>, server: &Arc<Server>) {
-
         let start = std::time::Instant::now();
 
         self.flush_block_updates();
-        self.flush_synced_block_events();
         self.update_active_chunks();
+
+        // 1. Environment tick: weather, sleeping check, sky brightness, game time
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:359-383`
         self.tick_environment();
+
+        // 2. Pending scheduled ticks: blockTicks, then fluidTicks
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:385-393` (`tickPending`)
+        self.tick_scheduled_ticks(server);
+
+        // 3. Raids tick
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:395-398` (`raid`)
         let mut raids = {
             let mut guard = self
                 .raids
@@ -1580,12 +1587,35 @@ impl World {
             *guard = raids;
         };
 
+        // 4. Chunk ticking: random ticks, chunk spawning, inhabited time
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:400-401` (`chunkSource`)
         let t_chunks = std::time::Instant::now();
         self.tick_chunks(server);
         let chunk_elapsed = t_chunks.elapsed();
 
+        // 5. Block events (synced block events, e.g. pistons triggered by redstone/scheduled ticks)
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:402-405` (`blockEvents` / `runBlockEvents`)
+        self.flush_synced_block_events();
+
+        // 6. Broadcast chunk changes resulting from chunk ticks & block events
+        // Reference: Vanilla Java 26.2 `ServerChunkCache.java:350-367` (`broadcastChangedChunks`)
+        self.flush_block_updates();
+        self.level
+            .chunk_loading
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .send_change();
+
+        // 7. Dragon fight tick (runs before entities tick)
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:420-424` (`dragonFight`)
+        if let Some(ref fight_mutex) = self.dragon_fight {
+            dragon_fight::DragonFight::tick(fight_mutex, self);
+        }
+
         let handle = server.runtime.clone();
 
+        // 8. Player ticking
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:434-452`
         let players = self.players.load();
         let player_count = players.len();
         let players_cache: Vec<_> = players
@@ -1611,6 +1641,8 @@ impl World {
         drop(_player_guard);
         let player_elapsed = t_players.elapsed();
 
+        // 9. Entity ticking
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:426-452`
         let entities_to_tick = self.entities.load();
         let entity_count = entities_to_tick.len();
         let active_chunks = self
@@ -1668,8 +1700,12 @@ impl World {
         }
         let entity_elapsed = t_entities.elapsed();
 
+        // 10. Entity tracker & management
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:458-460` (`entityManager`)
         self.entity_tracker.update_all(self);
 
+        // 11. Block entities tick & comparators
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:453-455` (`blockEntities`)
         let mut block_entities: Vec<Arc<dyn BlockEntity>> = Vec::new();
         {
             // Collect (chunk, position) keys first and sort them, so the tick order does
@@ -1720,15 +1756,13 @@ impl World {
         drop(guard);
         let block_entity_elapsed = t_be.elapsed();
 
+        // Final broadcast of any updates caused by entities or block entities
+        self.flush_block_updates();
         self.level
             .chunk_loading
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .send_change();
-
-        if let Some(ref fight_mutex) = self.dragon_fight {
-            dragon_fight::DragonFight::tick(fight_mutex, self);
-        }
 
         let total_elapsed = start.elapsed();
         if total_elapsed.as_millis() > 50 {
@@ -2017,25 +2051,20 @@ impl World {
         }
     }
 
-    #[expect(clippy::too_many_lines)]
-    pub fn tick_chunks(self: &Arc<Self>, server: &Arc<Server>) {
-        const INHABITED_TIME_BATCH_SIZE: usize = 1024;
-        let random_tick_speed = self.level_info.load().game_rules.random_tick_speed;
-
-        let active_chunks = self
-            .active_chunks
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let tick_data = self.level.get_tick_data(&active_chunks, random_tick_speed);
+    /// Ticks pending scheduled block and fluid ticks.
+    ///
+    /// Reference: Vanilla Java 26.2 `ServerLevel.java:385-394` (`tickPending` phase).
+    pub fn tick_scheduled_ticks(self: &Arc<Self>, server: &Arc<Server>) {
+        let (block_ticks, fluid_ticks) = self.level.get_scheduled_ticks();
         let handle = server.runtime.clone();
 
+        // 1. Scheduled Block Ticks
         // Java delivers scheduled block callbacks serially and checks the target
         // type at delivery time. A callback can invalidate another collected tick.
         {
             let _guard = handle.enter();
             scheduled_dispatch::dispatch(
-                tick_data
-                    .block_ticks
+                block_ticks
                     .into_iter()
                     .map(|tick| (tick.position, tick.value)),
                 |pos| self.get_block(pos),
@@ -2053,30 +2082,39 @@ impl World {
         }
 
         // 2. Fluid Ticks -- sequential, in the order level.rs sorted them.
-        let world = self.clone();
         let fluid_handle = handle.clone();
         {
             let _guard = fluid_handle.enter();
-            {
-                let world = world.clone();
-                for scheduled_tick in &tick_data.fluid_ticks {
-                    let pos = scheduled_tick.position;
-                    let fluid = world.get_fluid(&pos);
-                    if let Some(pumpkin_fluid) = world.block_registry.get_pumpkin_fluid(fluid.id) {
-                        pumpkin_fluid.on_scheduled_tick(&world, fluid, &pos);
-                    }
+            for scheduled_tick in &fluid_ticks {
+                let pos = scheduled_tick.position;
+                let fluid = self.get_fluid(&pos);
+                if let Some(pumpkin_fluid) = self.block_registry.get_pumpkin_fluid(fluid.id) {
+                    pumpkin_fluid.on_scheduled_tick(self, fluid, &pos);
                 }
             }
         }
+    }
 
-        // 3. Random Ticks -- sequential, in collection order.
+    #[expect(clippy::too_many_lines)]
+    pub fn tick_chunks(self: &Arc<Self>, server: &Arc<Server>) {
+        const INHABITED_TIME_BATCH_SIZE: usize = 1024;
+        let random_tick_speed = self.level_info.load().game_rules.random_tick_speed;
+
+        let active_chunks = self
+            .active_chunks
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let random_ticks = self.level.get_random_ticks(&active_chunks, random_tick_speed);
+        let handle = server.runtime.clone();
+
+        // 1. Random Ticks -- sequential, in collection order.
         let world = self.clone();
         let random_handle = handle.clone();
         {
             let _guard = random_handle.enter();
             {
                 let world = world.clone();
-                for scheduled_tick in &tick_data.random_ticks {
+                for scheduled_tick in &random_ticks {
                     let pos = scheduled_tick.position;
                     let (block, fluid) =
                         match (scheduled_tick.tick_block, scheduled_tick.tick_fluid) {
@@ -2119,7 +2157,7 @@ impl World {
             }
         }
 
-        // 4. Calculate Spawn List (Sequential setup)
+        // 2. Calculate Spawn List (Sequential setup)
         let spawn_state = self.spawn_state.load();
         let (spawn_mobs, spawn_monsters, peaceful) = {
             let lock = self.level_info.load();
@@ -2140,7 +2178,7 @@ impl World {
             spawn_passives,
         ));
 
-        // 5. Spawn decisions share mutable caps, density charges and cached checks.
+        // 3. Spawn decisions share mutable caps, density charges and cached checks.
         // Vanilla processes these sequentially; atomics alone cannot preserve order.
         if !spawn_list.is_empty() {
             let mut spawning_chunks = Vec::new();
@@ -2150,7 +2188,18 @@ impl World {
                 }
             }
 
-            spawning_chunks.shuffle(&mut rng());
+            // Reference: Vanilla Java 26.2 `ServerChunkCache.java:392` (`Util.shuffle(spawningChunks, this.level.getRandom())`).
+            {
+                let mut random = self
+                    .random
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                let size = spawning_chunks.len();
+                for i in (2..=size).rev() {
+                    let swap_to = random.next_bounded_i32(i as i32) as usize;
+                    spawning_chunks.swap(i - 1, swap_to);
+                }
+            }
 
             let _guard = handle.enter();
             for (pos, chunk) in &spawning_chunks {
@@ -2487,27 +2536,24 @@ impl World {
         spawn_state: &Arc<SpawnState>,
     ) {
         // this.level.tickThunder(chunk);
-        //TODO check in simulation distance
         let (is_raining, is_thundering) = (self.is_raining(), self.is_thundering());
 
-        if is_raining && is_thundering && rng().random_range(0..100_000) == 0 {
-            let rand_value = rng().random::<i32>() >> 2;
-            let delta = Vector3::new(rand_value & 15, rand_value >> 16 & 15, rand_value >> 8 & 15);
-            let random_pos = Vector3::new(
-                chunk_pos.x << 4,
-                chunk
-                    .heightmap
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .get(
-                        MotionBlocking,
-                        chunk_pos.x << 4,
-                        chunk_pos.y << 4,
-                        self.min_y,
-                    ),
-                chunk_pos.y << 4,
-            )
-            .add(&delta);
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:544-578` (`tickThunder`).
+        if is_raining && is_thundering && self.rand_bounded_i32(100_000) == 0 {
+            let rand_pos = self
+                .level
+                .get_block_random_pos(chunk_pos.x << 4, 0, chunk_pos.y << 4, 15);
+            let height = chunk
+                .heightmap
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get(
+                    MotionBlocking,
+                    rand_pos.0.x,
+                    rand_pos.0.z,
+                    self.min_y,
+                );
+            let random_pos = Vector3::new(rand_pos.0.x, height, rand_pos.0.z);
             // TODO this.getBrightness(LightLayer.SKY, blockPos) >= 15;
             // TODO heightmap
 
@@ -2516,7 +2562,7 @@ impl World {
             if true {
                 // TODO biome.getPrecipitationAt(pos, this.getSeaLevel()) == Biome.Precipitation.RAIN
                 // TODO this.getCurrentDifficultyAt(blockPos);
-                if rng().random::<f32>() < 0.0675
+                if self.rand_f32() < 0.0675
                     && self.get_block(&random_pos.to_block_pos().down()) != &Block::LIGHTNING_ROD
                 {
                     let entity = Entity::new(
