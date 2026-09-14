@@ -84,6 +84,7 @@ pub struct MobEntity {
     pub breeding_cooldown: AtomicI32,
     pub breeder: AtomicCell<Option<Uuid>>,
     pub persistence_required: AtomicBool,
+    pub no_action_time: AtomicI32,
     mob_flags: AtomicU8,
     last_sent_yaw: AtomicU8,
     last_sent_pitch: AtomicU8,
@@ -170,6 +171,7 @@ impl MobEntity {
             breeding_cooldown: AtomicI32::new(0),
             breeder: AtomicCell::new(None),
             persistence_required: AtomicBool::new(false),
+            no_action_time: AtomicI32::new(0),
             mob_flags: AtomicU8::new(0),
             last_sent_yaw: AtomicU8::new(0),
             last_sent_pitch: AtomicU8::new(0),
@@ -606,11 +608,11 @@ impl MobEntity {
     pub fn check_despawn(&self, mob: &dyn Mob) {
         let entity = &self.living_entity.entity;
 
-        if self.persistence_required.load(Relaxed) {
-            return;
-        }
-
-        if (**entity.custom_name.load()).is_some() {
+        if self.persistence_required.load(Relaxed)
+            || mob.requires_custom_persistence()
+            || (**entity.custom_name.load()).is_some()
+        {
+            self.no_action_time.store(0, Relaxed);
             return;
         }
 
@@ -630,23 +632,25 @@ impl MobEntity {
             })
             .fold(f64::MAX, f64::min);
 
-        // Mobs like a converting zombie villager refuse to despawn (`removeWhenFarAway`).
-        if !mob.remove_when_far_away(nearest_dist_sq) {
-            return;
-        }
-
+        // Java leaves the mob alone when there is no eligible player.
         if nearest_dist_sq == f64::MAX {
-            mob.get_entity().remove();
             return;
         }
-
-        if nearest_dist_sq > 128.0 * 128.0 {
-            mob.get_entity().remove();
+        let far = f64::from(entity.entity_type.category.despawn_distance);
+        if nearest_dist_sq > far * far && mob.remove_when_far_away(nearest_dist_sq) {
+            entity.remove();
             return;
         }
-
-        if nearest_dist_sq > 32.0 * 32.0 && rand::random::<i32>().wrapping_abs() % 800 == 0 {
-            mob.get_entity().remove();
+        // The random despawn check starts only after 600 inactive AI ticks.
+        // Test the random draw before distance, preserving Java's draw ordering.
+        if self.no_action_time.load(Relaxed) > 600
+            && rand::random_range(0..800) == 0
+            && nearest_dist_sq > 32.0 * 32.0
+            && mob.remove_when_far_away(nearest_dist_sq)
+        {
+            entity.remove();
+        } else if nearest_dist_sq < 32.0 * 32.0 {
+            self.no_action_time.store(0, Relaxed);
         }
     }
 }
@@ -1141,80 +1145,89 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
         self.mob_tick(caller);
 
-        let age = mob_entity.living_entity.entity.age.load(Relaxed);
-        let entity_id = mob_entity.living_entity.entity.entity_id;
+        if !mob_entity.is_no_ai() {
+            mob_entity.no_action_time.fetch_add(1, Relaxed);
+            let age = mob_entity.living_entity.entity.age.load(Relaxed);
+            let entity_id = mob_entity.living_entity.entity.entity_id;
 
-        // 1. "Take" selectors out of the mutexes
-        let mut target_selector = {
-            let mut guard = mob_entity
-                .target_selector
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            std::mem::take(&mut *guard)
-        };
-        let mut goals_selector = {
-            let mut guard = mob_entity
-                .goals_selector
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            std::mem::take(&mut *guard)
-        };
+            // 1. "Take" selectors out of the mutexes
+            let mut target_selector = {
+                let mut guard = mob_entity
+                    .target_selector
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                std::mem::take(&mut *guard)
+            };
+            let mut goals_selector = {
+                let mut guard = mob_entity
+                    .goals_selector
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                std::mem::take(&mut *guard)
+            };
 
-        // 2. Perform AI logic
-        if (age + entity_id) % 2 != 0 && age > 1 {
-            target_selector.tick_goals(self, false);
-            goals_selector.tick_goals(self, false);
+            // 2. Perform AI logic
+            if (age + entity_id) % 2 != 0 && age > 1 {
+                target_selector.tick_goals(self, false);
+                goals_selector.tick_goals(self, false);
+            } else {
+                target_selector.tick(self);
+                goals_selector.tick(self);
+            }
+
+            // 3. "Put back" selectors
+            {
+                *mob_entity
+                    .target_selector
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = target_selector;
+                *mob_entity
+                    .goals_selector
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = goals_selector;
+            };
+
+            // 4. Repeat for Navigator
+            let mut navigator = {
+                let mut guard = mob_entity
+                    .navigator
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                std::mem::take(&mut *guard)
+            };
+
+            navigator.tick(&mob_entity.living_entity);
+
+            {
+                *mob_entity
+                    .navigator
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = navigator;
+            };
+
+            // Controllers are synchronous, so we can just use normal blocks
+            {
+                let mut look_control = mob_entity
+                    .look_control
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                look_control.tick(self);
+            };
+
+            {
+                let mut move_control = mob_entity
+                    .move_control
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                move_control.tick(self);
+            };
         } else {
-            target_selector.tick(self);
-            goals_selector.tick(self);
+            mob_entity
+                .living_entity
+                .movement_input
+                .store(Vector3::new(0.0, 0.0, 0.0));
+            mob_entity.living_entity.jumping.store(false, Relaxed);
         }
-
-        // 3. "Put back" selectors
-        {
-            *mob_entity
-                .target_selector
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = target_selector;
-            *mob_entity
-                .goals_selector
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = goals_selector;
-        };
-
-        // 4. Repeat for Navigator
-        let mut navigator = {
-            let mut guard = mob_entity
-                .navigator
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            std::mem::take(&mut *guard)
-        };
-
-        navigator.tick(&mob_entity.living_entity);
-
-        {
-            *mob_entity
-                .navigator
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = navigator;
-        };
-
-        // Controllers are synchronous, so we can just use normal blocks
-        {
-            let mut look_control = mob_entity
-                .look_control
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            look_control.tick(self);
-        };
-
-        {
-            let mut move_control = mob_entity
-                .move_control
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            move_control.tick(self);
-        };
 
         mob_entity.living_entity.tick(caller, server);
         self.post_tick();

@@ -650,6 +650,7 @@ pub fn spawn_mobs_for_chunk_generation(
                         entity
                             .get_entity()
                             .set_rotation(rand::random::<f32>() * 360.0, 0.0);
+                        entity.init_data_tracker();
                         world.spawn_entity_non_save(entity);
                         success = true;
                     }
@@ -851,6 +852,7 @@ pub fn spawn_category_for_position(
                     });
 
                     if is_valid_for_mob {
+                        entity.init_data_tracker();
                         cluster_size += 1;
                         group_size += 1;
                         // Make the accepted entity visible before subsequent attempts.

@@ -53,7 +53,7 @@ impl SkeletonEntityBase {
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(2, Box::new(BowAttackGoal::new(1.0, 20, 15.0)));
             goal_selector.add_goal(3, Box::new(MeleeAttackGoal::new(1.2, false)));
-            goal_selector.add_goal(7, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(7, Box::new(WanderAroundGoal::water_avoiding(1.0)));
             goal_selector.add_goal(
                 8,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),

@@ -38,3 +38,31 @@ previous destroy-mode lock re-entry. Unchanged blocks are skipped. The separate
 farm harness builds collectors through player placement and reads stopped-world
 snapshots with Mojang's own region/NBT reader, since several diagnostic commands
 and block-state arguments remain incomplete in Pumpkin.
+
+## AI and lifecycle follow-up
+
+Ground wandering now evaluates ten block candidates, preserves first-winner ties,
+checks stable footing and path penalties, applies home bias/restrictions, and
+uses block bottom centers. Zombies, skeletons, creepers and spiders use the
+water-avoiding variant (15/7 search in water with fallback; 10/7 otherwise and
+0.001 default-search probability). Monsters score candidates using the light
+path cost. Stopping the goal stops navigation. The inactivity counter gates
+wandering at 100 ticks and random despawning strictly after 600 ticks; being
+within 32 blocks resets it. Category-specific immediate despawn distances and
+no-player behavior now follow Java. Natural spawns run Pumpkin's existing mob
+metadata/equipment initialization. `NoAI` suppresses selectors/navigation and
+movement controllers while normal living-entity physics continues.
+
+`ai-java-26.2.json` comes from actual `RandomPos` calls and actual
+`RandomStrollGoal.canUse` calls with a minimal input stub: 1,200 random-direction
+draw tapes, 512 candidate lists, 242 solid-column boundaries, and 1,665 inactivity
+and interval cases. This validates those decision helpers; it does not validate
+the whole terrain query or the entire entity tick.
+
+**Spawning and AI are still not 1:1.** Additional AI gaps include shared Java RNG
+streams, flying/aquatic wandering, species-specific walking preferences, steering
+passengers/forced strolls, bright-light inactivity increments, targeting/combat,
+pathfinding and movement-controller differences. Full mob spawn finalization
+(group data, babies, difficulty and species extras) remains distinct from the
+existing initialization hook. Paired runtime tests and farm results live in the
+hosting repository. A successful smoke test must not be presented as full parity.
