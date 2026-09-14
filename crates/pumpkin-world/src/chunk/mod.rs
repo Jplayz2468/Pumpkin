@@ -1,4 +1,5 @@
 use crate::chunk::format::LightContainer;
+use crate::chunk::io::Dirtiable;
 use crate::tick::scheduler::ChunkTickScheduler;
 use palette::{BiomePalette, BlockPalette, has_random_ticking_fluid};
 use pumpkin_data::block_properties::{blocks_movement, has_random_ticks, is_air};
@@ -598,6 +599,21 @@ impl ChunkSections {
 }
 
 impl ChunkData {
+    /// Delete the saved copy as well as the live entity when a block is removed.
+    /// Keeping this entry would let a later lookup recreate the deleted entity.
+    pub fn remove_pending_block_entity_nbt(&self, position: &BlockPos) -> bool {
+        let removed = self
+            .pending_block_entities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(position)
+            .is_some();
+        if removed {
+            self.mark_dirty(true);
+        }
+        removed
+    }
+
     #[must_use]
     pub fn empty(x: i32, z: i32) -> Self {
         Self {
@@ -998,6 +1014,33 @@ mod tests {
             assert!(cache[0].random_ticking_fluid_count > 0);
             assert!(cache[0].is_randomly_ticking());
         }
+    }
+
+    #[test]
+    fn deleting_pending_block_entity_preserves_neighbors_and_marks_dirty() {
+        use super::ChunkData;
+        use crate::chunk::io::Dirtiable;
+        use pumpkin_nbt::NbtCompound;
+        use pumpkin_util::math::position::BlockPos;
+        let chunk = ChunkData::empty(0, 0);
+        let removed = BlockPos::new(1, 64, 1);
+        let neighbor = BlockPos::new(2, 64, 1);
+        {
+            let mut entries = chunk.pending_block_entities.lock().unwrap();
+            entries.insert(removed, NbtCompound::new());
+            entries.insert(neighbor, NbtCompound::new());
+        }
+        assert!(!chunk.is_dirty());
+        assert!(chunk.remove_pending_block_entity_nbt(&removed));
+        assert!(chunk.is_dirty());
+        let entries = chunk.pending_block_entities.lock().unwrap();
+        assert!(!entries.contains_key(&removed));
+        assert!(entries.contains_key(&neighbor));
+        assert_eq!(entries.len(), 1);
+        drop(entries);
+        chunk.mark_dirty(false);
+        assert!(!chunk.remove_pending_block_entity_nbt(&removed));
+        assert!(!chunk.is_dirty());
     }
 
     #[test]
