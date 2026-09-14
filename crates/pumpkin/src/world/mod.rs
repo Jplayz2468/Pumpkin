@@ -30,6 +30,7 @@ mod scheduled_dispatch;
 pub mod stopwatches;
 pub mod time;
 pub mod villager_poi;
+pub mod warden_spawn_position;
 
 use crate::block::RandomTickArgs;
 use crate::world::chunker::is_within_chebyshev_distance;
