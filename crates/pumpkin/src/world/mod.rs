@@ -190,6 +190,11 @@ use weather::Weather;
 
 const MAX_LIGHT_LEVEL: u8 = 15;
 
+/// Pumpkin-side safety net with no vanilla equivalent: `ServerLevel.runBlockEvents`
+/// drains without a bound and relies on block logic terminating. A bug that re-enqueued
+/// forever would hang the server, so cap the chain and report it instead.
+const MAX_SYNCED_BLOCK_EVENTS_PER_TICK: u32 = 1_000_000;
+
 fn bedrock_chest_block_actor(state_id: BlockStateId, position: BlockPos) -> Option<NbtCompound> {
     let (block, _) = BlockState::from_id_with_block(state_id);
     if !block.has_tag(&pumpkin_data::tag::Block::C_CHESTS_WOODEN)
@@ -279,7 +284,7 @@ pub struct World {
     /// Block Behaviour
     pub block_registry: Arc<BlockRegistry>,
     pub server: Weak<Server>,
-    synced_block_event_queue: std::sync::Mutex<Vec<BlockEvent>>,
+    synced_block_event_queue: std::sync::Mutex<std::collections::VecDeque<BlockEvent>>,
     /// A map of unsent block changes, keyed by block position.
     unsent_block_changes: std::sync::Mutex<HashMap<BlockPos, BlockStateId>>,
     /// Persisted vanilla POI storage for portal and villager lookups.
@@ -420,7 +425,7 @@ impl World {
             block_registry,
             sea_level: generation_settings.sea_level,
             min_y: i32::from(generation_settings.shape.min_y),
-            synced_block_event_queue: std::sync::Mutex::new(Vec::new()),
+            synced_block_event_queue: std::sync::Mutex::new(std::collections::VecDeque::new()),
             unsent_block_changes: std::sync::Mutex::new(HashMap::new()),
             portal_poi: std::sync::Mutex::new(portal_poi),
             villager_poi: std::sync::Mutex::new(villager_poi::VillagerPoiStorage::default()),
@@ -892,21 +897,51 @@ impl World {
             .synced_block_event_queue
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        queue.push(BlockEvent { pos, r#type, data });
+        queue.push_back(BlockEvent { pos, r#type, data });
     }
 
     pub fn flush_synced_block_events(self: &Arc<Self>) {
-        // THIS IS IMPORTANT
-        // it prevents deadlocks and also removes the need to wait for a lock when adding a new synced block
-        let events = {
-            let mut queue = self
-                .synced_block_event_queue
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            std::mem::take(&mut *queue)
-        };
+        // Vanilla `ServerLevel.runBlockEvents` (`ServerLevel.java:1258`) drains with
+        // `while (!this.blockEvents.isEmpty()) { removeFirst() }`, so an event enqueued
+        // by a handler runs in the *same* tick. Taking one snapshot and iterating it
+        // instead deferred nested events by a tick, which pistons notice: extending a
+        // piston triggers further block events, and vanilla resolves that chain before
+        // the tick ends.
+        //
+        // The lock is only ever held to pop a single event, never across a handler --
+        // handlers re-enter through `add_synced_block_event`, and holding it there would
+        // deadlock the non-reentrant Mutex.
+        let mut processed: u32 = 0;
+        loop {
+            let Some(event) = ({
+                let mut queue = self
+                    .synced_block_event_queue
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                queue.pop_front()
+            }) else {
+                break;
+            };
 
-        for event in events {
+            // Not a vanilla rule: vanilla's drain is unbounded and relies on block logic
+            // terminating. A Pumpkin-side bug that re-enqueues forever would hang the
+            // server outright, so bound it and report instead.
+            processed += 1;
+            if processed > MAX_SYNCED_BLOCK_EVENTS_PER_TICK {
+                error!(
+                    "Synced block event chain exceeded {MAX_SYNCED_BLOCK_EVENTS_PER_TICK} events in one tick; dropping the rest. Last position: {}, {}, {}",
+                    event.pos.0.x,
+                    event.pos.0.y,
+                    event.pos.0.z
+                );
+                let mut queue = self
+                    .synced_block_event_queue
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                queue.clear();
+                break;
+            }
+
             let block = self.get_block(&event.pos);
             if !self.block_registry.on_synced_block_event(
                 block,
@@ -2199,8 +2234,17 @@ impl World {
         // 3. Spawn decisions share mutable caps, density charges and cached checks.
         // Vanilla processes these sequentially; atomics alone cannot preserve order.
         if !spawn_list.is_empty() {
+            // Sorted before shuffling: `active_chunks` is an FxHashSet whose iteration
+            // order is arbitrary, and Fisher-Yates permutes whatever order it is handed.
+            // Vanilla fills `spawningChunks` from an ordered source
+            // (`ChunkMap.collectSpawningChunks`, `ServerChunkCache.java:390`) before
+            // shuffling, so without a deterministic input the RNG draw count is right
+            // but the resulting chunk order still varies between otherwise identical runs.
+            let mut chunk_positions: Vec<_> = active_chunks.iter().copied().collect();
+            chunk_positions.sort_unstable_by_key(|pos| (pos.x, pos.y));
+
             let mut spawning_chunks = Vec::new();
-            for pos in active_chunks.iter() {
+            for pos in &chunk_positions {
                 if let Some(chunk) = self.level.read_chunk_sync(pos, std::clone::Clone::clone) {
                     spawning_chunks.push((*pos, chunk));
                 }
