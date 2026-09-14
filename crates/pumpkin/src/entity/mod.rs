@@ -1409,6 +1409,39 @@ impl Entity {
             return movement;
         }
 
+        if caller
+            .get_living_entity()
+            .is_some_and(|living| living.controlled_speed.load().is_some())
+        {
+            use crate::entity::ai::control::{collision_response, collision_shapes};
+            let box_data = |b: &BoundingBox| collision_shapes::Box3 {
+                min: [b.min.x, b.min.y, b.min.z],
+                max: [b.max.x, b.max.y, b.max.z],
+            };
+            let shapes: Vec<_> = collisions.iter().map(box_data).collect();
+            let (adjusted, support) = collision_shapes::collide(
+                [movement.x, movement.y, movement.z],
+                box_data(&bounding_box),
+                &shapes,
+            );
+            self.horizontal_collision.store(
+                collision_response::clipped(movement.x, adjusted[0])
+                    || collision_response::clipped(movement.z, adjusted[2]),
+                Ordering::Relaxed,
+            );
+            let below = movement.y < 0.0 && movement.y != adjusted[1];
+            self.on_ground.store(below, Ordering::Relaxed);
+            // Preserve the block association from the gathered collision shapes.
+            // Java's independent nearest-support query is a separate parity gate.
+            self.supporting_block_pos.store(support.and_then(|index| {
+                block_positions
+                    .iter()
+                    .find(|(end, _)| index < *end)
+                    .map(|(_, pos)| *pos)
+            }));
+            return Vector3::new(adjusted[0], adjusted[1], adjusted[2]);
+        }
+
         let mut adjusted_movement = movement;
 
         // Y-Axis adjustment
