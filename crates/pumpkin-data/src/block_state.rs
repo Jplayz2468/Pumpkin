@@ -431,3 +431,52 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+mod redstone_conductor_parity {
+    use super::*;
+    use crate::Block;
+
+    /// `is_solid_block` is what the redstone wire code uses where vanilla calls
+    /// `BlockState.isRedstoneConductor` -- the predicate deciding whether dust may run
+    /// up or down over a neighbour. Vanilla defaults it to `isCollisionShapeFullBlock`
+    /// and then overrides it on 26 blocks (`Blocks.java`), which is where the
+    /// counter-intuitive cases live: glass and glowstone look like full cubes but do not
+    /// conduct, while soul sand and mud conduct despite not being full cubes.
+    ///
+    /// Pinning the ones redstone builders actually rely on, so a data regeneration that
+    /// changed this flag's meaning would fail here rather than silently letting dust
+    /// climb glass.
+    #[test]
+    fn matches_vanilla_is_redstone_conductor() {
+        // `.isRedstoneConductor(Blocks::never)` in vanilla despite being full cubes.
+        for (name, block) in [
+            ("glass", &Block::GLASS),
+            ("tinted_glass", &Block::TINTED_GLASS),
+            ("glowstone", &Block::GLOWSTONE),
+            ("sea_lantern", &Block::SEA_LANTERN),
+            ("ice", &Block::ICE),
+            ("frosted_ice", &Block::FROSTED_ICE),
+            ("redstone_block", &Block::REDSTONE_BLOCK),
+            ("observer", &Block::OBSERVER),
+            ("tnt", &Block::TNT),
+            ("beacon", &Block::BEACON),
+        ] {
+            assert!(
+                !BlockState::from_id(block.default_state.id).is_solid_block(),
+                "{name} must not conduct redstone"
+            );
+        }
+
+        // `.isRedstoneConductor(Blocks::always)` in vanilla despite not being full cubes.
+        for (name, block) in [("soul_sand", &Block::SOUL_SAND), ("mud", &Block::MUD)] {
+            assert!(
+                BlockState::from_id(block.default_state.id).is_solid_block(),
+                "{name} must conduct redstone"
+            );
+        }
+
+        // Ordinary full cube, for contrast.
+        assert!(BlockState::from_id(Block::STONE.default_state.id).is_solid_block());
+    }
+}
