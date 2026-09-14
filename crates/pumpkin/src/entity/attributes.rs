@@ -119,7 +119,10 @@ impl AttributeInstance {
     }
 
     pub fn read_nbt(&mut self, data: &pumpkin_nbt::compound::NbtCompound) {
-        self.base_value = data.get_double("base").unwrap_or(0.0);
+        self.base_value = data
+            .get("base")
+            .and_then(super::nbt_number::double)
+            .unwrap_or(0.0);
         if let Some(modifiers) = data.get_list("modifiers") {
             for tag in modifiers {
                 let Some(m) = tag.extract_compound() else {
@@ -127,7 +130,7 @@ impl AttributeInstance {
                 };
                 let (Some(id), Some(amount), Some(operation)) = (
                     m.get_string("id"),
-                    m.get_double("amount"),
+                    m.get("amount").and_then(super::nbt_number::double),
                     m.get_string("operation"),
                 ) else {
                     continue;

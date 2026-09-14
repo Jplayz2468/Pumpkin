@@ -664,6 +664,17 @@ impl PathNavigation {
                 reach_range,
                 self.max_visited_nodes_multiplier,
             );
+            tracing::debug!(
+                "Java path search entity={} origin={:?} dimensions=({}, {}) target={:?} range={} nodes={:?}",
+                entity.entity.entity_id,
+                start_pos_f,
+                self.mob_width,
+                self.mob_height,
+                destination,
+                range,
+                path.as_ref()
+                    .map(|p| p.get_nodes().iter().map(|n| n.pos.0).collect::<Vec<_>>()),
+            );
             self.evaluator.done();
             return path;
         }
@@ -1334,15 +1345,18 @@ impl PathNavigationTrait for GroundPathNavigation {
     }
 
     fn tick_mob(&mut self, mob: &dyn Mob) {
-        let Some(mut state) = self.inner.java_tick.take() else {
+        if self.inner.java_tick.is_none() {
             self.tick(&mob.get_mob_entity().living_entity);
             return;
-        };
+        }
         let living = &mob.get_mob_entity().living_entity;
         let entity = &living.entity;
+        // Recompute while the Java adapter is still present; compute_path uses
+        // that marker to select the Java search and mob-specific costs.
         if self.inner.has_delayed_recomputation {
             self.recompute_path(living);
         }
+        let mut state = self.inner.java_tick.take().unwrap();
         let position = entity.pos.load();
         let temporary = Vector3::new(position.x, self.java_surface_y(living), position.z);
         let mut route = self.inner.path.as_ref().map(|path| navigation_tick::Route {

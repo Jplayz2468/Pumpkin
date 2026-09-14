@@ -1408,7 +1408,11 @@ impl LivingEntity {
 
                 let mut velo = self.entity.velocity.load();
 
-                velo.y += 0.04;
+                if self.controlled_speed.load().is_some() {
+                    velo.y = crate::entity::ai::control::fluid_travel::jump_y(velo.y);
+                } else {
+                    velo.y += 0.04;
+                }
 
                 self.entity.velocity.store(velo);
             } else if (on_ground || in_water && fluid_height <= swim_height)

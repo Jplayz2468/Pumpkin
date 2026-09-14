@@ -101,6 +101,7 @@ pub mod lightning;
 pub mod living;
 pub mod marker;
 pub mod mob;
+mod nbt_number;
 pub mod passive;
 pub mod player;
 pub mod projectile;

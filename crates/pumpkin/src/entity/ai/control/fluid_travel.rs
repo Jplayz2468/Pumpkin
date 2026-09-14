@@ -72,3 +72,7 @@ pub fn escape_velocity(mut v: [f64; 3]) -> [f64; 3] {
     v[1] = f64::from(0.3_f32);
     v
 }
+
+pub fn jump_y(y: f64) -> f64 {
+    y + f64::from(0.04_f32)
+}
