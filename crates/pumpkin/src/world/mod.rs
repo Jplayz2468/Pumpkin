@@ -18,6 +18,7 @@ use std::{
 use tracing::{debug, error, info, trace, warn};
 
 mod active_chunks;
+pub mod neighbor_updater;
 pub mod chunker;
 pub mod explosion;
 pub mod generation_cache;
@@ -303,6 +304,9 @@ pub struct World {
     pub custom_block_entity_data: DashMap<BlockPos, NbtCompound>,
     /// Entity tracker responsible for tracking entity visibility and sending delta/status packets to watchers.
     pub entity_tracker: entity_tracker::EntityTracker,
+    /// Vanilla `Level.neighborUpdater`: queues neighbor updates instead of recursing
+    /// into them, which is what fixes the order chained redstone updates resolve in.
+    pub neighbor_updater: neighbor_updater::CollectingNeighborUpdater,
 }
 
 #[derive(Clone, Copy)]
@@ -432,6 +436,7 @@ impl World {
             custom_data: std::sync::Mutex::new(custom_data),
             custom_block_entity_data: DashMap::new(),
             entity_tracker: entity_tracker::EntityTracker::new(),
+            neighbor_updater: neighbor_updater::CollectingNeighborUpdater::default(),
         }
     }
 
@@ -1492,8 +1497,62 @@ impl World {
     }
 
     #[expect(clippy::too_many_lines)]
+    // --- Level random stream (vanilla `Level.random`) ---------------------------
+    //
+    // Vanilla threads a single `RandomSource` through the level and passes it into
+    // `randomTick(level, pos, random)`. These wrappers give block code the same stream
+    // without handing out a lock guard: each draw locks and unlocks internally, so no
+    // guard can escape into a caller expression and deadlock the non-reentrant Mutex.
+    //
+    // Match vanilla's call exactly -- `nextInt(n)` is `rand_bounded_i32(n)`, not a
+    // range helper -- because the number and kind of draws is part of the contract.
+
+    /// Vanilla `random.nextInt(bound)`.
+    pub fn rand_bounded_i32(&self, bound: i32) -> i32 {
+        use pumpkin_util::random::RandomImpl;
+        self.random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_bounded_i32(bound)
+    }
+
+    /// Vanilla `random.nextInt()`.
+    pub fn rand_i32(&self) -> i32 {
+        use pumpkin_util::random::RandomImpl;
+        self.random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_i32()
+    }
+
+    /// Vanilla `random.nextFloat()`.
+    pub fn rand_f32(&self) -> f32 {
+        use pumpkin_util::random::RandomImpl;
+        self.random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_f32()
+    }
+
+    /// Vanilla `random.nextDouble()`.
+    pub fn rand_f64(&self) -> f64 {
+        use pumpkin_util::random::RandomImpl;
+        self.random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_f64()
+    }
+
+    /// Vanilla `random.nextBoolean()`.
+    pub fn rand_bool(&self) -> bool {
+        use pumpkin_util::random::RandomImpl;
+        self.random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_bool()
+    }
+
     pub fn tick(self: &Arc<Self>, server: &Arc<Server>) {
-        const ENTITY_TICK_BATCH_SIZE: usize = 16;
 
         let start = std::time::Instant::now();
 
@@ -1530,7 +1589,7 @@ impl World {
         let players = self.players.load();
         let player_count = players.len();
         let players_cache: Vec<_> = players
-            .par_iter()
+            .iter()
             .map(|player| {
                 let entity = player.get_entity();
                 let pos = entity.pos.load();
@@ -1545,10 +1604,11 @@ impl World {
 
         let t_players = std::time::Instant::now();
         let player_handle = handle.clone();
-        players.par_iter().for_each(|player| {
-            let _guard = player_handle.enter();
+        let _player_guard = player_handle.enter();
+        for player in players.iter() {
             player.tick(server);
-        });
+        }
+        drop(_player_guard);
         let player_elapsed = t_players.elapsed();
 
         let entities_to_tick = self.entities.load();
@@ -1562,7 +1622,7 @@ impl World {
 
         let t_entities = std::time::Instant::now();
         let tickable: Vec<_> = entities_to_tick
-            .par_iter()
+            .iter()
             .filter_map(|entity| {
                 let entity_pos = entity.get_entity().pos.load();
                 let entity_chunk = Vector2::new(
@@ -1580,12 +1640,10 @@ impl World {
             .collect();
 
         let server_ref = server.as_ref();
-        tickable
-            .par_chunks(ENTITY_TICK_BATCH_SIZE)
-            .for_each(|batch| {
-                let _guard = entity_handle.enter();
-
-                for (entity, entity_chunk) in batch {
+        {
+            let _guard = entity_handle.enter();
+            {
+                for (entity, entity_chunk) in &tickable {
                     entity.get_entity().tick_count.fetch_add(1, Relaxed);
                     entity.tick(entity.as_ref(), server_ref);
 
@@ -1606,35 +1664,56 @@ impl World {
                         }
                     }
                 }
-            });
+            }
+        }
         let entity_elapsed = t_entities.elapsed();
 
         self.entity_tracker.update_all(self);
 
         let mut block_entities: Vec<Arc<dyn BlockEntity>> = Vec::new();
-        if self.block_entities.len() < active_chunks.len() {
-            for chunk_block_entities in &self.block_entities {
-                if active_chunks.contains(chunk_block_entities.key()) {
-                    block_entities.extend(chunk_block_entities.values().cloned());
+        {
+            // Collect (chunk, position) keys first and sort them, so the tick order does
+            // not depend on DashMap/FxHashSet iteration order.
+            let mut keyed: Vec<(Vector2<i32>, BlockPos, Arc<dyn BlockEntity>)> = Vec::new();
+            if self.block_entities.len() < active_chunks.len() {
+                for chunk_block_entities in &self.block_entities {
+                    let chunk_pos = *chunk_block_entities.key();
+                    if active_chunks.contains(&chunk_pos) {
+                        keyed.extend(
+                            chunk_block_entities
+                                .value()
+                                .iter()
+                                .map(|(pos, be)| (chunk_pos, *pos, be.clone())),
+                        );
+                    }
+                }
+            } else {
+                for chunk_pos in active_chunks.iter() {
+                    if let Some(chunk_block_entities) = self.block_entities.get(chunk_pos) {
+                        keyed.extend(
+                            chunk_block_entities
+                                .value()
+                                .iter()
+                                .map(|(pos, be)| (*chunk_pos, *pos, be.clone())),
+                        );
+                    }
                 }
             }
-        } else {
-            for chunk_pos in active_chunks.iter() {
-                if let Some(chunk_block_entities) = self.block_entities.get(chunk_pos) {
-                    block_entities.extend(chunk_block_entities.values().cloned());
-                }
-            }
+            keyed.sort_unstable_by_key(|(chunk_pos, pos, _)| {
+                (chunk_pos.x, chunk_pos.y, pos.0.x, pos.0.y, pos.0.z)
+            });
+            block_entities.extend(keyed.into_iter().map(|(_, _, be)| be));
         }
         let block_entity_count = block_entities.len();
 
         let t_be = std::time::Instant::now();
         let be_handle = handle;
-        block_entities.par_chunks(16).for_each(|batch| {
+        {
             let _guard = be_handle.enter();
-            for be in batch {
+            for be in &block_entities {
                 be.tick(self);
             }
-        });
+        }
         // Drained after all ticks, so changes (hopper -> chest) land in the same tick.
         let guard = be_handle.enter();
         self.flush_comparator_updates(&block_entities);
@@ -1940,7 +2019,6 @@ impl World {
 
     #[expect(clippy::too_many_lines)]
     pub fn tick_chunks(self: &Arc<Self>, server: &Arc<Server>) {
-        const BATCH_SIZE: usize = 32;
         const INHABITED_TIME_BATCH_SIZE: usize = 1024;
         let random_tick_speed = self.level_info.load().game_rules.random_tick_speed;
 
@@ -1974,34 +2052,31 @@ impl World {
             );
         }
 
-        // 2. Parallel Fluid Ticks via Rayon
+        // 2. Fluid Ticks -- sequential, in the order level.rs sorted them.
         let world = self.clone();
         let fluid_handle = handle.clone();
-        tick_data
-            .fluid_ticks
-            .par_chunks(BATCH_SIZE)
-            .for_each(|batch| {
-                let _guard = fluid_handle.enter();
+        {
+            let _guard = fluid_handle.enter();
+            {
                 let world = world.clone();
-                for scheduled_tick in batch {
+                for scheduled_tick in &tick_data.fluid_ticks {
                     let pos = scheduled_tick.position;
                     let fluid = world.get_fluid(&pos);
                     if let Some(pumpkin_fluid) = world.block_registry.get_pumpkin_fluid(fluid.id) {
                         pumpkin_fluid.on_scheduled_tick(&world, fluid, &pos);
                     }
                 }
-            });
+            }
+        }
 
-        // 3. Parallel Random Ticks via Rayon
+        // 3. Random Ticks -- sequential, in collection order.
         let world = self.clone();
         let random_handle = handle.clone();
-        tick_data
-            .random_ticks
-            .par_chunks(BATCH_SIZE)
-            .for_each(|batch| {
-                let _guard = random_handle.enter();
+        {
+            let _guard = random_handle.enter();
+            {
                 let world = world.clone();
-                for scheduled_tick in batch {
+                for scheduled_tick in &tick_data.random_ticks {
                     let pos = scheduled_tick.position;
                     let (block, fluid) =
                         match (scheduled_tick.tick_block, scheduled_tick.tick_fluid) {
@@ -2032,7 +2107,8 @@ impl World {
                         pumpkin_fluid.random_tick(fluid, &world, &pos);
                     }
                 }
-            });
+            }
+        }
 
         // 4. Calculate Spawn List (Sequential setup)
         let spawn_state = self.spawn_state.load();
@@ -6305,67 +6381,26 @@ impl World {
         source_block: &Block,
         except: Option<BlockDirection>,
     ) {
-        for direction in BlockDirection::update_order() {
-            if except.is_some_and(|d| d == direction) {
-                continue;
-            }
-
-            let neighbor_pos = block_pos.offset(direction.to_offset());
-            let (neighbor_block, neighbor_fluid) = self.get_block_and_fluid(&neighbor_pos);
-
-            let mut event =
-                crate::plugin::api::events::block::block_physics::BlockPhysicsEvent::new(
-                    neighbor_pos,
-                    *block_pos,
-                );
-            if let Some(server) = self.server.upgrade() {
-                server.plugin_manager.fire_blocking(&server, &mut event);
-            }
-            if event.cancelled {
-                continue;
-            }
-
-            if let Some(neighbor_pumpkin_block) =
-                self.block_registry.get_pumpkin_block(neighbor_block.id)
-            {
-                neighbor_pumpkin_block.on_neighbor_update(OnNeighborUpdateArgs {
-                    world: self,
-                    block: neighbor_block,
-                    position: &neighbor_pos,
-                    source_block,
-                    notify: false,
-                });
-            }
-
-            if let Some(neighbor_pumpkin_fluid) =
-                self.block_registry.get_pumpkin_fluid(neighbor_fluid.id)
-            {
-                neighbor_pumpkin_fluid.on_neighbor_update(
-                    self,
-                    neighbor_fluid,
-                    &neighbor_pos,
-                    false,
-                );
-            }
-        }
+        self.neighbor_updater
+            .update_neighbors_at_except_from_facing(self, *block_pos, source_block.id, except);
     }
 
-    /// Updates neighboring blocks of a block
-    pub fn update_neighbors(
+    /// Runs one queued neighbor notification. Vanilla `NeighborUpdater.executeUpdate`,
+    /// reached from both the single-position and the six-direction update, which is why
+    /// this handles blocks and fluids for either caller.
+    ///
+    /// Call this only from the neighbor updater -- going direct skips the queue and
+    /// restores the recursion this replaced.
+    pub(crate) fn execute_neighbor_update(
         self: &Arc<Self>,
-        block_pos: &BlockPos,
-        except: Option<BlockDirection>,
+        neighbor_pos: &BlockPos,
+        source_block: &Block,
     ) {
-        let source_block = self.get_block(block_pos);
-        self.update_neighbors_at(block_pos, source_block, except);
-    }
-
-    pub fn update_neighbor(self: &Arc<Self>, neighbor_block_pos: &BlockPos, source_block: &Block) {
-        let neighbor_block = self.get_block(neighbor_block_pos);
+        let (neighbor_block, neighbor_fluid) = self.get_block_and_fluid(neighbor_pos);
 
         let mut event = crate::plugin::api::events::block::block_physics::BlockPhysicsEvent::new(
-            *neighbor_block_pos,
-            *neighbor_block_pos,
+            *neighbor_pos,
+            *neighbor_pos,
         );
         if let Some(server) = self.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);
@@ -6380,11 +6415,31 @@ impl World {
             neighbor_pumpkin_block.on_neighbor_update(OnNeighborUpdateArgs {
                 world: self,
                 block: neighbor_block,
-                position: neighbor_block_pos,
+                position: neighbor_pos,
                 source_block,
                 notify: false,
             });
         }
+
+        if let Some(neighbor_pumpkin_fluid) = self.block_registry.get_pumpkin_fluid(neighbor_fluid.id)
+        {
+            neighbor_pumpkin_fluid.on_neighbor_update(self, neighbor_fluid, neighbor_pos, false);
+        }
+    }
+
+    /// Updates neighboring blocks of a block
+    pub fn update_neighbors(
+        self: &Arc<Self>,
+        block_pos: &BlockPos,
+        except: Option<BlockDirection>,
+    ) {
+        let source_block = self.get_block(block_pos);
+        self.update_neighbors_at(block_pos, source_block, except);
+    }
+
+    pub fn update_neighbor(self: &Arc<Self>, neighbor_block_pos: &BlockPos, source_block: &Block) {
+        self.neighbor_updater
+            .neighbor_changed(self, *neighbor_block_pos, source_block.id);
     }
 
     pub fn update_neighbour_for_output_signal(

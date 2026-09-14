@@ -39,7 +39,6 @@ use pumpkin_world::world_info::anvil::{
 };
 use pumpkin_world::world_info::{LevelData, WorldInfoError, WorldInfoReader, WorldInfoWriter};
 use rand::seq::IndexedRandom;
-use rayon::prelude::*;
 use rsa::RsaPublicKey;
 use std::fs;
 use std::net::IpAddr;
@@ -1121,10 +1120,10 @@ impl Server {
 
             let players = world.players.load();
             let player_handle = handle.clone();
-            players.par_iter().for_each(|player| {
-                let _guard = player_handle.enter();
+            let _guard = player_handle.enter();
+            for player in players.iter() {
                 player.tick(self);
-            });
+            }
         }
     }
 
@@ -1146,10 +1145,11 @@ impl Server {
         let worlds = self.worlds.load();
         let handle = self.runtime.clone();
 
-        worlds.par_iter().for_each(|world| {
-            let _guard = handle.enter();
+        let _guard = handle.enter();
+        for world in worlds.iter() {
             world.tick(self);
-        });
+        }
+        drop(_guard);
 
         // Global tasks
         self.player_data_storage.tick(self);

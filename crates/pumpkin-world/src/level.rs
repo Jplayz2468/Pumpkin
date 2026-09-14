@@ -31,7 +31,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::Duration;
 use std::{
     path::PathBuf,
-    sync::atomic::{AtomicBool, AtomicI64, Ordering},
+    sync::atomic::{AtomicBool, AtomicI32, AtomicI64, Ordering},
     thread,
 };
 use tokio::time::timeout;
@@ -83,6 +83,12 @@ pub struct Level {
 
     /// Counts the number of ticks that have been scheduled for this world
     schedule_tick_counts: AtomicI64,
+
+    /// Vanilla `Level.randValue`: the dedicated LCG that picks random-tick positions.
+    /// Seeded once at construction from a thread-local source, exactly as vanilla does
+    /// (`Level.java:116`), so positions are not reproducible across restarts in vanilla
+    /// either -- what must match is the algorithm and the number of advances.
+    rand_value: AtomicI32,
 
     // Chunks that are paired with chunk watchers. When a chunk is no longer watched, it is removed
     // from the loaded chunks map and sent to the underlying ChunkIO
@@ -276,6 +282,7 @@ impl Level {
             chunk_saver,
             entity_saver,
             schedule_tick_counts: AtomicI64::new(0),
+            rand_value: AtomicI32::new(rand::random::<i32>()),
             loaded_chunks: Arc::new(DashMap::new()),
             loaded_chunk_changes: Arc::new(SegQueue::new()),
             loaded_entity_chunks: Arc::new(DashMap::new()),
@@ -513,6 +520,33 @@ impl Level {
         });
     }
 
+    /// Vanilla `Level.getBlockRandomPos` (`Level.java:1066`):
+    ///
+    /// ```java
+    /// this.randValue = this.randValue * 3 + 1013904223;
+    /// int val = this.randValue >> 2;
+    /// return new BlockPos(xo + (val & 15), yo + (val >> 16 & yMask), zo + (val >> 8 & 15));
+    /// ```
+    ///
+    /// Note the bit positions: x from bits 0-3, z from bits 8-11 and y from bits 16-19.
+    /// Each call advances the LCG exactly once.
+    fn get_block_random_pos(&self, xo: i32, yo: i32, zo: i32, y_mask: i32) -> BlockPos {
+        // fetch_update returns the previous value; recompute the new one to use here.
+        let previous = self
+            .rand_value
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |v| {
+                Some(v.wrapping_mul(3).wrapping_add(1_013_904_223))
+            })
+            .unwrap_or(0);
+        let val = previous.wrapping_mul(3).wrapping_add(1_013_904_223) >> 2;
+
+        BlockPos::new(
+            xo + (val & 15),
+            yo + ((val >> 16) & y_mask),
+            zo + ((val >> 8) & 15),
+        )
+    }
+
     pub fn get_tick_data(
         &self,
         active_chunks: &FxHashSet<Vector2<i32>>,
@@ -527,7 +561,13 @@ impl Level {
         };
 
         // 1. Process active chunks (random ticks, block entities)
-        for pos in active_chunks {
+        //
+        // Sorted: active_chunks is an FxHashSet whose iteration order is arbitrary, and
+        // random_ticks is executed in collection order (it is never sorted afterwards the
+        // way block_ticks and fluid_ticks are below).
+        let mut active_chunks_sorted: Vec<_> = active_chunks.iter().copied().collect();
+        active_chunks_sorted.sort_unstable_by_key(|pos| (pos.x, pos.y));
+        for pos in &active_chunks_sorted {
             if let Some(chunk) = self.loaded_chunks.get(pos) {
                 let chunk = chunk.value();
                 let chunk_x_base = chunk.x * 16;
@@ -550,21 +590,17 @@ impl Level {
                         }
                         let y_base = min_y + (i as i32 * 16);
                         for _ in 0..samples_per_section {
-                            let r = rand::random::<u32>();
-                            let x_offset = (r & 0xF) as usize;
-                            let z_offset = (r >> 8 & 0xF) as usize;
-                            let y_in_section = ((r >> 4) & 0xF) as usize;
+                            let pos = self.get_block_random_pos(chunk_x_base, y_base, chunk_z_base, 15);
+                            let x_offset = (pos.0.x - chunk_x_base) as usize;
+                            let y_in_section = (pos.0.y - y_base) as usize;
+                            let z_offset = (pos.0.z - chunk_z_base) as usize;
 
                             let block_state_id = sections[i].get(x_offset, y_in_section, z_offset);
                             let tick_block = has_random_ticks(block_state_id);
                             let tick_fluid = has_random_ticking_fluid(block_state_id);
                             if tick_block || tick_fluid {
                                 ticks.random_ticks.push(RandomTickSample {
-                                    position: BlockPos::new(
-                                        chunk_x_base + x_offset as i32,
-                                        y_base + y_in_section as i32,
-                                        chunk_z_base + z_offset as i32,
-                                    ),
+                                    position: pos,
                                     tick_block,
                                     tick_fluid,
                                 });
@@ -1063,5 +1099,49 @@ mod tests {
 
         let end_level = Level::from_root_folder(&config, root.clone(), 0, Dimension::THE_END);
         assert_eq!(end_level.level_folder.dim_folder, root.join("DIM1"));
+    }
+}
+
+#[cfg(test)]
+mod block_random_pos_tests {
+    /// Same arithmetic as `Level::get_block_random_pos`, lifted out so the sequence can
+    /// be checked without building a whole `Level`.
+    fn next(rand_value: &mut i32, xo: i32, yo: i32, zo: i32, y_mask: i32) -> (i32, i32, i32) {
+        *rand_value = rand_value.wrapping_mul(3).wrapping_add(1_013_904_223);
+        let val = *rand_value >> 2;
+        (
+            xo + (val & 15),
+            yo + ((val >> 16) & y_mask),
+            zo + ((val >> 8) & 15),
+        )
+    }
+
+    /// Reference values produced by running vanilla's exact expression from
+    /// `Level.java:1066` under Java with `randValue = 12345`.
+    #[test]
+    fn matches_java_reference_sequence() {
+        let mut rand_value = 12345_i32;
+        let expected = [
+            (2, 75, 1),
+            (15, 79, 15),
+            (5, 73, 12),
+            (8, 73, 2),
+            (0, 71, 3),
+            (9, 66, 7),
+        ];
+        for (i, want) in expected.iter().enumerate() {
+            let got = next(&mut rand_value, 0, 64, 0, 15);
+            assert_eq!(got, *want, "sample {i} diverged from the Java reference");
+        }
+    }
+
+    /// Guards the bug this replaced: y must come from bits 16-19, not 4-7.
+    #[test]
+    fn y_is_drawn_from_the_high_bits() {
+        let mut rand_value = 12345_i32;
+        let (_, y, _) = next(&mut rand_value, 0, 0, 0, 15);
+        let val = 12345_i32.wrapping_mul(3).wrapping_add(1_013_904_223) >> 2;
+        assert_eq!(y, (val >> 16) & 15);
+        assert_ne!(y, (val >> 4) & 15, "regressed to the pre-parity bit offset");
     }
 }
