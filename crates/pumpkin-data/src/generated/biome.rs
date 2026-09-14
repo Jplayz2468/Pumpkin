@@ -45,6 +45,7 @@ pub struct SpawnGroups {
 #[derive(Debug)]
 pub struct Spawner {
     pub r#type: &'static str,
+    pub weight: i32,
     pub min_count: i32,
     pub max_count: i32,
 }
@@ -163,47 +164,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -211,26 +221,31 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:armadillo",
+                    weight: 6i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
@@ -238,6 +253,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -326,52 +342,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:ocelot",
+                    weight: 2i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -379,36 +405,43 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:parrot",
+                    weight: 40i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:panda",
+                    weight: 80i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
@@ -416,6 +449,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -465,11 +499,13 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:ghast",
+                    weight: 40i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:magma_cube",
+                    weight: 100i32,
                     min_count: 2i32,
                     max_count: 5i32,
                 },
@@ -478,6 +514,7 @@ impl Biome {
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:strider",
+                weight: 60i32,
                 min_count: 1i32,
                 max_count: 2i32,
             }],
@@ -564,59 +601,70 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:turtle",
+                weight: 5i32,
                 min_count: 2i32,
                 max_count: 5i32,
             }],
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -705,47 +753,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -753,21 +810,25 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
@@ -775,6 +836,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -857,47 +919,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -905,16 +976,19 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 2i32,
                     min_count: 2i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 2i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
@@ -922,6 +996,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -1009,52 +1084,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -1063,17 +1148,20 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[
                 Spawner {
                     r#type: "minecraft:cod",
+                    weight: 15i32,
                     min_count: 3i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:salmon",
+                    weight: 15i32,
                     min_count: 1i32,
                     max_count: 5i32,
                 },
@@ -1081,11 +1169,13 @@ impl Biome {
             water_creature: &[
                 Spawner {
                     r#type: "minecraft:squid",
+                    weight: 3i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:nautilus",
+                    weight: 2i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
@@ -1136,16 +1226,19 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:zombified_piglin",
+                    weight: 1i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:hoglin",
+                    weight: 9i32,
                     min_count: 3i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:piglin",
+                    weight: 5i32,
                     min_count: 3i32,
                     max_count: 4i32,
                 },
@@ -1154,6 +1247,7 @@ impl Biome {
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:strider",
+                weight: 60i32,
                 min_count: 1i32,
                 max_count: 2i32,
             }],
@@ -1243,47 +1337,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -1291,21 +1394,25 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
@@ -1313,6 +1420,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -1400,52 +1508,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -1454,17 +1572,20 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[
                 Spawner {
                     r#type: "minecraft:cod",
+                    weight: 15i32,
                     min_count: 3i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:salmon",
+                    weight: 15i32,
                     min_count: 1i32,
                     max_count: 5i32,
                 },
@@ -1472,11 +1593,13 @@ impl Biome {
             water_creature: &[
                 Spawner {
                     r#type: "minecraft:squid",
+                    weight: 3i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:nautilus",
+                    weight: 2i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
@@ -1646,80 +1769,95 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:polar_bear",
+                weight: 1i32,
                 min_count: 1i32,
                 max_count: 2i32,
             }],
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[Spawner {
                 r#type: "minecraft:salmon",
+                weight: 15i32,
                 min_count: 1i32,
                 max_count: 5i32,
             }],
             water_creature: &[
                 Spawner {
                     r#type: "minecraft:squid",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:nautilus",
+                    weight: 2i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
@@ -1806,52 +1944,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -1860,22 +2008,26 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[
                 Spawner {
                     r#type: "minecraft:cod",
+                    weight: 8i32,
                     min_count: 3i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:pufferfish",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:tropical_fish",
+                    weight: 25i32,
                     min_count: 8i32,
                     max_count: 8i32,
                 },
@@ -1883,16 +2035,19 @@ impl Biome {
             water_creature: &[
                 Spawner {
                     r#type: "minecraft:squid",
+                    weight: 8i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:dolphin",
+                    weight: 2i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:nautilus",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
@@ -1979,52 +2134,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -2033,27 +2198,32 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[Spawner {
                 r#type: "minecraft:cod",
+                weight: 10i32,
                 min_count: 3i32,
                 max_count: 6i32,
             }],
             water_creature: &[
                 Spawner {
                     r#type: "minecraft:squid",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:dolphin",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:nautilus",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
@@ -2141,57 +2311,68 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 19i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 50i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:husk",
+                    weight: 80i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:parched",
+                    weight: 50i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -2199,11 +2380,13 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 12i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:camel",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
@@ -2211,6 +2394,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -2301,52 +2485,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -2355,6 +2549,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -2374,6 +2569,7 @@ impl Biome {
         spawners: SpawnGroups {
             monster: &[Spawner {
                 r#type: "minecraft:enderman",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 4i32,
             }],
@@ -2409,6 +2605,7 @@ impl Biome {
         spawners: SpawnGroups {
             monster: &[Spawner {
                 r#type: "minecraft:enderman",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 4i32,
             }],
@@ -2433,6 +2630,7 @@ impl Biome {
         spawners: SpawnGroups {
             monster: &[Spawner {
                 r#type: "minecraft:enderman",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 4i32,
             }],
@@ -2525,47 +2723,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -2573,26 +2780,31 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:armadillo",
+                    weight: 6i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
@@ -2600,6 +2812,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -2686,47 +2899,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -2734,26 +2956,31 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 4i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
@@ -2761,6 +2988,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -2848,47 +3076,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -2896,26 +3133,31 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:wolf",
+                    weight: 5i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
@@ -2923,6 +3165,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -3012,80 +3255,95 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:polar_bear",
+                weight: 1i32,
                 min_count: 1i32,
                 max_count: 2i32,
             }],
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[Spawner {
                 r#type: "minecraft:salmon",
+                weight: 15i32,
                 min_count: 1i32,
                 max_count: 5i32,
             }],
             water_creature: &[
                 Spawner {
                     r#type: "minecraft:squid",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:nautilus",
+                    weight: 2i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
@@ -3162,59 +3420,70 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:goat",
+                weight: 5i32,
                 min_count: 1i32,
                 max_count: 3i32,
             }],
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -3301,52 +3570,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -3355,16 +3634,19 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[Spawner {
                 r#type: "minecraft:salmon",
+                weight: 5i32,
                 min_count: 1i32,
                 max_count: 5i32,
             }],
             water_creature: &[Spawner {
                 r#type: "minecraft:squid",
+                weight: 2i32,
                 min_count: 1i32,
                 max_count: 4i32,
             }],
@@ -3444,47 +3726,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -3492,16 +3783,19 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:wolf",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 8i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:fox",
+                    weight: 4i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
@@ -3509,6 +3803,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -3597,52 +3892,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 20i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:stray",
+                    weight: 80i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -3650,11 +3955,13 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 10i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:polar_bear",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
@@ -3662,6 +3969,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -3739,59 +4047,70 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:goat",
+                weight: 5i32,
                 min_count: 1i32,
                 max_count: 3i32,
             }],
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -3880,52 +4199,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:ocelot",
+                    weight: 2i32,
                     min_count: 1i32,
                     max_count: 3i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -3933,36 +4262,43 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:parrot",
+                    weight: 40i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:panda",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
@@ -3970,6 +4306,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -4057,52 +4394,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -4111,22 +4458,26 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[
                 Spawner {
                     r#type: "minecraft:cod",
+                    weight: 15i32,
                     min_count: 3i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:pufferfish",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:tropical_fish",
+                    weight: 25i32,
                     min_count: 8i32,
                     max_count: 8i32,
                 },
@@ -4134,16 +4485,19 @@ impl Biome {
             water_creature: &[
                 Spawner {
                     r#type: "minecraft:squid",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:dolphin",
+                    weight: 2i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:nautilus",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
@@ -4229,52 +4583,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
             axolotls: &[Spawner {
                 r#type: "minecraft:axolotl",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -4282,11 +4646,13 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[Spawner {
                 r#type: "minecraft:tropical_fish",
+                weight: 25i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -4370,74 +4736,88 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 70i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:bogged",
+                    weight: 30i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:frog",
+                weight: 10i32,
                 min_count: 2i32,
                 max_count: 5i32,
             }],
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[Spawner {
                 r#type: "minecraft:tropical_fish",
+                weight: 25i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -4520,47 +4900,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -4568,16 +4957,19 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:donkey",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 2i32,
                     min_count: 2i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 2i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
@@ -4585,6 +4977,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -4667,18 +5060,21 @@ impl Biome {
             monster: &[],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:mooshroom",
+                weight: 8i32,
                 min_count: 4i32,
                 max_count: 8i32,
             }],
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -4730,26 +5126,31 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:ghast",
+                    weight: 50i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombified_piglin",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:magma_cube",
+                    weight: 2i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 1i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:piglin",
+                    weight: 15i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
@@ -4758,6 +5159,7 @@ impl Biome {
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:strider",
+                weight: 60i32,
                 min_count: 1i32,
                 max_count: 2i32,
             }],
@@ -4847,52 +5249,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -4901,27 +5313,32 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[Spawner {
                 r#type: "minecraft:cod",
+                weight: 10i32,
                 min_count: 3i32,
                 max_count: 6i32,
             }],
             water_creature: &[
                 Spawner {
                     r#type: "minecraft:squid",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:dolphin",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:nautilus",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
@@ -5009,47 +5426,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -5057,21 +5483,25 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
@@ -5079,6 +5509,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -5172,47 +5603,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 25i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -5220,36 +5660,43 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:wolf",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 4i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:fox",
+                    weight: 8i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
@@ -5257,6 +5704,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -5350,47 +5798,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -5398,36 +5855,43 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:wolf",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 4i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:fox",
+                    weight: 8i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
@@ -5435,6 +5899,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -5520,47 +5985,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -5569,6 +6043,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -5656,52 +6131,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 90i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_horse",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -5709,31 +6194,37 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:horse",
+                    weight: 5i32,
                     min_count: 2i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:donkey",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 3i32,
                 },
@@ -5741,6 +6232,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -5828,52 +6320,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 100i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -5882,16 +6384,19 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[Spawner {
                 r#type: "minecraft:salmon",
+                weight: 5i32,
                 min_count: 1i32,
                 max_count: 5i32,
             }],
             water_creature: &[Spawner {
                 r#type: "minecraft:squid",
+                weight: 2i32,
                 min_count: 1i32,
                 max_count: 4i32,
             }],
@@ -5976,52 +6481,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 90i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_horse",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -6029,36 +6544,43 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:horse",
+                    weight: 1i32,
                     min_count: 2i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:donkey",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:armadillo",
+                    weight: 10i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
@@ -6066,6 +6588,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -6152,52 +6675,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 90i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_horse",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -6205,46 +6738,55 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:horse",
+                    weight: 1i32,
                     min_count: 2i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:donkey",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:armadillo",
+                    weight: 10i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:llama",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:wolf",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 8i32,
                 },
@@ -6252,6 +6794,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -6271,6 +6814,7 @@ impl Biome {
         spawners: SpawnGroups {
             monster: &[Spawner {
                 r#type: "minecraft:enderman",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 4i32,
             }],
@@ -6360,47 +6904,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -6409,6 +6962,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -6494,57 +7048,68 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 90i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_horse",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 20i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:stray",
+                    weight: 80i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -6552,11 +7117,13 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 10i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:polar_bear",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
@@ -6564,6 +7131,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -6644,47 +7212,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -6692,11 +7269,13 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 4i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:goat",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 3i32,
                 },
@@ -6704,6 +7283,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -6791,47 +7371,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -6839,36 +7428,43 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:wolf",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 4i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:fox",
+                    weight: 8i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
@@ -6876,6 +7472,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -6923,16 +7520,19 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 20i32,
                     min_count: 5i32,
                     max_count: 5i32,
                 },
                 Spawner {
                     r#type: "minecraft:ghast",
+                    weight: 50i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 1i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
@@ -6941,6 +7541,7 @@ impl Biome {
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:strider",
+                weight: 60i32,
                 min_count: 1i32,
                 max_count: 2i32,
             }],
@@ -7030,47 +7631,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -7078,31 +7688,37 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:wolf",
+                    weight: 8i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
@@ -7110,6 +7726,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -7186,47 +7803,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -7235,6 +7861,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -7319,47 +7946,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -7368,6 +8004,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -7451,52 +8088,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:sulfur_cube",
+                    weight: 100i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 50i32,
                     min_count: 2i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 50i32,
                     min_count: 2i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 25i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:cave_spider",
+                    weight: 20i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 50i32,
                     min_count: 2i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -7588,52 +8235,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 90i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_horse",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -7641,31 +8298,37 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:horse",
+                    weight: 5i32,
                     min_count: 2i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:donkey",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 3i32,
                 },
@@ -7673,6 +8336,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -7764,57 +8428,68 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 70i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:bogged",
+                    weight: 30i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -7822,26 +8497,31 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:frog",
+                    weight: 10i32,
                     min_count: 2i32,
                     max_count: 5i32,
                 },
@@ -7849,6 +8529,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -7936,47 +8617,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -7984,36 +8674,43 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:wolf",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:rabbit",
+                    weight: 4i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:fox",
+                    weight: 8i32,
                     min_count: 2i32,
                     max_count: 4i32,
                 },
@@ -8021,6 +8718,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -8052,6 +8750,7 @@ impl Biome {
         spawners: SpawnGroups {
             monster: &[Spawner {
                 r#type: "minecraft:enderman",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 4i32,
             }],
@@ -8177,52 +8876,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:drowned",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -8231,17 +8940,20 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
             water_ambient: &[
                 Spawner {
                     r#type: "minecraft:pufferfish",
+                    weight: 15i32,
                     min_count: 1i32,
                     max_count: 3i32,
                 },
                 Spawner {
                     r#type: "minecraft:tropical_fish",
+                    weight: 25i32,
                     min_count: 8i32,
                     max_count: 8i32,
                 },
@@ -8249,16 +8961,19 @@ impl Biome {
             water_creature: &[
                 Spawner {
                     r#type: "minecraft:nautilus",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:squid",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:dolphin",
+                    weight: 2i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
@@ -8310,6 +9025,7 @@ impl Biome {
         spawners: SpawnGroups {
             monster: &[Spawner {
                 r#type: "minecraft:enderman",
+                weight: 1i32,
                 min_count: 4i32,
                 max_count: 4i32,
             }],
@@ -8317,6 +9033,7 @@ impl Biome {
             axolotls: &[],
             creature: &[Spawner {
                 r#type: "minecraft:strider",
+                weight: 60i32,
                 min_count: 1i32,
                 max_count: 2i32,
             }],
@@ -8406,47 +9123,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -8454,26 +9180,31 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:llama",
+                    weight: 5i32,
                     min_count: 4i32,
                     max_count: 6i32,
                 },
@@ -8481,6 +9212,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -8568,47 +9300,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -8616,26 +9357,31 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:llama",
+                    weight: 5i32,
                     min_count: 4i32,
                     max_count: 6i32,
                 },
@@ -8643,6 +9389,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -8730,47 +9477,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -8778,26 +9534,31 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:llama",
+                    weight: 5i32,
                     min_count: 4i32,
                     max_count: 6i32,
                 },
@@ -8805,6 +9566,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -8890,52 +9652,62 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 90i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_horse",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -8943,36 +9715,43 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:horse",
+                    weight: 1i32,
                     min_count: 2i32,
                     max_count: 6i32,
                 },
                 Spawner {
                     r#type: "minecraft:donkey",
+                    weight: 1i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:armadillo",
+                    weight: 10i32,
                     min_count: 2i32,
                     max_count: 3i32,
                 },
@@ -8980,6 +9759,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],
@@ -9068,47 +9848,56 @@ impl Biome {
             monster: &[
                 Spawner {
                     r#type: "minecraft:spider",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie",
+                    weight: 95i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:zombie_villager",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
                 Spawner {
                     r#type: "minecraft:skeleton",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:creeper",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:slime",
+                    weight: 100i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:enderman",
+                    weight: 10i32,
                     min_count: 1i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:witch",
+                    weight: 5i32,
                     min_count: 1i32,
                     max_count: 1i32,
                 },
             ],
             ambient: &[Spawner {
                 r#type: "minecraft:bat",
+                weight: 10i32,
                 min_count: 8i32,
                 max_count: 8i32,
             }],
@@ -9116,31 +9905,37 @@ impl Biome {
             creature: &[
                 Spawner {
                     r#type: "minecraft:sheep",
+                    weight: 12i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:pig",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:chicken",
+                    weight: 10i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:cow",
+                    weight: 8i32,
                     min_count: 4i32,
                     max_count: 4i32,
                 },
                 Spawner {
                     r#type: "minecraft:armadillo",
+                    weight: 6i32,
                     min_count: 1i32,
                     max_count: 2i32,
                 },
                 Spawner {
                     r#type: "minecraft:wolf",
+                    weight: 2i32,
                     min_count: 4i32,
                     max_count: 8i32,
                 },
@@ -9148,6 +9943,7 @@ impl Biome {
             misc: &[],
             underground_water_creature: &[Spawner {
                 r#type: "minecraft:glow_squid",
+                weight: 10i32,
                 min_count: 4i32,
                 max_count: 6i32,
             }],

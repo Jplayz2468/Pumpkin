@@ -23,7 +23,6 @@ use pumpkin_util::random::xoroshiro128::Xoroshiro;
 use pumpkin_util::random::{RandomImpl, get_seed};
 use pumpkin_world::chunk::{ChunkData, ChunkHeightmapType};
 use pumpkin_world::generation::proto_chunk::GenerationCache;
-use rand::seq::IndexedRandom;
 use rand::{RngExt, rng};
 use std::fmt;
 use std::sync::Arc;
@@ -31,6 +30,45 @@ use std::sync::atomic::{AtomicI32, Ordering::Relaxed};
 use uuid::Uuid;
 
 const MAGIC_NUMBER: i32 = 17 * 17;
+
+/// Java's natural-spawn cap denominator is independent of simulation distance.
+pub fn natural_spawn_chunk_count(players: impl Iterator<Item = Vector2<i32>>) -> i32 {
+    let mut chunks = std::collections::HashSet::new();
+    for player in players {
+        for x in player.x - 8..=player.x + 8 {
+            for z in player.y - 8..=player.y + 8 {
+                chunks.insert((x, z));
+            }
+        }
+    }
+    chunks.len() as i32
+}
+
+/// Select the interval containing a uniform ticket in [0, sum(weights)).
+fn weighted_index(weights: impl Iterator<Item = i32>, mut ticket: i32) -> Option<usize> {
+    if ticket < 0 {
+        return None;
+    }
+    for (index, weight) in weights.enumerate() {
+        ticket -= weight;
+        if ticket < 0 {
+            return Some(index);
+        }
+    }
+    None
+}
+
+fn choose_spawner(spawners: &[Spawner]) -> Option<&Spawner> {
+    let total: i32 = spawners.iter().map(|entry| entry.weight).sum();
+    if total <= 0 {
+        return None;
+    }
+    let index = weighted_index(
+        spawners.iter().map(|entry| entry.weight),
+        rng().random_range(0..total),
+    )?;
+    spawners.get(index)
+}
 
 pub struct MobCounts([AtomicI32; 8]);
 
@@ -187,10 +225,11 @@ struct PointCharge(BlockPos, f64);
 
 impl PointCharge {
     fn get_potential_change(&self, pos: &BlockPos) -> f64 {
-        let dx = self.0.0.x - pos.0.x;
-        let dy = self.0.0.y - pos.0.y;
-        let dz = self.0.0.z - pos.0.z;
-        let dist_sq = (dx * dx + dy * dy + dz * dz) as f64;
+        // Java Vec3i.distSqr converts before subtraction and multiplication.
+        let dx = f64::from(self.0.0.x) - f64::from(pos.0.x);
+        let dy = f64::from(self.0.0.y) - f64::from(pos.0.y);
+        let dz = f64::from(self.0.0.z) - f64::from(pos.0.z);
+        let dist_sq = dx * dx + dy * dy + dz * dz;
         if dist_sq == 0.0 {
             f64::INFINITY
         } else {
@@ -361,10 +400,6 @@ impl SpawnState {
         let potential = PotentialCalculator::default();
         let local_mob_cap = LocalMobCapCalculator::default();
         let counter = MobCounts::default();
-        let active_chunks = world
-            .active_chunks
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
         for entity in entities.load().iter() {
             if let Some(mob) = entity.get_mob()
                 && (mob.get_mob_entity().persistence_required.load(Relaxed)
@@ -378,7 +413,8 @@ impl SpawnState {
                 continue;
             }
             let chunk_pos = base_entity.chunk_pos.load();
-            if !active_chunks.contains(&chunk_pos) {
+            // Java queries loaded full chunks, not only simulation-active chunks.
+            if !world.level.is_chunk_loaded(&chunk_pos) {
                 continue;
             }
             let entity_pos = base_entity.block_pos.load();
@@ -511,24 +547,22 @@ pub fn spawn_for_chunk(
     spawn_state: &SpawnState,
     spawn_list: &Vec<&'static MobCategory>,
     is_thundering: bool,
-) -> Vec<Arc<dyn EntityBase>> {
-    let mut entities = Vec::new();
+) {
     for category in spawn_list {
         if spawn_state.can_spawn_for_category_local(world, category, chunk_pos) {
             let random_pos = get_random_pos_within(world.min_y, &chunk_pos, chunk);
             if random_pos.0.y > world.min_y {
-                entities.extend(spawn_category_for_position(
+                spawn_category_for_position(
                     category,
                     world,
                     random_pos,
                     &chunk_pos,
                     spawn_state,
                     is_thundering,
-                ));
+                );
             }
         }
     }
-    entities
 }
 
 pub fn get_random_pos_within(
@@ -568,7 +602,7 @@ pub fn spawn_mobs_for_chunk_generation(
     let zo = chunk_z << 4;
 
     while rand::random::<f32>() < biome.creature_spawn_probability {
-        let Some(spawner_data) = creatures.choose(&mut rand::rng()) else {
+        let Some(spawner_data) = choose_spawner(creatures) else {
             continue;
         };
 
@@ -722,12 +756,11 @@ pub fn spawn_category_for_position(
     chunk_pos: &Vector2<i32>,
     spawn_state: &SpawnState,
     is_thundering: bool,
-) -> Vec<Arc<dyn EntityBase>> {
-    let mut batch_buffer = Vec::new();
+) {
     let y_start = pos.0.y;
     let state = world.get_block_state(&pos);
     if state.is_solid_block() || state.is_full_cube() {
-        return batch_buffer;
+        return;
     }
 
     let mut cluster_size = 0;
@@ -820,10 +853,12 @@ pub fn spawn_category_for_position(
                     if is_valid_for_mob {
                         cluster_size += 1;
                         group_size += 1;
-                        batch_buffer.push(entity);
+                        // Make the accepted entity visible before subsequent attempts.
+                        // after_spawn owns cap/density accounting exactly once.
+                        world.insert_entity_non_save(entity);
                         spawn_state.after_spawn(entity_type, &check_pos, world);
                         if cluster_size >= entity_type.limit_per_chunk {
-                            return batch_buffer;
+                            return;
                         }
 
                         if entity_type.resource_name == "tropical_fish" && group_size >= 8 {
@@ -836,7 +871,6 @@ pub fn spawn_category_for_position(
             ll += 1;
         }
     }
-    batch_buffer
 }
 
 #[must_use]
@@ -932,7 +966,7 @@ pub fn get_random_spawn_mob_at(
     {
         None
     } else {
-        match category.id {
+        choose_spawner(match category.id {
             id if id == MobCategory::MONSTER.id => biome.spawners.monster,
             id if id == MobCategory::CREATURE.id => biome.spawners.creature,
             id if id == MobCategory::AMBIENT.id => biome.spawners.ambient,
@@ -944,8 +978,7 @@ pub fn get_random_spawn_mob_at(
             id if id == MobCategory::WATER_AMBIENT.id => biome.spawners.water_ambient,
             id if id == MobCategory::MISC.id => biome.spawners.misc,
             _ => biome.spawners.misc,
-        }
-        .choose(&mut rng())
+        })
     }
 }
 
@@ -1128,6 +1161,182 @@ fn is_burning_block(block: &Block) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn java_fixture() -> serde_json::Value {
+        serde_json::from_str(include_str!("../../tests/fixtures/spawning-java-26.2.json")).unwrap()
+    }
+
+    fn category(name: &str) -> &'static MobCategory {
+        match name {
+            "monster" => &MobCategory::MONSTER,
+            "creature" => &MobCategory::CREATURE,
+            "ambient" => &MobCategory::AMBIENT,
+            "axolotls" => &MobCategory::AXOLOTLS,
+            "underground_water_creature" => &MobCategory::UNDERGROUND_WATER_CREATURE,
+            "water_creature" => &MobCategory::WATER_CREATURE,
+            "water_ambient" => &MobCategory::WATER_AMBIENT,
+            _ => panic!("Unknown oracle category: {name}"),
+        }
+    }
+
+    fn position(value: &serde_json::Value) -> BlockPos {
+        BlockPos::new(
+            value[0].as_i64().unwrap() as i32,
+            value[1].as_i64().unwrap() as i32,
+            value[2].as_i64().unwrap() as i32,
+        )
+    }
+
+    #[test]
+    fn java_oracle_global_and_local_caps() {
+        for case in java_fixture()["caps"].as_array().unwrap() {
+            let mut state = SpawnState::empty();
+            let category = category(case["category"].as_str().unwrap());
+            state.set_spawnable_chunk_count(case["chunks"].as_i64().unwrap() as i32);
+            state.mob_category_counts.0[category.id]
+                .store(case["count"].as_i64().unwrap() as i32, Relaxed);
+            assert_eq!(
+                state.can_spawn_for_category_global(category),
+                case["allowed"].as_bool().unwrap(),
+                "{case}"
+            );
+            assert_eq!(
+                state.mob_category_counts.can_spawn(category),
+                case["local_allowed"].as_bool().unwrap(),
+                "{case}"
+            );
+        }
+    }
+
+    #[test]
+    fn java_oracle_density_including_world_border_and_coincident_charges() {
+        for case in java_fixture()["potentials"].as_array().unwrap() {
+            let potential = PotentialCalculator::default();
+            for charge in case["charges"].as_array().unwrap() {
+                potential.add_charge(
+                    &position(&charge["pos"]),
+                    charge["charge"].as_f64().unwrap(),
+                );
+            }
+            let actual = potential.get_potential_energy_change(
+                &position(&case["pos"]),
+                case["charge"].as_f64().unwrap(),
+            );
+            let expected: f64 = case["expected"].as_str().unwrap().parse().unwrap();
+            if expected.is_infinite() || expected == 0.0 {
+                assert_eq!(actual, expected, "{case}");
+            } else {
+                assert!(
+                    (actual - expected).abs() <= expected.abs() * 1e-13,
+                    "actual={actual}, {case}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn java_oracle_every_weighted_ticket_and_biome_data() {
+        for case in java_fixture()["weighted"].as_array().unwrap() {
+            let weights: Vec<i32> = case["weights"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|w| w.as_i64().unwrap() as i32)
+                .collect();
+            for (ticket, expected) in case["choices"].as_array().unwrap().iter().enumerate() {
+                assert_eq!(
+                    weighted_index(weights.iter().copied(), ticket as i32),
+                    Some(expected.as_u64().unwrap() as usize),
+                    "{} ticket {ticket}",
+                    case["name"]
+                );
+            }
+            assert_eq!(
+                weighted_index(weights.iter().copied(), weights.iter().sum()),
+                None
+            );
+            if let Some((biome_name, category_name)) =
+                case["name"].as_str().unwrap().split_once('/')
+            {
+                let biome = Biome::from_name(biome_name).unwrap();
+                let spawners = match category_name {
+                    "monster" => biome.spawners.monster,
+                    "creature" => biome.spawners.creature,
+                    "ambient" => biome.spawners.ambient,
+                    "axolotls" => biome.spawners.axolotls,
+                    "underground_water_creature" => biome.spawners.underground_water_creature,
+                    "water_creature" => biome.spawners.water_creature,
+                    "water_ambient" => biome.spawners.water_ambient,
+                    _ => panic!("Unexpected biome category"),
+                };
+                assert_eq!(
+                    spawners.iter().map(|s| s.weight).collect::<Vec<_>>(),
+                    weights,
+                    "{biome_name}/{category_name}"
+                );
+                assert_eq!(spawners.len(), case["types"].as_array().unwrap().len());
+                for (spawner, expected) in spawners.iter().zip(case["types"].as_array().unwrap()) {
+                    assert_eq!(spawner.r#type, expected.as_str().unwrap());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn java_oracle_player_footprints_independent_of_simulation_distance() {
+        for case in java_fixture()["distances"].as_array().unwrap() {
+            let players = case["players"].as_array().unwrap().iter().map(|p| {
+                Vector2::new(p[0].as_i64().unwrap() as i32, p[1].as_i64().unwrap() as i32)
+            });
+            assert_eq!(
+                natural_spawn_chunk_count(players),
+                case["expected"].as_i64().unwrap() as i32,
+                "{case}"
+            );
+        }
+    }
+
+    #[test]
+    fn java_oracle_all_spawn_floor_states() {
+        let species = [
+            &EntityType::CREEPER,
+            &EntityType::OCELOT,
+            &EntityType::PARROT,
+            &EntityType::POLAR_BEAR,
+            &EntityType::BLAZE,
+        ];
+        let fixture = java_fixture();
+        let floors = fixture["floors"].as_array().unwrap();
+        assert_eq!(floors.len(), usize::from(pumpkin_data::BlockStateId::COUNT));
+        let mut mismatches = Vec::new();
+        for case in floors {
+            let id =
+                pumpkin_data::BlockStateId::new(u16::try_from(case[0].as_u64().unwrap()).unwrap())
+                    .unwrap();
+            let (block, state) = BlockState::from_id_with_block(id);
+            assert_eq!(
+                block.name,
+                case[1].as_str().unwrap(),
+                "State ID mapping drift at {id}"
+            );
+            let expected_mask = case[2].as_u64().unwrap();
+            for (i, entity_type) in species.iter().enumerate() {
+                let expected = expected_mask & (1 << i) != 0;
+                if is_valid_spawn_floor(state, entity_type) != expected {
+                    mismatches.push(format!(
+                        "{} state {id}, {}: expected {expected}",
+                        block.name, entity_type.resource_name
+                    ));
+                }
+            }
+        }
+        assert!(
+            mismatches.is_empty(),
+            "{} differences; first 30: {:?}",
+            mismatches.len(),
+            &mismatches[..mismatches.len().min(30)]
+        );
+    }
 
     #[test]
     fn vanilla_spawn_floor_predicates_are_preserved() {

@@ -507,7 +507,13 @@ impl World {
                 self.migrate_pending_block_entities(pos);
             }
         }
-        let spawnable_chunks = tracker.loaded_active_chunks.len() as i32;
+        let spawnable_chunks = natural_spawner::natural_spawn_chunk_count(
+            self.players
+                .load()
+                .iter()
+                .filter(|player| player.gamemode.load() != pumpkin_util::GameMode::Spectator)
+                .map(|player| player.position().to_block_pos().chunk_position()),
+        );
         drop(active_chunks);
         drop(tracker);
 
@@ -2027,7 +2033,7 @@ impl World {
                 lock.difficulty == Difficulty::Peaceful,
             )
         };
-        let spawn_passives = self.get_time_of_day() % 400 == 0;
+        let spawn_passives = self.get_world_age() % 400 == 0;
         let spawn_enemies = !peaceful && spawn_monsters && spawn_mobs;
         let spawn_passives = spawn_passives && spawn_mobs;
 
@@ -2038,7 +2044,8 @@ impl World {
             spawn_passives,
         ));
 
-        // 5. Parallel Chunk Spawners via Rayon
+        // 5. Spawn decisions share mutable caps, density charges and cached checks.
+        // Vanilla processes these sequentially; atomics alone cannot preserve order.
         if !spawn_list.is_empty() {
             let mut spawning_chunks = Vec::new();
             for pos in active_chunks.iter() {
@@ -2049,17 +2056,10 @@ impl World {
 
             spawning_chunks.shuffle(&mut rng());
 
-            let world = self.clone();
-            let spawn_handle = handle;
-            spawning_chunks.par_chunks(8).for_each(|batch| {
-                let _guard = spawn_handle.enter();
-                let world = world.clone();
-                let s_list = spawn_list.clone();
-                let s_state = spawn_state.clone();
-                for (pos, chunk) in batch {
-                    world.tick_spawning_chunk(*pos, chunk, &s_list, &s_state);
-                }
-            });
+            let _guard = handle.enter();
+            for (pos, chunk) in &spawning_chunks {
+                self.tick_spawning_chunk(*pos, chunk, &spawn_list, &spawn_state);
+            }
         }
 
         // Batch these cheap lookups and atomic increments to avoid waking Rayon
@@ -2443,7 +2443,7 @@ impl World {
             return;
         }
         // TODO this.level.canSpawnEntitiesInChunk(chunkPos)
-        let entities = spawn_for_chunk(
+        spawn_for_chunk(
             self,
             chunk_pos,
             chunk,
@@ -2451,9 +2451,6 @@ impl World {
             spawn_list,
             is_thundering,
         );
-        for entity in entities {
-            self.spawn_entity_non_save(entity);
-        }
     }
 
     pub fn get_world_age(&self) -> i64 {
@@ -5201,9 +5198,13 @@ impl World {
 
     #[expect(clippy::needless_pass_by_value)]
     pub fn spawn_entity_non_save(&self, entity: Arc<dyn EntityBase>) {
-        let _base_entity = entity.get_entity();
-        self.entity_tracker.add_entity(&entity, self);
         self.spawn_state.load().add_entity(self, entity.as_ref());
+        self.insert_entity_non_save(entity);
+    }
+
+    /// NaturalSpawner separately accounts for an accepted spawn in its tick state.
+    fn insert_entity_non_save(&self, entity: Arc<dyn EntityBase>) {
+        self.entity_tracker.add_entity(&entity, self);
 
         self.entities.rcu(|current_entities| {
             let mut new_entities = (**current_entities).clone();
