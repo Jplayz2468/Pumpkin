@@ -29,3 +29,12 @@ placement and spawn finalization, special spawning systems, full chunk/ticket
 eligibility, and controlled runtime acceptance/rejection traces. The cap itself
 is not a hard per-mob ceiling in vanilla: categories are filtered once per tick
 and packs may overshoot. Do not change overshoot into a new nonvanilla rule.
+
+The first controlled farm run exposed another blocker: bulk `/fill` edits wrote
+chunk palettes directly, leaving roofed platforms at skylight 15 (vanilla: 0)
+and skipping fluid scheduling. The follow-up routes fill changes through the
+normal world block setter outside the chunk read lock. This also avoids the
+previous destroy-mode lock re-entry. Unchanged blocks are skipped. The separate
+farm harness builds collectors through player placement and reads stopped-world
+snapshots with Mojang's own region/NBT reader, since several diagnostic commands
+and block-state arguments remain incomplete in Pumpkin.

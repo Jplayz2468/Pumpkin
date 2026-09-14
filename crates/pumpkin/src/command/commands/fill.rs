@@ -58,7 +58,7 @@ fn fill_blocks(
     target_block: &'static Block,
     mode: FillMode,
     filter: Option<&BlockPredicate>,
-    _strict: bool,
+    strict: bool,
 ) -> Result<i32, CommandSyntaxError> {
     let min_x = from.0.x.min(to.0.x);
     let min_y = from.0.y.min(to.0.y);
@@ -103,7 +103,6 @@ fn fill_blocks(
 
             let result = world.level.read_chunk_sync(&chunk_pos, |chunk| {
                 let mut updates_for_chunk = Vec::new();
-                let mut block_entities_to_remove = Vec::new();
                 let min_y_chunk = chunk.section.min_y;
 
                 {
@@ -166,24 +165,13 @@ fn fill_blocks(
                                             Some(BlockStateId::AIR)
                                         }
                                     }
-                                    FillMode::Destroy => {
-                                        if current_state_id != target_state_id {
-                                            world.break_block(
-                                                &pos,
-                                                None,
-                                                BlockFlags::SKIP_DROPS
-                                                    | BlockFlags::NOTIFY_ALL
-                                                    | BlockFlags::FORCE_STATE,
-                                            );
-                                        }
-                                        Some(target_state_id)
-                                    }
+                                    FillMode::Destroy => Some(target_state_id),
                                     FillMode::Replace | FillMode::Keep => Some(target_state_id),
                                 };
 
                                 if let Some(state_id) = block_to_place {
-                                    if current_block.default_state.block_entity_type != u16::MAX {
-                                        block_entities_to_remove.push(pos);
+                                    if state_id == current_state_id && mode != FillMode::Destroy {
+                                        continue;
                                     }
                                     updates_for_chunk.push((rel_x, y, rel_z, state_id, pos));
                                 }
@@ -192,28 +180,35 @@ fn fill_blocks(
                     }
                 }
 
-                if updates_for_chunk.is_empty() {
-                    return (Vec::new(), block_entities_to_remove);
-                }
-
-                let batch_inputs = updates_for_chunk
-                    .iter()
-                    .map(|&(rx, y, rz, sid, _)| (rx, y, rz, sid));
-                chunk.set_blocks_batch(batch_inputs);
-
-                let chunk_changed = updates_for_chunk
-                    .into_iter()
-                    .map(|(_, _, _, new_id, pos)| (pos, new_id))
-                    .collect::<Vec<_>>();
-
-                (chunk_changed, block_entities_to_remove)
+                updates_for_chunk
             });
 
-            if let Some((chunk_changed, be_to_remove)) = result {
-                for pos in be_to_remove {
-                    world.remove_block_entity(&pos);
+            if let Some(updates) = result {
+                for (_, _, _, state_id, pos) in updates {
+                    // Apply outside the chunk's read lock. The normal world setter
+                    // updates lighting, fluid scheduling and neighbor behavior;
+                    // mutating palettes directly left filled roofs lit as open sky.
+                    if mode == FillMode::Destroy {
+                        world.break_block(
+                            &pos,
+                            None,
+                            BlockFlags::SKIP_DROPS
+                                | BlockFlags::NOTIFY_ALL
+                                | BlockFlags::FORCE_STATE,
+                        );
+                    }
+                    let flags = if strict {
+                        BlockFlags::NOTIFY_LISTENERS
+                            | BlockFlags::SKIP_BLOCK_ADDED_CALLBACK
+                            | BlockFlags::FORCE_STATE
+                    } else {
+                        BlockFlags::NOTIFY_ALL | BlockFlags::FORCE_STATE
+                    };
+                    let previous = world.set_block_state(&pos, state_id, flags);
+                    if previous != state_id || mode == FillMode::Destroy {
+                        changed_positions.push((pos, state_id));
+                    }
                 }
-                changed_positions.extend(chunk_changed);
             }
         }
     }
