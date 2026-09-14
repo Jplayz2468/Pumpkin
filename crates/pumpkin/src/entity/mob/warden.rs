@@ -1,9 +1,10 @@
-use std::sync::{Arc, Mutex, Weak, atomic::Ordering};
+use std::sync::{Arc, Mutex, atomic::Ordering};
 
 use super::{
     warden_anger::{AngerManagement, Removal, Suspect},
-    warden_anger_nbt,
+    warden_anger_nbt, warden_damage,
     warden_emergence::Emergence,
+    warden_roar::Roar,
     warden_target::{self, TargetFacts},
 };
 use crate::entity::{EntityBase, spawn::SpawnReason};
@@ -37,8 +38,7 @@ pub fn dimensions(pose: EntityPose) -> EntityDimensions {
 use crate::entity::{
     Entity,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
+        look_around::RandomLookAroundGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
         wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
@@ -48,6 +48,9 @@ pub struct WardenEntity {
     pub mob_entity: MobEntity,
     pub emergence: Mutex<Emergence>,
     anger: Mutex<AngerState>,
+    roar: Mutex<Roar>,
+    idle_active: std::sync::atomic::AtomicBool,
+    fight_active: std::sync::atomic::AtomicBool,
     client_anger: std::sync::atomic::AtomicI32,
     random: Mutex<pumpkin_util::random::legacy_rand::LegacyRand>,
 }
@@ -77,17 +80,15 @@ impl WardenEntity {
                 manager: AngerManagement::new(rand::random_range(0..=2), &[]),
                 removed: HashMap::new(),
             }),
+            roar: Mutex::new(Roar::default()),
+            idle_active: std::sync::atomic::AtomicBool::new(false),
+            fight_active: std::sync::atomic::AtomicBool::new(false),
             client_anger: std::sync::atomic::AtomicI32::new(0),
             random: Mutex::new(pumpkin_util::random::legacy_rand::LegacyRand::from_seed(
                 rand::random(),
             )),
         };
         let mob_arc = Arc::new(warden);
-        let mob_weak: Weak<dyn Mob> = {
-            let mob_arc: Arc<dyn Mob> = mob_arc.clone();
-            Arc::downgrade(&mob_arc)
-        };
-
         {
             let mut goal_selector = mob_arc
                 .mob_entity
@@ -96,23 +97,9 @@ impl WardenEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, true)));
+            goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.2, true)));
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(0.5)));
-            goal_selector.add_goal(
-                6,
-                LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
-            );
             goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
-
-            let mut target_selector = mob_arc
-                .mob_entity
-                .target_selector
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            target_selector.add_goal(
-                1,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
-            );
         };
 
         mob_arc
@@ -208,8 +195,12 @@ impl WardenEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             manager.anger(target.as_ref().map(|e| e.get_entity().entity_id))
         };
+        self.set_client_anger(value);
+    }
+
+    fn set_client_anger(&self, value: i32) {
         if self.client_anger.swap(value, Ordering::Relaxed) != value {
-            entity.send_meta_data(
+            self.get_entity().send_meta_data(
                 &[
                     Metadata::new(tracked_data::warden::CLIENT_ANGER_LEVEL, VarInt(value)),
                     Metadata::new(tracked_data::warden::ANGER, VarInt(value)),
@@ -217,6 +208,157 @@ impl WardenEntity {
                 None,
             );
         }
+    }
+
+    fn reset_dig_cooldown(&self) {
+        let mut emergence = self
+            .emergence
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if emergence.dig_cooldown.is_some() {
+            emergence.dig_cooldown = Some(1200);
+        }
+    }
+
+    fn tick_roar(&self) {
+        if self.mob_entity.is_no_ai() {
+            return;
+        }
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        // SetRoarTarget runs only in the preceding tick's eligible idle activity.
+        let candidate = if self.idle_active.load(Ordering::Relaxed) {
+            let state = self
+                .anger
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if state.manager.highest >= 80 {
+                state.manager.active_entity(|id| {
+                    world
+                        .get_entity_by_id(id)
+                        .is_some_and(|e| self.can_target_entity(e.as_ref()))
+                })
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+        let change = {
+            let mut roar = self
+                .roar
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if roar.target.is_none() && roar.attack_target.is_none() {
+                roar.target = candidate;
+            }
+            roar.tick(world.get_world_age(), false, |bound| {
+                world
+                    .random
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .next_bounded_i32(bound);
+            })
+        };
+        if let Some(id) = change.start {
+            entity.set_pose(EntityPose::Roaring);
+            self.mob_entity
+                .navigator
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .stop();
+            if let Some(target) = world.get_entity_by_id(id) {
+                self.mob_entity
+                    .look_control
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .look_at_entity_with_range(&target, 45.0, 90.0);
+                if self.can_target_entity(target.as_ref()) {
+                    self.reset_dig_cooldown();
+                    self.anger
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .manager
+                        .increase(suspect(target.as_ref()), 20);
+                }
+            }
+        }
+        if change.sound {
+            world.play_sound_fine(
+                Sound::EntityWardenRoar,
+                SoundCategory::Hostile,
+                &entity.pos.load(),
+                3.0,
+                1.0,
+            );
+        }
+        if change.stop && entity.pose.load() == EntityPose::Roaring {
+            entity.set_pose(EntityPose::Standing);
+        }
+        if let Some(id) = change.attack {
+            self.mob_entity.set_target(world.get_entity_by_id(id));
+        }
+    }
+
+    fn validate_fight_target(&self) {
+        if self.mob_entity.is_no_ai() || !self.fight_active.load(Ordering::Relaxed) {
+            return;
+        }
+        let id = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .attack_target;
+        let Some(id) = id else {
+            return;
+        };
+        self.reset_dig_cooldown();
+        let target = self.get_entity().world.load().get_entity_by_id(id);
+        let eligible = target
+            .as_ref()
+            .is_some_and(|e| self.can_target_entity(e.as_ref()));
+        let stop = {
+            let mut anger = self
+                .anger
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let stop = !eligible || anger.manager.anger(Some(id)) < 80;
+            if !eligible {
+                anger.manager.clear(id);
+            }
+            stop
+        };
+        if stop {
+            self.roar
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .attack_target = None;
+            self.mob_entity.set_target(None);
+        }
+    }
+
+    fn select_activity(&self) {
+        if self.mob_entity.is_no_ai() {
+            return;
+        }
+        let emerging = self
+            .emergence
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .active;
+        let mut roar = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        roar.active = !emerging && roar.target.is_some();
+        self.fight_active.store(
+            !emerging && !roar.active && roar.attack_target.is_some(),
+            Ordering::Relaxed,
+        );
+        self.idle_active.store(
+            !emerging && !roar.active && roar.attack_target.is_none(),
+            Ordering::Relaxed,
+        );
     }
 
     fn is_digging_or_emerging(&self) -> bool {
@@ -308,13 +450,16 @@ impl Mob for WardenEntity {
         if transition.stop && entity.pose.load() == EntityPose::Emerging {
             entity.set_pose(EntityPose::Standing);
         }
+        self.tick_roar();
+        self.validate_fight_target();
         if !self.mob_entity.is_no_ai() && entity.tick_count.load(Ordering::Relaxed) % 20 == 0 {
             self.tick_anger();
         }
+        self.select_activity();
     }
 
     fn run_goal_ai(&self) -> bool {
-        !self.is_digging_or_emerging()
+        !self.is_digging_or_emerging() && self.get_entity().pose.load() != EntityPose::Roaring
     }
 
     fn mob_is_pushable(&self) -> bool {
@@ -324,6 +469,70 @@ impl Mob for WardenEntity {
     fn pre_damage(&self, damage_type: DamageType, _source: Option<&dyn EntityBase>) -> bool {
         !self.is_digging_or_emerging()
             || damage_type.has_tag(&tag::DamageType::MINECRAFT_BYPASSES_INVULNERABILITY)
+    }
+
+    fn mob_damage_attempt(&self, source: Option<&dyn EntityBase>, cause: Option<&dyn EntityBase>) {
+        let Some(attacker) = cause.or(source) else {
+            return;
+        };
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        let existing = self.mob_entity.get_target();
+        let has_dig = self
+            .emergence
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .dig_cooldown
+            .is_some();
+        let mut roar = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let reaction = warden_damage::react(
+            &warden_damage::Facts {
+                no_ai: self.mob_entity.is_no_ai(),
+                digging_or_emerging: self.is_digging_or_emerging(),
+                eligible: self.can_target_entity(attacker),
+                has_dig_cooldown: has_dig,
+                living: attacker.get_living_entity().is_some(),
+                player: attacker.get_player().is_some(),
+                old_target_player: existing
+                    .as_ref()
+                    .and_then(|e| e.get_player())
+                    .is_some_and(|p| !p.is_creative() && !p.is_spectator()),
+                direct: source
+                    .is_some_and(|e| e.get_entity().entity_id == attacker.get_entity().entity_id),
+                distance_squared: entity
+                    .pos
+                    .load()
+                    .squared_distance_to_vec(&attacker.get_entity().pos.load()),
+            },
+            roar.attack_target.is_some(),
+            |amount| {
+                self.anger
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .manager
+                    .increase(suspect(attacker), amount)
+            },
+        );
+        if reaction.clear_attack {
+            roar.attack_target = None;
+        }
+        if reaction.set_attack {
+            roar.target = None;
+            roar.attack_target = Some(attacker.get_entity().entity_id);
+            roar.sonic_cooldown = Some(200);
+        }
+        let target = roar.attack_target;
+        drop(roar);
+        if reaction.reset_dig {
+            self.reset_dig_cooldown();
+        }
+        if reaction.clear_attack || reaction.set_attack {
+            self.mob_entity
+                .set_target(target.and_then(|id| world.get_entity_by_id(id)));
+        }
     }
 
     fn mob_java_spawn_metadata(&self, version: JavaMinecraftVersion) -> Option<Box<[u8]>> {
@@ -350,7 +559,8 @@ impl Mob for WardenEntity {
         let state = self
             .emergence
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
         let mut memories = NbtCompound::new();
         for (name, ttl) in [
             ("minecraft:is_emerging", state.emerging_memory),
@@ -365,10 +575,29 @@ impl Mob for WardenEntity {
                 memories.put_compound(name, memory);
             }
         }
+        let roar = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for (name, ttl) in [
+            ("minecraft:roar_sound_delay", roar.sound_delay),
+            ("minecraft:roar_sound_cooldown", roar.sound_cooldown),
+            ("minecraft:sonic_boom_cooldown", roar.sonic_cooldown),
+        ] {
+            if let Some(ttl) = ttl {
+                let mut memory = NbtCompound::new();
+                memory.put_compound("value", NbtCompound::new());
+                if ttl != i64::MAX {
+                    memory.put_long("ttl", ttl);
+                }
+                memories.put_compound(name, memory);
+            }
+        }
+        drop(roar);
         let mut brain = NbtCompound::new();
         brain.put_compound("memories", memories);
         nbt.put_compound("Brain", brain);
-        drop(state);
+
         let anger = self
             .anger
             .lock()
@@ -403,6 +632,19 @@ impl Mob for WardenEntity {
             dig_cooldown: read("minecraft:dig_cooldown"),
             ..Emergence::default()
         };
+        *self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Roar {
+            sound_delay: read("minecraft:roar_sound_delay"),
+            sound_cooldown: read("minecraft:roar_sound_cooldown"),
+            sonic_cooldown: read("minecraft:sonic_boom_cooldown"),
+            ..Roar::default()
+        };
+        self.idle_active.store(false, Ordering::Relaxed);
+        self.fight_active.store(false, Ordering::Relaxed);
+        self.set_client_anger(0);
+        self.mob_entity.set_target(None);
         // Running behavior/pose are not saved by Java. The loaded Brain selects
         // its activity, then Emerging starts again on its next eligible AI step.
         self.get_entity().data.store(

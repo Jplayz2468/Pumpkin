@@ -68,7 +68,9 @@ pub mod vindicator;
 pub mod warden;
 pub mod warden_anger;
 pub mod warden_anger_nbt;
+pub mod warden_damage;
 pub mod warden_emergence;
+pub mod warden_roar;
 pub mod warden_target;
 pub mod witch;
 pub mod zoglin;
@@ -794,6 +796,15 @@ pub trait Mob: EntityBase + Send + Sync {
 
     fn on_damage(&self, _damage_type: DamageType, _source: Option<&dyn EntityBase>) {}
 
+    /// Reactions which Java runs after the damage attempt, including rejected
+    /// hits. Existing successful-hit hooks keep their original behavior.
+    fn mob_damage_attempt(
+        &self,
+        _source: Option<&dyn EntityBase>,
+        _cause: Option<&dyn EntityBase>,
+    ) {
+    }
+
     fn on_attack(&self, _target: &dyn EntityBase) {}
 
     fn on_eating_grass(&self) {}
@@ -1417,6 +1428,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         if damaged {
             self.on_damage(damage_type, source);
         }
+        self.mob_damage_attempt(source, cause);
         damaged
     }
 

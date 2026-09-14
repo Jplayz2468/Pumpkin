@@ -115,8 +115,8 @@ impl EntityBase for EnderPearlEntity {
                 0.0,
                 DamageType::THROWN,
                 Some(*hit_pos),
-                Some(owner.get_entity()),
-                Some(victim_ref),
+                Some(self),
+                Some(owner.as_ref()),
             );
         }
 

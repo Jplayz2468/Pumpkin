@@ -503,8 +503,8 @@ impl EntityBase for ShulkerBulletEntity {
                 4.0,
                 DamageType::MOB_PROJECTILE,
                 None,
+                Some(self),
                 owner_arc.as_deref(),
-                None,
             );
 
             if damaged && let Some(living) = hit_entity.get_living_entity() {
