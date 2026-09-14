@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex, atomic::Ordering};
 
 use super::{
     warden_anger::{AngerManagement, Removal, Suspect},
-    warden_anger_nbt, warden_damage,
+    warden_anger_nbt, warden_damage, warden_darkness,
     warden_dig::{self, Digging},
     warden_emergence::Emergence,
     warden_melee,
@@ -724,6 +724,54 @@ impl WardenEntity {
         }
     }
 
+    fn tick_darkness(&self) {
+        let entity = self.get_entity();
+        if !warden_darkness::due(
+            entity.tick_count.load(Ordering::Relaxed) as i32,
+            entity.entity_id,
+            self.mob_entity.is_no_ai(),
+        ) {
+            return;
+        }
+        let world = entity.world.load();
+        let origin = entity.pos.load();
+        let own_team = get_entity_team(self);
+        for player in world.get_nearby_players(origin, 20.0) {
+            let previous = player
+                .living_entity
+                .get_effect(&pumpkin_data::effect::StatusEffect::DARKNESS);
+            let allied = own_team
+                .as_ref()
+                .zip(get_entity_team(player.as_ref()))
+                .is_some_and(|(a, b)| a.name == b.name);
+            let pos = player.get_entity().pos.load();
+            let delta = pos - origin;
+            if !warden_darkness::eligible(
+                matches!(
+                    player.gamemode.load(),
+                    pumpkin_util::gamemode::GameMode::Survival
+                        | pumpkin_util::gamemode::GameMode::Adventure
+                ),
+                allied,
+                delta.x * delta.x + delta.y * delta.y + delta.z * delta.z,
+                previous.map(|e| (i32::from(e.amplifier), e.duration)),
+            ) {
+                continue;
+            }
+            let effect = pumpkin_data::potion::Effect {
+                effect_type: &pumpkin_data::effect::StatusEffect::DARKNESS,
+                duration: 260,
+                amplifier: 0,
+                ambient: false,
+                show_particles: false,
+                show_icon: false,
+                blend: true,
+            };
+            player.send_effect(&effect);
+            player.living_entity.add_effect(effect);
+        }
+    }
+
     fn tick_sniff(&self) {
         if self.mob_entity.is_no_ai() {
             return;
@@ -1050,6 +1098,7 @@ impl Mob for WardenEntity {
         self.validate_fight_target();
         self.tick_sonic();
         self.tick_melee();
+        self.tick_darkness();
         if !self.mob_entity.is_no_ai() && entity.tick_count.load(Ordering::Relaxed) % 20 == 0 {
             self.tick_anger();
         }
@@ -1058,10 +1107,12 @@ impl Mob for WardenEntity {
 
     fn run_goal_ai(&self) -> bool {
         !self.is_digging_or_emerging()
-            && !matches!(
-                self.get_entity().pose.load(),
-                EntityPose::Roaring | EntityPose::Sniffing
-            )
+            && !self
+                .roar
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .active
+            && !self.sniff_active.load(Ordering::Relaxed)
     }
 
     fn can_use_melee_attack(&self) -> bool {
