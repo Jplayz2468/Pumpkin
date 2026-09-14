@@ -1,5 +1,6 @@
 use super::{Entity, EntityBase, ai::pathfinder::Navigator, living::LivingEntity};
 use crate::entity::ai::control::MoveControlTrait;
+use crate::entity::ai::control::body_rotation_control::BodyRotationControl;
 use crate::entity::ai::control::look_control::LookControl;
 use crate::entity::ai::control::move_control::MoveControl;
 use crate::entity::ai::goal::goal_selector::GoalSelector;
@@ -96,6 +97,7 @@ pub struct MobEntity {
     pub target_selector: std::sync::Mutex<GoalSelector>,
     pub navigator: std::sync::Mutex<Navigator>,
     pub target: std::sync::Mutex<Option<Arc<dyn EntityBase>>>,
+    body_rotation_control: std::sync::Mutex<BodyRotationControl>,
     pub look_control: std::sync::Mutex<LookControl>,
     pub move_control: std::sync::Mutex<Box<dyn MoveControlTrait>>,
     pub position_target: AtomicCell<BlockPos>,
@@ -184,6 +186,7 @@ impl MobEntity {
             target_selector: std::sync::Mutex::new(GoalSelector::default()),
             navigator: std::sync::Mutex::new(Navigator::default()),
             target: std::sync::Mutex::new(None),
+            body_rotation_control: std::sync::Mutex::new(BodyRotationControl::default()),
             look_control: std::sync::Mutex::new(LookControl::default()),
             move_control: std::sync::Mutex::new(Box::new(MoveControl::default())),
             position_target: AtomicCell::new(BlockPos::ZERO),
@@ -1422,6 +1425,14 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         }
 
         mob_entity.living_entity.tick(caller, server);
+        if self.uses_brain_navigation() {
+            // Java Mob.tickHeadTurn runs after living movement, including NoAI.
+            mob_entity
+                .body_rotation_control
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .client_tick(self);
+        }
         // AgeableMob.aiStep ages once after living movement, including NoAI mobs.
         // Centralizing this prevents species overrides from skipping or doubling growth.
         if let Some(ageable) = self.as_ageable() {

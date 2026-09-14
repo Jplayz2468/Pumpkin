@@ -2,6 +2,7 @@ use crate::entity::mob::Mob;
 use pumpkin_util::math::subtract_angles;
 
 pub mod body_rotation_control;
+mod body_rotation_math;
 pub mod flying_move_control;
 pub mod jump_control;
 pub mod look_control;
