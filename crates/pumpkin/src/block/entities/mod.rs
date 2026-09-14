@@ -125,6 +125,16 @@ pub trait BlockEntity: Any + Send + Sync {
         None
     }
     fn set_block_state(&mut self, _block_state: BlockStateId) {}
+    /// The chunk already holds the replacement, so callbacks needing the old
+    /// state (for example an active shrieker) must receive it explicitly.
+    fn on_block_replaced_with_state(
+        self: Arc<Self>,
+        world: &Arc<World>,
+        position: &BlockPos,
+        _old_state: BlockStateId,
+    ) {
+        self.on_block_replaced(world, position);
+    }
     fn on_block_replaced(self: Arc<Self>, world: &Arc<World>, position: &BlockPos) {
         if let Some(inventory) = self.get_inventory() {
             world.scatter_inventory(position, &inventory);

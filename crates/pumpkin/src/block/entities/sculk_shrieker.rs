@@ -40,6 +40,28 @@ impl BlockEntity for SculkShriekerBlockEntity {
         Some(nbt)
     }
 
+    fn on_block_replaced_with_state(
+        self: std::sync::Arc<Self>,
+        world: &std::sync::Arc<crate::world::World>,
+        position: &BlockPos,
+        old_state: pumpkin_data::BlockStateId,
+    ) {
+        let props =
+            pumpkin_data::block_properties::SculkShriekerLikeProperties::from_state_id(old_state);
+        if props.shrieking {
+            let warning = *self
+                .warning_level
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            crate::block::blocks::sculk::sculk_shrieker::SculkShriekerBlock::respond_with_warning(
+                world,
+                position,
+                props.can_summon,
+                warning,
+            );
+        }
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

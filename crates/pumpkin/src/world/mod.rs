@@ -5454,7 +5454,7 @@ impl World {
             && let Some(entity) = self.get_block_entity(position)
         {
             if !flags.contains(BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK) {
-                entity.on_block_replaced(self, position);
+                entity.on_block_replaced_with_state(self, position, replaced_block_state_id);
             }
             self.remove_block_entity(position);
         }

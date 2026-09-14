@@ -1,6 +1,7 @@
 pub mod advancement;
 mod flight;
 pub mod statistics;
+pub mod warden_spawn_tracker;
 
 use core::f32;
 use std::collections::{HashMap, VecDeque};
@@ -396,6 +397,7 @@ pub enum SpamType {
 }
 
 pub struct Player {
+    pub warden_spawn_tracker: Mutex<warden_spawn_tracker::WardenSpawnTracker>,
     /// Rate-limits temporary gameplay notices independently for each player.
     pub safety_notices: crate::local_safety::SafetyNotices,
     /// The underlying living entity object that represents the player.
@@ -766,6 +768,7 @@ impl Player {
             )),
             last_action_time: AtomicCell::new(std::time::Instant::now()),
             safety_notices: crate::local_safety::SafetyNotices::default(),
+            warden_spawn_tracker: Mutex::new(warden_spawn_tracker::WardenSpawnTracker::default()),
             ping: AtomicU32::new(0),
             last_attacked_ticks: AtomicU32::new(0),
             client_loaded: AtomicBool::new(initially_loaded),
@@ -2543,6 +2546,10 @@ impl Player {
     pub fn tick<'a>(&'a self, server: &'a Server) {
         crate::local_safety::check_deep_dark(self);
         self.process_inbound_packets();
+        self.warden_spawn_tracker
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .tick();
         self.update_gliding();
 
         if self.is_spectator() {
@@ -6643,6 +6650,13 @@ impl EntityBase for Player {
     }
 
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
+        nbt.put_compound(
+            "warden_spawn_tracker",
+            self.warden_spawn_tracker
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .to_nbt(),
+        );
         nbt.put_int("DataVersion", DATA_VERSION);
         self.inventory.write_nbt(nbt);
         self.ender_chest_inventory.write_nbt(nbt);
@@ -6749,6 +6763,13 @@ impl EntityBase for Player {
 
     #[expect(clippy::too_many_lines)]
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
+        *self
+            .warden_spawn_tracker
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            warden_spawn_tracker::WardenSpawnTracker::from_nbt(
+                nbt.get_compound("warden_spawn_tracker"),
+            );
         self.inventory.read_nbt_non_mut(nbt);
         self.ender_chest_inventory.read_nbt_non_mut(nbt);
         self.living_entity
