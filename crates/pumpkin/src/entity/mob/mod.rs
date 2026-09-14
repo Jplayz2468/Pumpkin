@@ -71,7 +71,9 @@ pub mod warden_anger_nbt;
 pub mod warden_damage;
 pub mod warden_dig;
 pub mod warden_emergence;
+mod warden_melee;
 pub mod warden_roar;
+mod warden_sensor;
 mod warden_sonic;
 pub mod warden_target;
 pub mod witch;
@@ -377,10 +379,8 @@ impl MobEntity {
     }
 
     pub fn is_in_attack_range(&self, target: &dyn EntityBase) -> bool {
-        const DEFAULT_ATTACK_RANGE: f64 = 0.828_427_12; // sqrt(2.04) - 0.6
-
         // TODO: Implement DataComponent lookup for ATTACK_RANGE when components are ready
-        let max_range = DEFAULT_ATTACK_RANGE;
+        let max_range = warden_melee::default_reach();
         let min_range = 0.0;
 
         let target_hitbox = target.get_entity().bounding_box.load();

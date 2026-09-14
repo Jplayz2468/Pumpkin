@@ -5,7 +5,9 @@ use super::{
     warden_anger_nbt, warden_damage,
     warden_dig::{self, Digging},
     warden_emergence::Emergence,
+    warden_melee,
     warden_roar::Roar,
+    warden_sensor::{self, Sensor},
     warden_sonic::{self, SonicBoom},
     warden_target::{self, TargetFacts},
 };
@@ -14,6 +16,7 @@ use crate::entity::{RemovalReason, living::get_entity_team};
 use pumpkin_data::{
     attributes::Attributes,
     damage::DamageType,
+    data_component_impl::EquipmentSlot,
     entity::{EntityPose, EntityStatus, EntityType},
     particle::Particle,
     sound::{Sound, SoundCategory},
@@ -57,6 +60,7 @@ pub struct WardenEntity {
     roar: Mutex<Roar>,
     digging: Mutex<Digging>,
     sonic: Mutex<SonicBoom>,
+    sensor: Mutex<Sensor>,
     idle_active: std::sync::atomic::AtomicBool,
     fight_active: std::sync::atomic::AtomicBool,
     client_anger: std::sync::atomic::AtomicI32,
@@ -81,6 +85,8 @@ fn suspect(entity: &dyn EntityBase) -> Suspect {
 impl WardenEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
+        let mut random = pumpkin_util::random::legacy_rand::LegacyRand::from_seed(rand::random());
+        let sensor = Sensor::new(|bound| random.next_bounded_i32(bound));
         let warden = Self {
             mob_entity,
             emergence: Mutex::new(Emergence::default()),
@@ -91,12 +97,11 @@ impl WardenEntity {
             roar: Mutex::new(Roar::default()),
             digging: Mutex::new(Digging::default()),
             sonic: Mutex::new(SonicBoom::default()),
+            sensor: Mutex::new(sensor),
             idle_active: std::sync::atomic::AtomicBool::new(false),
             fight_active: std::sync::atomic::AtomicBool::new(false),
             client_anger: std::sync::atomic::AtomicI32::new(0),
-            random: Mutex::new(pumpkin_util::random::legacy_rand::LegacyRand::from_seed(
-                rand::random(),
-            )),
+            random: Mutex::new(random),
         };
         let mob_arc = Arc::new(warden);
         {
@@ -308,6 +313,174 @@ impl WardenEntity {
         if let Some(id) = change.attack {
             self.mob_entity.set_target(world.get_entity_by_id(id));
         }
+    }
+
+    fn sensor_target(&self, target: &dyn EntityBase) -> warden_sensor::Target {
+        let base = target.get_entity();
+        let pos = base.pos.load();
+        let b = base.bounding_box.load();
+        let living = target.get_living_entity();
+        let mut visibility = if base.is_sneaking() { 0.8 } else { 1.0 };
+        if base.invisible.load(Ordering::Relaxed) {
+            let covered = living.map_or(0, |living| {
+                let equipment = living
+                    .entity_equipment
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                [
+                    EquipmentSlot::HEAD,
+                    EquipmentSlot::CHEST,
+                    EquipmentSlot::LEGS,
+                    EquipmentSlot::FEET,
+                ]
+                .iter()
+                .filter(|slot| {
+                    equipment
+                        .equipment
+                        .get(*slot)
+                        .is_some_and(|stack| !stack.is_empty())
+                })
+                .count()
+            });
+            visibility *= 0.7 * f64::from((covered as f32 / 4.0).max(0.1));
+        }
+        warden_sensor::Target {
+            id: base.entity_id,
+            player: target.get_player().is_some(),
+            position: [pos.x, pos.y, pos.z],
+            bounds: [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z],
+            alive: base.is_alive() && living.is_some_and(|l| l.health.load() > 0.0),
+            spectator: target.is_spectator(),
+            eligible: self.can_target_entity(target),
+            loaded: true,
+            visibility,
+        }
+    }
+
+    fn tick_sensor(&self) {
+        if self.mob_entity.is_no_ai() {
+            return;
+        }
+        let entity = self.get_entity();
+        let pos = entity.pos.load();
+        let b = entity.bounding_box.load();
+        let range = self
+            .mob_entity
+            .living_entity
+            .get_attribute_value(&Attributes::FOLLOW_RANGE);
+        let mut sensor = self
+            .sensor
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let targets = if sensor.delay <= 1 {
+            let world = entity.world.load();
+            let bounds = b.expand(range, range, range);
+            let mut entities = world.get_entities_at_box(&bounds);
+            entities.extend(
+                world
+                    .get_players_at_box(&bounds)
+                    .into_iter()
+                    .map(|p| p as Arc<dyn EntityBase>),
+            );
+            entities
+                .iter()
+                .filter(|e| {
+                    e.get_entity().entity_id != entity.entity_id && e.get_living_entity().is_some()
+                })
+                .map(|e| self.sensor_target(e.as_ref()))
+                .collect::<Vec<_>>()
+        } else {
+            Vec::new()
+        };
+        sensor.tick(
+            false,
+            [pos.x, pos.y, pos.z],
+            [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z],
+            range,
+            &targets,
+        );
+    }
+
+    fn tick_melee(&self) {
+        if self.mob_entity.is_no_ai() || !self.fight_active.load(Ordering::Relaxed) {
+            return;
+        }
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        let target_id = self
+            .roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .attack_target;
+        let Some(target) = target_id.and_then(|id| world.get_entity_by_id(id)) else {
+            return;
+        };
+        let pos = entity.pos.load();
+        let facts = self.sensor_target(target.as_ref());
+        let (sensor_present, visible) = {
+            let mut sensor = self
+                .sensor
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let present = sensor.present;
+            let visible = sensor.contains([pos.x, pos.y, pos.z], target_id, &facts, |_| {
+                world.has_line_of_sight(entity.get_eye_pos(), target.get_entity().get_eye_pos())
+            });
+            (present, visible)
+        };
+        let b = entity.bounding_box.load();
+        let bounds = [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z];
+        let vehicle = entity.get_vehicle().map(|v| {
+            let b = v.get_entity().bounding_box.load();
+            [b.min.x, b.min.y, b.min.z, b.max.x, b.max.y, b.max.z]
+        });
+        let attack = warden_melee::attack(
+            &mut self
+                .sonic
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .melee_cooldown,
+            &warden_melee::Facts {
+                no_ai: false,
+                active: true,
+                attack: true,
+                sensor: sensor_present,
+                visible,
+                // Warden inherits Mob.canUseNonMeleeWeapon == false.
+                usable_non_melee: false,
+                in_range: warden_melee::in_range(bounds, vehicle, facts.bounds),
+            },
+        );
+        if !attack {
+            return;
+        }
+        self.mob_entity
+            .look_control
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .look_at_entity(self, &target);
+        self.mob_entity.living_entity.swing_hand();
+        world.send_entity_status(entity, EntityStatus::StartAttacking, None);
+        let pitch = {
+            let mut random = self
+                .random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            (random.next_f32() - random.next_f32()) * 0.2 + 1.0
+        };
+        world.play_sound_fine(
+            Sound::EntityWardenAttackImpact,
+            SoundCategory::Hostile,
+            &pos,
+            10.0,
+            pitch,
+        );
+        // Warden.doHurtTarget writes this even when the target rejects the hit.
+        self.roar
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .sonic_cooldown = Some(40);
+        self.mob_entity.try_attack(self, target.as_ref());
     }
 
     fn tick_sonic(&self) {
@@ -660,6 +833,7 @@ impl Mob for WardenEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .tick_memories();
         }
+        self.tick_sensor();
         let transition = if self.mob_entity.is_no_ai() {
             super::warden_emergence::Transition::default()
         } else {
@@ -694,6 +868,7 @@ impl Mob for WardenEntity {
         self.tick_roar();
         self.validate_fight_target();
         self.tick_sonic();
+        self.tick_melee();
         if !self.mob_entity.is_no_ai() && entity.tick_count.load(Ordering::Relaxed) % 20 == 0 {
             self.tick_anger();
         }
@@ -705,11 +880,9 @@ impl Mob for WardenEntity {
     }
 
     fn can_use_melee_attack(&self) -> bool {
-        self.sonic
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .melee_cooldown
-            .is_none()
+        // The retained goal currently supplies navigation only. Brain melee owns
+        // attack timing and the shared SonicBoom cooldown; never attack twice.
+        false
     }
 
     fn mob_is_pushable(&self) -> bool {
@@ -921,6 +1094,15 @@ impl Mob for WardenEntity {
             sound_cooldown: read("minecraft:sonic_boom_sound_cooldown"),
             ..SonicBoom::default()
         };
+        *self
+            .sensor
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Sensor::new(|bound| {
+            self.random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .next_bounded_i32(bound)
+        });
         self.idle_active.store(false, Ordering::Relaxed);
         self.fight_active.store(false, Ordering::Relaxed);
         self.set_client_anger(0);
