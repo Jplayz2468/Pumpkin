@@ -895,7 +895,18 @@ impl TextComponentBase {
 fn nbt_compound_to_json(compound: &pumpkin_nbt::NbtCompound) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     for (k, v) in &compound.child_tags {
-        map.insert(k.to_string(), nbt_tag_to_json(v));
+        let value = if matches!(
+            k.as_ref(),
+            "bold" | "italic" | "underlined" | "strikethrough" | "obfuscated" | "interpret"
+        ) {
+            match v {
+                pumpkin_nbt::tag::NbtTag::Byte(value) => serde_json::Value::Bool(*value != 0),
+                _ => nbt_tag_to_json(v),
+            }
+        } else {
+            nbt_tag_to_json(v)
+        };
+        map.insert(k.to_string(), value);
     }
     serde_json::Value::Object(map)
 }
@@ -2135,5 +2146,13 @@ mod test {
             .to_nbt_compound();
         let hover = compound.get_compound("hover_event").unwrap();
         assert!(hover.get_int("count").is_none());
+    }
+    #[test]
+    fn styled_name_survives_owned_nbt_conversion() {
+        let name = TextComponent::text("Pet")
+            .color_named(NamedColor::Gold)
+            .bold();
+        let tag = name.to_nbt_tag_for_version(&crate::version::JavaMinecraftVersion::V_26_2);
+        assert_eq!(TextComponent::from_nbt(&tag), name);
     }
 }

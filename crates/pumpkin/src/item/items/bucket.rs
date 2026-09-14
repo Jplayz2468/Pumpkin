@@ -399,35 +399,6 @@ impl ItemBehaviour for FilledBucketItem {
         );
     }
 
-    fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
-        if item.item.id == Item::WATER_BUCKET.id {
-            let entity_type = entity.get_entity().entity_type;
-            let result_item = if entity_type == &EntityType::AXOLOTL {
-                Some((&Item::AXOLOTL_BUCKET, Sound::ItemBucketFillAxolotl))
-            } else if entity_type == &EntityType::COD {
-                Some((&Item::COD_BUCKET, Sound::ItemBucketFillFish))
-            } else if entity_type == &EntityType::SALMON {
-                Some((&Item::SALMON_BUCKET, Sound::ItemBucketFillFish))
-            } else if entity_type == &EntityType::TROPICAL_FISH {
-                Some((&Item::TROPICAL_FISH_BUCKET, Sound::ItemBucketFillFish))
-            } else if entity_type == &EntityType::PUFFERFISH {
-                Some((&Item::PUFFERFISH_BUCKET, Sound::ItemBucketFillFish))
-            } else if entity_type == &EntityType::TADPOLE {
-                Some((&Item::TADPOLE_BUCKET, Sound::ItemBucketFillTadpole))
-            } else {
-                None
-            };
-
-            if let Some((mob_bucket, sound)) = result_item {
-                let ent = entity.get_entity();
-                let world = ent.world.load();
-                world.play_sound(sound, SoundCategory::Neutral, &ent.pos.load());
-                give_player_bucket_item(player, mob_bucket);
-                ent.remove();
-            }
-        }
-    }
-
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -468,6 +439,7 @@ fn bucket_data(entity: &dyn EntityBase) -> pumpkin_nbt::compound::NbtCompound {
         "Invulnerable",
         "Health",
         "Age",
+        "AgeLocked",
         "Variant",
         "BucketVariantTag",
         "HuntingCooldown",
@@ -749,9 +721,18 @@ mod bucket_tests {
         stack.set_data_component(BucketEntityDataImpl {
             nbt: Some(data.clone()),
         });
+        let name = pumpkin_data::data_component_impl::CustomNameImpl {
+            name: pumpkin_util::text::TextComponent::text("Pet")
+                .color_named(pumpkin_util::text::color::NamedColor::Gold),
+        };
+        stack.set_data_component(name.clone());
         let mut saved = NbtCompound::new();
         stack.write_item_stack(&mut saved);
         let loaded = ItemStack::read_item_stack(&saved).unwrap();
+        assert_eq!(
+            loaded.get_data_component::<pumpkin_data::data_component_impl::CustomNameImpl>(),
+            Some(&name)
+        );
         assert_eq!(
             loaded
                 .get_data_component::<BucketEntityDataImpl>()

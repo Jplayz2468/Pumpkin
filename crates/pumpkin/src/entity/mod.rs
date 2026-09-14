@@ -4162,10 +4162,12 @@ impl Entity {
             nbt.put_bool("HasVisualFire", true);
         }
         nbt.put_int("TicksFrozen", self.frozen_ticks.load(Relaxed));
-        if let Some(custom_name) = &**self.custom_name.load()
-            && let Ok(name_json) = pumpkin_util::serde_json::to_string(custom_name)
-        {
-            nbt.put_string("CustomName", name_json);
+        if let Some(custom_name) = &**self.custom_name.load() {
+            nbt.put(
+                "CustomName",
+                custom_name
+                    .to_nbt_tag_for_version(&pumpkin_util::version::JavaMinecraftVersion::V_26_2),
+            );
         }
         nbt.put_bool("CustomNameVisible", self.custom_name_visible.load(Relaxed));
 
@@ -4242,10 +4244,13 @@ impl Entity {
             .store(nbt.get_bool("HasVisualFire").unwrap_or(false), Relaxed);
         self.frozen_ticks
             .store(nbt.get_int("TicksFrozen").unwrap_or(0), Relaxed);
-        if let Some(name_json) = nbt.get_string("CustomName")
-            && let Ok(component) = pumpkin_util::serde_json::from_str(name_json)
-        {
-            self.custom_name.store(Arc::new(Some(component)));
+        if let Some(tag) = nbt.get("CustomName") {
+            // Read our older JSON-string saves as well as current Java NBT components.
+            let name = tag
+                .extract_string()
+                .and_then(|text| pumpkin_util::serde_json::from_str(text).ok())
+                .unwrap_or_else(|| TextComponent::from_nbt(tag));
+            self.custom_name.store(Arc::new(Some(name)));
         }
         self.custom_name_visible
             .store(nbt.get_bool("CustomNameVisible").unwrap_or(false), Relaxed);

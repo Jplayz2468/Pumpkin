@@ -289,7 +289,9 @@ impl BlockDataAccessor {
 impl DataAccessor for BlockDataAccessor {
     fn set_data(&self, tag: &NbtCompound) -> Result<(), CommandSyntaxError> {
         if self.world.get_block_entity(&self.pos).is_some() {
-            self.world.add_block_entity_nbt(self.pos, tag);
+            let entity = crate::block::entities::block_entity_from_nbt(tag)
+                .ok_or_else(|| ERROR_BLOCK_INVALID.create_without_context())?;
+            self.world.add_block_entity(entity);
             Ok(())
         } else {
             Err(ERROR_BLOCK_INVALID.create_without_context())

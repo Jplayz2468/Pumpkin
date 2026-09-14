@@ -98,7 +98,8 @@ impl JavaClient {
                                     return;
                                 }
                             }
-                            let mut stack = player.inventory().held_item();
+                            let hand = if interact.hand.is_some_and(|h| h.0 == 1) { Hand::Left } else { Hand::Right };
+                            let mut stack = player.inventory().get_stack_in_hand(hand);
 
                             let item_id = stack.item.id;
                             let before = stack.clone();
@@ -118,12 +119,12 @@ impl JavaClient {
                                     );
                                     player.world().send_entity_status(
                                         player.get_entity(),
-                                        equipment_break_status(&EquipmentSlot::MAIN_HAND),
+                                        equipment_break_status(&if hand == Hand::Right { EquipmentSlot::MAIN_HAND } else { EquipmentSlot::OFF_HAND }),
                                         None,
                                     );
                                 }
                             }
-                            player.inventory().set_held_item(stack);
+                            player.inventory().set_stack_in_hand(hand, stack);
                         }
                     }
                 }

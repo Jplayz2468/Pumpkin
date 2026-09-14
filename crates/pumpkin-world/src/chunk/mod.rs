@@ -783,7 +783,7 @@ impl ChunkData {
             ChunkHeightmapType::MotionBlocking,
             ChunkHeightmapType::MotionBlockingNoLeaves,
         ] {
-            heightmap.update(hm_type, x, z, y, block_state, min_y, |y_at| {
+            heightmap.update(hm_type, x, y, z, block_state, min_y, |y_at| {
                 let id = self
                     .section
                     .get_block_absolute_y(relative_x, y_at, relative_z)
@@ -998,6 +998,44 @@ mod tests {
             assert!(cache[0].random_ticking_fluid_count > 0);
             assert!(cache[0].is_randomly_ticking());
         }
+    }
+
+    #[test]
+    fn block_changes_update_the_correct_heightmap_column() {
+        use super::{ChunkData, ChunkHeightmapType};
+        let chunk = ChunkData::empty(0, 0);
+        let min_y = chunk.section.min_y;
+        for (x, z, y) in [(3, 12, 280), (12, 3, 100)] {
+            chunk.set_block_absolute_y(x, y, z, Block::STONE.default_state.id);
+            chunk.set_block_absolute_y(x, y + 4, z, Block::STONE.default_state.id);
+            assert_eq!(
+                chunk.heightmap.lock().unwrap().get(
+                    ChunkHeightmapType::MotionBlocking,
+                    x as i32,
+                    z as i32,
+                    min_y
+                ),
+                y + 4
+            );
+            chunk.set_block_absolute_y(x, y + 4, z, Block::AIR.default_state.id);
+            assert_eq!(
+                chunk.heightmap.lock().unwrap().get(
+                    ChunkHeightmapType::MotionBlocking,
+                    x as i32,
+                    z as i32,
+                    min_y
+                ),
+                y
+            );
+        }
+        assert_eq!(
+            chunk
+                .heightmap
+                .lock()
+                .unwrap()
+                .get(ChunkHeightmapType::MotionBlocking, 3, 12, min_y),
+            280
+        );
     }
 
     #[test]
