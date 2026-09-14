@@ -4597,6 +4597,7 @@ impl World {
             .await;
 
         player.living_entity.reset_state();
+        player.reset_flight_after_respawn();
 
         player.send_permission_lvl_update();
 

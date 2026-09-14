@@ -2950,12 +2950,7 @@ impl Entity {
     pub fn is_sprinting(&self) -> bool {
         self.sprinting.load(Ordering::Relaxed)
     }
-    pub fn check_fall_flying(&self) -> bool {
-        !self.on_ground.load(Relaxed)
-    }
-
     pub fn set_fall_flying(&self, fall_flying: bool) {
-        assert_ne!(self.fall_flying.load(Relaxed), fall_flying);
         self.fall_flying.store(fall_flying, Relaxed);
         self.set_flag(Flag::FallFlying, fall_flying);
     }
@@ -4036,8 +4031,8 @@ impl Entity {
     }
 
     pub fn reset_state(&self) {
-        self.pose.store(EntityPose::Standing);
-        self.fall_flying.store(false, Relaxed);
+        self.set_fall_flying(false);
+        self.set_pose(EntityPose::Standing);
         self.extinguish();
         self.set_on_fire(false);
     }

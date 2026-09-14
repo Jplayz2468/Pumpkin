@@ -49,7 +49,10 @@ impl JavaClient {
         server: &Arc<Server>,
         packet: &SPlayerPosition,
     ) {
-        if !player.has_client_loaded() {
+        if !player.has_client_loaded()
+            || player.living_entity.health.load() <= 0.0
+            || player.living_entity.dead.load(Ordering::Relaxed)
+        {
             return;
         }
         // A movement packet was received this tick — tracked for SClientTickEnd zeroing.
@@ -100,6 +103,7 @@ impl JavaClient {
                 let pos = event.to;
                 let entity = &player.get_entity();
                 let last_pos = entity.pos.load();
+                let previous_movement = player.last_client_movement.swap(pos - last_pos);
                 player.get_entity().set_pos(pos);
 
                 let distance = last_pos.squared_distance_to_vec(&pos).sqrt();
@@ -116,9 +120,6 @@ impl JavaClient {
 
                 let new_on_ground = packet.collision & FLAG_ON_GROUND != 0;
                 entity.on_ground.store(new_on_ground, Ordering::Relaxed);
-                if new_on_ground && entity.is_fall_flying() {
-                    entity.set_fall_flying(false);
-                }
                 let world = &player.world();
 
                 // TODO: Warn when player moves to quickly
@@ -151,18 +152,12 @@ impl JavaClient {
                     );
                 }
 
-                // Only process fall damage if player is alive
-                if !player.abilities.lock().unwrap_or_else(std::sync::PoisonError::into_inner).flying
-                    && player.living_entity.health.load() > 0.0
-                    && !player.living_entity.dead.load(Ordering::Relaxed)
-                {
-                    player.living_entity.fall(
-                        player.as_ref(),
-                        height_difference,
-                        packet.collision & FLAG_ON_GROUND != 0,
-                        player.gamemode.load() == GameMode::Creative,
-                    );
-                }
+                player.handle_flight_movement(
+                    pos - last_pos,
+                    previous_movement,
+                    packet.collision & FLAG_ON_GROUND != 0,
+                    packet.collision & 2 != 0,
+                );
                 chunker::update_position(player);
                 let delta = Vector3::new(
                     pos.x - last_pos.x,
@@ -190,7 +185,10 @@ impl JavaClient {
         server: &Arc<Server>,
         packet: &SPlayerPositionRotation,
     ) {
-        if !player.has_client_loaded() {
+        if !player.has_client_loaded()
+            || player.living_entity.health.load() <= 0.0
+            || player.living_entity.dead.load(Ordering::Relaxed)
+        {
             return;
         }
         // A movement packet was received this tick — tracked for SClientTickEnd zeroing.
@@ -248,6 +246,7 @@ impl JavaClient {
                 let pos = event.to;
                 let entity = &player.get_entity();
                 let last_pos = entity.pos.load();
+                let previous_movement = player.last_client_movement.swap(pos - last_pos);
                 player.get_entity().set_pos(pos);
 
                 let distance = last_pos.squared_distance_to_vec(&pos).sqrt();
@@ -259,7 +258,7 @@ impl JavaClient {
 
                 let height_difference = pos.y - last_pos.y;
                 if entity.on_ground.load(Ordering::Relaxed)
-                    && (packet.collision & FLAG_ON_GROUND) != 0
+                    && (packet.collision & FLAG_ON_GROUND) == 0
                     && height_difference > 0.0
                 {
                     player.jump();
@@ -317,18 +316,12 @@ impl JavaClient {
                         &CHeadRot::new(entity_id.into(), yaw as u8),
                     )
                    ;
-                // Only process fall damage if player is alive
-                if !player.abilities.lock().unwrap_or_else(std::sync::PoisonError::into_inner).flying
-                    && player.living_entity.health.load() > 0.0
-                    && !player.living_entity.dead.load(Ordering::Relaxed)
-                {
-                    player.living_entity.fall(
-                        player.as_ref(),
-                        height_difference,
-                        (packet.collision & FLAG_ON_GROUND) != 0,
-                        player.gamemode.load() == GameMode::Creative,
-                    );
-                }
+                player.handle_flight_movement(
+                    pos - last_pos,
+                    previous_movement,
+                    packet.collision & FLAG_ON_GROUND != 0,
+                    packet.collision & 2 != 0,
+                );
                 chunker::update_position(player);
                 let delta = Vector3::new(
                     pos.x - last_pos.x,

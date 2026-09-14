@@ -1,4 +1,5 @@
 pub mod advancement;
+mod flight;
 pub mod statistics;
 
 use core::f32;
@@ -519,6 +520,8 @@ pub struct Player {
     pub custom_scoreboard: std::sync::Mutex<Option<CustomScoreboard>>,
     pub compass_target: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub respawn_location: AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
+    /// Previous accepted client displacement, independent of server tick timing.
+    pub last_client_movement: AtomicCell<Vector3<f64>>,
     pub hidden_players: Mutex<std::collections::HashSet<uuid::Uuid>>,
     pub advancements: Arc<Mutex<PlayerAdvancement>>,
     pub enchantment_seed: AtomicI32,
@@ -822,6 +825,7 @@ impl Player {
             custom_scoreboard: std::sync::Mutex::new(None),
             compass_target: AtomicCell::new(None),
             respawn_location: AtomicCell::new(None),
+            last_client_movement: AtomicCell::new(Vector3::default()),
             hidden_players: Mutex::new(std::collections::HashSet::new()),
             fishing_bobber: AtomicI32::new(-1),
             bedrock_skin: ArcSwap::new(Arc::new(bedrock_skin)),
@@ -2538,6 +2542,7 @@ impl Player {
     #[expect(clippy::too_many_lines)]
     pub fn tick<'a>(&'a self, server: &'a Server) {
         self.process_inbound_packets();
+        self.update_gliding();
 
         if self.is_spectator() {
             self.living_entity
@@ -3917,6 +3922,7 @@ impl Player {
             }
         }
 
+        self.last_client_movement.store(Vector3::default());
         let i = self.teleport_id_count.fetch_add(1, Ordering::Relaxed);
         self.chunk_send_epoch.fetch_add(1, Ordering::Relaxed);
         let teleport_id = i + 1;
@@ -6982,6 +6988,12 @@ impl Default for Abilities {
 }
 
 impl Abilities {
+    pub fn reset_flight_after_respawn(&mut self, mode: GameMode) {
+        // PlayerList.respawn constructs fresh abilities before restoring the gamemode.
+        self.flying = false;
+        self.set_for_gamemode(mode);
+    }
+
     pub fn read_nbt(&mut self, nbt: &NbtCompound) {
         if let Some(component) = nbt.get_compound("abilities") {
             self.invulnerable = component.get_bool("invulnerable").unwrap_or(false);

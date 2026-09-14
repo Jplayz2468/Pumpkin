@@ -10,6 +10,7 @@ impl JavaClient {
             .received_movement_this_tick
             .swap(false, Ordering::Relaxed)
         {
+            player.last_client_movement.store(Vector3::default());
             player
                 .get_entity()
                 .movement

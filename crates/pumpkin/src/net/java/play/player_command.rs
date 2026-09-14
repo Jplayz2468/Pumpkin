@@ -48,7 +48,7 @@ impl JavaClient {
                 debug!("todo");
             }
             Action::StartFlyingElytra => {
-                let fall_flying = entity.check_fall_flying();
+                let fall_flying = player.can_start_gliding();
                 if entity.is_fall_flying() != fall_flying {
                     let mut event = crate::plugin::api::events::entity::entity_toggle_glide::EntityToggleGlideEvent::new(
                         entity.entity_id,
@@ -57,7 +57,18 @@ impl JavaClient {
                     server.plugin_manager.fire_blocking(server, &mut event);
                     if !event.cancelled {
                         entity.set_fall_flying(event.is_gliding);
+                        player.update_player_pose();
                     }
+                } else if !fall_flying {
+                    // The client may already have predicted gliding; acknowledge
+                    // rejection even when the server flag was already clear.
+                    entity.send_meta_data(
+                        &[pumpkin_protocol::java::client::play::Metadata::new(
+                            pumpkin_data::tracked_data::entity::DATA_SHARED_FLAGS_ID,
+                            entity.flags.load(Ordering::Relaxed),
+                        )],
+                        None,
+                    );
                 }
             }
             // <= 1.21.5

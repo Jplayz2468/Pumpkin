@@ -3,7 +3,7 @@ use super::*;
 
 impl JavaClient {
     pub fn handle_rotation(&self, player: &Player, rotation: &SPlayerRotation) {
-        if !player.has_client_loaded() {
+        if !player.accepts_movement() {
             return;
         }
         // A movement packet was received this tick — tracked for SClientTickEnd zeroing.
@@ -18,7 +18,12 @@ impl JavaClient {
             return;
         }
         let entity = &player.get_entity();
-        entity.on_ground.store(rotation.ground, Ordering::Relaxed);
+        player.handle_flight_movement(
+            Vector3::default(),
+            player.last_client_movement.swap(Vector3::default()),
+            rotation.ground,
+            rotation.horizontal_collision,
+        );
         entity.set_rotation(
             wrap_degrees(rotation.yaw) % 360.0,
             wrap_degrees(rotation.pitch),
