@@ -42,12 +42,21 @@ impl Emergence {
 
     /// NoAI skips the entire Brain step, including memory expiry and activity selection.
     /// Fixed-duration Behavior.tryStart still consumes nextInt(1).
-    pub fn tick(&mut self, time: i64, no_ai: bool, mut next_int: impl FnMut(i32)) -> Transition {
+    #[allow(dead_code)] // Standalone direct-Java contract entry point.
+    pub fn tick(&mut self, time: i64, no_ai: bool, next_int: impl FnMut(i32)) -> Transition {
         if no_ai {
             return Transition::default();
         }
+        self.tick_memories();
+        self.tick_behavior(time, next_int)
+    }
+
+    pub fn tick_memories(&mut self) {
         tick_memory(&mut self.emerging_memory);
         tick_memory(&mut self.dig_cooldown);
+    }
+
+    pub fn tick_behavior(&mut self, time: i64, mut next_int: impl FnMut(i32)) -> Transition {
         let mut change = Transition::default();
         if self.active && self.end_timestamp.is_none() && self.emerging_memory.is_some() {
             next_int(1);

@@ -72,6 +72,7 @@ pub mod warden_damage;
 pub mod warden_dig;
 pub mod warden_emergence;
 pub mod warden_roar;
+mod warden_sonic;
 pub mod warden_target;
 pub mod witch;
 pub mod zoglin;
@@ -778,6 +779,11 @@ pub trait Mob: EntityBase + Send + Sync {
     fn mob_tick(&self, _caller: &dyn EntityBase) {}
 
     fn run_goal_ai(&self) -> bool {
+        true
+    }
+
+    /// Brain-driven mobs can reserve melee through their own attack cooldown memory.
+    fn can_use_melee_attack(&self) -> bool {
         true
     }
 

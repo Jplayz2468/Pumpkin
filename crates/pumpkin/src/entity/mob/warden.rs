@@ -6,13 +6,16 @@ use super::{
     warden_dig::{self, Digging},
     warden_emergence::Emergence,
     warden_roar::Roar,
+    warden_sonic::{self, SonicBoom},
     warden_target::{self, TargetFacts},
 };
 use crate::entity::{EntityBase, spawn::SpawnReason};
 use crate::entity::{RemovalReason, living::get_entity_team};
 use pumpkin_data::{
+    attributes::Attributes,
     damage::DamageType,
-    entity::{EntityPose, EntityType},
+    entity::{EntityPose, EntityStatus, EntityType},
+    particle::Particle,
     sound::{Sound, SoundCategory},
     tag::{self, Taggable},
     tracked_data,
@@ -20,7 +23,9 @@ use pumpkin_data::{
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::{codec::var_int::VarInt, java::client::play::Metadata};
 use pumpkin_util::{
-    math::boundingbox::EntityDimensions, random::RandomImpl, version::JavaMinecraftVersion,
+    math::{boundingbox::EntityDimensions, vector3::Vector3},
+    random::RandomImpl,
+    version::JavaMinecraftVersion,
 };
 use std::collections::HashMap;
 
@@ -51,6 +56,7 @@ pub struct WardenEntity {
     anger: Mutex<AngerState>,
     roar: Mutex<Roar>,
     digging: Mutex<Digging>,
+    sonic: Mutex<SonicBoom>,
     idle_active: std::sync::atomic::AtomicBool,
     fight_active: std::sync::atomic::AtomicBool,
     client_anger: std::sync::atomic::AtomicI32,
@@ -84,6 +90,7 @@ impl WardenEntity {
             }),
             roar: Mutex::new(Roar::default()),
             digging: Mutex::new(Digging::default()),
+            sonic: Mutex::new(SonicBoom::default()),
             idle_active: std::sync::atomic::AtomicBool::new(false),
             fight_active: std::sync::atomic::AtomicBool::new(false),
             client_anger: std::sync::atomic::AtomicI32::new(0),
@@ -255,7 +262,7 @@ impl WardenEntity {
             if roar.target.is_none() && roar.attack_target.is_none() {
                 roar.target = candidate;
             }
-            roar.tick(world.get_world_age(), false, |bound| {
+            roar.tick_behavior(world.get_world_age(), |bound| {
                 world
                     .random
                     .lock()
@@ -300,6 +307,110 @@ impl WardenEntity {
         }
         if let Some(id) = change.attack {
             self.mob_entity.set_target(world.get_entity_by_id(id));
+        }
+    }
+
+    fn tick_sonic(&self) {
+        if self.mob_entity.is_no_ai() {
+            return;
+        }
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        let origin = entity.pos.load();
+        let (change, target) = {
+            // The shared sonic cooldown also receives roar/retaliation writes.
+            let mut roar = self
+                .roar
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let target = roar.attack_target.and_then(|id| world.get_entity_by_id(id));
+            let in_range = target.as_ref().is_some_and(|target| {
+                let p = target.get_entity().pos.load();
+                warden_sonic::in_range([origin.x, origin.y, origin.z], [p.x, p.y, p.z])
+            });
+            let eligible = target
+                .as_ref()
+                .is_some_and(|t| self.can_target_entity(t.as_ref()));
+            let change = self
+                .sonic
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .tick_behavior(
+                    world.get_world_age(),
+                    &mut roar.sonic_cooldown,
+                    &warden_sonic::Facts {
+                        active: self.fight_active.load(Ordering::Relaxed),
+                        attack: target.is_some(),
+                        eligible,
+                        in_range,
+                    },
+                    |bound| {
+                        world
+                            .random
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .next_bounded_i32(bound);
+                    },
+                );
+            (change, target)
+        };
+        if change.start {
+            world.send_entity_status(entity, EntityStatus::SonicCharge, None);
+            world.play_sound_fine(
+                Sound::EntityWardenSonicCharge,
+                SoundCategory::Hostile,
+                &origin,
+                3.0,
+                1.0,
+            );
+        }
+        let Some(target) = target else {
+            return;
+        };
+        if change.look {
+            self.mob_entity
+                .look_control
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .look_at_position(self, target.get_entity().pos.load());
+        }
+        if change.fire {
+            let eye = target.get_entity().get_eye_pos();
+            // The pinned Warden registry's WARDEN_CHEST attachment is (0,1.6f,0).
+            let beam = warden_sonic::Beam::new(
+                [origin.x, origin.y + f64::from(1.6_f32), origin.z],
+                [eye.x, eye.y, eye.z],
+            );
+            for [x, y, z] in &beam.particles {
+                world.spawn_particles(
+                    Particle::SonicBoom,
+                    Vector3::new(*x, *y, *z),
+                    1,
+                    Vector3::new(0.0, 0.0, 0.0),
+                    0.0,
+                );
+            }
+            world.play_sound_fine(
+                Sound::EntityWardenSonicBoom,
+                SoundCategory::Hostile,
+                &origin,
+                3.0,
+                1.0,
+            );
+            if target.damage_with_context(
+                target.as_ref(),
+                10.0,
+                DamageType::SONIC_BOOM,
+                None,
+                Some(self),
+                Some(self),
+            ) {
+                if let Some(living) = target.get_living_entity() {
+                    let [x, y, z] =
+                        beam.push(living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE));
+                    target.get_entity().add_velocity(Vector3::new(x, y, z));
+                }
+            }
         }
     }
 
@@ -535,17 +646,34 @@ impl Mob for WardenEntity {
         }
         let entity = self.get_entity();
         let world = entity.world.load();
-        let transition = self
-            .emergence
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .tick(world.get_world_age(), self.mob_entity.is_no_ai(), |bound| {
-                world
-                    .random
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .next_bounded_i32(bound);
-            });
+        if !self.mob_entity.is_no_ai() {
+            self.emergence
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .tick_memories();
+            self.roar
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .tick_memories();
+            self.sonic
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .tick_memories();
+        }
+        let transition = if self.mob_entity.is_no_ai() {
+            super::warden_emergence::Transition::default()
+        } else {
+            self.emergence
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .tick_behavior(world.get_world_age(), |bound| {
+                    world
+                        .random
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner)
+                        .next_bounded_i32(bound);
+                })
+        };
         if transition.start {
             entity.set_pose(EntityPose::Emerging);
             world.play_sound_fine(
@@ -565,6 +693,7 @@ impl Mob for WardenEntity {
         }
         self.tick_roar();
         self.validate_fight_target();
+        self.tick_sonic();
         if !self.mob_entity.is_no_ai() && entity.tick_count.load(Ordering::Relaxed) % 20 == 0 {
             self.tick_anger();
         }
@@ -573,6 +702,14 @@ impl Mob for WardenEntity {
 
     fn run_goal_ai(&self) -> bool {
         !self.is_digging_or_emerging() && self.get_entity().pose.load() != EntityPose::Roaring
+    }
+
+    fn can_use_melee_attack(&self) -> bool {
+        self.sonic
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .melee_cooldown
+            .is_none()
     }
 
     fn mob_is_pushable(&self) -> bool {
@@ -707,6 +844,24 @@ impl Mob for WardenEntity {
             }
         }
         drop(roar);
+        let sonic = self
+            .sonic
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for (name, ttl) in [
+            ("minecraft:sonic_boom_sound_delay", sonic.sound_delay),
+            ("minecraft:sonic_boom_sound_cooldown", sonic.sound_cooldown),
+        ] {
+            if let Some(ttl) = ttl {
+                let mut memory = NbtCompound::new();
+                memory.put_compound("value", NbtCompound::new());
+                if ttl != i64::MAX {
+                    memory.put_long("ttl", ttl);
+                }
+                memories.put_compound(name, memory);
+            }
+        }
+        drop(sonic);
         let mut brain = NbtCompound::new();
         brain.put_compound("memories", memories);
         nbt.put_compound("Brain", brain);
@@ -758,6 +913,14 @@ impl Mob for WardenEntity {
             .digging
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Digging::default();
+        *self
+            .sonic
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = SonicBoom {
+            sound_delay: read("minecraft:sonic_boom_sound_delay"),
+            sound_cooldown: read("minecraft:sonic_boom_sound_cooldown"),
+            ..SonicBoom::default()
+        };
         self.idle_active.store(false, Ordering::Relaxed);
         self.fight_active.store(false, Ordering::Relaxed);
         self.set_client_anger(0);

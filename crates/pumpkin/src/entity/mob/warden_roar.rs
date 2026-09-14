@@ -31,13 +31,22 @@ fn tick_memory(memory: &mut Option<i64>) {
     }
 }
 impl Roar {
-    pub fn tick(&mut self, time: i64, no_ai: bool, mut next_int: impl FnMut(i32)) -> Transition {
+    #[allow(dead_code)] // Standalone direct-Java contract entry point.
+    pub fn tick(&mut self, time: i64, no_ai: bool, next_int: impl FnMut(i32)) -> Transition {
         if no_ai {
             return Transition::default();
         }
+        self.tick_memories();
+        self.tick_behavior(time, next_int)
+    }
+
+    pub fn tick_memories(&mut self) {
         tick_memory(&mut self.sound_delay);
         tick_memory(&mut self.sound_cooldown);
         tick_memory(&mut self.sonic_cooldown);
+    }
+
+    pub fn tick_behavior(&mut self, time: i64, mut next_int: impl FnMut(i32)) -> Transition {
         let mut change = Transition::default();
         if self.active && self.end_timestamp.is_none() && self.attack_target.is_none() {
             if let Some(target) = self.target {
