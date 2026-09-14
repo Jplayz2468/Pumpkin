@@ -174,6 +174,7 @@ pub mod end_podium;
 pub mod entity_tracker;
 pub mod environment;
 pub mod natural_spawner;
+pub mod precipitation;
 pub mod scoreboard;
 pub mod weather;
 
@@ -2107,7 +2108,24 @@ impl World {
         let random_ticks = self.level.get_random_ticks(&active_chunks, random_tick_speed);
         let handle = server.runtime.clone();
 
-        // 1. Random Ticks -- sequential, in collection order.
+        // 1. Ice and Snow / Precipitation ticking
+        // Reference: Vanilla Java 26.2 `ServerLevel.java:506-510` (`iceandsnow` phase in `tickChunk`).
+        if random_tick_speed > 0 {
+            let mut active_chunks_sorted: Vec<_> = active_chunks.iter().copied().collect();
+            active_chunks_sorted.sort_unstable_by_key(|pos| (pos.x, pos.y));
+            for chunk_pos in &active_chunks_sorted {
+                let min_x = chunk_pos.x * 16;
+                let min_z = chunk_pos.y * 16;
+                for _ in 0..random_tick_speed {
+                    if self.rand_bounded_i32(48) == 0 {
+                        let random_pos = self.level.get_block_random_pos(min_x, 0, min_z, 15);
+                        precipitation::tick_precipitation(self, random_pos);
+                    }
+                }
+            }
+        }
+
+        // 2. Random Ticks -- sequential, in collection order.
         let world = self.clone();
         let random_handle = handle.clone();
         {
@@ -2640,6 +2658,13 @@ impl World {
                 .get_biome(pos)
                 .weather
                 .is_rain_at(pos.0.x, pos.0.y, pos.0.z, self.sea_level)
+    }
+
+    /// Ticks precipitation at the given column position.
+    ///
+    /// Reference: Vanilla Java 26.2 `ServerLevel.java:581-611` (`tickPrecipitation`).
+    pub fn tick_precipitation(self: &Arc<Self>, pos: BlockPos) {
+        precipitation::tick_precipitation(self, pos);
     }
 
     pub fn set_raining(&self, raining: bool) {

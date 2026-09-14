@@ -142,9 +142,39 @@ impl Weather {
     }
 
     #[must_use]
+    pub fn cold_enough_to_snow(&self, x: i32, y: i32, z: i32, sea_level: i32) -> bool {
+        !self.warm_enough_to_rain(x, y, z, sea_level)
+    }
+
+    #[must_use]
+    pub fn get_precipitation_at(
+        &self,
+        x: i32,
+        y: i32,
+        z: i32,
+        sea_level: i32,
+    ) -> BiomePrecipitation {
+        if !self.has_precipitation {
+            BiomePrecipitation::None
+        } else if self.cold_enough_to_snow(x, y, z, sea_level) {
+            BiomePrecipitation::Snow
+        } else {
+            BiomePrecipitation::Rain
+        }
+    }
+
+    #[must_use]
     pub fn is_rain_at(&self, x: i32, y: i32, z: i32, sea_level: i32) -> bool {
         self.has_precipitation && self.warm_enough_to_rain(x, y, z, sea_level)
     }
+}
+
+/// Vanilla `Biome.Precipitation`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BiomePrecipitation {
+    None,
+    Rain,
+    Snow,
 }
 
 #[cfg(test)]
@@ -167,5 +197,30 @@ mod tests {
     fn cold_precipitation_is_snow() {
         let weather = Weather::new(true, 0.0, TemperatureModifier::None, 0.0);
         assert!(!weather.is_rain_at(0, 64, 0, 63));
+    }
+
+    #[test]
+    fn precipitation_types_match_vanilla() {
+        use super::BiomePrecipitation;
+
+        let no_precip = Weather::new(false, 0.5, TemperatureModifier::None, 0.0);
+        assert_eq!(
+            no_precip.get_precipitation_at(0, 64, 0, 63),
+            BiomePrecipitation::None
+        );
+
+        let warm = Weather::new(true, 0.8, TemperatureModifier::None, 0.4);
+        assert_eq!(
+            warm.get_precipitation_at(0, 64, 0, 63),
+            BiomePrecipitation::Rain
+        );
+        assert!(!warm.cold_enough_to_snow(0, 64, 0, 63));
+
+        let cold = Weather::new(true, 0.0, TemperatureModifier::None, 0.5);
+        assert_eq!(
+            cold.get_precipitation_at(0, 64, 0, 63),
+            BiomePrecipitation::Snow
+        );
+        assert!(cold.cold_enough_to_snow(0, 64, 0, 63));
     }
 }
