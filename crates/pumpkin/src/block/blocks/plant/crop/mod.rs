@@ -9,7 +9,6 @@ use pumpkin_data::{
 };
 use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
-use rand::RngExt;
 
 use crate::{block::blocks::plant::PlantBlockBase, world::World};
 
@@ -53,8 +52,10 @@ trait CropBlockBase: PlantBlockBase {
         props.to_state_id(block)
     }
 
-    fn bonemeal_age_increase(&self) -> i32 {
-        rand::rng().random_range(2..=5)
+    /// Vanilla `CropBlock.getBonemealAgeIncrease`: `Mth.nextInt(level.getRandom(), 2, 5)`,
+    /// which is `random.nextInt(5 - 2 + 1) + 2` (`Mth.java:147`).
+    fn bonemeal_age_increase(&self, world: &World) -> i32 {
+        world.rand_bounded_i32(4) + 2
     }
 
     fn is_valid_bonemeal_target(&self, world: &World, pos: &BlockPos) -> bool {
@@ -65,7 +66,7 @@ trait CropBlockBase: PlantBlockBase {
     fn perform_bonemeal(&self, world: &Arc<World>, pos: &BlockPos) {
         let (block, state) = world.get_block_and_state_id(pos);
         let age = self.get_age(state, block);
-        let new_age = (age + self.bonemeal_age_increase()).min(self.max_age());
+        let new_age = (age + self.bonemeal_age_increase(world)).min(self.max_age());
         world.set_block_state(
             pos,
             self.state_with_age(block, state, new_age),
@@ -74,11 +75,14 @@ trait CropBlockBase: PlantBlockBase {
     }
 
     fn random_tick(&self, world: &Arc<World>, pos: &BlockPos) {
+        if world.get_raw_brightness(pos, 0) < 9 {
+            return;
+        }
         let (block, state) = world.get_block_and_state_id(pos);
         let age = self.get_age(state, block);
         if age < self.max_age() {
             let f = get_available_moisture(world, pos, block);
-            if rand::rng().random_range(0..=(25.0 / f).floor() as i64) == 0 {
+            if world.rand_bounded_i32((25.0f32 / f) as i32 + 1) == 0 {
                 let new_state_id = self.state_with_age(block, state, age + 1);
                 if let Some(server) = world.server.upgrade() {
                     let mut event =

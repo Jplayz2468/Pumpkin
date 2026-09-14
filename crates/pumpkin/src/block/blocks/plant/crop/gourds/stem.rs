@@ -94,7 +94,7 @@ impl BlockBehaviour for StemBlock {
     fn random_tick(&self, args: RandomTickArgs<'_>) {
         // TODO add light level check
         let f: f32 = get_available_moisture(args.world, args.position, args.block);
-        if rand::rng().random_range(0..=(25.0 / f).floor() as i32) == 0 {
+        if args.world.rand_bounded_i32((25.0f32 / f) as i32 + 1) == 0 {
             let (block, state) = args.world.get_block_and_state_id(args.position);
             let props = StemProperties::from_state_id(state);
             let age = i32::from(props.age);

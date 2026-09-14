@@ -1,10 +1,10 @@
+use crate::world::World;
 use pumpkin_data::Block;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::TorchflowerCropLikeProperties;
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::BlockAccessor;
-use rand::RngExt;
 
 use crate::block::blocks::plant::PlantBlockBase;
 use crate::block::blocks::plant::crop::CropBlockBase;
@@ -41,7 +41,9 @@ impl BlockBehaviour for TorchFlowerBlock {
     }
 
     fn random_tick(&self, args: RandomTickArgs<'_>) {
-        if rand::rng().random_range(0..2) != 0 {
+        // Vanilla `TorchflowerCropBlock.randomTick`: `random.nextInt(3) != 0`
+        // (`TorchflowerCropBlock.java:67`). The bound was 2 here, growing it too fast.
+        if args.world.rand_bounded_i32(3) != 0 {
             <Self as CropBlockBase>::random_tick(self, args.world, args.position);
         }
     }
@@ -56,7 +58,7 @@ impl PlantBlockBase for TorchFlowerBlock {
 }
 
 impl CropBlockBase for TorchFlowerBlock {
-    fn bonemeal_age_increase(&self) -> i32 {
+    fn bonemeal_age_increase(&self, _world: &World) -> i32 {
         1
     }
 

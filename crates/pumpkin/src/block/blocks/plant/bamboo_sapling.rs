@@ -6,7 +6,6 @@ use pumpkin_data::{
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
-use rand::RngExt;
 
 use crate::block::{
     BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnNeighborUpdateArgs,
@@ -64,8 +63,13 @@ impl BlockBehaviour for BambooSaplingBlock {
     }
 
     fn random_tick(&self, args: crate::block::RandomTickArgs<'_>) {
-        let state_above = args.world.get_block_state(&args.position.up());
-        if !state_above.is_air() || rand::rng().random_range(0..3) > 0 {
+        // Draw first: vanilla evaluates `random.nextInt(3) == 0` before the block and
+        // light checks (`BambooSaplingBlock.java:41`), so the stream must advance even
+        // when the space above is occupied.
+        let roll = args.world.rand_bounded_i32(3);
+        let above = args.position.up();
+        let state_above = args.world.get_block_state(&above);
+        if roll != 0 || !state_above.is_air() || args.world.get_raw_brightness(&above, 0) < 9 {
             return;
         }
         grow_bamboo(args.world, args.position);

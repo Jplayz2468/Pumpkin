@@ -1,3 +1,4 @@
+use crate::world::World;
 use pumpkin_data::Block;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::NetherWartLikeProperties;
@@ -56,8 +57,10 @@ impl PlantBlockBase for BeetrootBlock {
 }
 
 impl CropBlockBase for BeetrootBlock {
-    fn bonemeal_age_increase(&self) -> i32 {
-        rand::rng().random_range(2..=5) / 3
+    /// Vanilla `BeetrootBlock.getBonemealAgeIncrease`: `super.getBonemealAgeIncrease(level) / 3`
+    /// (`BeetrootBlock.java:57`) -- the whole parent result is divided, not just the offset.
+    fn bonemeal_age_increase(&self, world: &World) -> i32 {
+        (world.rand_bounded_i32(4) + 2) / 3
     }
 
     fn max_age(&self) -> i32 {

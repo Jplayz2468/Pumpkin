@@ -127,7 +127,7 @@ impl BlockBehaviour for SweetBerryBushBlock {
     }
 
     fn random_tick(&self, args: RandomTickArgs<'_>) {
-        if rand::rng().random_range(0..5) == 0 {
+        if args.world.rand_bounded_i32(5) == 0 {
             <Self as CropBlockBase>::random_tick(self, args.world, args.position);
         }
     }
@@ -152,7 +152,7 @@ impl PlantBlockBase for SweetBerryBushBlock {
 }
 
 impl CropBlockBase for SweetBerryBushBlock {
-    fn bonemeal_age_increase(&self) -> i32 {
+    fn bonemeal_age_increase(&self, _world: &World) -> i32 {
         1
     }
 
