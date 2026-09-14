@@ -109,3 +109,23 @@ impl BlockBehaviour for TargetBlock {
         props.to_state_id(args.block)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_target_bullseye_gives_15() {
+        // Bullseye exactly at center (0.5, 0.5, 0.5)
+        let hit = Vector3::new(10.5, 64.5, 20.0);
+        assert_eq!(get_redstone_strength(&hit), 15);
+    }
+
+    #[test]
+    fn test_target_edge_gives_at_least_1() {
+        // Edge hit at boundary
+        let hit = Vector3::new(10.99, 64.99, 20.0);
+        let strength = get_redstone_strength(&hit);
+        assert!(strength >= 1 && strength <= 15);
+    }
+}

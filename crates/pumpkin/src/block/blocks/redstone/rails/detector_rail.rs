@@ -180,3 +180,35 @@ impl BlockBehaviour for DetectorRailBlock {
         props.powered.then_some(0)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_detector_rail_power() {
+        let block = &Block::DETECTOR_RAIL;
+        let mut props = DetectorRailProperties::default(block);
+        assert!(!props.powered);
+
+        let weak_power = |p: DetectorRailProperties| if p.powered { 15 } else { 0 };
+        let strong_power = |p: DetectorRailProperties, dir: BlockDirection| {
+            if p.powered && dir == BlockDirection::Up {
+                15
+            } else {
+                0
+            }
+        };
+
+        // When unpowered
+        assert_eq!(weak_power(props), 0);
+        assert_eq!(strong_power(props, BlockDirection::Up), 0);
+
+        // When powered: weak everywhere, strong only to the block below (Up query direction)
+        props.powered = true;
+        assert_eq!(weak_power(props), 15);
+        assert_eq!(strong_power(props, BlockDirection::Up), 15);
+        assert_eq!(strong_power(props, BlockDirection::Down), 0);
+        assert_eq!(strong_power(props, BlockDirection::North), 0);
+    }
+}

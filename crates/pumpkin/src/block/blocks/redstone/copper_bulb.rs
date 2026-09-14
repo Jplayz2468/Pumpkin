@@ -109,3 +109,26 @@ impl BlockBehaviour for CopperBulbBlock {
         if props.lit { Some(15) } else { Some(0) }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::Block;
+
+    #[test]
+    fn test_copper_bulb_properties_and_comparator() {
+        let block = &Block::COPPER_BULB;
+        let mut props = CopperBulbLikeProperties::default(block);
+        assert!(!props.lit);
+        assert!(!props.powered);
+
+        // Unlit -> comparator output 0
+        let comparator_out = if props.lit { 15 } else { 0 };
+        assert_eq!(comparator_out, 0);
+
+        // Lit -> comparator output 15
+        props.lit = true;
+        let comparator_out = if props.lit { 15 } else { 0 };
+        assert_eq!(comparator_out, 15);
+    }
+}

@@ -58,7 +58,10 @@ fn ring_bell(
         2.0,
     );
 
-    //TODO Emit game event: BLOCK_CHANGE -> Send block update Packet
+    world.emit_game_event(
+        pumpkin_data::game_event::GameEvent::BlockChange.name(),
+        position.to_centered_f64(),
+    );
     true
 }
 

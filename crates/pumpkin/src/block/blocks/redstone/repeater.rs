@@ -234,3 +234,33 @@ impl RepeaterBlock {
         Self::get_max_input_level_sides(self, world, pos, state_id, block, true) > 0
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_repeater_delays() {
+        let block = &Block::REPEATER;
+        for delay in 1..=4 {
+            let mut props = RepeaterProperties::default(block);
+            props.delay = delay;
+            let state_id = props.to_state_id(block);
+            assert_eq!(
+                RepeaterBlock.get_update_delay_internal(state_id, block),
+                delay * 2
+            );
+        }
+    }
+
+    #[test]
+    fn test_repeater_cycle_delay() {
+        let block = &Block::REPEATER;
+        let mut props = RepeaterProperties::default(block);
+        props.delay = 1;
+        for expected in [2, 3, 4, 1] {
+            props.delay = if props.delay == 4 { 1 } else { props.delay + 1 };
+            assert_eq!(props.delay, expected);
+        }
+    }
+}

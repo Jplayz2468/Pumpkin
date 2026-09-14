@@ -244,6 +244,10 @@ pub fn get_power_on_side(
     let side_direction = side.to_block_direction();
 
     if only_gate {
+        // Vanilla SignalGetter.getControlInputSignal(pos, dir, onlyDiodes=true):
+        // `DiodeBlock.isDiode(state) ? getDirectSignal(...) : 0` -- no redstone-block
+        // special case here. A repeater's side lock (sideInputDiodesOnly=true) only
+        // responds to an actual diode facing into it, not to a plain Redstone Block.
         if is_diode(side_block) {
             world.block_registry.get_strong_redstone_power(
                 side_block,

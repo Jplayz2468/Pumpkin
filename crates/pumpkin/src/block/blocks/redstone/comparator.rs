@@ -297,11 +297,7 @@ impl ComparatorBlock {
         }
 
         let props = ComparatorLikeProperties::from_state_id(state.id);
-        if props.mode == ModeComparator::Subtract {
-            power - sub_power
-        } else {
-            power
-        }
+        calculate_comparator_math(power, sub_power, props.mode)
     }
 
     fn get_attached_itemframe_level(
@@ -355,5 +351,54 @@ impl ComparatorBlock {
 
             RedstoneGateBlock::update_target(self, world, pos, props.to_state_id(block), block);
         }
+    }
+}
+
+/// Pure function for comparator signal logic matching ComparatorBlock.java:71-83:
+/// In compare mode: returns input if input >= side_input, else 0.
+/// In subtract mode: returns max(0, input - side_input).
+#[must_use]
+pub fn calculate_comparator_math(input: u8, side_input: u8, mode: ModeComparator) -> u8 {
+    if input == 0 || side_input > input {
+        0
+    } else {
+        match mode {
+            ModeComparator::Compare => input,
+            ModeComparator::Subtract => input - side_input,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_comparator_compare_mode() {
+        // In compare mode: pass-through if input >= side, else 0
+        assert_eq!(calculate_comparator_math(15, 0, ModeComparator::Compare), 15);
+        assert_eq!(calculate_comparator_math(10, 5, ModeComparator::Compare), 10);
+        assert_eq!(calculate_comparator_math(10, 10, ModeComparator::Compare), 10);
+        assert_eq!(calculate_comparator_math(10, 11, ModeComparator::Compare), 0);
+        assert_eq!(calculate_comparator_math(0, 5, ModeComparator::Compare), 0);
+    }
+
+    #[test]
+    fn test_comparator_subtract_mode() {
+        // In subtract mode: input - side_input, clamped at 0
+        assert_eq!(calculate_comparator_math(15, 0, ModeComparator::Subtract), 15);
+        assert_eq!(calculate_comparator_math(15, 5, ModeComparator::Subtract), 10);
+        assert_eq!(calculate_comparator_math(10, 10, ModeComparator::Subtract), 0);
+        assert_eq!(calculate_comparator_math(10, 15, ModeComparator::Subtract), 0);
+        assert_eq!(calculate_comparator_math(0, 5, ModeComparator::Subtract), 0);
+    }
+
+    #[test]
+    fn test_comparator_delay() {
+        // Comparator delay is always 2 game ticks (1 redstone tick)
+        assert_eq!(
+            ComparatorBlock.get_update_delay_internal(Block::COMPARATOR.default_state.id, &Block::COMPARATOR),
+            2
+        );
     }
 }

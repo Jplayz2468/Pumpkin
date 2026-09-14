@@ -64,3 +64,21 @@ impl BlockBehaviour for RedstoneLamp {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::Block;
+
+    #[test]
+    fn test_redstone_lamp_properties() {
+        let block = &Block::REDSTONE_LAMP;
+        let mut props = RedstoneLampProperties::default(block);
+        assert!(!props.lit);
+
+        props.lit = true;
+        let state_id = props.to_state_id(block);
+        let restored = RedstoneLampProperties::from_state_id(state_id);
+        assert!(restored.lit);
+    }
+}

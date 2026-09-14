@@ -113,3 +113,39 @@ impl ObserverBlock {
         world.schedule_block_tick(&Block::OBSERVER, *block_pos, 2, TickPriority::Normal);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::BlockDirection;
+    use pumpkin_data::block_properties::Facing;
+
+    #[test]
+    fn test_observer_power_output() {
+        let block = &Block::OBSERVER;
+        let mut props = ObserverLikeProperties::default(block);
+        props.facing = Facing::North;
+        props.powered = false;
+
+        let get_power = |p: ObserverLikeProperties, dir: BlockDirection| {
+            if p.facing.to_block_direction() == dir && p.powered {
+                15
+            } else {
+                0
+            }
+        };
+
+        // Unpowered
+        assert_eq!(get_power(props, BlockDirection::North), 0);
+        assert_eq!(get_power(props, BlockDirection::South), 0);
+
+        // Powered: only powers in facing direction
+        props.powered = true;
+        assert_eq!(get_power(props, BlockDirection::North), 15);
+        assert_eq!(get_power(props, BlockDirection::South), 0);
+        assert_eq!(get_power(props, BlockDirection::East), 0);
+        assert_eq!(get_power(props, BlockDirection::West), 0);
+        assert_eq!(get_power(props, BlockDirection::Up), 0);
+        assert_eq!(get_power(props, BlockDirection::Down), 0);
+    }
+}

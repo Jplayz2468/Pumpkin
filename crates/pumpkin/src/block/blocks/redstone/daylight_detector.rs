@@ -105,3 +105,36 @@ impl DaylightDetectorBlock {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_daylight_detector_noon() {
+        // At midday: sky brightness 15, sun angle 0 -> max signal 15
+        let signal = DaylightDetectorBlock::calculate_signal_strength(15, 0.0, false);
+        assert_eq!(signal, 15);
+    }
+
+    #[test]
+    fn test_daylight_detector_night() {
+        // At night: sky brightness 0 -> signal 0
+        let signal = DaylightDetectorBlock::calculate_signal_strength(0, 0.0, false);
+        assert_eq!(signal, 0);
+    }
+
+    #[test]
+    fn test_inverted_daylight_detector_night() {
+        // Inverted at night: 15 - 0 = 15
+        let signal = DaylightDetectorBlock::calculate_signal_strength(0, 0.0, true);
+        assert_eq!(signal, 15);
+    }
+
+    #[test]
+    fn test_inverted_daylight_detector_noon() {
+        // Inverted at noon: 15 - 15 = 0
+        let signal = DaylightDetectorBlock::calculate_signal_strength(15, 0.0, true);
+        assert_eq!(signal, 0);
+    }
+}

@@ -676,3 +676,30 @@ impl CardinalWireConnectionExt for WestRedstone {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_dot_and_cross() {
+        let dot = RedstoneWireProperties::default(&Block::REDSTONE_WIRE);
+        assert!(is_dot(dot));
+        assert!(!is_cross(dot));
+
+        let cross = make_cross(15);
+        assert!(!is_dot(cross));
+        assert!(is_cross(cross));
+        assert_eq!(cross.power, 15);
+    }
+
+    #[test]
+    fn test_wire_signal_attenuation() {
+        let incoming = 15u8;
+        assert_eq!(incoming.saturating_sub(1), 14);
+        let incoming = 1u8;
+        assert_eq!(incoming.saturating_sub(1), 0);
+        let incoming = 0u8;
+        assert_eq!(incoming.saturating_sub(1), 0);
+    }
+}

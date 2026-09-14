@@ -1,4 +1,5 @@
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, Mutex};
 
 use crate::block::BlockIsReplacing;
 use crate::block::CanPlaceAtArgs;
@@ -18,6 +19,7 @@ use pumpkin_data::BlockStateId;
 use pumpkin_data::FacingExt;
 use pumpkin_data::HorizontalFacingExt;
 use pumpkin_data::block_properties::Facing;
+use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockAccessor;
@@ -30,6 +32,36 @@ use crate::block::{BlockBehaviour, BlockMetadata};
 use crate::world::World;
 
 use super::get_redstone_power;
+
+static RECENT_TOGGLES: LazyLock<Mutex<HashMap<(uuid::Uuid, BlockPos), Vec<i64>>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Checks if a torch at `pos` has been toggled >= 8 times in 60 ticks (burnout).
+/// Matches vanilla RedstoneTorchBlock.java:133-150.
+///
+/// Vanilla keys `RECENT_TOGGLES` per-level (`Map<BlockGetter, List<Toggle>>`), not by
+/// position alone -- two torches at the same coordinates in different dimensions (or
+/// separate worlds) must not share burnout state. `world_id` carries that distinction.
+pub fn is_toggled_too_frequently(
+    world_id: uuid::Uuid,
+    pos: BlockPos,
+    current_time: i64,
+    add: bool,
+) -> bool {
+    let mut lock = RECENT_TOGGLES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let entries = lock.entry((world_id, pos)).or_default();
+    entries.retain(|&time| current_time.saturating_sub(time) <= 60);
+
+    if add {
+        entries.push(current_time);
+    }
+
+    let too_frequent = entries.len() >= 8;
+    if entries.is_empty() {
+        lock.remove(&(world_id, pos));
+    }
+    too_frequent
+}
 
 pub struct RedstoneTorchBlock;
 
@@ -130,43 +162,29 @@ impl BlockBehaviour for RedstoneTorchBlock {
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        {
-            let state = args.world.get_block_state(args.position);
+        if args.world.is_block_tick_scheduled(args.position, args.block) {
+            return;
+        }
 
-            if args
-                .world
-                .is_block_tick_scheduled(args.position, args.block)
-            {
-                return;
-            }
+        let state = args.world.get_block_state(args.position);
+        let (lit, neighbor_signal) = if args.block == &Block::REDSTONE_WALL_TORCH {
+            let props = RWallTorchProps::from_state_id(state.id);
+            let face = props.facing.to_block_direction().opposite();
+            (props.lit, !should_be_lit(args.world, args.position, face))
+        } else if args.block == &Block::REDSTONE_TORCH {
+            let props = RTorchProps::from_state_id(state.id);
+            (props.lit, !should_be_lit(args.world, args.position, BlockDirection::Down))
+        } else {
+            return;
+        };
 
-            if args.block == &Block::REDSTONE_WALL_TORCH {
-                let props = RWallTorchProps::from_state_id(state.id);
-                if props.lit
-                    != should_be_lit(
-                        args.world,
-                        args.position,
-                        props.facing.to_block_direction().opposite(),
-                    )
-                {
-                    args.world.schedule_block_tick(
-                        args.block,
-                        *args.position,
-                        2,
-                        TickPriority::Normal,
-                    );
-                }
-            } else if args.block == &Block::REDSTONE_TORCH {
-                let props = RTorchProps::from_state_id(state.id);
-                if props.lit != should_be_lit(args.world, args.position, BlockDirection::Down) {
-                    args.world.schedule_block_tick(
-                        args.block,
-                        *args.position,
-                        2,
-                        TickPriority::Normal,
-                    );
-                }
-            }
+        if lit == neighbor_signal {
+            args.world.schedule_block_tick(
+                args.block,
+                *args.position,
+                2,
+                TickPriority::Normal,
+            );
         }
     }
 
@@ -208,34 +226,44 @@ impl BlockBehaviour for RedstoneTorchBlock {
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
         let (block, state) = args.world.get_block_and_state(args.position);
-        if block == &Block::REDSTONE_WALL_TORCH {
-            let mut props = RWallTorchProps::from_state_id(state.id);
-            let should_be_lit_now = should_be_lit(
-                args.world,
-                args.position,
-                props.facing.to_block_direction().opposite(),
-            );
-            if props.lit != should_be_lit_now {
-                props.lit = should_be_lit_now;
-                args.world.set_block_state(
-                    args.position,
-                    props.to_state_id(block),
-                    BlockFlags::NOTIFY_ALL,
-                );
-                update_neighbors(args.world, args.position);
-            }
+        let current_time = args.world.get_world_age();
+
+        let (lit, neighbor_signal) = if block == &Block::REDSTONE_WALL_TORCH {
+            let props = RWallTorchProps::from_state_id(state.id);
+            let face = props.facing.to_block_direction().opposite();
+            (props.lit, !should_be_lit(args.world, args.position, face))
         } else if block == &Block::REDSTONE_TORCH {
-            let mut props = RTorchProps::from_state_id(state.id);
-            let should_be_lit_now = should_be_lit(args.world, args.position, BlockDirection::Down);
-            if props.lit != should_be_lit_now {
-                props.lit = should_be_lit_now;
-                args.world.set_block_state(
-                    args.position,
-                    props.to_state_id(block),
-                    BlockFlags::NOTIFY_ALL,
-                );
+            let props = RTorchProps::from_state_id(state.id);
+            (props.lit, !should_be_lit(args.world, args.position, BlockDirection::Down))
+        } else {
+            return;
+        };
+
+        if lit {
+            if neighbor_signal {
+                Self::set_lit(args.world, args.position, block, state.id, false);
                 update_neighbors(args.world, args.position);
+                if is_toggled_too_frequently(args.world.uuid, *args.position, current_time, true) {
+                    args.world.play_sound_raw(
+                        Sound::BlockRedstoneTorchBurnout as u16,
+                        SoundCategory::Blocks,
+                        &args.position.to_centered_f64(),
+                        0.5,
+                        2.6 + (args.world.rand_f32() - args.world.rand_f32()) * 0.8,
+                    );
+                    args.world.schedule_block_tick(
+                        block,
+                        *args.position,
+                        160,
+                        TickPriority::Normal,
+                    );
+                }
             }
+        } else if !neighbor_signal
+            && !is_toggled_too_frequently(args.world.uuid, *args.position, current_time, false)
+        {
+            Self::set_lit(args.world, args.position, block, state.id, true);
+            update_neighbors(args.world, args.position);
         }
     }
 
@@ -245,6 +273,27 @@ impl BlockBehaviour for RedstoneTorchBlock {
 
     fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
         update_neighbors(args.world, args.position);
+    }
+}
+
+impl RedstoneTorchBlock {
+    fn set_lit(
+        world: &Arc<World>,
+        pos: &BlockPos,
+        block: &Block,
+        state_id: BlockStateId,
+        lit: bool,
+    ) {
+        let new_state = if block == &Block::REDSTONE_WALL_TORCH {
+            let mut props = RWallTorchProps::from_state_id(state_id);
+            props.lit = lit;
+            props.to_state_id(block)
+        } else {
+            let mut props = RTorchProps::from_state_id(state_id);
+            props.lit = lit;
+            props.to_state_id(block)
+        };
+        world.set_block_state(pos, new_state, BlockFlags::NOTIFY_ALL);
     }
 }
 
@@ -265,4 +314,46 @@ fn can_place_at(world: &dyn BlockAccessor, block_pos: &BlockPos, facing: BlockDi
     world
         .get_block_state(&block_pos.offset(facing.to_offset()))
         .is_side_solid(facing.opposite())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_torch_burnout_counter() {
+        let world_id = uuid::Uuid::new_v4();
+        let pos = BlockPos::new(100, 64, 100);
+        let start_time = 1000;
+
+        // Toggling 7 times within 60 ticks: not burned out yet
+        for i in 0..7 {
+            assert!(!is_toggled_too_frequently(world_id, pos, start_time + i * 2, true));
+        }
+
+        // 8th toggle within 60 ticks: burns out!
+        assert!(is_toggled_too_frequently(world_id, pos, start_time + 14, true));
+
+        // While still within 60 ticks: query returns true
+        assert!(is_toggled_too_frequently(world_id, pos, start_time + 20, false));
+
+        // After 61 ticks: old toggles are pruned, no longer burned out
+        assert!(!is_toggled_too_frequently(world_id, pos, start_time + 80, false));
+    }
+
+    #[test]
+    fn test_torch_burnout_is_per_world() {
+        // Two different worlds/dimensions with a torch at the same coordinates must not
+        // share burnout state (vanilla keys RECENT_TOGGLES per-level, not by pos alone).
+        let world_a = uuid::Uuid::new_v4();
+        let world_b = uuid::Uuid::new_v4();
+        let pos = BlockPos::new(200, 64, 200);
+        let start_time = 5000;
+
+        for i in 0..8 {
+            is_toggled_too_frequently(world_a, pos, start_time + i * 2, true);
+        }
+        assert!(is_toggled_too_frequently(world_a, pos, start_time + 14, false));
+        assert!(!is_toggled_too_frequently(world_b, pos, start_time + 14, false));
+    }
 }
