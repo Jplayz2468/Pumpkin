@@ -1237,6 +1237,9 @@ impl Entity {
     }
 
     pub fn get_eye_height(&self) -> f64 {
+        if self.entity_type == &EntityType::WARDEN {
+            return f64::from(self.entity_dimension.load().eye_height);
+        }
         f64::from(Self::get_entity_dimensions(self.pose.load()).eye_height)
     }
 
@@ -3217,10 +3220,17 @@ impl Entity {
             }
         }
 
-        let dimension = Self::get_entity_dimensions(pose);
+        let dimension = if self.entity_type == &EntityType::WARDEN {
+            crate::entity::mob::warden::dimensions(pose)
+        } else {
+            Self::get_entity_dimensions(pose)
+        };
         let position = self.pos.load();
         let aabb = BoundingBox::new_from_pos(position.x, position.y, position.z, &dimension);
         self.pose.store(pose);
+        if self.entity_type == &EntityType::WARDEN {
+            self.data.store(i32::from(pose == EntityPose::Emerging), Relaxed);
+        }
         self.bounding_box.store(aabb);
         self.entity_dimension.store(dimension);
         let pose = pose as i32;

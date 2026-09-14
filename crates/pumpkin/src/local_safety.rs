@@ -34,7 +34,7 @@ pub fn check_deep_dark(player: &Player) {
             .swap(inside, Ordering::Relaxed)
     {
         player.send_system_message(&TextComponent::text(
-            "Deep Dark warning: Warden encounters are not implemented correctly yet. Sculk shriekers do not summon Wardens, and Warden behavior differs from vanilla Java.",
+            "Deep Dark warning: Warden encounters are not implemented correctly yet. Warden spawning, vibrations and behavior still differ from vanilla Java.",
         ));
     } else if !inside {
         player

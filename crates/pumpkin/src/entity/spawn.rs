@@ -18,6 +18,7 @@ pub enum SpawnReason {
     Jockey,
     Conversion,
     Command,
+    Triggered,
 }
 
 /// Object-safe primitive source so reference draw tapes and the live world use
@@ -189,7 +190,7 @@ fn zombie_group_phase(
     }
 }
 
-fn apply_base_spawn(mob: &dyn crate::entity::mob::Mob, random: &mut dyn SpawnRandom) {
+pub(crate) fn apply_base_spawn(mob: &dyn crate::entity::mob::Mob, random: &mut dyn SpawnRandom) {
     let living = &mob.get_mob_entity().living_entity;
     let has_bonus = living
         .attributes
@@ -220,6 +221,10 @@ pub fn finalize_spawn_group(
         return false;
     };
     let name = entity.get_entity().entity_type.resource_name;
+    mob.mob_finalize_spawn(context.reason);
+    if name == "warden" {
+        return false;
+    }
     if crate::entity::mob::zombie::is_zombie_family(name) {
         apply_base_spawn(mob, context.random);
         let world = entity.get_entity().world.load_full();

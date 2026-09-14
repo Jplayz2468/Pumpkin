@@ -66,6 +66,7 @@ pub mod spider;
 pub mod vex;
 pub mod vindicator;
 pub mod warden;
+pub mod warden_emergence;
 pub mod witch;
 pub mod zoglin;
 pub mod zombie;
@@ -766,6 +767,16 @@ pub trait Mob: EntityBase + Send + Sync {
     /// Per-mob tick hook called each tick before AI runs. Override for mob-specific logic.
     fn mob_tick(&self, _caller: &dyn EntityBase) {}
 
+    fn run_goal_ai(&self) -> bool {
+        true
+    }
+
+    fn mob_is_pushable(&self) -> bool {
+        self.get_mob_entity().living_entity.is_pushable()
+    }
+
+    fn mob_finalize_spawn(&self, _reason: crate::entity::spawn::SpawnReason) {}
+
     fn post_tick(&self) {}
 
     /// Called before damage is applied. Return `false` to cancel the damage entirely.
@@ -1108,7 +1119,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
     }
 
     fn is_pushable(&self) -> bool {
-        self.get_mob_entity().living_entity.is_pushable()
+        self.mob_is_pushable()
     }
 
     fn on_lightning_strike(
@@ -1224,7 +1235,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
         self.mob_tick(caller);
 
-        if !mob_entity.is_no_ai() {
+        if !mob_entity.is_no_ai() && self.run_goal_ai() {
             mob_entity.no_action_time.fetch_add(1, Relaxed);
             let tick_count = mob_entity.living_entity.entity.tick_count.load(Relaxed);
             let entity_id = mob_entity.living_entity.entity.entity_id;

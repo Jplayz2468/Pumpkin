@@ -160,7 +160,7 @@ impl SculkShriekerBlock {
         if !Self::can_respond(world, can_summon) || warning <= 0 {
             return;
         }
-        // D3/D4: triggered spawn search and the Warden encounter state machine.
+        let spawned = warning >= 4 && crate::world::warden_spawn::try_spawn(world, pos);
         let sound = match warning {
             1 => Some(Sound::EntityWardenNearbyClose),
             2 => Some(Sound::EntityWardenNearbyCloser),
@@ -168,7 +168,7 @@ impl SculkShriekerBlock {
             4 => Some(Sound::EntityWardenListeningAngry),
             _ => None,
         };
-        if let Some(sound) = sound {
+        if let Some(sound) = sound.filter(|_| !spawned) {
             let offset = {
                 let mut random = world
                     .random

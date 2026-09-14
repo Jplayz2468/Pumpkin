@@ -31,6 +31,8 @@ pub mod stopwatches;
 pub mod time;
 pub mod villager_poi;
 pub mod warden_spawn_position;
+pub mod warden_spawn_attempts;
+pub mod warden_spawn;
 
 use crate::block::RandomTickArgs;
 use crate::world::chunker::is_within_chebyshev_distance;
