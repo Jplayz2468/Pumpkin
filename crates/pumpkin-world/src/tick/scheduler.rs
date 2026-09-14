@@ -131,18 +131,23 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
             return Vec::new();
         };
 
-        let mut res = Vec::new();
-
+        let mut ordered = Vec::with_capacity(inner.queued_ticks.len());
         for i in 0..MAX_TICK_DELAY {
             let index = (offset + i) % MAX_TICK_DELAY;
-            res.extend(inner.tick_queue[index].iter().map(|x| ScheduledTick {
-                delay: i as u8,
-                priority: x.priority,
-                position: x.position,
-                value: x.value,
-            }));
+            ordered.extend(inner.tick_queue[index].iter().map(|tick| (tick, i as u8)));
         }
-        res
+        // Java LevelChunkTicks::pack saves by sequence, not by trigger time.
+        // Restoring the saved list then preserves its relative sequence numbers.
+        ordered.sort_unstable_by_key(|(tick, _)| tick.sub_tick_order);
+        ordered
+            .into_iter()
+            .map(|(tick, delay)| ScheduledTick {
+                delay,
+                priority: tick.priority,
+                position: tick.position,
+                value: tick.value,
+            })
+            .collect()
     }
 }
 
@@ -249,5 +254,31 @@ mod tests {
                 .collect::<Vec<_>>(),
             [(9, -3), (3, -2), (7, -1)]
         );
+    }
+    #[test]
+    fn saving_keeps_sequence_order_and_remaining_delays() {
+        let queue = ChunkTickScheduler::default();
+        for (order, delay) in [20, 2, 1].into_iter().enumerate() {
+            queue.schedule_tick(
+                &ScheduledTick {
+                    delay,
+                    priority: TickPriority::Normal,
+                    position: BlockPos::new(order as i32, 64, 0),
+                    value: &0u8,
+                },
+                order as i64,
+            );
+        }
+        let saved = || {
+            queue
+                .to_vec()
+                .iter()
+                .map(|tick| (tick.position.0.x, tick.delay))
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(saved(), [(0, 20), (1, 2), (2, 1)]);
+        queue.step_tick();
+        queue.step_tick();
+        assert_eq!(saved(), [(0, 18), (1, 0)]);
     }
 }
