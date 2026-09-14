@@ -3,6 +3,7 @@ use pumpkin_util::math::subtract_angles;
 
 pub mod body_rotation_control;
 mod body_rotation_math;
+pub(crate) mod collision_response;
 pub(crate) mod fluid_travel;
 pub mod flying_move_control;
 pub mod jump_control;

@@ -2294,6 +2294,62 @@ impl Entity {
 
         self.move_pos(final_move);
 
+        if let Some(living) = caller.get_living_entity()
+            && living.controlled_speed.load().is_some()
+        {
+            use crate::entity::ai::control::{collision_response, travel_input};
+            use pumpkin_data::attributes::Attributes;
+            let collision_x = collision_response::clipped(motion.x, final_move.x);
+            let collision_z = collision_response::clipped(motion.z, final_move.z);
+            self.horizontal_collision
+                .store(collision_x || collision_z, Ordering::Relaxed);
+            living.fall(
+                caller,
+                final_move.y,
+                self.on_ground.load(Ordering::Relaxed),
+                false,
+            );
+            if self.is_removed() {
+                return;
+            }
+            let vertical = motion.y != final_move.y;
+            if vertical || collision_x || collision_z {
+                let block = self.get_block_with_y_offset(0.2).1;
+                let velocity = self.velocity.load();
+                let (velocity, bounced) =
+                    collision_response::restitute(collision_response::Facts {
+                        velocity: [velocity.x, velocity.y, velocity.z],
+                        actual: [final_move.x, final_move.y, final_move.z],
+                        collision_x,
+                        collision_z,
+                        vertical,
+                        below: vertical && motion.y < 0.0,
+                        suppress: self.is_sneaking(),
+                        block_suppresses: block.has_tag(&tag::Block::MINECRAFT_SUPPRESSES_BOUNCE),
+                        bounce: living.get_attribute_value(&Attributes::BOUNCINESS),
+                        block_bounce: collision_response::block_bounce(block.name),
+                        gravity: living.get_effective_gravity(caller),
+                        drag: travel_input::modified_friction(
+                            0.98,
+                            living.get_attribute_value(&Attributes::AIR_DRAG_MODIFIER) as f32,
+                        ),
+                    });
+                self.velocity
+                    .store(Vector3::new(velocity[0], velocity[1], velocity[2]));
+                if bounced {
+                    self.world
+                        .load()
+                        .emit_game_event("minecraft:bounce", self.pos.load());
+                    self.velocity_dirty.store(true, Ordering::Relaxed);
+                }
+            }
+            let multiplier = f64::from(caller.get_block_speed_factor());
+            let velocity = self.velocity.load();
+            self.velocity
+                .store(velocity.multiply(multiplier, 1.0, multiplier));
+            return;
+        }
+
         let velocity_multiplier = f64::from(caller.get_block_speed_factor());
 
         self.velocity.store(final_move * velocity_multiplier);
