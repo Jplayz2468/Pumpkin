@@ -3223,8 +3223,11 @@ impl LivingEntity {
                 let dx = source_pos.x - target_pos.x;
                 let dz = source_pos.z - target_pos.z;
                 let resistance = self.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE);
-                self.entity
-                    .apply_knockback(knockback_after_resistance(0.4, resistance), dx, dz);
+                self.entity.apply_knockback(
+                    knockback_after_resistance(f64::from(0.4_f32), resistance),
+                    dx,
+                    dz,
+                );
             }
         }
 
@@ -3366,7 +3369,7 @@ impl EntityBase for LivingEntity {
         dyn_self.damage(dyn_self, 4.0, DamageType::OUT_OF_WORLD);
     }
 
-    fn get_gravity(&self) -> f64 {
+    fn get_default_gravity(&self) -> f64 {
         self.get_attribute_value(&Attributes::GRAVITY)
     }
 

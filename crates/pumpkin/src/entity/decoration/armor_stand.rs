@@ -418,7 +418,7 @@ impl EntityBase for ArmorStandEntity {
         true
     }
 
-    fn get_gravity(&self) -> f64 {
+    fn get_default_gravity(&self) -> f64 {
         0.08
     }
 

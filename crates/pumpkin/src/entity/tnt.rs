@@ -96,7 +96,7 @@ impl EntityBase for TNTEntity {
         None
     }
 
-    fn get_gravity(&self) -> f64 {
+    fn get_default_gravity(&self) -> f64 {
         0.04
     }
     fn cast_any(&self) -> &dyn std::any::Any {

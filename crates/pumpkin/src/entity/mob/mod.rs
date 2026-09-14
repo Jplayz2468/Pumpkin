@@ -850,7 +850,7 @@ pub trait Mob: EntityBase + Send + Sync {
     }
 
     fn get_mob_gravity(&self) -> f64 {
-        self.get_mob_entity().living_entity.get_gravity()
+        self.get_mob_entity().living_entity.get_default_gravity()
     }
 
     fn get_mob_y_velocity_drag(&self) -> Option<f64> {
@@ -1550,7 +1550,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         self.mob_read_nbt(nbt);
     }
 
-    fn get_gravity(&self) -> f64 {
+    fn get_default_gravity(&self) -> f64 {
         self.get_mob_gravity()
     }
 

@@ -237,7 +237,16 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         false
     }
 
+    /// Java Entity.getGravity applies NoGravity before the entity-specific default.
     fn get_gravity(&self) -> f64 {
+        if self.get_entity().has_no_gravity() {
+            0.0
+        } else {
+            self.get_default_gravity()
+        }
+    }
+
+    fn get_default_gravity(&self) -> f64 {
         0.0
     }
 
