@@ -7,12 +7,10 @@ use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::server::Server;
 use crate::world::World;
-use pumpkin_data::block_properties::OakDoorLikeProperties;
+use pumpkin_data::Block;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::tag::Taggable;
 use pumpkin_data::world::WorldEvent;
-use pumpkin_data::{Block, tag};
 use pumpkin_data::{BlockDirection, BlockId};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -59,21 +57,7 @@ pub(crate) fn try_wax_block(world: &Arc<World>, location: BlockPos, block: &Bloc
     };
     let new_block = replacement.to_block();
 
-    let new_state_id = if block.has_tag(&tag::Block::MINECRAFT_DOORS) {
-        // Carry the door state over to the waxed door.
-        let door_information = world.get_block_state_id(&location);
-        let door_props = OakDoorLikeProperties::from_state_id(door_information);
-        let mut new_door_properties = OakDoorLikeProperties::default(new_block);
-        new_door_properties.facing = door_props.facing;
-        new_door_properties.open = door_props.open;
-        new_door_properties.half = door_props.half;
-        new_door_properties.hinge = door_props.hinge;
-        new_door_properties.powered = door_props.powered;
-        new_door_properties.to_state_id(new_block)
-    } else {
-        // TODO: Also carry over the properties of trapdoors.
-        new_block.default_state.id
-    };
+    let new_state_id = waxed_state(block, world.get_block_state_id(&location), new_block);
 
     world.set_block_state(&location, new_state_id, BlockFlags::NOTIFY_ALL);
     world.sync_world_event(WorldEvent::ParticlesAndSoundWaxOn, location, 0);
@@ -139,5 +123,44 @@ const fn get_waxed_equivalent(id: BlockId) -> Option<BlockId> {
         BlockId::EXPOSED_COPPER_TRAPDOOR => Some(BlockId::WAXED_EXPOSED_COPPER_TRAPDOOR),
         BlockId::COPPER_TRAPDOOR => Some(BlockId::WAXED_COPPER_TRAPDOOR),
         _ => None,
+    }
+}
+
+fn waxed_state(
+    block: &Block,
+    state: pumpkin_data::BlockStateId,
+    waxed: &Block,
+) -> pumpkin_data::BlockStateId {
+    block
+        .properties(state)
+        .map_or(waxed.default_state.id, |properties| {
+            waxed
+                .from_properties(&properties.to_props())
+                .to_state_id(waxed)
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn waxing_preserves_every_property_of_every_waxable_state() {
+        for id in (0..u16::MAX).map_while(BlockId::new) {
+            let block = id.to_block();
+            let Some(waxed) = get_waxed_equivalent(block.id) else {
+                continue;
+            };
+            let waxed = waxed.to_block();
+            for state in block.states {
+                let result = waxed_state(block, state.id, waxed);
+                assert_eq!(
+                    block.properties(state.id).map(|p| p.to_props()),
+                    waxed.properties(result).map(|p| p.to_props()),
+                    "{} {:?}",
+                    block.name,
+                    state.id
+                );
+            }
+        }
     }
 }

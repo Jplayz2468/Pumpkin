@@ -111,6 +111,13 @@ impl MinecartEntity {
 }
 
 impl EntityBase for MinecartEntity {
+    fn container_inventory(&self) -> Option<Arc<dyn pumpkin_inventory::Inventory>> {
+        self.container().map(|inventory| {
+            inventory.unpack_loot();
+            inventory.clone() as Arc<dyn pumpkin_inventory::Inventory>
+        })
+    }
+
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
         match &self.kind {
             MinecartKind::Chest(minecart) => minecart.write_nbt(nbt),

@@ -1,4 +1,8 @@
+mod loot;
+use pumpkin_data::{Block, attributes::Attributes, entity::EntityType, item::Item};
+use pumpkin_util::random::{RandomImpl, get_seed, legacy_rand::LegacyRand};
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
+use std::sync::{Arc, Mutex};
 
 use crate::entity::projectile::{ProjectileHit, is_projectile};
 use crate::{
@@ -18,14 +22,25 @@ pub struct FishingBobberEntity {
     pub has_hit: AtomicBool,
     pub wait_countdown: AtomicI32,
     pub bite_countdown: AtomicI32,
+    approach_countdown: AtomicI32,
+    open_water: AtomicBool,
+    bobbing: AtomicBool,
+    out_of_water: AtomicI32,
+    lifetime_ground: AtomicI32,
+    lure: i32,
+    luck: i32,
+    random: Mutex<LegacyRand>,
 }
 
 impl FishingBobberEntity {
-    const WATER_INERTIA: f64 = 0.8;
     const AIR_INERTIA: f64 = 0.92;
     const GRAVITY: f64 = 0.03;
 
     pub fn new(entity: Entity, owner: &Player) -> Self {
+        Self::with_rod(entity, owner, &owner.inventory.held_item())
+    }
+
+    pub fn with_rod(entity: Entity, owner: &Player, rod: &ItemStack) -> Self {
         let mut owner_pos = owner.living_entity.entity.pos.load();
         owner_pos.y += owner.living_entity.entity.get_eye_height() - 0.1;
         entity.pos.store(owner_pos);
@@ -36,57 +51,181 @@ impl FishingBobberEntity {
             hooked_entity_id: AtomicI32::new(0),
             in_ground: AtomicBool::new(false),
             has_hit: AtomicBool::new(false),
-            wait_countdown: AtomicI32::new(rand::random::<i32>().abs() % 600 + 100),
+            wait_countdown: AtomicI32::new(0),
             bite_countdown: AtomicI32::new(0),
+            approach_countdown: AtomicI32::new(0),
+            open_water: AtomicBool::new(true),
+            bobbing: AtomicBool::new(false),
+            out_of_water: AtomicI32::new(0),
+            lifetime_ground: AtomicI32::new(0),
+            lure: i32::from(rod.get_enchantment_level(&pumpkin_data::Enchantment::LURE)) * 100,
+            luck: i32::from(rod.get_enchantment_level(&pumpkin_data::Enchantment::LUCK_OF_THE_SEA)),
+            random: Mutex::new(LegacyRand::from_seed(get_seed())),
         }
     }
 
     pub fn reel_in(&self, player: &Player) -> i32 {
-        use pumpkin_data::item::Item;
-        let world = self.entity.world.load();
-        let hooked_id = self.hooked_entity_id.load(Ordering::Relaxed);
-
-        if hooked_id != 0
-            && let Some(hooked) = world.get_entity_by_id(hooked_id)
+        let world = self.entity.world.load_full();
+        let mut result = 0;
+        let hooked = self.hooked_entity_id.swap(0, Ordering::Relaxed);
+        if hooked != 0
+            && let Some(target) = world.get_entity_by_id(hooked)
         {
-            let player_pos = player.get_entity().pos.load();
-            let hooked_pos = hooked.get_entity().pos.load();
-            let delta = player_pos - hooked_pos;
-            let motion =
+            let delta = player.position() - self.entity.pos.load();
+            target.get_entity().add_velocity(delta * 0.1);
+            result = if target.get_item_entity().is_some() {
+                3
+            } else {
+                5
+            };
+        } else if self.bite_countdown.swap(0, Ordering::Relaxed) > 0 {
+            let mut rng = self
+                .random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let pos = self.entity.pos.load();
+            let biome = world.get_biome(&self.entity.block_pos.load()).registry_id;
+            let jungle = matches!(
+                biome.trim_start_matches("minecraft:"),
+                "jungle" | "sparse_jungle" | "bamboo_jungle"
+            );
+            let stack = loot::catch(
+                &mut *rng,
+                self.luck as f32
+                    + player.living_entity.get_attribute_value(&Attributes::LUCK) as f32,
+                self.open_water.load(Ordering::Relaxed),
+                jungle,
+            );
+            player.trigger_advancement(
+                crate::entity::player::advancement::trigger::AdvancementTrigger::FishedItem {
+                    item_id: format!("minecraft:{}", stack.item.registry_key),
+                },
+            );
+            if matches!(stack.item.id, id if [Item::COD.id, Item::SALMON.id, Item::TROPICAL_FISH.id, Item::PUFFERFISH.id].contains(&id))
+            {
+                player.increment_stat(
+                    pumpkin_data::statistic::StatisticCategory::Custom,
+                    pumpkin_data::statistic::CustomStatistic::FishCaught as i32,
+                    1,
+                );
+            }
+            let delta = player.position() - pos;
+            let velocity =
                 delta
                     .multiply(0.1, 0.1, 0.1)
                     .add_raw(0.0, delta.length().sqrt() * 0.08, 0.0);
-            hooked.get_entity().add_velocity(motion);
-            return 1;
+            let drop = crate::entity::item::ItemEntity::new_with_velocity(
+                Entity::new(world.clone(), pos, &EntityType::ITEM),
+                stack,
+                velocity,
+                0,
+            );
+            world.spawn_entity(Arc::new(drop));
+            crate::entity::experience_orb::ExperienceOrbEntity::spawn(
+                &world,
+                player.position().add_raw(0.0, 0.5, 0.5),
+                (rng.next_bounded_i32(6) + 1) as u32,
+            );
+            result = 1;
         }
+        if self.in_ground.load(Ordering::Relaxed) {
+            result = 2;
+        }
+        result
+    }
 
+    fn calculate_open_water(&self) -> bool {
+        let world = self.entity.world.load();
+        let pos = self.entity.block_pos.load();
+        let mut above = false;
+        for dy in -1..=2 {
+            let mut layer = None;
+            for dx in -2..=2 {
+                for dz in -2..=2 {
+                    let at = pos.offset(Vector3::new(dx, dy, dz));
+                    let state = world.get_block_state(&at);
+                    let kind = if state.is_air() || state.id.to_block() == &Block::LILY_PAD {
+                        true
+                    } else if world
+                        .get_fluid(&at)
+                        .matches_type(&pumpkin_data::fluid::Fluid::WATER)
+                        && world.get_fluid_and_fluid_state(&at).1.is_source
+                        && state.get_block_collision_shapes_at(&at).next().is_none()
+                    {
+                        false
+                    } else {
+                        return false;
+                    };
+                    if layer.is_some_and(|value| value != kind) {
+                        return false;
+                    }
+                    layer = Some(kind);
+                }
+            }
+            let air = layer.unwrap_or(true);
+            if (dy == -1 && air) || (above && !air) {
+                return false;
+            }
+            above = air;
+        }
+        true
+    }
+
+    fn tick_fishing(&self, rng: &mut impl RandomImpl) {
+        let world = self.entity.world.load();
+        let pos = self.entity.block_pos.load();
+        let rate = 1 + i32::from(rng.next_f32() < 0.25 && world.is_raining_at(&pos.up()))
+            - i32::from(rng.next_f32() < 0.5 && !world.can_see_sky(&pos.up()));
         if self.bite_countdown.load(Ordering::Relaxed) > 0 {
-            // Caught something!
-            player.increment_stat(
-                pumpkin_data::statistic::StatisticCategory::Custom,
-                pumpkin_data::statistic::CustomStatistic::FishCaught as i32,
-                1,
+            if self.bite_countdown.fetch_sub(1, Ordering::Relaxed) == 1 {
+                self.wait_countdown.store(0, Ordering::Relaxed);
+                self.approach_countdown.store(0, Ordering::Relaxed);
+                self.entity.set_synced_data(
+                    pumpkin_data::tracked_data::fishing_bobber::DATA_BITING,
+                    false,
+                );
+            }
+        } else if self.approach_countdown.load(Ordering::Relaxed) > 0 {
+            let remaining = self.approach_countdown.fetch_sub(rate, Ordering::Relaxed) - rate;
+            if remaining <= 0 {
+                world.play_sound(
+                    Sound::EntityFishingBobberSplash,
+                    SoundCategory::Neutral,
+                    &self.entity.pos.load(),
+                );
+                self.bite_countdown
+                    .store(rng.next_inbetween_i32(20, 40), Ordering::Relaxed);
+                self.entity.set_synced_data(
+                    pumpkin_data::tracked_data::fishing_bobber::DATA_BITING,
+                    true,
+                );
+                world.spawn_particle(
+                    self.entity.pos.load(),
+                    Vector3::new(0.25, 0.0, 0.25),
+                    0.2,
+                    6,
+                    pumpkin_data::particle::Particle::Bubble,
+                );
+            } else {
+                world.spawn_particle(
+                    self.entity.pos.load(),
+                    Vector3::new(0.1, 0.0, 0.1),
+                    0.01,
+                    2,
+                    pumpkin_data::particle::Particle::Fishing,
+                );
+            }
+        } else if self.wait_countdown.load(Ordering::Relaxed) > 0 {
+            if self.wait_countdown.fetch_sub(rate, Ordering::Relaxed) - rate <= 0 {
+                self.approach_countdown
+                    .store(rng.next_inbetween_i32(20, 80), Ordering::Relaxed);
+            }
+        } else {
+            self.wait_countdown.store(
+                rng.next_inbetween_i32(100, 600) - self.lure,
+                Ordering::Relaxed,
             );
-
-            // TODO: Use actual loot tables. For now, just give a raw cod.
-            let item_stack = ItemStack::new(1, &Item::COD);
-            // player.inventory().add_item(item_stack).await; // Need public add_item
-
-            player.trigger_advancement(
-                crate::entity::player::advancement::trigger::AdvancementTrigger::FishedItem {
-                    item_id: format!("minecraft:{}", item_stack.item.registry_key),
-                },
-            );
-
-            world.play_sound(
-                Sound::EntityExperienceOrbPickup,
-                SoundCategory::Neutral,
-                &player.position(),
-            );
-            return 1;
         }
-
-        0
     }
 
     #[expect(clippy::too_many_lines)]
@@ -94,10 +233,34 @@ impl FishingBobberEntity {
         let entity = self.get_entity();
         let world = entity.world.load();
 
-        if self.in_ground.load(Ordering::Relaxed) {
+        let Some(owner) = world.get_entity_by_id(self.owner_id) else {
+            entity.remove();
+            return;
+        };
+        let Some(player) = owner.get_player() else {
+            entity.remove();
+            return;
+        };
+        if player.living_entity.health.load() <= 0.0
+            || player
+                .position()
+                .squared_distance_to_vec(&entity.pos.load())
+                > 1024.0
+            || !pumpkin_util::Hand::all()
+                .iter()
+                .any(|hand| player.inventory.get_stack_in_hand(*hand).item == &Item::FISHING_ROD)
+        {
+            player.fishing_bobber.store(-1, Ordering::Relaxed);
+            entity.remove();
             return;
         }
-
+        if self.in_ground.load(Ordering::Relaxed) {
+            if self.lifetime_ground.fetch_add(1, Ordering::Relaxed) >= 1199 {
+                entity.remove();
+                player.fishing_bobber.store(-1, Ordering::Relaxed);
+            }
+            return;
+        }
         let hooked_id = self.hooked_entity_id.load(Ordering::Relaxed);
         if hooked_id != 0 {
             if let Some(hooked) = world.get_entity_by_id(hooked_id) {
@@ -117,51 +280,64 @@ impl FishingBobberEntity {
         let mut velocity = entity.velocity.load();
         let start_pos = entity.pos.load();
 
-        if entity.touching_water.load(Ordering::Relaxed) {
-            velocity.y += 0.02; // Buoyancy
-
-            let bite = self.bite_countdown.load(Ordering::Relaxed);
-            if bite > 0 {
-                self.bite_countdown.store(bite - 1, Ordering::Relaxed);
-                if bite % 5 == 0 {
-                    world.spawn_particle(
-                        entity.pos.load(),
-                        Vector3::new(0.1f32, 0.1f32, 0.1f32),
-                        0.0,
-                        5,
-                        pumpkin_data::particle::Particle::Bubble,
-                    );
-                }
-            } else {
-                let wait = self.wait_countdown.load(Ordering::Relaxed);
-                if wait > 0 {
-                    self.wait_countdown.store(wait - 1, Ordering::Relaxed);
-                } else {
-                    // Start bite
-                    self.bite_countdown.store(40, Ordering::Relaxed);
-                    self.wait_countdown
-                        .store(rand::random::<i32>().abs() % 600 + 100, Ordering::Relaxed);
-
-                    world.play_sound(
-                        Sound::EntityFishingBobberSplash,
-                        SoundCategory::Neutral,
-                        &entity.pos.load(),
-                    );
-                }
+        let pos = entity.block_pos.load();
+        let water = world
+            .get_fluid(&pos)
+            .matches_type(&pumpkin_data::fluid::Fluid::WATER);
+        let mut rng = self
+            .random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if water && !self.bobbing.swap(true, Ordering::Relaxed) {
+            entity.velocity.store(velocity.multiply(0.3, 0.2, 0.3));
+            return;
+        }
+        if self.bobbing.load(Ordering::Relaxed) {
+            let (fluid, state) = world.get_fluid_and_fluid_state(&pos);
+            let height = world.get_fluid_height(&pos, fluid, &state);
+            let mut difference = start_pos.y + velocity.y - f64::from(pos.0.y) - f64::from(height);
+            if difference.abs() < 0.01 {
+                difference += difference.signum() * 0.1;
             }
-        } else {
+            velocity = Vector3::new(
+                velocity.x * 0.9,
+                velocity.y - difference * f64::from(rng.next_f32()) * 0.2,
+                velocity.z * 0.9,
+            );
+            if self.bite_countdown.load(Ordering::Relaxed) > 0
+                || self.approach_countdown.load(Ordering::Relaxed) > 0
+            {
+                self.open_water.store(
+                    self.open_water.load(Ordering::Relaxed)
+                        && self.out_of_water.load(Ordering::Relaxed) < 10
+                        && self.calculate_open_water(),
+                    Ordering::Relaxed,
+                );
+            } else {
+                self.open_water.store(true, Ordering::Relaxed);
+            }
+            if water {
+                self.out_of_water.store(
+                    (self.out_of_water.load(Ordering::Relaxed) - 1).max(0),
+                    Ordering::Relaxed,
+                );
+                if self.bite_countdown.load(Ordering::Relaxed) > 0 {
+                    velocity.y -= 0.1 * f64::from(rng.next_f32()) * f64::from(rng.next_f32());
+                }
+                self.tick_fishing(&mut *rng);
+            } else {
+                self.out_of_water.store(
+                    (self.out_of_water.load(Ordering::Relaxed) + 1).min(10),
+                    Ordering::Relaxed,
+                );
+            }
+        }
+        if !water {
             velocity.y -= Self::GRAVITY;
         }
-
-        let inertia = if entity.touching_water.load(Ordering::Relaxed) {
-            Self::WATER_INERTIA
-        } else {
-            Self::AIR_INERTIA
-        };
-        velocity = velocity.multiply(inertia, inertia, inertia);
         entity.velocity.store(velocity);
-
-        let new_pos = start_pos.add(&velocity);
+        let new_pos = start_pos + velocity;
+        drop(rng);
 
         let search_box = BoundingBox::new(
             Vector3::new(
@@ -177,15 +353,16 @@ impl FishingBobberEntity {
         )
         .expand(0.3, 0.3, 0.3);
 
-        // Basic block collision to stop bobber
-        let (block_cols, _) = world.get_block_collisions(search_box, caller);
-        if !block_cols.is_empty() {
-            self.in_ground.store(true, Ordering::Relaxed);
-            entity.velocity.store(Vector3::new(0.0, 0.0, 0.0));
+        entity.move_entity(caller, velocity);
+        entity
+            .velocity
+            .store(entity.velocity.load() * Self::AIR_INERTIA);
+
+        self.in_ground
+            .store(entity.on_ground.load(Ordering::Relaxed), Ordering::Relaxed);
+        if self.bobbing.load(Ordering::Relaxed) {
             return;
         }
-
-        entity.set_pos(new_pos);
 
         let candidates = world.get_entities_at_box(&search_box);
         for cand in candidates {
@@ -204,7 +381,7 @@ impl FishingBobberEntity {
                 self.hooked_entity_id
                     .store(cand.get_entity().entity_id, Ordering::Relaxed);
                 entity.set_synced_data(
-                    pumpkin_data::tracked_data::fishing_bobber::HOOKED_ENTITY,
+                    pumpkin_data::tracked_data::fishing_bobber::DATA_HOOKED_ENTITY,
                     cand.get_entity().entity_id + 1,
                 );
                 return;

@@ -2541,6 +2541,7 @@ impl Player {
 
     #[expect(clippy::too_many_lines)]
     pub fn tick<'a>(&'a self, server: &'a Server) {
+        crate::local_safety::check_deep_dark(self);
         self.process_inbound_packets();
         self.update_gliding();
 

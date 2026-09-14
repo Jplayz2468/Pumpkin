@@ -54,8 +54,9 @@ impl BlockBehaviour for FarmlandBlock {
     }
 
     fn random_tick(&self, args: RandomTickArgs<'_>) {
-        // TODO: add rain check. Remember to check which one is most optimized.
-        if is_water_nearby(args.world, args.position) {
+        if is_water_nearby(args.world, args.position)
+            || args.world.is_raining_at(&args.position.up())
+        {
             let mut props = FarmlandProperties::default(args.block);
             let mut new_moisture = 7;
             if let Some(server) = args.world.server.upgrade() {
@@ -136,8 +137,10 @@ fn is_water_nearby(world: &Arc<World>, block_pos: &BlockPos) -> bool {
                     y: dy,
                     z: dz,
                 });
-                //TODO this should use tag water. It does not seem to work rn.
-                if world.get_block(&check_pos) == &Block::WATER {
+                if world
+                    .get_fluid(&check_pos)
+                    .matches_type(&pumpkin_data::fluid::Fluid::WATER)
+                {
                     return true;
                 }
             }

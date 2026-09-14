@@ -21,6 +21,17 @@ pub trait ItemMetadata {
 }
 
 pub trait ItemBehaviour: Send + Sync {
+    fn use_stack(
+        &self,
+        stack: &ItemStack,
+        player: &Player,
+        _hand: pumpkin_util::Hand,
+        yaw: f32,
+        pitch: f32,
+    ) {
+        self.normal_use_with_rotation(stack.item, player, yaw, pitch);
+    }
+
     fn normal_use(&self, _item: &Item, _player: &Player) {}
 
     /// Handles an item use with the rotation reported for that action.

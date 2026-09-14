@@ -172,10 +172,24 @@ fn get_chest_comparator_output(args: &GetComparatorOutputArgs<'_>) -> Option<u8>
 fn get_chest_screen_handler_factory(
     args: GetScreenHandlerFactoryArgs<'_>,
 ) -> Option<Box<dyn ScreenHandlerFactory>> {
-    let state = args.world.get_block_state_id(args.position);
-    let first_chest = args.world.get_block_entity(args.position);
+    chest_inventory(
+        args.world,
+        args.position,
+        false,
+        args.player.gamemode.load() != GameMode::Spectator,
+    )
+    .map(|inventory| Box::new(ChestScreenFactory(inventory)) as Box<dyn ScreenHandlerFactory>)
+}
 
-    let player_is_spectator = args.player.gamemode.load() == GameMode::Spectator;
+/// Shared ordering for player access and automation; hoppers ignore obstructed lids.
+pub(crate) fn chest_inventory(
+    world: &World,
+    position: &BlockPos,
+    ignore_blocked: bool,
+    unpack_loot: bool,
+) -> Option<Arc<dyn Inventory>> {
+    let state = world.get_block_state_id(position);
+    let first_chest = world.get_block_entity(position);
 
     let chest_props = ChestLikeProperties::from_state_id(state);
     let connected_towards = match chest_props.r#type {
@@ -195,37 +209,34 @@ fn get_chest_screen_handler_factory(
     };
 
     // Unpack deferred loot table on first open (non-spectator only).
-    if !player_is_spectator && let Some(ref entity) = first_chest {
+    if unpack_loot && let Some(ref entity) = first_chest {
         unpack(entity);
     }
 
     let first_inventory = first_chest.and_then(BlockEntity::get_inventory)?;
 
-    if is_chest_blocked(args.world, args.position) {
+    if !ignore_blocked && is_chest_blocked(world, position) {
         return None;
     }
 
     if let Some(direction) = connected_towards {
-        let neighbor_pos = args.position.offset(direction.to_offset());
-        if is_chest_blocked(args.world, &neighbor_pos) {
+        let neighbor_pos = position.offset(direction.to_offset());
+        if !ignore_blocked && is_chest_blocked(world, &neighbor_pos) {
             return None;
         }
     }
 
     // Both halves of a double chest are unpacked at once, like vanilla's CompoundContainer.
-    if !player_is_spectator
+    if unpack_loot
         && let Some(direction) = connected_towards
-        && let Some(second) = args
-            .world
-            .get_block_entity(&args.position.offset(direction.to_offset()))
+        && let Some(second) = world.get_block_entity(&position.offset(direction.to_offset()))
     {
         unpack(&second);
     }
 
     let inventory = if let Some(direction) = connected_towards
-        && let Some(second_inventory) = args
-            .world
-            .get_block_entity(&args.position.offset(direction.to_offset()))
+        && let Some(second_inventory) = world
+            .get_block_entity(&position.offset(direction.to_offset()))
             .and_then(BlockEntity::get_inventory)
     {
         // Vanilla: chestType == ChestType.RIGHT ? DoubleBlockProperties.Type.FIRST : DoubleBlockProperties.Type.SECOND;
@@ -238,7 +249,7 @@ fn get_chest_screen_handler_factory(
         first_inventory
     };
 
-    Some(Box::new(ChestScreenFactory(inventory)))
+    Some(inventory)
 }
 
 fn normal_use_chest_impl(args: &NormalUseArgs<'_>) -> BlockActionResult {

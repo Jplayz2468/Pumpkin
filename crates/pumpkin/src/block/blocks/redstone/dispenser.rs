@@ -408,6 +408,27 @@ impl DispenserBlock {
             if !Self::dispense_water_bottle(ctx, item) {
                 Self::drop_item(ctx, item);
             }
+        } else if item.item.id == Item::BONE_MEAL.id {
+            let target = Self::target_position(ctx);
+            let (block, state) = ctx.world.get_block_and_state_id(&target);
+            let success = ctx.world.server.upgrade().is_some_and(|server| {
+                server
+                    .block_registry
+                    .bone_meal(block, ctx.world, &target, state)
+            });
+            if success {
+                let _ = item.split(1);
+                ctx.world
+                    .sync_world_event(WorldEvent::ParticlesAndSoundPlantGrowth, target, 15);
+            }
+            Self::play_dispense_effects(
+                ctx,
+                if success {
+                    WorldEvent::SoundDispenserDispense
+                } else {
+                    WorldEvent::SoundDispenserFail
+                },
+            );
         } else if item.item.id == Item::GLOWSTONE.id {
             match Self::dispense_glowstone(ctx, item) {
                 Some(true) => Self::play_dispense_effects(ctx, WorldEvent::SoundDispenserDispense),
@@ -431,7 +452,7 @@ impl DispenserBlock {
             // Armor, elytra, heads, saddles, horse/wolf armor and llama carpets
             Self::play_dispense_effects(ctx, WorldEvent::SoundDispenserDispense);
         } else {
-            // TODO: Bone meal, bottles o' enchanting, chests onto llamas, brushes onto armadillos
+            // TODO: Bottles o' enchanting, chests onto llamas, brushes onto armadillos
             // Default / Drop
             Self::drop_item(ctx, item);
         }
@@ -833,7 +854,6 @@ impl DispenserBlock {
     fn dispense_filled_bucket(ctx: &DispenseContext<'_>, item: &mut ItemStack) {
         let front = Self::target_position(ctx);
 
-        // TODO: Spawn the stored entity for axolotl/fish/tadpole buckets, like the player path.
         let emptied = if should_evaporate_in_nether(item.item, ctx.world) {
             play_bucket_evaporation(ctx.world, &front.to_f64());
             true
@@ -847,6 +867,9 @@ impl DispenserBlock {
         };
 
         if emptied {
+            if !should_evaporate_in_nether(item.item, ctx.world) {
+                crate::item::items::bucket::spawn_bucket_mob(ctx.world, item, front);
+            }
             *item = ItemStack::new(1, &Item::BUCKET);
             Self::play_dispense_effects(ctx, WorldEvent::SoundDispenserDispense);
         } else {

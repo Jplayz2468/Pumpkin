@@ -2361,12 +2361,19 @@ impl DataComponentCodec<Self> for EntityDataImpl {
 
 impl DataComponentCodec<Self> for BucketEntityDataImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_nbt(NbtTag::Compound(pumpkin_nbt::compound::NbtCompound::new()))
+        seq.write_nbt(NbtTag::Compound(self.nbt.clone().unwrap_or_default()))
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let _nbt = seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?;
-        Ok(Self)
+        let tag = seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?;
+        Ok(Self {
+            nbt: tag.and_then(|tag| {
+                if let NbtTag::Compound(c) = tag {
+                    Some(c)
+                } else {
+                    None
+                }
+            }),
+        })
     }
 }
 
@@ -2807,5 +2814,28 @@ impl DataComponentCodec<Self> for BreakSoundImpl {
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
         let _ = seq.get_var_int()?;
         Ok(Self)
+    }
+}
+
+#[cfg(test)]
+mod bucket_tests {
+    use super::*;
+    #[test]
+    fn bucket_entity_data_survives_network_round_trip() {
+        let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
+        nbt.put_float("Health", 7.5);
+        nbt.put_int("Age", -1234);
+        nbt.put_bool("NoAI", true);
+        let original = BucketEntityDataImpl { nbt: Some(nbt) };
+        let mut bytes = Vec::new();
+        DataComponentCodec::serialize(&original, &mut bytes).unwrap();
+        let mut input = std::io::Cursor::new(bytes);
+        let actual =
+            <BucketEntityDataImpl as DataComponentCodec<BucketEntityDataImpl>>::deserialize(
+                &mut input,
+            )
+            .unwrap();
+        assert_eq!(actual, original);
+        assert_eq!(input.position(), input.get_ref().len() as u64);
     }
 }

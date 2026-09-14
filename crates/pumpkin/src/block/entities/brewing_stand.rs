@@ -422,6 +422,22 @@ impl pumpkin_inventory::Inventory for BrewingStandBlockEntity {
         self
     }
 
+    fn available_slots(&self, side: Option<pumpkin_data::BlockDirection>) -> Vec<usize> {
+        match side {
+            Some(pumpkin_data::BlockDirection::Up) => vec![3],
+            Some(pumpkin_data::BlockDirection::Down) => vec![0, 1, 2, 3],
+            Some(_) => vec![0, 1, 2, 4],
+            None => (0..5).collect(),
+        }
+    }
+    fn can_extract_from(
+        &self,
+        slot: usize,
+        stack: &ItemStack,
+        _side: Option<pumpkin_data::BlockDirection>,
+    ) -> bool {
+        slot != 3 || stack.item == &pumpkin_data::item::Item::GLASS_BOTTLE
+    }
     fn is_valid_slot_for(&self, slot: usize, stack: &ItemStack) -> bool {
         if stack.is_empty() {
             return true;

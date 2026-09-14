@@ -1,5 +1,6 @@
 #[allow(clippy::wildcard_imports)]
 use super::*;
+use pumpkin_inventory::Inventory;
 
 impl JavaClient {
     #[allow(clippy::too_many_lines)]
@@ -46,7 +47,7 @@ impl JavaClient {
         let cooking_display_count = RECIPES_COOKING.len();
         let dynamic_recipes = server.recipe_manager.get_dynamic_recipes();
 
-        let (grid_width, crafting_inv) = {
+        let (grid_width, crafting_inv, window) = {
             let screen_handler_arc = player
                 .current_screen_handler
                 .lock()
@@ -58,15 +59,23 @@ impl JavaClient {
             let grid_width: usize = match handler.window_type() {
                 Some(WindowType::Crafting) => 3,
                 None => 2, // player inventory 2x2
+                Some(WindowType::Furnace | WindowType::Smoker | WindowType::BlastFurnace) => 1,
                 _ => return,
             };
-            (grid_width, handler.get_behaviour().slots[1].get_inventory())
+            (
+                grid_width,
+                handler.get_behaviour().slots[if grid_width == 1 { 0 } else { 1 }].get_inventory(),
+                handler.window_type(),
+            )
         };
 
         let grid_size = grid_width * grid_width;
         let mut ingredient_slots: Vec<Option<GenericIngredient<'_>>> = vec![None; grid_size];
 
         if target_id < crafting_display_count {
+            if grid_width == 1 {
+                return;
+            }
             // Crafting recipe
             let mut counter = 0usize;
             let recipe = RECIPES_CRAFTING.iter().find(|r| {
@@ -114,9 +123,18 @@ impl JavaClient {
                 _ => return,
             }
         } else if target_id < crafting_display_count + cooking_display_count {
-            // TODO: cooking recipes
-            return;
+            use pumpkin_data::recipes::CookingRecipeType;
+            let recipe = match (&RECIPES_COOKING[target_id - crafting_display_count], window) {
+                (CookingRecipeType::Smelting(r), Some(WindowType::Furnace))
+                | (CookingRecipeType::Smoking(r), Some(WindowType::Smoker))
+                | (CookingRecipeType::Blasting(r), Some(WindowType::BlastFurnace)) => r,
+                _ => return,
+            };
+            ingredient_slots[0] = Some(GenericIngredient::Vanilla(&recipe.ingredient));
         } else {
+            if grid_width == 1 {
+                return;
+            }
             let dynamic_id = target_id - crafting_display_count - cooking_display_count;
             let Some(DynamicRecipe::Crafting(crafting)) = dynamic_recipes.get(dynamic_id) else {
                 return;
@@ -190,6 +208,42 @@ impl JavaClient {
         } else {
             0
         };
+
+        // Simulate returning the input before any mutation. A full inventory must not
+        // turn a recipe-book click into dropped items or a partially cleared grid.
+        let mut available: Vec<_> = (0
+            ..pumpkin_inventory::player::player_inventory::PlayerInventory::MAIN_SIZE)
+            .map(|slot| player.inventory.get_stack(slot))
+            .collect();
+        for slot in 0..grid_size {
+            let mut returned = crafting_inv.get_stack(slot);
+            for target in &mut available {
+                if returned.is_empty() {
+                    break;
+                }
+                if !target.is_empty() && target.are_items_and_components_equal(&returned) {
+                    let moved = returned.item_count.min(
+                        target
+                            .get_max_stack_size()
+                            .saturating_sub(target.item_count),
+                    );
+                    target.item_count += moved;
+                    returned.decrement(moved);
+                }
+            }
+            for target in &mut available {
+                if returned.is_empty() {
+                    break;
+                }
+                if target.is_empty() {
+                    *target = returned.clone();
+                    returned = pumpkin_data::item_stack::ItemStack::EMPTY.clone();
+                }
+            }
+            if !returned.is_empty() {
+                return;
+            }
+        }
 
         // Always clear the grid first, returning items to inventory.
         for i in 0..grid_size {

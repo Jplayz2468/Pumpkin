@@ -120,17 +120,12 @@ impl TargetPredicate {
         }
 
         if self.respects_visibility
-            && let Some(tester_ent) = tester
-            && tester_ent
+            && let Some(tester) = tester
+            && !tester
                 .entity
                 .world
                 .load_full()
-                .raycast(
-                    tester_ent.entity.get_eye_pos(),
-                    target.entity.get_eye_pos(),
-                    |block_pos, world| world.get_block_state(block_pos).is_solid(),
-                )
-                .is_some()
+                .has_line_of_sight(tester.entity.get_eye_pos(), target.entity.get_eye_pos())
         {
             return false;
         }

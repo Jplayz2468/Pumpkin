@@ -115,15 +115,20 @@ macro_rules! impl_cooking_block_entity_base {
                     .recipes_used
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let mut total_xp: f32 = 0.0;
+                let mut total_xp: i32 = 0;
                 for (recipe_id, count) in recipes.iter() {
                     // Look up the recipe's XP value
                     if let Some(xp) = pumpkin_data::recipes::get_recipe_experience(recipe_id) {
-                        total_xp += xp * (*count as f32);
+                        total_xp +=
+                            $crate::block::entities::furnace_like_block_entity::recipe_experience(
+                                *count,
+                                xp,
+                                rand::random::<f32>(),
+                            );
                     }
                 }
                 recipes.clear();
-                total_xp.floor() as i32
+                total_xp
             }
 
             fn can_accept_recipe_output(
@@ -270,6 +275,16 @@ macro_rules! impl_experience_container_for_cooking {
 macro_rules! impl_inventory_for_cooking {
     ($struct_name:ty) => {
         impl pumpkin_inventory::Inventory for $struct_name {
+            fn available_slots(&self, side: Option<pumpkin_data::BlockDirection>) -> Vec<usize> {
+                match side { Some(pumpkin_data::BlockDirection::Up) => vec![0], Some(pumpkin_data::BlockDirection::Down) => vec![2, 1], Some(_) => vec![1], None => vec![0, 1, 2] }
+            }
+            fn is_valid_slot_for(&self, slot: usize, stack: &ItemStack) -> bool {
+                match slot { 0 => true, 1 => pumpkin_data::fuels::is_fuel(stack.item.id) || (stack.item == &pumpkin_data::item::Item::BUCKET && self.get_stack(1).item != &pumpkin_data::item::Item::BUCKET), _ => false }
+            }
+            fn can_extract_from(&self, slot: usize, stack: &ItemStack, side: Option<pumpkin_data::BlockDirection>) -> bool {
+                side != Some(pumpkin_data::BlockDirection::Down) || slot != 1 || matches!(stack.item.id, id if id == pumpkin_data::item::Item::BUCKET.id || id == pumpkin_data::item::Item::WATER_BUCKET.id)
+            }
+
             fn size(&self) -> usize {
                 Self::INVENTORY_SIZE
             }
@@ -675,4 +690,23 @@ macro_rules! impl_block_entity_for_cooking {
             }
         }
     };
+}
+
+/// Vanilla rounds each recipe independently, awarding its fractional remainder probabilistically.
+pub(crate) fn recipe_experience(count: u32, experience: f32, roll: f32) -> i32 {
+    let value = count as f32 * experience;
+    value.floor() as i32 + i32::from(roll < value.fract())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::recipe_experience;
+    #[test]
+    fn experience_fraction_uses_strict_boundary() {
+        assert_eq!(recipe_experience(1, 0.5, 0.0), 1);
+        assert_eq!(recipe_experience(1, 0.5, 0.5), 0);
+        assert_eq!(recipe_experience(3, 0.5, 0.49999997), 2);
+        assert_eq!(recipe_experience(3, 0.5, 0.5), 1);
+        assert_eq!(recipe_experience(2, 0.5, 0.0), 1);
+    }
 }

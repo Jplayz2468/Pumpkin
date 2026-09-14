@@ -35,14 +35,25 @@ impl DataComponentImpl for EntityDataImpl {
     default_impl!(EntityData);
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct BucketEntityDataImpl;
+#[derive(Clone, Debug, PartialEq)]
+pub struct BucketEntityDataImpl {
+    pub nbt: Option<NbtCompound>,
+}
 impl BucketEntityDataImpl {
-    pub const fn read_data(_data: &NbtTag) -> Option<Self> {
-        Some(Self)
+    pub fn read_data(data: &NbtTag) -> Option<Self> {
+        if let NbtTag::Compound(nbt) = data {
+            Some(Self {
+                nbt: Some(nbt.clone()),
+            })
+        } else {
+            None
+        }
     }
 }
 impl DataComponentImpl for BucketEntityDataImpl {
+    fn write_data(&self) -> NbtTag {
+        NbtTag::Compound(self.nbt.clone().unwrap_or_default())
+    }
     default_impl!(BucketEntityData);
 }
 

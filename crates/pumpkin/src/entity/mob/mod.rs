@@ -10,6 +10,7 @@ use crossbeam::atomic::AtomicCell;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::EquipmentSlot;
+use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::tag::{self, Taggable};
@@ -84,6 +85,7 @@ pub struct MobEntity {
     pub breeding_cooldown: AtomicI32,
     pub breeder: AtomicCell<Option<Uuid>>,
     pub persistence_required: AtomicBool,
+    pub bucket_state: std::sync::Mutex<NbtCompound>,
     pub no_action_time: AtomicI32,
     mob_flags: AtomicU8,
     last_sent_yaw: AtomicU8,
@@ -171,6 +173,7 @@ impl MobEntity {
             breeding_cooldown: AtomicI32::new(0),
             breeder: AtomicCell::new(None),
             persistence_required: AtomicBool::new(false),
+            bucket_state: std::sync::Mutex::new(NbtCompound::new()),
             no_action_time: AtomicI32::new(0),
             mob_flags: AtomicU8::new(0),
             last_sent_yaw: AtomicU8::new(0),
@@ -250,6 +253,15 @@ impl MobEntity {
     }
 
     pub fn write_mob_nbt(&self, nbt: &mut NbtCompound) {
+        for (key, value) in &self
+            .bucket_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .child_tags
+        {
+            nbt.put(key.as_ref(), value.clone());
+        }
+
         if self.is_no_ai() {
             nbt.put_bool("NoAI", true);
         }
@@ -265,6 +277,17 @@ impl MobEntity {
     }
 
     pub fn read_mob_nbt(&self, nbt: &NbtCompound) {
+        let mut bucket = self
+            .bucket_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for key in ["FromBucket", "BucketVariantTag", "Variant", "type"] {
+            if let Some(value) = nbt.child_tags.get(key) {
+                bucket.put(key, value.clone());
+            }
+        }
+        drop(bucket);
+
         if let Some(no_ai) = nbt.get_bool("NoAI") {
             self.set_no_ai(no_ai);
         }
@@ -609,6 +632,12 @@ impl MobEntity {
         let entity = &self.living_entity.entity;
 
         if self.persistence_required.load(Relaxed)
+            || self
+                .bucket_state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get_bool("FromBucket")
+                .unwrap_or(false)
             || mob.requires_custom_persistence()
             || (**entity.custom_name.load()).is_some()
         {
@@ -1097,6 +1126,62 @@ impl<T: Mob + Send + 'static> EntityBase for T {
     fn init_data_tracker(&self) {
         self.mob_init_data_tracker();
         let entity = self.get_entity();
+        if entity.entity_type == &EntityType::TROPICAL_FISH {
+            let variant = self
+                .get_mob_entity()
+                .bucket_state
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get_int("Variant")
+                .unwrap_or(0);
+            entity.set_synced_data(
+                tracked_data::tropical_fish::DATA_ID_TYPE_VARIANT,
+                pumpkin_protocol::codec::var_int::VarInt(variant),
+            );
+        }
+
+        let bucket_state = self
+            .get_mob_entity()
+            .bucket_state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if matches!(
+            entity.entity_type.resource_name,
+            "cod" | "salmon" | "pufferfish" | "tropical_fish"
+        ) {
+            entity.set_synced_data(
+                tracked_data::salmon::FROM_BUCKET,
+                bucket_state.get_bool("FromBucket").unwrap_or(false),
+            );
+        }
+        if entity.entity_type == &EntityType::SALMON {
+            let (variant, scale) = match bucket_state.get_string("type").unwrap_or("medium") {
+                "small" => (0, 0.5f32),
+                "large" => (2, 1.5f32),
+                _ => (1, 1.0f32),
+            };
+            entity.set_synced_data(
+                tracked_data::salmon::DATA_TYPE,
+                pumpkin_protocol::codec::var_int::VarInt(variant),
+            );
+            let scale = scale
+                * self
+                    .get_mob_entity()
+                    .living_entity
+                    .get_attribute_value(&Attributes::SCALE) as f32;
+            let dims = pumpkin_util::math::boundingbox::EntityDimensions::new(
+                entity.entity_type.dimension[0] * scale,
+                entity.entity_type.dimension[1] * scale,
+                entity.entity_type.eye_height * scale,
+            );
+            entity.entity_dimension.store(dims);
+            let pos = entity.pos.load();
+            entity
+                .bounding_box
+                .store(BoundingBox::new_from_pos(pos.x, pos.y, pos.z, &dims));
+        }
+        drop(bucket_state);
+
         if zombie::is_zombie_family(entity.entity_type.resource_name) {
             zombie::set_baby(self, entity.age.load(Relaxed) < 0);
         } else if let Some(ageable) = self.as_ageable() {
@@ -1318,7 +1403,8 @@ impl<T: Mob + Send + 'static> EntityBase for T {
     }
 
     fn interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
-        self.mob_interact(player, item_stack)
+        crate::item::items::bucket::capture_mob(player, item_stack, self)
+            || self.mob_interact(player, item_stack)
     }
 
     fn on_player_collision(&self, player: &Arc<Player>) {

@@ -184,8 +184,13 @@ impl Goal for MeleeAttackGoal {
 
         self.cooldown = (self.cooldown - 1).max(0);
 
-        // TODO: Add visibility check (canSee) - requires world raycast
-        if self.cooldown <= 0 && mob.get_mob_entity().is_in_attack_range(target.as_ref()) {
+        if self.cooldown <= 0
+            && mob.get_mob_entity().is_in_attack_range(target.as_ref())
+            && mob.get_entity().world.load_full().has_line_of_sight(
+                mob.get_entity().get_eye_pos(),
+                target.get_entity().get_eye_pos(),
+            )
+        {
             self.cooldown = self.get_max_cooldown();
             mob.get_mob_entity().living_entity.swing_hand();
             mob.get_mob_entity()

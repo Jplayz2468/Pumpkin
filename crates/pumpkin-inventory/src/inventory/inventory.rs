@@ -85,6 +85,28 @@ pub trait Inventory: Send + Sync + Clearable {
         true
     }
 
+    fn available_slots(&self, _side: Option<pumpkin_data::BlockDirection>) -> Vec<usize> {
+        (0..self.size()).collect()
+    }
+
+    fn can_insert_from(
+        &self,
+        slot: usize,
+        stack: &ItemStack,
+        _side: Option<pumpkin_data::BlockDirection>,
+    ) -> bool {
+        self.is_valid_slot_for(slot, stack)
+    }
+
+    fn can_extract_from(
+        &self,
+        _slot: usize,
+        _stack: &ItemStack,
+        _side: Option<pumpkin_data::BlockDirection>,
+    ) -> bool {
+        true
+    }
+
     fn can_transfer_to(
         &self,
         _hopper_inventory: &dyn Inventory,

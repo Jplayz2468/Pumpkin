@@ -134,6 +134,9 @@ pub const fn equipment_break_status(slot: &EquipmentSlot) -> EntityStatus {
 }
 
 pub trait EntityBase: Send + Sync + std::any::Any {
+    fn container_inventory(&self) -> Option<Arc<dyn pumpkin_inventory::Inventory>> {
+        None
+    }
     fn write_nbt(&self, nbt: &mut NbtCompound) {
         self.get_entity().write_nbt(nbt);
         if let Some(living) = self.get_living_entity() {
@@ -4151,6 +4154,9 @@ impl Entity {
         nbt.put_short("Fire", self.fire_ticks.load(Relaxed) as i16);
         nbt.put_bool("OnGround", self.on_ground.load(Relaxed));
         nbt.put_bool("Invulnerable", self.invulnerable.load(Relaxed));
+        nbt.put_bool("Silent", self.is_silent());
+        nbt.put_bool("NoGravity", self.has_no_gravity());
+        nbt.put_bool("Glowing", self.glowing.load(Relaxed));
         nbt.put_int("PortalCooldown", self.portal_cooldown.load(Relaxed) as i32);
         if self.has_visual_fire.load(Relaxed) {
             nbt.put_bool("HasVisualFire", true);
@@ -4221,6 +4227,9 @@ impl Entity {
             self.head_yaw.store(yaw);
             self.last_sent_head_yaw.store(yaw_byte, Relaxed);
         }
+        self.set_silent(nbt.get_bool("Silent").unwrap_or(false));
+        self.set_has_no_gravity(nbt.get_bool("NoGravity").unwrap_or(false));
+        self.set_glowing(nbt.get_bool("Glowing").unwrap_or(false));
         self.fire_ticks
             .store(i32::from(nbt.get_short("Fire").unwrap_or(0)), Relaxed);
         self.on_ground

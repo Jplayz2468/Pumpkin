@@ -248,7 +248,7 @@ pub(crate) fn try_place_filled_bucket(
         return try_place_powder_snow(world, pos, direction);
     }
 
-    if item.id == Item::WATER_BUCKET.id && block.is_waterlogged(state.id) {
+    if item.id != Item::LAVA_BUCKET.id && block.is_waterloggable() {
         let state_id = block.set_waterlogged(state.id, true).unwrap_or(state.id);
         world.set_block_state(&pos, state_id, BlockFlags::NOTIFY_ALL);
         world.schedule_fluid_tick(&Fluid::WATER, pos, 5, TickPriority::Normal);
@@ -373,78 +373,30 @@ impl ItemBehaviour for EmptyBucketItem {
 }
 
 impl ItemBehaviour for FilledBucketItem {
+    fn use_stack(
+        &self,
+        stack: &ItemStack,
+        player: &Player,
+        hand: pumpkin_util::Hand,
+        yaw: f32,
+        pitch: f32,
+    ) {
+        release_player_bucket(stack, player, hand, yaw, pitch);
+    }
+
     fn normal_use(&self, item: &Item, player: &Player) {
         let (yaw, pitch) = player.rotation();
         self.normal_use_with_rotation(item, player, yaw, pitch);
     }
 
-    fn normal_use_with_rotation(&self, item: &Item, player: &Player, yaw: f32, pitch: f32) {
-        let world = player.world();
-        let (start_pos, end_pos) = get_start_and_end_pos(player, yaw, pitch);
-        let checker = |pos: &BlockPos, world_inner: &Arc<World>| {
-            let state_id = world_inner.get_block_state_id(pos);
-            if Fluid::from_state_id(state_id).is_some() {
-                return false;
-            }
-            state_id != Block::AIR.default_state.id
-        };
-
-        let Some((pos, direction)) = world.raycast(start_pos, end_pos, checker) else {
-            return;
-        };
-
-        if should_evaporate_in_nether(item, &world) {
-            play_bucket_evaporation(&world, &player.position());
-            return;
-        }
-        if !try_place_filled_bucket(&world, item, pos, direction) {
-            return;
-        }
-
-        if let Some(server) = world.server.upgrade()
-            && let Some(player_arc) = world.get_player_by_uuid(player.gameprofile.id)
-        {
-            let mut event =
-                crate::plugin::api::events::player::player_bucket::PlayerBucketEmptyEvent::new(
-                    player_arc,
-                    pos,
-                    item.registry_key.to_string(),
-                );
-            server.plugin_manager.fire_blocking(&server, &mut event);
-        }
-
-        let place_pos = if world
-            .get_block_and_state(&pos)
-            .0
-            .is_waterlogged(world.get_block_state_id(&pos))
-        {
-            pos
-        } else {
-            pos.offset(direction.to_offset())
-        };
-
-        world.play_sound(
-            get_empty_sound(item),
-            SoundCategory::Blocks,
-            &place_pos.to_f64(),
+    fn normal_use_with_rotation(&self, _item: &Item, player: &Player, yaw: f32, pitch: f32) {
+        release_player_bucket(
+            &player.inventory.held_item(),
+            player,
+            pumpkin_util::Hand::Right,
+            yaw,
+            pitch,
         );
-
-        if let Some((entity_type, _)) = get_mob_for_bucket(item) {
-            let spawn_coord = Vector3::new(
-                f64::from(place_pos.0.x) + 0.5,
-                f64::from(place_pos.0.y),
-                f64::from(place_pos.0.z) + 0.5,
-            );
-            let mob = from_type(entity_type, spawn_coord, &world, Uuid::new_v4());
-            world.spawn_entity(mob);
-        }
-
-        if player.gamemode.load() != GameMode::Creative {
-            let item_stack = ItemStack::new(1, &Item::BUCKET);
-            player
-                .inventory
-                .set_slot(player.inventory.get_selected_slot() as usize, item_stack);
-        }
     }
 
     fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
@@ -500,5 +452,313 @@ impl ItemBehaviour for MilkBucketItem {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+/// Only data that vanilla bucket items carry; never transfer entity identity or position.
+fn bucket_data(entity: &dyn EntityBase) -> pumpkin_nbt::compound::NbtCompound {
+    let mut source = pumpkin_nbt::compound::NbtCompound::new();
+    entity.write_nbt(&mut source);
+    let mut result = pumpkin_nbt::compound::NbtCompound::new();
+    for key in [
+        "NoAI",
+        "Silent",
+        "NoGravity",
+        "Glowing",
+        "Invulnerable",
+        "Health",
+        "Age",
+        "Variant",
+        "BucketVariantTag",
+        "HuntingCooldown",
+        "type",
+    ] {
+        if let Some(value) = source.child_tags.get(key) {
+            result.put(key, value.clone());
+        }
+    }
+    result
+}
+
+pub(crate) fn capture_mob(
+    player: &Arc<Player>,
+    held: &mut ItemStack,
+    entity: &dyn EntityBase,
+) -> bool {
+    if held.item != &Item::WATER_BUCKET
+        || entity
+            .get_living_entity()
+            .is_none_or(|living| living.health.load() <= 0.0)
+    {
+        return false;
+    }
+    let name = entity.get_entity().entity_type.resource_name;
+    let Some(bucket) = Item::from_registry_key(&format!("{name}_bucket")) else {
+        return false;
+    };
+    let Some((_, sound)) = get_mob_for_bucket(bucket) else {
+        return false;
+    };
+    let world = player.world();
+    if let Some(server) = world.server.upgrade() {
+        let mut event =
+            crate::plugin::api::events::player::player_bucket_entity::PlayerBucketEntityEvent {
+                player: player.clone(),
+                entity_id: entity.get_entity().entity_id,
+                bucket_item: bucket.registry_key.to_owned(),
+                cancelled: false,
+            };
+        server.plugin_manager.fire_blocking(&server, &mut event);
+        if event.cancelled {
+            return true;
+        }
+    }
+    let mut filled = ItemStack::new(1, bucket);
+    let saved = bucket_data(entity);
+    copy_bucket_variants(&mut filled, &saved);
+    filled.set_data_component(pumpkin_data::data_component_impl::BucketEntityDataImpl {
+        nbt: Some(saved),
+    });
+    if let Some(name) = &**entity.get_entity().custom_name.load() {
+        filled.set_data_component(pumpkin_data::data_component_impl::CustomNameImpl {
+            name: name.clone(),
+        });
+    }
+    if player.gamemode.load() == GameMode::Creative {
+        player.inventory.offer(filled, true, player.as_ref());
+    } else if held.item_count == 1 {
+        *held = filled;
+    } else {
+        held.decrement(1);
+        player.inventory.offer(filled, true, player.as_ref());
+    }
+    let fill_sound = match bucket.id {
+        id if id == Item::AXOLOTL_BUCKET.id => Sound::ItemBucketFillAxolotl,
+        id if id == Item::TADPOLE_BUCKET.id => Sound::ItemBucketFillTadpole,
+        _ => Sound::ItemBucketFillFish,
+    };
+    let _ = sound;
+    world.play_sound(
+        fill_sound,
+        SoundCategory::Neutral,
+        &entity.get_entity().pos.load(),
+    );
+    entity.get_entity().remove();
+    true
+}
+
+pub(crate) fn spawn_bucket_mob(world: &Arc<World>, stack: &ItemStack, pos: BlockPos) {
+    let Some((kind, _)) = get_mob_for_bucket(stack.item) else {
+        return;
+    };
+    let mob = from_type(
+        kind,
+        pos.to_centered_f64().add_raw(0.0, -0.5, 0.0),
+        world,
+        Uuid::new_v4(),
+    );
+    let mut data = stack
+        .get_data_component::<pumpkin_data::data_component_impl::BucketEntityDataImpl>()
+        .and_then(|c| c.nbt.clone())
+        .unwrap_or_default();
+    apply_bucket_variants(stack, &mut data);
+    data.put_bool("FromBucket", true);
+    mob.read_nbt_non_mut(&data);
+    if let Some(name) =
+        stack.get_data_component::<pumpkin_data::data_component_impl::CustomNameImpl>()
+    {
+        mob.get_entity().set_custom_name(name.name.clone());
+    }
+    world.spawn_initialized_entity(mob);
+}
+
+fn release_player_bucket(
+    stack: &ItemStack,
+    player: &Player,
+    hand: pumpkin_util::Hand,
+    yaw: f32,
+    pitch: f32,
+) {
+    let world = player.world();
+    let (start, end) = get_start_and_end_pos(player, yaw, pitch);
+    let Some((pos, direction)) = world.raycast(start, end, |pos, world| {
+        !world.get_block_state(pos).is_air() && !world.get_block_state(pos).is_liquid()
+    }) else {
+        return;
+    };
+    if let Some(server) = world.server.upgrade()
+        && let Some(player_arc) = world.get_player_by_uuid(player.gameprofile.id)
+    {
+        let mut event =
+            crate::plugin::api::events::player::player_bucket::PlayerBucketEmptyEvent::new(
+                player_arc,
+                pos,
+                stack.item.registry_key.to_owned(),
+            );
+        server.plugin_manager.fire_blocking(&server, &mut event);
+        if event.cancelled {
+            return;
+        }
+    }
+    let target = if world.get_block(&pos).is_waterloggable() {
+        pos
+    } else {
+        pos.offset(direction.to_offset())
+    };
+    if should_evaporate_in_nether(stack.item, &world) {
+        play_bucket_evaporation(&world, &target.to_f64());
+    } else {
+        if !try_place_filled_bucket(&world, stack.item, pos, direction) {
+            return;
+        }
+        spawn_bucket_mob(&world, stack, target);
+        world.play_sound(
+            get_empty_sound(stack.item),
+            SoundCategory::Neutral,
+            &target.to_f64(),
+        );
+    }
+    if player.gamemode.load() != GameMode::Creative {
+        player
+            .inventory
+            .set_stack_in_hand(hand, ItemStack::new(1, &Item::BUCKET));
+    }
+}
+
+const FISH_PATTERNS: [&str; 12] = [
+    "kob",
+    "sunstreak",
+    "snooper",
+    "dasher",
+    "brinely",
+    "spotty",
+    "flopper",
+    "stripey",
+    "glitter",
+    "blockfish",
+    "betty",
+    "clayfish",
+];
+const FISH_COLORS: [&str; 16] = [
+    "white",
+    "orange",
+    "magenta",
+    "light_blue",
+    "yellow",
+    "lime",
+    "pink",
+    "gray",
+    "light_gray",
+    "cyan",
+    "purple",
+    "blue",
+    "brown",
+    "green",
+    "red",
+    "black",
+];
+const AXOLOTL_VARIANTS: [&str; 5] = ["lucy", "wild", "gold", "cyan", "blue"];
+fn copy_bucket_variants(stack: &mut ItemStack, data: &pumpkin_nbt::compound::NbtCompound) {
+    use pumpkin_data::data_component_impl::*;
+    if stack.item == &Item::AXOLOTL_BUCKET {
+        let index = data.get_int("Variant").unwrap_or(0).clamp(0, 4) as usize;
+        stack.set_data_component(AxolotlVariantImpl {
+            value: AXOLOTL_VARIANTS[index].into(),
+        });
+    } else if stack.item == &Item::SALMON_BUCKET {
+        stack.set_data_component(SalmonSizeImpl {
+            value: data
+                .get_string("type")
+                .unwrap_or("medium")
+                .to_owned()
+                .into(),
+        });
+    } else if stack.item == &Item::TROPICAL_FISH_BUCKET {
+        let variant = data.get_int("Variant").unwrap_or(0) as u32;
+        let pattern = ((variant & 255).min(1) * 6 + ((variant >> 8) & 255).min(5)) as usize;
+        stack.set_data_component(TropicalFishPatternImpl {
+            value: FISH_PATTERNS[pattern].into(),
+        });
+        stack.set_data_component(TropicalFishBaseColorImpl {
+            value: FISH_COLORS[((variant >> 16) & 15) as usize].into(),
+        });
+        stack.set_data_component(TropicalFishPatternColorImpl {
+            value: FISH_COLORS[((variant >> 24) & 15) as usize].into(),
+        });
+    }
+}
+fn apply_bucket_variants(stack: &ItemStack, data: &mut pumpkin_nbt::compound::NbtCompound) {
+    use pumpkin_data::data_component_impl::*;
+    if let Some(value) = stack.get_data_component::<AxolotlVariantImpl>() {
+        if let Some(index) = AXOLOTL_VARIANTS.iter().position(|v| *v == value.value) {
+            data.put_int("Variant", index as i32);
+        }
+    }
+    if let Some(value) = stack.get_data_component::<SalmonSizeImpl>() {
+        data.put_string("type", value.value.to_string());
+    }
+    if stack.item == &Item::TROPICAL_FISH_BUCKET {
+        let old = data.get_int("Variant").unwrap_or(0);
+        let pattern = stack
+            .get_data_component::<TropicalFishPatternImpl>()
+            .and_then(|v| FISH_PATTERNS.iter().position(|n| *n == v.value));
+        let base = stack
+            .get_data_component::<TropicalFishBaseColorImpl>()
+            .and_then(|v| FISH_COLORS.iter().position(|n| *n == v.value))
+            .map_or((old >> 16) & 255, |n| n as i32);
+        let color = stack
+            .get_data_component::<TropicalFishPatternColorImpl>()
+            .and_then(|v| FISH_COLORS.iter().position(|n| *n == v.value))
+            .map_or((old >> 24) & 255, |n| n as i32);
+        let shape = pattern.map_or(old & 65535, |n| (n / 6) as i32 | (((n % 6) as i32) << 8));
+        data.put_int("Variant", shape | (base << 16) | (color << 24));
+    }
+}
+
+#[cfg(test)]
+mod bucket_tests {
+    use super::*;
+    use pumpkin_data::data_component_impl::BucketEntityDataImpl;
+    use pumpkin_nbt::compound::NbtCompound;
+    #[test]
+    fn every_tropical_fish_pattern_and_color_roundtrips_through_item_components() {
+        for shape in 0..2 {
+            for pattern in 0..6 {
+                for base in 0..16 {
+                    for color in 0..16 {
+                        let variant = shape | pattern << 8 | base << 16 | color << 24;
+                        let mut data = NbtCompound::new();
+                        data.put_int("Variant", variant);
+                        let mut stack = ItemStack::new(1, &Item::TROPICAL_FISH_BUCKET);
+                        copy_bucket_variants(&mut stack, &data);
+                        let mut restored = NbtCompound::new();
+                        apply_bucket_variants(&stack, &mut restored);
+                        assert_eq!(restored.get_int("Variant"), Some(variant));
+                    }
+                }
+            }
+        }
+    }
+    #[test]
+    fn bucket_data_survives_item_nbt_and_is_not_shared_between_items() {
+        let mut data = NbtCompound::new();
+        data.put_float("Health", 7.5);
+        data.put_int("Age", -1234);
+        data.put_bool("NoAI", true);
+        let mut stack = ItemStack::new(1, &Item::AXOLOTL_BUCKET);
+        stack.set_data_component(BucketEntityDataImpl {
+            nbt: Some(data.clone()),
+        });
+        let mut saved = NbtCompound::new();
+        stack.write_item_stack(&mut saved);
+        let loaded = ItemStack::read_item_stack(&saved).unwrap();
+        assert_eq!(
+            loaded
+                .get_data_component::<BucketEntityDataImpl>()
+                .unwrap()
+                .nbt,
+            Some(data)
+        );
+        assert!(!loaded.are_items_and_components_equal(&ItemStack::new(1, &Item::AXOLOTL_BUCKET)));
     }
 }

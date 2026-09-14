@@ -7000,9 +7000,47 @@ impl World {
 
     pub fn raycast(
         self: &Arc<Self>,
+        start: Vector3<f64>,
+        end: Vector3<f64>,
+        hit_check: impl Fn(&BlockPos, &Arc<Self>) -> bool,
+    ) -> Option<(BlockPos, BlockDirection)> {
+        self.raycast_with_shape(start, end, hit_check, false)
+    }
+
+    pub fn has_line_of_sight(self: &Arc<Self>, start: Vector3<f64>, end: Vector3<f64>) -> bool {
+        start.squared_distance_to_vec(&end) <= 128.0 * 128.0
+            && self
+                .raycast_with_shape(start, end, |_, _| true, true)
+                .is_none()
+    }
+
+    fn ray_collision_check(
+        &self,
+        pos: &BlockPos,
+        from: Vector3<f64>,
+        to: Vector3<f64>,
+    ) -> (bool, Option<BlockDirection>) {
+        let hit = self
+            .get_block_state(pos)
+            .get_block_collision_shapes_at(pos)
+            .filter_map(|shape| {
+                Self::intersects_aabb_with_hit(
+                    from,
+                    to,
+                    shape.min + pos.0.to_f64(),
+                    shape.max + pos.0.to_f64(),
+                )
+            })
+            .min_by(|a, b| a.0.total_cmp(&b.0));
+        (hit.is_some(), hit.map(|(_, direction, _)| direction))
+    }
+
+    fn raycast_with_shape(
+        self: &Arc<Self>,
         start_pos: Vector3<f64>,
         end_pos: Vector3<f64>,
         hit_check: impl Fn(&BlockPos, &Arc<Self>) -> bool,
+        collision_shape: bool,
     ) -> Option<(BlockPos, BlockDirection)> {
         if start_pos == end_pos {
             return None;
@@ -7015,7 +7053,11 @@ impl World {
         let mut block = BlockPos::floored(from.x, from.y, from.z);
 
         if hit_check(&block, self) {
-            let (collision, direction) = self.ray_outline_check(&block, from, to);
+            let (collision, direction) = if collision_shape {
+                self.ray_collision_check(&block, from, to)
+            } else {
+                self.ray_outline_check(&block, from, to)
+            };
             if let Some(dir) = direction
                 && collision
             {
@@ -7098,7 +7140,11 @@ impl World {
             };
 
             if hit_check(&block, self) {
-                let (collision, direction) = self.ray_outline_check(&block, from, to);
+                let (collision, direction) = if collision_shape {
+                    self.ray_collision_check(&block, from, to)
+                } else {
+                    self.ray_outline_check(&block, from, to)
+                };
                 if collision {
                     if let Some(dir) = direction {
                         return Some((block, dir));

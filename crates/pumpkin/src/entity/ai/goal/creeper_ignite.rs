@@ -72,11 +72,14 @@ impl Goal for CreeperIgniteGoal {
             .load()
             .squared_distance_to_vec(&target.get_entity().pos.load());
 
-        if dist_sq > 49.0 {
+        if dist_sq > 49.0
+            || !mob.get_entity().world.load_full().has_line_of_sight(
+                mob.get_entity().get_eye_pos(),
+                target.get_entity().get_eye_pos(),
+            )
+        {
             self.creeper.set_fuse_speed(-1);
-        }
-        // TODO: line of sight check (needs world raycast)
-        else {
+        } else {
             self.creeper.set_fuse_speed(1);
         }
     }

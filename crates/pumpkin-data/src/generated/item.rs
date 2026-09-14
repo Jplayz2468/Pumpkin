@@ -2044,7 +2044,7 @@ impl Item {
                 },
             ),
             (BreakSound, &BreakSoundImpl),
-            (BucketEntityData, &BucketEntityDataImpl),
+            (BucketEntityData, &BucketEntityDataImpl { nbt: None }),
             (
                 Enchantments,
                 &EnchantmentsImpl {
@@ -14354,7 +14354,7 @@ impl Item {
                 },
             ),
             (BreakSound, &BreakSoundImpl),
-            (BucketEntityData, &BucketEntityDataImpl),
+            (BucketEntityData, &BucketEntityDataImpl { nbt: None }),
             (
                 Enchantments,
                 &EnchantmentsImpl {
@@ -57784,7 +57784,7 @@ impl Item {
                 },
             ),
             (BreakSound, &BreakSoundImpl),
-            (BucketEntityData, &BucketEntityDataImpl),
+            (BucketEntityData, &BucketEntityDataImpl { nbt: None }),
             (
                 Enchantments,
                 &EnchantmentsImpl {
@@ -62600,7 +62600,7 @@ impl Item {
                 },
             ),
             (BreakSound, &BreakSoundImpl),
-            (BucketEntityData, &BucketEntityDataImpl),
+            (BucketEntityData, &BucketEntityDataImpl { nbt: None }),
             (
                 Enchantments,
                 &EnchantmentsImpl {
@@ -70427,7 +70427,7 @@ impl Item {
                 },
             ),
             (BreakSound, &BreakSoundImpl),
-            (BucketEntityData, &BucketEntityDataImpl),
+            (BucketEntityData, &BucketEntityDataImpl { nbt: None }),
             (
                 Enchantments,
                 &EnchantmentsImpl {
@@ -71006,7 +71006,7 @@ impl Item {
                 },
             ),
             (BreakSound, &BreakSoundImpl),
-            (BucketEntityData, &BucketEntityDataImpl),
+            (BucketEntityData, &BucketEntityDataImpl { nbt: None }),
             (
                 Enchantments,
                 &EnchantmentsImpl {
@@ -72265,7 +72265,7 @@ impl Item {
                 },
             ),
             (BreakSound, &BreakSoundImpl),
-            (BucketEntityData, &BucketEntityDataImpl),
+            (BucketEntityData, &BucketEntityDataImpl { nbt: None }),
             (
                 Enchantments,
                 &EnchantmentsImpl {

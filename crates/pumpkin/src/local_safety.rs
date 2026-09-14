@@ -1,6 +1,7 @@
 //! Temporary, opt-in gameplay safeguards. Keep parity fixes separate from policy.
 
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 
 use pumpkin_config::local_safety::LocalSafetyConfig;
@@ -14,8 +15,33 @@ use crate::server::Server;
 /// Per-connection warning state; no global player map or background timers.
 #[derive(Default)]
 pub struct SafetyNotices {
+    in_deep_dark: AtomicBool,
     last_redstone: Mutex<Option<Instant>>,
     last_shulker: Mutex<Option<Instant>>,
+}
+
+/// Warn on entry (including login in the biome), once until the player leaves.
+pub fn check_deep_dark(player: &Player) {
+    let inside = player
+        .world()
+        .get_biome(&player.living_entity.entity.block_pos.load())
+        .id
+        == pumpkin_data::biome::Biome::DEEP_DARK.id;
+    if inside
+        && !player
+            .safety_notices
+            .in_deep_dark
+            .swap(inside, Ordering::Relaxed)
+    {
+        player.send_system_message(&TextComponent::text(
+            "Deep Dark warning: Warden encounters are not implemented correctly yet. Sculk shriekers do not summon Wardens, and Warden behavior differs from vanilla Java.",
+        ));
+    } else if !inside {
+        player
+            .safety_notices
+            .in_deep_dark
+            .store(false, Ordering::Relaxed);
+    }
 }
 
 fn take_notice(last: &Mutex<Option<Instant>>, now: Instant, cooldown: Duration) -> bool {

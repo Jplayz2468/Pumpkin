@@ -79,7 +79,7 @@ impl JavaClient {
             'after: {
                 server
                     .item_registry
-                    .on_use_with_rotation(&stack_for_use, player, use_yaw, use_pitch);
+                    .on_use_in_hand(&stack_for_use, player, hand, use_yaw, use_pitch);
             }
         }}
     }
@@ -166,7 +166,6 @@ impl JavaClient {
             return true;
         }
 
-        // TODO: Apply fishing rod durability on retrieval based on catch type.
         let mut fish_event = PlayerFishEvent::new(
             player.clone(),
             None,

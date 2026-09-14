@@ -45,12 +45,17 @@ impl HopperMinecart {
         let inventory = &self.inventory;
         let cart_box = entity.bounding_box.load().expand(0.25, 0.0, 0.25);
 
-        if let Some(block_entity) = world.get_block_entity(&source_pos)
-            && let Some(source) = block_entity.get_inventory()
-        {
-            for slot in 0..source.size() {
+        if let Some(source) = HopperBlockEntity::container_at(&world, &source_pos) {
+            for slot in source.available_slots(Some(pumpkin_data::BlockDirection::Down)) {
                 let stack = source.get_stack(slot);
-                if stack.is_empty() || !source.can_transfer_to(inventory.as_ref(), slot, &stack) {
+                if stack.is_empty()
+                    || !source.can_transfer_to(inventory.as_ref(), slot, &stack)
+                    || !source.can_extract_from(
+                        slot,
+                        &stack,
+                        Some(pumpkin_data::BlockDirection::Down),
+                    )
+                {
                     continue;
                 }
                 let backup = stack.clone();
