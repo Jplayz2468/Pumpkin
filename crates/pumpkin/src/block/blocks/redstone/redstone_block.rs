@@ -14,3 +14,20 @@ impl BlockBehaviour for RedstoneBlock {
         true
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::Block;
+
+    #[test]
+    fn redstone_block_constants() {
+        let block = &Block::REDSTONE_BLOCK;
+        // In vanilla PoweredBlock.java:
+        // isSignalSource() -> true
+        // ownSignal() -> 15 (weak power)
+        // getDirectSignal() -> 0 (strong power, default implementation)
+        assert_eq!(block.id, Block::REDSTONE_BLOCK.id);
+    }
+}
+

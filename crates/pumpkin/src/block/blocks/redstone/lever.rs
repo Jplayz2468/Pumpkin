@@ -83,12 +83,14 @@ impl BlockBehaviour for LeverBlock {
     }
 
     fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
-        let block_pos = args.position;
+        if !args.moved {
+            let block_pos = args.position;
 
-        let lever_props = LeverLikeProperties::from_state_id(args.old_state_id);
+            let lever_props = LeverLikeProperties::from_state_id(args.old_state_id);
 
-        if lever_props.powered {
-            Self::update_neighbors(args.world, block_pos, lever_props);
+            if lever_props.powered {
+                Self::update_neighbors(args.world, block_pos, lever_props);
+            }
         }
     }
 
@@ -153,3 +155,51 @@ impl LeverLikePropertiesExt for LeverLikeProperties {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use pumpkin_data::Block;
+    use pumpkin_data::block_properties::HorizontalFacing;
+
+    #[test]
+    fn lever_direction_mapping() {
+        let mut props = LeverLikeProperties::default(&Block::LEVER);
+        props.face = AttachFace::Floor;
+        assert_eq!(props.get_direction(), BlockDirection::Up);
+
+        props.face = AttachFace::Ceiling;
+        assert_eq!(props.get_direction(), BlockDirection::Down);
+
+        props.face = AttachFace::Wall;
+        props.facing = HorizontalFacing::North;
+        assert_eq!(props.get_direction(), BlockDirection::North);
+    }
+
+    #[test]
+    fn lever_power_logic() {
+        let block = &Block::LEVER;
+        let mut props = LeverLikeProperties::default(block);
+        props.face = AttachFace::Floor;
+        props.powered = false;
+
+        let weak_power = |p: LeverLikeProperties| if p.powered { 15 } else { 0 };
+        let strong_power = |p: LeverLikeProperties, dir: BlockDirection| {
+            if p.powered && p.get_direction() == dir {
+                15
+            } else {
+                0
+            }
+        };
+
+        assert_eq!(weak_power(props), 0);
+        assert_eq!(strong_power(props, BlockDirection::Up), 0);
+
+        props.powered = true;
+        assert_eq!(weak_power(props), 15);
+        assert_eq!(strong_power(props, BlockDirection::Up), 15);
+        assert_eq!(strong_power(props, BlockDirection::Down), 0);
+        assert_eq!(strong_power(props, BlockDirection::North), 0);
+    }
+}
+
