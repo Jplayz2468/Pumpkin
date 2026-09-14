@@ -66,14 +66,14 @@ pub mod spider;
 pub mod vex;
 pub mod vindicator;
 pub mod warden;
-mod warden_brain;
-mod warden_look;
 pub mod warden_anger;
 pub mod warden_anger_nbt;
+mod warden_brain;
 pub mod warden_damage;
 mod warden_darkness;
 pub mod warden_dig;
 pub mod warden_emergence;
+mod warden_look;
 mod warden_melee;
 pub mod warden_roar;
 mod warden_sensor;
@@ -808,7 +808,9 @@ pub trait Mob: EntityBase + Send + Sync {
     fn mob_tick(&self, _caller: &dyn EntityBase) {}
 
     /// Brain-owned LOOK_TARGET takes precedence over navigation-only melee goals.
-    fn use_goal_look_control(&self) -> bool { true }
+    fn use_goal_look_control(&self) -> bool {
+        true
+    }
 
     fn run_goal_ai(&self) -> bool {
         true
@@ -1343,7 +1345,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
                 std::mem::take(&mut *guard)
             };
 
-            navigator.tick(&mob_entity.living_entity);
+            navigator.tick_mob(self);
 
             {
                 *mob_entity

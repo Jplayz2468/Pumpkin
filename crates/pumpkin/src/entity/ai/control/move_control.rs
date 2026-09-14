@@ -93,6 +93,9 @@ impl MoveControlTrait for MoveControl {
             if command.stop_forward {
                 return;
             }
+            if living_entity.controlled_speed.load().is_some() {
+                living_entity.controlled_speed.store(Some(command.speed));
+            }
             entity.yaw.store(command.yaw);
             if command.jump {
                 living_entity.jumping.store(true, Ordering::SeqCst);

@@ -3,6 +3,7 @@ use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::math::wrap_degrees;
 
 use crate::entity::living::LivingEntity;
+use crate::entity::mob::Mob;
 use crate::world::World;
 
 use crate::entity::ai::pathfinder::amphibious_node_evaluator::AmphibiousNodeEvaluator;
@@ -23,6 +24,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 pub mod amphibious_node_evaluator;
 pub mod binary_heap;
 pub mod fly_node_evaluator;
+mod navigation_tick;
 pub mod node;
 pub mod node_evaluator;
 pub mod path;
@@ -385,6 +387,9 @@ pub trait PathNavigationTrait: Send + Sync {
         distance: f32,
     ) -> bool;
     fn tick(&mut self, entity: &LivingEntity);
+    fn tick_mob(&mut self, mob: &dyn Mob) {
+        self.tick(&mob.get_mob_entity().living_entity);
+    }
     fn move_to_coords(&mut self, x: f64, y: f64, z: f64, speed: f64, entity: &LivingEntity)
     -> bool;
     fn move_to_pos(&mut self, pos: BlockPos, speed: f64, entity: &LivingEntity) -> bool;
@@ -413,6 +418,7 @@ pub trait PathNavigationTrait: Send + Sync {
 }
 
 pub struct PathNavigation {
+    java_tick: Option<navigation_tick::NavigationTick>,
     pub current_goal: Option<NavigatorGoal>,
     pub evaluator: EvaluatorKind,
     pub path: Option<Path>,
@@ -461,6 +467,7 @@ impl PathNavigation {
     #[must_use]
     pub fn new(evaluator: EvaluatorKind) -> Self {
         Self {
+            java_tick: None,
             current_goal: None,
             evaluator,
             path: None,
@@ -515,6 +522,12 @@ impl PathNavigation {
     }
 
     pub fn stop(&mut self) {
+        if self.java_tick.is_some() {
+            self.path = None;
+            self.current_goal = None;
+            self.is_idle.store(true, Ordering::Relaxed);
+            return;
+        }
         self.is_idle.store(true, Ordering::Relaxed);
         self.current_goal = None;
         self.path = None;
@@ -1166,6 +1179,30 @@ impl Default for GroundPathNavigation {
 }
 
 impl GroundPathNavigation {
+    fn java_surface_y(&self, entity: &LivingEntity) -> f64 {
+        let pos = entity.entity.pos.load();
+        if !entity.entity.is_in_water() || !self.inner.can_float {
+            return (pos.y + 0.5).floor();
+        }
+        let mut y = pos.y.floor() as i32;
+        let world = entity.entity.world.load();
+        for steps in 0..=16 {
+            let block = world.get_block_state(&BlockPos::new(
+                pos.x.floor() as i32,
+                y,
+                pos.z.floor() as i32,
+            ));
+            if block.id.to_block() != &pumpkin_data::Block::WATER {
+                return f64::from(y);
+            }
+            y = y.wrapping_add(1);
+            if steps == 16 {
+                return pos.y.floor();
+            }
+        }
+        unreachable!()
+    }
+
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -1188,7 +1225,11 @@ impl PathNavigationTrait for GroundPathNavigation {
     }
 
     fn is_idle(&self) -> bool {
-        self.inner.is_idle.load(Ordering::Relaxed)
+        if self.inner.java_tick.is_some() {
+            self.is_done()
+        } else {
+            self.inner.is_idle.load(Ordering::Relaxed)
+        }
     }
 
     fn is_done(&self) -> bool {
@@ -1232,6 +1273,92 @@ impl PathNavigationTrait for GroundPathNavigation {
         self.inner.can_reach_within(entity, destination, distance)
     }
 
+    fn tick_mob(&mut self, mob: &dyn Mob) {
+        let Some(mut state) = self.inner.java_tick.take() else {
+            self.tick(&mob.get_mob_entity().living_entity);
+            return;
+        };
+        let living = &mob.get_mob_entity().living_entity;
+        let entity = &living.entity;
+        if self.inner.has_delayed_recomputation {
+            self.recompute_path(living);
+        }
+        let position = entity.pos.load();
+        let temporary = Vector3::new(position.x, self.java_surface_y(living), position.z);
+        let mut route = self.inner.path.as_ref().map(|path| navigation_tick::Route {
+            nodes: path
+                .get_nodes()
+                .iter()
+                .map(|node| [node.pos.0.x, node.pos.0.y, node.pos.0.z])
+                .collect(),
+            index: path.next_node_index,
+        });
+        let cut = self
+            .inner
+            .path
+            .as_ref()
+            .and_then(Path::get_next_node)
+            .is_some_and(|n| {
+                !matches!(
+                    n.path_type,
+                    PathType::DangerFire | PathType::DangerOther | PathType::WalkableDoor
+                )
+            });
+        let dimension = entity.entity_dimension.load();
+        let facts = navigation_tick::Facts {
+            time: entity.world.load().get_world_age(),
+            position: [position.x, position.y, position.z],
+            temporary_position: [temporary.x, temporary.y, temporary.z],
+            width: dimension.width as f32,
+            speed: living.controlled_speed.load().unwrap_or(0.0),
+            can_update: entity.on_ground.load(Ordering::Relaxed)
+                || entity.is_in_water()
+                || entity.touching_lava.load(Ordering::Relaxed)
+                || entity.has_vehicle(),
+            ground: entity.on_ground.load(Ordering::Relaxed),
+            cut_corner: cut,
+            direct: false,
+        };
+        let wanted = state.tick(&mut route, &facts);
+        if let Some(route) = route {
+            if let Some(path) = &mut self.inner.path {
+                path.next_node_index = route.index;
+            }
+        } else {
+            self.inner.path = None;
+        }
+        self.inner.is_stuck = state.stuck;
+        self.inner.tick_count = state.tick as u32;
+        self.inner.is_idle.store(
+            self.inner.path.as_ref().is_none_or(Path::is_done),
+            Ordering::Relaxed,
+        );
+        self.inner.java_tick = Some(state);
+        if let Some([x, y, z]) = wanted {
+            let below = BlockPos::new(
+                x.floor() as i32,
+                (y.floor() as i32).wrapping_sub(1),
+                z.floor() as i32,
+            );
+            let block = entity.world.load().get_block_state(&below);
+            let ground_y = if block.is_air() {
+                y
+            } else {
+                f64::from(below.0.y)
+                    + block
+                        .get_block_collision_shapes_at(&below)
+                        .map(|s| s.max.y)
+                        .reduce(f64::max)
+                        .unwrap_or(0.0)
+            };
+            mob.get_mob_entity()
+                .move_control
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .set_wanted_position(x, ground_y, z, self.inner.speed_modifier);
+        }
+    }
+
     fn tick(&mut self, entity: &LivingEntity) {
         self.inner.tick_ground(entity);
     }
@@ -1268,6 +1395,36 @@ impl PathNavigationTrait for GroundPathNavigation {
     }
 
     fn move_to_path(&mut self, path: Option<Path>, speed: f64, entity: &LivingEntity) -> bool {
+        if self.inner.java_tick.is_some() {
+            let Some(path) = path else {
+                self.inner.path = None;
+                return false;
+            };
+            if !path.same_as(self.inner.path.as_ref()) {
+                self.inner.path = Some(path);
+            }
+            if self.is_done() {
+                return false;
+            }
+            self.inner.trim_path(entity);
+            if self
+                .inner
+                .path
+                .as_ref()
+                .is_none_or(|p| p.get_node_count() == 0)
+            {
+                return false;
+            }
+            self.inner.speed_modifier = speed;
+            let p = entity.entity.pos.load();
+            let surface = self.java_surface_y(entity);
+            let state = self.inner.java_tick.as_mut().unwrap();
+            state.last_stuck_check = state.tick;
+            state.last_stuck_position = [p.x, surface, p.z];
+            self.inner.is_idle.store(false, Ordering::Relaxed);
+            return true;
+        }
+
         if let Some(new_path) = path {
             self.inner.path = Some(new_path);
             if self.is_done() {
@@ -2526,6 +2683,13 @@ impl Default for Navigator {
 }
 
 impl Navigator {
+    /// Opt in only after the mob owns WALK_TARGET and its movement controls.
+    pub fn java_ground() -> Self {
+        let mut nav = GroundPathNavigation::new();
+        nav.inner.java_tick = Some(navigation_tick::NavigationTick::default());
+        Self::new(nav)
+    }
+
     #[must_use]
     pub fn new<N: PathNavigationTrait + 'static>(nav: N) -> Self {
         Self {

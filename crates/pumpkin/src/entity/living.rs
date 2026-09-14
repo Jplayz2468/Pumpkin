@@ -96,6 +96,8 @@ pub struct LivingEntity {
     pub entity_equipment: Arc<std::sync::Mutex<EntityEquipment>>,
     pub equipment_drop_chances: Arc<std::sync::Mutex<FxHashMap<EquipmentSlot, f32>>>,
     pub movement_input: AtomicCell<Vector3<f64>>,
+    /// Separate Java AI speed, enabled as each mob adopts the Brain movement path.
+    pub controlled_speed: AtomicCell<Option<f32>>,
     pub equipment_slots: Arc<FxHashMap<usize, EquipmentSlot>>,
 
     pub jumping: AtomicBool,
@@ -314,6 +316,7 @@ impl LivingEntity {
             last_hurt_by_mob_id: AtomicI32::new(0),
             last_hurt_by_mob_time: AtomicI64::new(0),
             movement_input: AtomicCell::new(Vector3::default()),
+            controlled_speed: AtomicCell::new(None),
             water_movement_speed_multiplier,
             last_block_pos: AtomicCell::new(None),
             equipment_attribute_modifier_ids: std::sync::Mutex::new(FxHashMap::default()),

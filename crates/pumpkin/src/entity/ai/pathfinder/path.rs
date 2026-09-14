@@ -1,9 +1,14 @@
+use std::sync::atomic::{AtomicU64, Ordering};
+static NEXT_PATH_ID: AtomicU64 = AtomicU64::new(1);
+
 use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 
 use crate::entity::ai::pathfinder::node::Node;
 
 #[derive(Debug, Clone)]
 pub struct Path {
+    // Clones represent the same Java path reference; explicit copies get a new identity.
+    identity: u64,
     nodes: Vec<Node>,
     pub next_node_index: usize,
     target: BlockPos,
@@ -12,6 +17,10 @@ pub struct Path {
 }
 
 impl Path {
+    pub const fn identity(&self) -> u64 {
+        self.identity
+    }
+
     #[must_use]
     pub fn new(nodes: Vec<Node>, target: BlockPos, reached: bool) -> Self {
         let dist_to_target = if nodes.is_empty() {
@@ -22,6 +31,7 @@ impl Path {
         };
 
         Self {
+            identity: NEXT_PATH_ID.fetch_add(1, Ordering::Relaxed),
             nodes,
             next_node_index: 0,
             target,
@@ -158,6 +168,7 @@ impl Path {
     #[must_use]
     pub fn copy(&self) -> Self {
         Self {
+            identity: NEXT_PATH_ID.fetch_add(1, Ordering::Relaxed),
             nodes: self.nodes.clone(),
             next_node_index: self.next_node_index,
             target: self.target,
