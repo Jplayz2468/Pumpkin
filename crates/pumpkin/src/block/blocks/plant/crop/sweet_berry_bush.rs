@@ -126,9 +126,9 @@ impl BlockBehaviour for SweetBerryBushBlock {
             .damage(args.entity, 1.0, DamageType::SWEET_BERRY_BUSH);
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        if args.world.rand_bounded_i32(5) == 0 {
-            <Self as CropBlockBase>::random_tick(self, args.world, args.position);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        if args.rand_bounded_i32(5) == 0 {
+            <Self as CropBlockBase>::random_tick(self, args.world, args.position, args.random);
         }
     }
 }
@@ -171,7 +171,12 @@ impl CropBlockBase for SweetBerryBushBlock {
         props.to_state_id(block)
     }
 
-    fn random_tick(&self, world: &Arc<World>, pos: &BlockPos) {
+    fn random_tick(
+        &self,
+        world: &Arc<World>,
+        pos: &BlockPos,
+        _random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+    ) {
         let (block, state) = world.get_block_and_state_id(pos);
         let age = self.get_age(state, block);
         if age < self.max_age() {

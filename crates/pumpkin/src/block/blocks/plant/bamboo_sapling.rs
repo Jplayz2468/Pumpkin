@@ -62,11 +62,11 @@ impl BlockBehaviour for BambooSaplingBlock {
         args.state_id
     }
 
-    fn random_tick(&self, args: crate::block::RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: crate::block::RandomTickArgs<'_>) {
         // Draw first: vanilla evaluates `random.nextInt(3) == 0` before the block and
         // light checks (`BambooSaplingBlock.java:41`), so the stream must advance even
         // when the space above is occupied.
-        let roll = args.world.rand_bounded_i32(3);
+        let roll = args.rand_bounded_i32(3);
         let above = args.position.up();
         let state_above = args.world.get_block_state(&above);
         if roll != 0 || !state_above.is_air() || args.world.get_raw_brightness(&above, 0) < 9 {

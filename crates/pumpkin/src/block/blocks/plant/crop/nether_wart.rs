@@ -37,8 +37,8 @@ impl BlockBehaviour for NetherWartBlock {
         )
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        <Self as CropBlockBase>::random_tick(self, args.world, args.position);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        <Self as CropBlockBase>::random_tick(self, args.world, args.position, &mut args.random);
     }
 }
 
@@ -69,14 +69,20 @@ impl CropBlockBase for NetherWartBlock {
         props.to_state_id(block)
     }
 
-    fn random_tick(&self, world: &Arc<World>, pos: &BlockPos) {
+    fn random_tick(
+        &self,
+        world: &Arc<World>,
+        pos: &BlockPos,
+        random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+    ) {
+        use pumpkin_util::random::RandomImpl;
         let (block, state) = world.get_block_and_state_id(pos);
         let age = self.get_age(state, block);
-        if age < self.max_age() && world.rand_bounded_i32(10) == 0 {
+        if age < self.max_age() && random.next_bounded_i32(10) == 0 {
             world.set_block_state(
                 pos,
                 self.state_with_age(block, state, age + 1),
-                BlockFlags::NOTIFY_NEIGHBORS,
+                BlockFlags::NOTIFY_LISTENERS,
             );
         }
     }

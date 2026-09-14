@@ -92,7 +92,14 @@ pub trait FluidBehaviour: Send + Sync {
 
     fn on_scheduled_tick(&self, _world: &Arc<World>, _fluid: &Fluid, _block_pos: &BlockPos) {}
 
-    fn random_tick(&self, _fluid: &Fluid, _world: &Arc<World>, _block_pos: &BlockPos) {}
+    fn random_tick(
+        &self,
+        _fluid: &Fluid,
+        _world: &Arc<World>,
+        _block_pos: &BlockPos,
+        _random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+    ) {
+    }
 
     fn create_legacy_block(&self, _world: &Arc<World>, _block_pos: &BlockPos) {}
 }

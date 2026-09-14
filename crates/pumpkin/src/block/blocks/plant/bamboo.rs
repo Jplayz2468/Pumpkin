@@ -9,7 +9,6 @@ use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
-use rand::RngExt;
 
 use crate::block::{
     BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
@@ -105,9 +104,9 @@ impl BlockBehaviour for BambooBlock {
         args.state_id
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        if rand::rng().random_range(0..=3) == 0 {
-            update_leaves_and_grow(args.world, args.position);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        if args.rand_bounded_i32(3) == 0 {
+            update_leaves_and_grow(args.world, args.position, &mut args.random);
         }
     }
 
@@ -116,7 +115,12 @@ impl BlockBehaviour for BambooBlock {
     }
 }
 
-fn update_leaves_and_grow(world: &Arc<World>, position: &BlockPos) {
+fn update_leaves_and_grow(
+    world: &Arc<World>,
+    position: &BlockPos,
+    random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+) {
+    use pumpkin_util::random::RandomImpl;
     let above_pos = position.up();
     let below_pos = position.down();
     let two_below_pos = position.down_height(2);
@@ -174,7 +178,7 @@ fn update_leaves_and_grow(world: &Arc<World>, position: &BlockPos) {
     props.age = u8::from(!(props.age != 1 && block_two_below == &Block::BAMBOO));
 
     props.stage = u8::from(
-        !((bamboo_count < 11 || rand::rng().random::<f32>() >= 0.25) && bamboo_count != 15),
+        !((bamboo_count < 11 || random.next_f32() >= 0.25) && bamboo_count != 15),
     );
 
     world.set_block_state(&above_pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
@@ -211,9 +215,13 @@ fn count_bamboo_above(world: &World, pos: &BlockPos) -> usize {
 }
 
 fn bone_meal(world: &Arc<World>, position: &BlockPos) {
+    use pumpkin_util::random::RandomImpl;
     let bamboo_below = count_bamboo_below(world, position);
 
-    let growth_amount = rand::rng().random_range(1..=2);
+    let growth_amount = {
+        let mut random = world.random.lock().unwrap();
+        random.next_bounded_i32(2) + 1
+    };
 
     for (bamboo_above, _) in (count_bamboo_above(world, position)..).zip(0..growth_amount) {
         let current_total_height = bamboo_above + bamboo_below + 1;
@@ -235,7 +243,8 @@ fn bone_meal(world: &Arc<World>, position: &BlockPos) {
             return;
         }
 
-        update_leaves_and_grow(world, &next_pos);
+        let mut random = world.random.lock().unwrap();
+        update_leaves_and_grow(world, &next_pos, &mut random);
     }
 }
 

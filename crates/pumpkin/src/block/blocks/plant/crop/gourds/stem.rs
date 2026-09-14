@@ -6,16 +6,12 @@ use crate::block::{
     },
 };
 use pumpkin_data::{
-    Block, BlockDirection, BlockId, BlockStateId,
+    Block, BlockId, BlockStateId, HorizontalFacingExt,
     block_properties::{HorizontalFacing, WallTorchLikeProperties, WheatLikeProperties},
     tag::{self, Taggable},
 };
-use pumpkin_util::{
-    math::position::BlockPos,
-    random::{RandomGenerator, xoroshiro128::Xoroshiro},
-};
+use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
-use rand::RngExt;
 
 type StemProperties = WheatLikeProperties;
 type AttachedStemProperties = WallTorchLikeProperties;
@@ -64,12 +60,18 @@ impl BlockBehaviour for StemBlock {
         <Self as CropBlockBase>::perform_bonemeal(self, args.world, args.position);
         let (_, state) = args.world.get_block_and_state_id(args.position);
         if StemProperties::from_state_id(state).age == 7 {
+            let mut random = args
+                .world
+                .random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
             BlockBehaviour::random_tick(
                 self,
                 RandomTickArgs {
                     world: args.world,
                     block: args.block,
                     position: args.position,
+                    random: &mut *random,
                 },
             );
         }
@@ -91,10 +93,12 @@ impl BlockBehaviour for StemBlock {
         )
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        // TODO add light level check
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        if args.world.get_raw_brightness(args.position, 0) < 9 {
+            return;
+        }
         let f: f32 = get_available_moisture(args.world, args.position, args.block);
-        if args.world.rand_bounded_i32((25.0f32 / f) as i32 + 1) == 0 {
+        if args.rand_bounded_i32((25.0f32 / f) as i32 + 1) == 0 {
             let (block, state) = args.world.get_block_and_state_id(args.position);
             let props = StemProperties::from_state_id(state);
             let age = i32::from(props.age);
@@ -105,9 +109,9 @@ impl BlockBehaviour for StemBlock {
                     BlockFlags::NOTIFY_NEIGHBORS,
                 );
             } else {
-                let dir = BlockDirection::random_horizontal(&mut RandomGenerator::Xoroshiro(
-                    Xoroshiro::from_seed(rand::rng().random()),
-                ));
+                let horizontals = HorizontalFacing::all();
+                let facing = horizontals[args.rand_bounded_i32(horizontals.len() as i32) as usize];
+                let dir = facing.to_block_direction();
                 let plant_block_pos = args.position.offset(dir.to_offset());
                 let plant_block_state = args.world.get_block_state(&plant_block_pos);
                 let under_block: &Block = args.world.get_block(&plant_block_pos.down());
@@ -115,7 +119,7 @@ impl BlockBehaviour for StemBlock {
                     && (under_block == &Block::FARMLAND
                         || under_block.has_tag(&tag::Block::MINECRAFT_DIRT))
                 {
-                    let attached_stem = Self::get_attached_stem(dir, block);
+                    let attached_stem = Self::get_attached_stem(facing, block);
                     let gourd = Self::get_gourd(block);
                     args.world.set_block_state(
                         &plant_block_pos,

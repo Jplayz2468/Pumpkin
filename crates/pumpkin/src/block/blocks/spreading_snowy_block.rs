@@ -8,7 +8,6 @@ use pumpkin_data::{Block, BlockDirection, BlockId, BlockState, BlockStateId};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::lighting::LightEngine;
 use pumpkin_world::world::BlockFlags;
-use rand::RngExt;
 
 use crate::block::{
     BlockBehaviour, BlockMetadata, GetStateForNeighborUpdateArgs, OnPlaceArgs, RandomTickArgs,
@@ -125,15 +124,16 @@ impl SpreadingSnowyBlock {
         pos: &BlockPos,
         base_block: &'static Block,
         default_block_state: &'static BlockState,
+        random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
     ) {
+        use pumpkin_util::random::RandomImpl;
         if !Self::can_stay_alive(state, world, pos) {
             world.set_block_state(pos, base_block.default_state.id, BlockFlags::NOTIFY_ALL);
         } else if world.get_max_local_raw_brightness(&pos.up()) >= 9 {
-            let mut rng = rand::rng();
             for _ in 0..4 {
-                let dx = rng.random_range(0..3) - 1;
-                let dy = rng.random_range(0..5) - 3;
-                let dz = rng.random_range(0..3) - 1;
+                let dx = random.next_bounded_i32(3) - 1;
+                let dy = random.next_bounded_i32(5) - 3;
+                let dz = random.next_bounded_i32(3) - 1;
                 let test_pos = pos.add(dx, dy, dz);
                 if !world.is_loaded(&test_pos) {
                     continue;
@@ -200,7 +200,7 @@ impl BlockBehaviour for MyceliumBlock {
         SnowyBlock::get_state_for_neighbor_update(&args)
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         let state = args.world.get_block_state(args.position);
         SpreadingSnowyBlock::random_tick(
             state,
@@ -208,6 +208,7 @@ impl BlockBehaviour for MyceliumBlock {
             args.position,
             &Block::DIRT,
             Block::MYCELIUM.default_state,
+            &mut args.random,
         );
     }
 }

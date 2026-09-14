@@ -2093,10 +2093,15 @@ impl World {
                         && let Some(pumpkin_block) =
                             world.block_registry.get_pumpkin_block(block.id)
                     {
+                        let mut random = world
+                            .random
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner);
                         pumpkin_block.random_tick(RandomTickArgs {
                             world: &world,
                             block,
                             position: &pos,
+                            random: &mut *random,
                         });
                     }
 
@@ -2104,7 +2109,11 @@ impl World {
                         && let Some(pumpkin_fluid) =
                             world.block_registry.get_pumpkin_fluid(fluid.id)
                     {
-                        pumpkin_fluid.random_tick(fluid, &world, &pos);
+                        let mut random = world
+                            .random
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner);
+                        pumpkin_fluid.random_tick(fluid, &world, &pos, &mut *random);
                     }
                 }
             }

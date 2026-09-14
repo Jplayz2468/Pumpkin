@@ -74,7 +74,13 @@ trait CropBlockBase: PlantBlockBase {
         );
     }
 
-    fn random_tick(&self, world: &Arc<World>, pos: &BlockPos) {
+    fn random_tick(
+        &self,
+        world: &Arc<World>,
+        pos: &BlockPos,
+        random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+    ) {
+        use pumpkin_util::random::RandomImpl;
         if world.get_raw_brightness(pos, 0) < 9 {
             return;
         }
@@ -82,7 +88,7 @@ trait CropBlockBase: PlantBlockBase {
         let age = self.get_age(state, block);
         if age < self.max_age() {
             let f = get_available_moisture(world, pos, block);
-            if world.rand_bounded_i32((25.0f32 / f) as i32 + 1) == 0 {
+            if random.next_bounded_i32((25.0f32 / f) as i32 + 1) == 0 {
                 let new_state_id = self.state_with_age(block, state, age + 1);
                 if let Some(server) = world.server.upgrade() {
                     let mut event =

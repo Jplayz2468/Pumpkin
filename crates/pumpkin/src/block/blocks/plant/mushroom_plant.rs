@@ -236,8 +236,8 @@ impl BlockBehaviour for MushroomPlantBlock {
         args.state_id
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        if rand::rng().random_range(0..25) != 0 {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        if args.rand_bounded_i32(25) != 0 {
             return;
         }
         let pos = *args.position;
@@ -262,9 +262,9 @@ impl BlockBehaviour for MushroomPlantBlock {
 
         let mut current_pos = pos;
         let mut offset = current_pos.add(
-            rand::rng().random_range(0..3) - 1,
-            rand::rng().random_range(0..2) - rand::rng().random_range(0..2),
-            rand::rng().random_range(0..3) - 1,
+            args.rand_bounded_i32(3) - 1,
+            args.rand_bounded_i32(2) - args.rand_bounded_i32(2),
+            args.rand_bounded_i32(3) - 1,
         );
 
         for _ in 0..4 {
@@ -275,9 +275,9 @@ impl BlockBehaviour for MushroomPlantBlock {
                 current_pos = offset;
             }
             offset = current_pos.add(
-                rand::rng().random_range(0..3) - 1,
-                rand::rng().random_range(0..2) - rand::rng().random_range(0..2),
-                rand::rng().random_range(0..3) - 1,
+                args.rand_bounded_i32(3) - 1,
+                args.rand_bounded_i32(2) - args.rand_bounded_i32(2),
+                args.rand_bounded_i32(3) - 1,
             );
         }
 

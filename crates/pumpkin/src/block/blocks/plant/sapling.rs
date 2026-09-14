@@ -86,9 +86,9 @@ impl BlockBehaviour for SaplingBlock {
         )
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         if args.world.get_max_local_raw_brightness(&args.position.up()) >= 9
-            && rand::random_range(0..7) == 0
+            && args.rand_bounded_i32(7) == 0
         {
             let state_id = args.world.get_block_state_id(args.position);
             Self::advance_tree(args.world, args.position, args.block, state_id, false);

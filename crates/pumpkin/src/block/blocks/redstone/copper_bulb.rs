@@ -100,8 +100,8 @@ impl BlockBehaviour for CopperBulbBlock {
         }
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        change_over_time(args.world, args.position, args.block);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {

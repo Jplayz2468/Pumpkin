@@ -36,7 +36,7 @@ impl BlockBehaviour for CarrotBlock {
     }
 
     fn random_tick(&self, args: RandomTickArgs<'_>) {
-        <Self as CropBlockBase>::random_tick(self, args.world, args.position);
+        <Self as CropBlockBase>::random_tick(self, args.world, args.position, args.random);
     }
 }
 

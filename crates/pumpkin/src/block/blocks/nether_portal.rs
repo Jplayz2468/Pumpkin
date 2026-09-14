@@ -8,7 +8,6 @@ use pumpkin_data::{
 };
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::{Difficulty, GameMode, math::vector3::Vector3};
-use rand::RngExt;
 use uuid::Uuid;
 
 use crate::{
@@ -68,7 +67,7 @@ impl BlockBehaviour for NetherPortalBlock {
         Block::AIR.default_state.id
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         let level_info = args.world.level_info.load();
         let difficulty = level_info.difficulty;
         if !level_info.game_rules.spawn_mobs
@@ -79,7 +78,7 @@ impl BlockBehaviour for NetherPortalBlock {
         }
 
         let difficulty_id = difficulty as u32;
-        let roll = rand::rng().random_range(0..2000);
+        let roll = args.rand_bounded_i32(2000) as u32;
         if roll >= difficulty_id {
             return;
         }

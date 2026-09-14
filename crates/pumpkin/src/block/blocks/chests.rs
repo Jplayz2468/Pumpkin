@@ -410,7 +410,7 @@ impl BlockBehaviour for CopperChestBlock {
         broken_chest_impl(&args);
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         let current_state_id = args.world.get_block_state_id(args.position);
         let chest_props = ChestLikeProperties::from_state_id(current_state_id);
 
@@ -431,6 +431,7 @@ impl BlockBehaviour for CopperChestBlock {
             args.world,
             args.position,
             args.block,
+            &mut args.random,
         );
     }
 

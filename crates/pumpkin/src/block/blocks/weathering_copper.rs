@@ -502,11 +502,16 @@ pub fn scan_neighbor_oxidation_levels(
 }
 
 /// Executes a random tick change-over-time attempt on a weathering copper block using vanilla's probability formula.
-pub fn change_over_time(world: &Arc<World>, position: &BlockPos, block: &Block) {
-    use rand::RngExt;
+pub fn change_over_time(
+    world: &Arc<World>,
+    position: &BlockPos,
+    block: &Block,
+    random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+) {
+    use pumpkin_util::random::RandomImpl;
 
     // 1. Roll base degradation chance (~5.69%)
-    if rand::rng().random::<f32>() >= BASE_DEGRADATION_CHANCE {
+    if random.next_f32() >= BASE_DEGRADATION_CHANCE {
         return;
     }
 
@@ -529,7 +534,7 @@ pub fn change_over_time(world: &Arc<World>, position: &BlockPos, block: &Block) 
     let ratio = (higher_age_count + 1) as f32 / (higher_age_count + same_age_count + 1) as f32;
     let chance = ratio * ratio * get_chance_modifier(current_age);
 
-    if rand::rng().random::<f32>() >= chance {
+    if random.next_f32() >= chance {
         return;
     }
 
@@ -640,8 +645,8 @@ impl BlockMetadata for WeatheringCopperBlock {
 }
 
 impl BlockBehaviour for WeatheringCopperBlock {
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        change_over_time(args.world, args.position, args.block);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
     }
 
     /// Only statues carry a pose, every other copper block here reads nothing.
@@ -727,8 +732,8 @@ impl BlockBehaviour for WeatheringCopperStairBlock {
         StairBlock.mirror(block, state_id, mirror)
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        change_over_time(args.world, args.position, args.block);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
     }
 
     fn is_pathfindable(&self, state: &BlockState, computation_type: PathComputationType) -> bool {
@@ -789,8 +794,8 @@ impl BlockBehaviour for WeatheringCopperTrapDoorBlock {
         TrapDoorBlock.on_neighbor_update(args);
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        change_over_time(args.world, args.position, args.block);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
     }
 
     fn is_pathfindable(&self, state: &BlockState, computation_type: PathComputationType) -> bool {
@@ -847,8 +852,8 @@ impl BlockBehaviour for WeatheringCopperSlabBlock {
         SlabBlock.can_update_at(args)
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        change_over_time(args.world, args.position, args.block);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
     }
 
     fn is_pathfindable(&self, state: &BlockState, computation_type: PathComputationType) -> bool {
@@ -932,11 +937,11 @@ impl BlockBehaviour for WeatheringCopperDoorBlock {
         DoorBlock.on_state_replaced(args);
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         let state_id = args.world.get_block_state_id(args.position);
         let door_props = OakDoorLikeProperties::from_state_id(state_id);
         if door_props.half == DoubleBlockHalf::Lower {
-            change_over_time(args.world, args.position, args.block);
+            change_over_time(args.world, args.position, args.block, &mut args.random);
         }
     }
 
@@ -992,7 +997,7 @@ impl BlockBehaviour for WeatheringCopperGrateBlock {
         props.to_state_id(args.block)
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        change_over_time(args.world, args.position, args.block);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
     }
 }

@@ -190,20 +190,27 @@ impl FluidBehaviour for FlowingLava {
         }
     }
 
-    fn random_tick(&self, _fluid: &Fluid, world: &Arc<World>, block_pos: &BlockPos) {
+    fn random_tick(
+        &self,
+        _fluid: &Fluid,
+        world: &Arc<World>,
+        block_pos: &BlockPos,
+        random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+    ) {
+        use pumpkin_util::random::RandomImpl;
         if !Self::can_spread_fire_around(world, block_pos) {
             return;
         }
 
-        let passes = rand::random_range(0..3);
+        let passes = random.next_bounded_i32(3);
         if passes > 0 {
             let mut test_pos = *block_pos;
 
             for _ in 0..passes {
                 test_pos = test_pos.offset(Vector3::new(
-                    rand::random_range(-1..=1),
+                    random.next_bounded_i32(3) - 1,
                     1,
-                    rand::random_range(-1..=1),
+                    random.next_bounded_i32(3) - 1,
                 ));
 
                 let (block, _) = world.get_block_and_state_id(&test_pos);
@@ -224,9 +231,9 @@ impl FluidBehaviour for FlowingLava {
         } else {
             for _ in 0..3 {
                 let test_pos = block_pos.offset(Vector3::new(
-                    rand::random_range(-1..=1),
+                    random.next_bounded_i32(3) - 1,
                     0,
-                    rand::random_range(-1..=1),
+                    random.next_bounded_i32(3) - 1,
                 ));
 
                 if !world.is_loaded(&test_pos) {

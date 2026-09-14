@@ -12,7 +12,6 @@ use pumpkin_world::{
     tick::TickPriority,
     world::{BlockAccessor, BlockFlags},
 };
-use rand::RngExt;
 
 use super::chorus_plant;
 use crate::{
@@ -58,7 +57,7 @@ impl BlockBehaviour for ChorusFlowerBlock {
         }
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         let above = args.position.up();
         let max_y = args.world.dimension.min_y + args.world.dimension.height - 1;
         if args.world.get_block(&above).default_state.is_air() && above.0.y <= max_y {
@@ -88,7 +87,7 @@ impl BlockBehaviour for ChorusFlowerBlock {
                     }
 
                     let max_chance = if pillar_on_support_block { 5 } else { 4 };
-                    if height < 2 || height <= rand::rng().random_range(0..max_chance) {
+                    if height < 2 || height <= args.rand_bounded_i32(max_chance) {
                         grow_upwards = true;
                     }
                 } else if below_block.default_state.is_air() {
@@ -112,7 +111,7 @@ impl BlockBehaviour for ChorusFlowerBlock {
                     );
                     place_grown_flower(args.world, &above, current_age);
                 } else if current_age < 4 {
-                    let mut num_branch_attempts = rand::rng().random_range(0..4);
+                    let mut num_branch_attempts = args.rand_bounded_i32(4);
                     if pillar_on_support_block {
                         num_branch_attempts += 1;
                     }
@@ -120,7 +119,7 @@ impl BlockBehaviour for ChorusFlowerBlock {
                     let mut created_branch = false;
 
                     for _ in 0..num_branch_attempts {
-                        let direction = HORIZONTAL_DIRECTIONS[rand::rng().random_range(0..4)];
+                        let direction = HORIZONTAL_DIRECTIONS[args.rand_bounded_i32(4) as usize];
                         let target = args.position.offset(direction.to_offset());
                         let target_below = target.down();
 

@@ -5,7 +5,6 @@ use pumpkin_data::block_properties::NetherWartLikeProperties;
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::BlockAccessor;
-use rand::RngExt;
 
 use crate::block::blocks::plant::PlantBlockBase;
 use crate::block::blocks::plant::crop::CropBlockBase;
@@ -41,9 +40,9 @@ impl BlockBehaviour for BeetrootBlock {
         )
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        if rand::rng().random_range(0..3) == 0 {
-            <Self as CropBlockBase>::random_tick(self, args.world, args.position);
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        if args.rand_bounded_i32(3) != 0 {
+            <Self as CropBlockBase>::random_tick(self, args.world, args.position, args.random);
         }
     }
 }

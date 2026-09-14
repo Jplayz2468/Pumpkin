@@ -83,8 +83,8 @@ impl BlockBehaviour for CocoaBlock {
         args.state_id
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        if args.world.rand_bounded_i32(5) == 0 {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        if args.rand_bounded_i32(5) == 0 {
             let state_id = args.world.get_block_state_id(args.position);
             let mut props = CocoaProperties::from_state_id(state_id);
             if props.age < MAX_AGE {

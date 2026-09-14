@@ -35,7 +35,7 @@ impl BlockBehaviour for GrassBlock {
         SnowyBlock::get_state_for_neighbor_update(&args)
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         let state = args.world.get_block_state(args.position);
         SpreadingSnowyBlock::random_tick(
             state,
@@ -43,6 +43,7 @@ impl BlockBehaviour for GrassBlock {
             args.position,
             &Block::DIRT,
             Block::GRASS_BLOCK.default_state,
+            &mut args.random,
         );
     }
 

@@ -113,11 +113,11 @@ impl BlockBehaviour for MangrovePropaguleBlock {
         args.state_id
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         let state_id = args.world.get_block_state_id(args.position);
         let mut props = MangrovePropaguleLikeProperties::from_state_id(state_id);
         if !props.hanging {
-            if rand::random::<u8>().is_multiple_of(7) {
+            if args.rand_bounded_i32(7) == 0 {
                 Self::advance_tree(args.world, args.position, args.block, props);
             }
         } else if props.age < MAX_AGE {

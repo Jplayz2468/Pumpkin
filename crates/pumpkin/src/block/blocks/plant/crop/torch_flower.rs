@@ -40,11 +40,11 @@ impl BlockBehaviour for TorchFlowerBlock {
         )
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         // Vanilla `TorchflowerCropBlock.randomTick`: `random.nextInt(3) != 0`
         // (`TorchflowerCropBlock.java:67`). The bound was 2 here, growing it too fast.
-        if args.world.rand_bounded_i32(3) != 0 {
-            <Self as CropBlockBase>::random_tick(self, args.world, args.position);
+        if args.rand_bounded_i32(3) != 0 {
+            <Self as CropBlockBase>::random_tick(self, args.world, args.position, args.random);
         }
     }
 }

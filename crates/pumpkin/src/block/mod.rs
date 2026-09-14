@@ -4,6 +4,7 @@ use pumpkin_data::{Block, BlockId, BlockState};
 
 use pumpkin_data::BlockStateId;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::random::legacy_rand::LegacyRand;
 use pumpkin_util::random::{RandomGenerator, get_seed, xoroshiro128::Xoroshiro};
 
 use crate::entity::experience_orb::ExperienceOrbEntity;
@@ -314,6 +315,44 @@ pub struct RandomTickArgs<'a> {
     pub world: &'a Arc<World>,
     pub block: &'a Block,
     pub position: &'a BlockPos,
+    pub random: &'a mut LegacyRand,
+}
+
+impl<'a> RandomTickArgs<'a> {
+    /// Vanilla `random.nextInt(bound)`.
+    #[inline]
+    pub fn rand_bounded_i32(&mut self, bound: i32) -> i32 {
+        use pumpkin_util::random::RandomImpl;
+        self.random.next_bounded_i32(bound)
+    }
+
+    /// Vanilla `random.nextInt()`.
+    #[inline]
+    pub fn rand_i32(&mut self) -> i32 {
+        use pumpkin_util::random::RandomImpl;
+        self.random.next_i32()
+    }
+
+    /// Vanilla `random.nextFloat()`.
+    #[inline]
+    pub fn rand_f32(&mut self) -> f32 {
+        use pumpkin_util::random::RandomImpl;
+        self.random.next_f32()
+    }
+
+    /// Vanilla `random.nextDouble()`.
+    #[inline]
+    pub fn rand_f64(&mut self) -> f64 {
+        use pumpkin_util::random::RandomImpl;
+        self.random.next_f64()
+    }
+
+    /// Vanilla `random.nextBoolean()`.
+    #[inline]
+    pub fn rand_bool(&mut self) -> bool {
+        use pumpkin_util::random::RandomImpl;
+        self.random.next_bool()
+    }
 }
 
 pub struct CanPlaceAtArgs<'a> {

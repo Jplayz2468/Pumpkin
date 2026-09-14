@@ -4,7 +4,6 @@ use pumpkin_data::{
 };
 use pumpkin_macros::pumpkin_block;
 use pumpkin_world::world::BlockFlags;
-use rand::RngExt;
 
 use crate::block::{
     BlockBehaviour, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
@@ -70,12 +69,10 @@ impl WallMountedBlock for AmethystBlock {
 pub struct BuddingAmethystBlock;
 
 impl BlockBehaviour for BuddingAmethystBlock {
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        if rand::rng().random_range(0..5) == 0 {
-            let grow_direction = {
-                let mut rng = rand::rng();
-                ALL_DIRECTIONS[rng.random_range(0..ALL_DIRECTIONS.len())]
-            };
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        if args.rand_bounded_i32(5) == 0 {
+            let dir_index = args.rand_bounded_i32(ALL_DIRECTIONS.len() as i32) as usize;
+            let grow_direction = ALL_DIRECTIONS[dir_index];
             let grow_pos = args.position.offset(grow_direction.to_offset());
             let (relative_block, relative_state) = args.world.get_block_and_state(&grow_pos);
             let relative_state_id = relative_state.id;

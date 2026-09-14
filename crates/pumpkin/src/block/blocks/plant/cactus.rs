@@ -6,7 +6,6 @@ use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
-use rand::RngExt;
 
 use crate::block::{
     BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnEntityCollisionArgs,
@@ -24,7 +23,7 @@ impl BlockBehaviour for CactusBlock {
         }
     }
 
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         let block_up = args.position.up();
         if args.world.get_block_state(&block_up).is_air() {
             let state = args.world.get_block_state(args.position);
@@ -40,7 +39,7 @@ impl BlockBehaviour for CactusBlock {
 
             if age == 8 && can_place_at(args.world.as_ref(), &block_up) {
                 let d = if i >= 3 { 0.25 } else { 0.1 };
-                if rand::rng().random_range(0.0..1.0) <= d {
+                if args.rand_f64() <= d {
                     args.world.set_block_state(
                         &block_up,
                         Block::CACTUS_FLOWER.default_state.id,
