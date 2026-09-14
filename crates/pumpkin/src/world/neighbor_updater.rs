@@ -18,8 +18,9 @@
 
 use std::sync::{Arc, Mutex, PoisonError};
 
-use pumpkin_data::{Block, BlockDirection, BlockId};
+use pumpkin_data::{Block, BlockDirection, BlockId, BlockStateId};
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_world::world::BlockFlags;
 use tracing::error;
 
 use crate::world::World;
@@ -28,9 +29,10 @@ use crate::world::World;
 /// overridable in vanilla via the `max-chained-neighbor-updates` server property.
 const DEFAULT_MAX_CHAINED_NEIGHBOR_UPDATES: u32 = 1_000_000;
 
-/// One queued update. Mirrors vanilla's `NeighborUpdates` implementations; `ShapeUpdate`
-/// and `FullNeighborUpdate` are not represented yet -- see the module note in
-/// `comparison/DETERMINISM.md`.
+/// Vanilla `Block.updateOrDestroy` recursion limit (`Block.java:215`).
+pub const DEFAULT_UPDATE_LIMIT: u32 = 512;
+
+/// One queued update. Mirrors vanilla's `NeighborUpdates` implementations (`CollectingNeighborUpdater.java`).
 #[derive(Debug)]
 enum NeighborUpdate {
     /// Vanilla `SimpleNeighborUpdate`: notify exactly one position, then finish.
@@ -42,12 +44,31 @@ enum NeighborUpdate {
         skip: Option<BlockDirection>,
         idx: usize,
     },
+    /// Vanilla `ShapeUpdate`: execute shape update on `pos` given neighbor's state, then finish.
+    Shape {
+        direction: BlockDirection,
+        pos: BlockPos,
+        neighbor_pos: BlockPos,
+        neighbor_state: BlockStateId,
+        flags: BlockFlags,
+        update_limit: u32,
+    },
 }
 
 /// The single notification produced by one step, executed with no lock held.
-struct Step {
-    pos: BlockPos,
-    source_block: BlockId,
+enum Step {
+    Neighbor {
+        pos: BlockPos,
+        source_block: BlockId,
+    },
+    Shape {
+        direction: BlockDirection,
+        pos: BlockPos,
+        neighbor_pos: BlockPos,
+        neighbor_state: BlockStateId,
+        flags: BlockFlags,
+        update_limit: u32,
+    },
 }
 
 impl NeighborUpdate {
@@ -73,7 +94,7 @@ impl NeighborUpdate {
     fn next_step(&mut self) -> (Step, bool) {
         match self {
             Self::Simple { pos, source_block } => (
-                Step {
+                Step::Neighbor {
                     pos: *pos,
                     source_block: *source_block,
                 },
@@ -89,7 +110,7 @@ impl NeighborUpdate {
                 let direction = order[*idx];
                 *idx += 1;
 
-                let step = Step {
+                let step = Step::Neighbor {
                     pos: source_pos.offset(direction.to_offset()),
                     source_block: *source_block,
                 };
@@ -102,6 +123,24 @@ impl NeighborUpdate {
 
                 (step, *idx >= order.len())
             }
+            Self::Shape {
+                direction,
+                pos,
+                neighbor_pos,
+                neighbor_state,
+                flags,
+                update_limit,
+            } => (
+                Step::Shape {
+                    direction: *direction,
+                    pos: *pos,
+                    neighbor_pos: *neighbor_pos,
+                    neighbor_state: *neighbor_state,
+                    flags: *flags,
+                    update_limit: *update_limit,
+                },
+                true,
+            ),
         }
     }
 }
@@ -146,6 +185,31 @@ impl CollectingNeighborUpdater {
         source_block: BlockId,
     ) {
         self.add_and_run(world, pos, NeighborUpdate::Simple { pos, source_block });
+    }
+
+    /// Vanilla `CollectingNeighborUpdater.shapeUpdate(direction, neighborState, pos, neighborPos, updateFlags, updateLimit)`.
+    pub fn shape_update(
+        &self,
+        world: &Arc<World>,
+        direction: BlockDirection,
+        pos: BlockPos,
+        neighbor_pos: BlockPos,
+        neighbor_state: BlockStateId,
+        flags: BlockFlags,
+        update_limit: u32,
+    ) {
+        self.add_and_run(
+            world,
+            pos,
+            NeighborUpdate::Shape {
+                direction,
+                pos,
+                neighbor_pos,
+                neighbor_state,
+                flags,
+                update_limit,
+            },
+        );
     }
 
     /// Vanilla `updateNeighborsAtExceptFromFacing(pos, block, skipDirection, orientation)`.
@@ -240,9 +304,30 @@ impl CollectingNeighborUpdater {
         state.count = 0;
     }
 
-    /// Vanilla `NeighborUpdater.executeUpdate` -> `BlockState.handleNeighborChanged`.
+    /// Vanilla `NeighborUpdater.executeUpdate` and `NeighborUpdater.executeShapeUpdate`.
     fn execute_update(world: &Arc<World>, step: &Step) {
-        world.execute_neighbor_update(&step.pos, Block::from_id(step.source_block));
+        match step {
+            Step::Neighbor { pos, source_block } => {
+                world.execute_neighbor_update(pos, Block::from_id(*source_block));
+            }
+            Step::Shape {
+                direction,
+                pos,
+                neighbor_pos,
+                neighbor_state,
+                flags,
+                update_limit,
+            } => {
+                world.execute_shape_update(
+                    *direction,
+                    pos,
+                    neighbor_pos,
+                    *neighbor_state,
+                    *flags,
+                    *update_limit,
+                );
+            }
+        }
     }
 }
 
@@ -258,7 +343,10 @@ mod tests {
         let mut visited = Vec::new();
         loop {
             let (step, exhausted) = update.next_step();
-            visited.push(step.pos);
+            match step {
+                Step::Neighbor { pos, .. } => visited.push(pos),
+                Step::Shape { .. } => panic!("expected Step::Neighbor"),
+            }
             if exhausted {
                 break;
             }
@@ -282,7 +370,10 @@ mod tests {
             let mut visited = Vec::new();
             loop {
                 let (step, exhausted) = update.next_step();
-                visited.push(step.pos);
+                match step {
+                    Step::Neighbor { pos, .. } => visited.push(pos),
+                    Step::Shape { .. } => panic!("expected Step::Neighbor"),
+                }
                 if exhausted {
                     break;
                 }
@@ -301,7 +392,50 @@ mod tests {
             source_block: Block::AIR.id,
         };
         let (step, exhausted) = update.next_step();
-        assert_eq!(step.pos, pos);
+        match step {
+            Step::Neighbor { pos: p, source_block } => {
+                assert_eq!(p, pos);
+                assert_eq!(source_block, Block::AIR.id);
+            }
+            Step::Shape { .. } => panic!("expected Step::Neighbor"),
+        }
+        assert!(exhausted);
+    }
+
+    /// A shape update notifies one position with the captured neighbor state and exhausts immediately.
+    #[test]
+    fn shape_runs_once_and_preserves_captured_state() {
+        let pos = BlockPos::new(3, 4, 5);
+        let neighbor_pos = BlockPos::new(3, 5, 5);
+        let neighbor_state = BlockStateId::new_or_air(42);
+        let flags = BlockFlags::SKIP_REDSTONE_WIRE_STATE_REPLACEMENT;
+        let mut update = NeighborUpdate::Shape {
+            direction: BlockDirection::Up,
+            pos,
+            neighbor_pos,
+            neighbor_state,
+            flags,
+            update_limit: DEFAULT_UPDATE_LIMIT,
+        };
+        let (step, exhausted) = update.next_step();
+        match step {
+            Step::Shape {
+                direction,
+                pos: p,
+                neighbor_pos: np,
+                neighbor_state: ns,
+                flags: f,
+                update_limit: ul,
+            } => {
+                assert_eq!(direction, BlockDirection::Up);
+                assert_eq!(p, pos);
+                assert_eq!(np, neighbor_pos);
+                assert_eq!(ns, neighbor_state);
+                assert_eq!(f, flags);
+                assert_eq!(ul, DEFAULT_UPDATE_LIMIT);
+            }
+            Step::Neighbor { .. } => panic!("expected Step::Shape"),
+        }
         assert!(exhausted);
     }
 }

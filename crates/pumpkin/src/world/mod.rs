@@ -5519,6 +5519,22 @@ impl World {
         block_state_id: BlockStateId,
         flags: BlockFlags,
     ) -> BlockStateId {
+        self.set_block_state_with_limit(
+            position,
+            block_state_id,
+            flags,
+            neighbor_updater::DEFAULT_UPDATE_LIMIT,
+        )
+    }
+
+    #[expect(clippy::too_many_lines)]
+    pub fn set_block_state_with_limit(
+        self: &Arc<Self>,
+        position: &BlockPos,
+        block_state_id: BlockStateId,
+        flags: BlockFlags,
+        update_limit: u32,
+    ) -> BlockStateId {
         if !self.is_in_build_limit(*position) {
             return Block::AIR.default_state.id;
         }
@@ -5608,10 +5624,15 @@ impl World {
 
             // Preserve legacy MOVED behavior while giving strict placement its
             // own shape suppression. The remaining Java flag mapping is separate.
-            if !flags.intersects(BlockFlags::MOVED | BlockFlags::SKIP_SHAPE_UPDATES) {
+            // Vanilla Level.java:257:
+            // if ((updateFlags & 16) == 0 && updateLimit > 0) { ... updateNeighbourShapes(..., updateLimit - 1); }
+            if !flags.intersects(BlockFlags::MOVED | BlockFlags::SKIP_SHAPE_UPDATES)
+                && update_limit > 0
+            {
                 let mut neighbour_update_flags = flags;
                 neighbour_update_flags.remove(BlockFlags::NOTIFY_NEIGHBORS);
                 neighbour_update_flags.remove(BlockFlags::SKIP_REDSTONE_WIRE_STATE_REPLACEMENT);
+                let next_limit = update_limit.saturating_sub(1);
                 self.block_registry.prepare(
                     self,
                     position,
@@ -5619,8 +5640,12 @@ impl World {
                     replaced_block_state_id,
                     neighbour_update_flags,
                 );
-                self.block_registry
-                    .update_neighbors(self, position, neighbour_update_flags);
+                self.block_registry.update_neighbors_with_limit(
+                    self,
+                    position,
+                    neighbour_update_flags,
+                    next_limit,
+                );
                 self.block_registry.prepare(
                     self,
                     position,
@@ -5667,6 +5692,21 @@ impl World {
         position: &BlockPos,
         cause: Option<&Arc<Player>>,
         flags: BlockFlags,
+    ) -> Option<BlockStateId> {
+        self.break_block_with_limit(
+            position,
+            cause,
+            flags,
+            neighbor_updater::DEFAULT_UPDATE_LIMIT,
+        )
+    }
+
+    pub fn break_block_with_limit(
+        self: &Arc<Self>,
+        position: &BlockPos,
+        cause: Option<&Arc<Player>>,
+        flags: BlockFlags,
+        update_limit: u32,
     ) -> Option<BlockStateId> {
         if let Some(player) = cause
             && self.is_in_spawn_protection(player, position)
@@ -5740,7 +5780,7 @@ impl World {
             Block::AIR.default_state.id
         };
 
-        let broken_state_id = self.set_block_state(position, new_state_id, flags);
+        let broken_state_id = self.set_block_state_with_limit(position, new_state_id, flags, update_limit);
         let broken_block = Block::from_state_id(broken_state_id);
         if !broken_block.is_air()
             && broken_state_id != new_state_id
@@ -6505,12 +6545,68 @@ impl World {
         current_state_id
     }
 
+    /// Vanilla `Level.neighborShapeChanged` -> `CollectingNeighborUpdater.shapeUpdate`.
+    ///
+    /// Enqueues a shape update for `block_pos`. Captures `neighbor_state` at enqueue time,
+    /// exactly matching vanilla's `neighborShapeChanged` / `CollectingNeighborUpdater.shapeUpdate`.
     pub fn replace_with_state_for_neighbor_update(
         self: &Arc<Self>,
         block_pos: &BlockPos,
         direction: BlockDirection,
         flags: BlockFlags,
     ) {
+        self.replace_with_state_for_neighbor_update_with_limit(
+            block_pos,
+            direction,
+            flags,
+            neighbor_updater::DEFAULT_UPDATE_LIMIT,
+        );
+    }
+
+    /// Vanilla `Level.neighborShapeChanged` with explicit `updateLimit`.
+    pub fn replace_with_state_for_neighbor_update_with_limit(
+        self: &Arc<Self>,
+        block_pos: &BlockPos,
+        direction: BlockDirection,
+        flags: BlockFlags,
+        update_limit: u32,
+    ) {
+        if update_limit == 0 {
+            return;
+        }
+
+        let neighbor_pos = block_pos.offset(direction.to_offset());
+        let neighbor_state_id = self.get_block_state_id(&neighbor_pos);
+
+        self.neighbor_updater.shape_update(
+            self,
+            direction,
+            *block_pos,
+            neighbor_pos,
+            neighbor_state_id,
+            flags,
+            update_limit,
+        );
+    }
+
+    /// Executes one queued shape update with no lock held.
+    /// Vanilla `NeighborUpdater.executeShapeUpdate` (`NeighborUpdater.java:36`).
+    ///
+    /// Call this only from `CollectingNeighborUpdater` -- going direct skips the queue
+    /// and breaks ordering with neighbor updates.
+    pub(crate) fn execute_shape_update(
+        self: &Arc<Self>,
+        direction: BlockDirection,
+        block_pos: &BlockPos,
+        neighbor_pos: &BlockPos,
+        neighbor_state_id: BlockStateId,
+        flags: BlockFlags,
+        update_limit: u32,
+    ) {
+        if update_limit == 0 {
+            return;
+        }
+
         let (block, block_state_id) = self.get_block_and_state_id(block_pos);
 
         if flags.contains(BlockFlags::SKIP_REDSTONE_WIRE_STATE_REPLACEMENT)
@@ -6519,24 +6615,26 @@ impl World {
             return;
         }
 
-        let neighbor_pos = block_pos.offset(direction.to_offset());
-        let neighbor_state_id = self.get_block_state_id(&neighbor_pos);
-
         let new_state_id = self.block_registry.get_state_for_neighbor_update(
             self,
             block,
             block_state_id,
             block_pos,
             direction,
-            &neighbor_pos,
+            neighbor_pos,
             neighbor_state_id,
         );
 
         if new_state_id != block_state_id {
             if is_air(new_state_id) {
-                self.break_block(block_pos, None, flags | BlockFlags::NOTIFY_ALL);
+                self.break_block_with_limit(
+                    block_pos,
+                    None,
+                    flags | BlockFlags::NOTIFY_ALL,
+                    update_limit,
+                );
             } else {
-                self.set_block_state(block_pos, new_state_id, flags);
+                self.set_block_state_with_limit(block_pos, new_state_id, flags, update_limit);
             }
         }
     }

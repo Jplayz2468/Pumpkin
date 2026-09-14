@@ -1362,10 +1362,30 @@ impl BlockRegistry {
     }
 
     pub fn update_neighbors(&self, world: &Arc<World>, position: &BlockPos, flags: BlockFlags) {
+        self.update_neighbors_with_limit(
+            world,
+            position,
+            flags,
+            crate::world::neighbor_updater::DEFAULT_UPDATE_LIMIT,
+        );
+    }
+
+    pub fn update_neighbors_with_limit(
+        &self,
+        world: &Arc<World>,
+        position: &BlockPos,
+        flags: BlockFlags,
+        update_limit: u32,
+    ) {
         for direction in BlockDirection::abstract_block_update_order() {
             let pos = position.offset(direction.to_offset());
 
-            world.replace_with_state_for_neighbor_update(&pos, direction.opposite(), flags);
+            world.replace_with_state_for_neighbor_update_with_limit(
+                &pos,
+                direction.opposite(),
+                flags,
+                update_limit,
+            );
         }
     }
 
