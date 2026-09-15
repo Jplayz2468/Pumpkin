@@ -812,6 +812,8 @@ impl VillagerEntity {
     }
 
     fn complete_trade(&self, offer_index: usize, world: &Arc<World>, player_uuid: Uuid) {
+        use rand::RngExt;
+
         let (xp_gain, reward_exp) = {
             let mut offers = self
                 .offers
@@ -834,23 +836,39 @@ impl VillagerEntity {
             .set_synced_data(tracked_data::villager::VILLAGER_DATA, villager_data);
         self.get_entity().send_bedrock_actor_data(&bedrock_metadata);
 
-        if reward_exp {
-            ExperienceOrbEntity::spawn(world, self.get_entity().pos.load(), xp_gain as u32);
+        // VillagerData.java:17-19,74-79 (NEXT_LEVEL_XP_THRESHOLDS / canLevelUp / getMaxXpPerLevel):
+        // a villager below the max level advances once its accumulated trade xp reaches the
+        // next tier's threshold.
+        const NEXT_LEVEL_XP_THRESHOLDS: [i32; 5] = [0, 10, 70, 150, 250];
+        let current_level = villager_data.level.0;
+        let should_increase_level = (1..5).contains(&current_level)
+            && current_xp >= NEXT_LEVEL_XP_THRESHOLDS[current_level as usize];
+
+        // Villager.java:576-587 (rewardTradeXp): the experience orb popped for the player is a
+        // random 3-6, independent of the trade's own `xp` field (which only feeds the villager's
+        // internal level-up counter above), with a +5 bonus on the trade that pushes the
+        // villager over its level-up threshold.
+        let mut orb_xp = 3 + rand::rng().random_range(0..4);
+        if should_increase_level {
+            self.merchant_update_timer.store(40, Ordering::Relaxed);
+            self.increase_profession_level_on_update
+                .store(true, Ordering::Relaxed);
+            orb_xp += 5;
         }
 
+        if reward_exp {
+            ExperienceOrbEntity::spawn(world, self.get_entity().pos.load(), orb_xp as u32);
+        }
+
+        // Villager.java:579,259-262 (rewardTradeXp / customServerAiStep): the reputation gossip
+        // bump and the "happy villager" particle broadcast are deferred to the next mob tick via
+        // `lastTradedPlayer`, not applied immediately here (see villager_mob_tick, mod.rs:1553).
+        *self
+            .last_traded_player
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(player_uuid);
+
         if let Some(player) = world.get_player_by_uuid(player_uuid) {
-            {
-                let mut gossips = self
-                    .gossips
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                let value = gossips
-                    .entry(player_uuid)
-                    .or_default()
-                    .entry(GossipType::Trading)
-                    .or_default();
-                *value = (*value + 2).min(GossipType::Trading.max_value());
-            };
             self.resend_offers_to_player(&player);
         }
     }
