@@ -8,6 +8,16 @@ use rand::RngExt;
 
 const MAX_ATTACK_TIME: i64 = 20;
 
+/// Pure core of `canUse()`'s throttle (MeleeAttackGoal.java:34-39: `time -
+/// this.lastCanUseCheck < 20L`), split out so the boundary can be pinned without
+/// constructing a `dyn Mob`. This is the mechanism that paces attacks to vanilla's
+/// steady ~1-per-second rhythm even when the mob is standing still next to its
+/// target (see the long comment in `should_continue` below) — a future agent must
+/// not "fix" the resulting stop/restart cycle without first breaking this test.
+const fn can_use_throttle_elapsed(time: i64, last_update_time: i64) -> bool {
+    time - last_update_time >= MAX_ATTACK_TIME
+}
+
 pub struct MeleeAttackGoal {
     goal_control: Controls,
     speed: f64,
@@ -54,7 +64,7 @@ impl Goal for MeleeAttackGoal {
     fn can_start(&mut self, mob: &dyn Mob) -> bool {
         let time = mob.get_entity().world.load().get_world_age();
 
-        if time - self.last_update_time < MAX_ATTACK_TIME {
+        if !can_use_throttle_elapsed(time, self.last_update_time) {
             return false;
         }
         self.last_update_time = time;
@@ -97,6 +107,22 @@ impl Goal for MeleeAttackGoal {
         }
 
         if !self.pause_when_mob_idle {
+            // MeleeAttackGoal.java:60-61: `!this.mob.getNavigation().isDone()`. Verified
+            // rigorously against PathNavigation.java (isDone/tick/stop) and Pumpkin's
+            // tick_ground/is_idle (ai/pathfinder/mod.rs): in vanilla, PathNavigation.isDone()
+            // (PathNavigation.java:340-342, `path == null || path.isDone()`) goes true the
+            // tick after the mob's path is fully walked — including the common "already
+            // adjacent, trivial/empty path" case, where it goes true almost immediately.
+            // canUse()'s own 20-tick throttle (MeleeAttackGoal.java:34-39,
+            // `lastCanUseCheck`, mirrored by `last_update_time`/`MAX_ATTACK_TIME` in
+            // `can_start` above) then keeps the goal from restarting until that throttle
+            // reopens, regardless of how quickly it stopped. So even standing still next to
+            // a stationary target, vanilla's own goal stops and restarts roughly every 20
+            // ticks — that stop/restart cycle, synchronized with the 20-tick attack cooldown
+            // reset in `start()`, *is* vanilla's steady ~1-attack-per-second rhythm, not a
+            // deviation from it. Pumpkin's `is_idle` flag (set true by `finish_navigation`/
+            // `stop()` in ai/pathfinder/mod.rs, false by `set_progress`) reproduces the same
+            // transition at the same points, so this is intentionally left as-is.
             let is_idle = mob
                 .get_mob_entity()
                 .navigator
@@ -243,5 +269,24 @@ impl Goal for MeleeAttackGoal {
 
     fn controls(&self) -> Controls {
         self.goal_control
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::can_use_throttle_elapsed;
+
+    /// Pins `MeleeAttackGoal.canUse`'s 20-tick throttle (MeleeAttackGoal.java:34-39).
+    /// `can_start` (and vanilla's `canUse`) is only re-evaluated for a non-running goal,
+    /// so this boundary — not the in-goal attack cooldown — is what paces a mob's attacks
+    /// to roughly one per second when it never has to leave melee range: the goal starts,
+    /// attacks, goes idle within a tick or two once its (possibly trivial) path finishes,
+    /// and then cannot restart until this throttle reopens.
+    #[test]
+    fn java_oracle_can_use_throttle_boundary() {
+        assert!(!can_use_throttle_elapsed(100, 100)); // same tick as last check: still throttled.
+        assert!(!can_use_throttle_elapsed(119, 100)); // 19 ticks: still throttled.
+        assert!(can_use_throttle_elapsed(120, 100)); // exactly 20 ticks: reopens.
+        assert!(can_use_throttle_elapsed(200, 100)); // long past: still open.
     }
 }

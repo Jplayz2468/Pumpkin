@@ -498,15 +498,36 @@ impl MobEntity {
         Self::check_surface_water_animal_spawn_rules(world, pos)
     }
 
+    /// Mob.java:1389-1410 `doHurtTarget`. Ported structurally: resolve the weapon,
+    /// run its enchantments over the base damage, hurt the target, and only on a
+    /// successful hit apply knockback / post-attack enchantment effects / bookkeeping.
     pub fn try_attack(&self, caller: &dyn EntityBase, target: &dyn EntityBase) {
         if self.living_entity.dead.load(Relaxed) {
             return;
         }
 
-        let attack_damage: f32 =
-            self.living_entity
-                .get_attribute_value(&Attributes::ATTACK_DAMAGE) as f32;
+        // Mob.java:1390-1394: `getAttributeValue(ATTACK_DAMAGE)` through
+        // `EnchantmentHelper.modifyDamage` (Sharpness/Power-style data-driven damage
+        // effects; `EnchantmentHelper::modify_damage` is the same data-driven walk used
+        // by Player.attack). `weaponItem.getItem().getAttackDamageBonus(...)` is skipped:
+        // its default (Item.java:243) is 0, and the only override (MaceItem.java:93,
+        // a fall-triggered smash bonus) needs player-only fall-flying/smash-charge state
+        // Pumpkin doesn't track for generic mobs, so a mob holding a mace never reaches it.
+        let weapon = self.living_entity.held_item(caller);
+        let base_damage = self
+            .living_entity
+            .get_attribute_value(&Attributes::ATTACK_DAMAGE);
+        let attack_damage =
+            crate::enchantment::EnchantmentHelper::modify_damage(&weapon, base_damage) as f32;
 
+        // Mob.java:1392 `weapon.getDamageSource(this)`. ItemStack.getDamageSource
+        // (ItemStack.java:1126-1131) tries a per-stack DAMAGE_TYPE component, then
+        // `Item.getItemDamageSource` (Item.java:248, null by default; only
+        // MaceItem.java:158-159 overrides it, again gated on the fall-smash state above),
+        // and finally falls back to `attacker.createDamageSource()`. Mob does not override
+        // `LivingEntity.createDamageSource` (LivingEntity.java:4054: `damageSources().
+        // mobAttack(this)`), so for every weapon a mob can currently hold the resolved
+        // source is exactly `DamageType::MOB_ATTACK`, which is what this already used.
         let damaged = target.damage_with_context(
             target,
             attack_damage,
@@ -522,9 +543,20 @@ impl MobEntity {
                 let victim = target.get_entity();
                 let a = actor.velocity.load();
                 let v = victim.velocity.load();
+                // LivingEntity.java:1540-1545 `getKnockback`: EnchantmentHelper.modifyKnockback
+                // runs on the raw ATTACK_KNOCKBACK attribute *before* the `/2.0F` halving.
+                // `extra_knockback::apply` performs that halving internally, so the enchant
+                // modifier must be folded into the value passed in here, not after.
+                let base_knockback = self
+                    .living_entity
+                    .get_attribute_value(&Attributes::ATTACK_KNOCKBACK)
+                    as f32;
+                let knockback = crate::enchantment::EnchantmentHelper::modify_knockback(
+                    &weapon,
+                    base_knockback,
+                );
                 let change = crate::entity::combat::extra_knockback::apply(
-                    self.living_entity
-                        .get_attribute_value(&Attributes::ATTACK_KNOCKBACK),
+                    f64::from(knockback),
                     actor.yaw.load(),
                     true,
                     target_living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE),
@@ -542,6 +574,28 @@ impl MobEntity {
                     victim.velocity_dirty.store(true, Relaxed);
                 }
             }
+
+            // Mob.java:1400 `weaponItem.hurtEnemy(livingTarget, this)` (weapon durability
+            // wear on the mob's held item) is not ported: Pumpkin has no generic
+            // "damage this equipped item" entry point outside Player's inventory-backed
+            // path, and inventing one risks code this agent cannot compile-check. Flagging
+            // this as a known gap rather than guessing at an API.
+
+            // Mob.java:1403 `EnchantmentHelper.doPostAttackEffects` (Fire Aspect, etc.) —
+            // runs unconditionally on a successful hit, not gated on the target being a
+            // LivingEntity (that gate is inside `causeExtraKnockback` above, for knockback
+            // specifically). `on_post_attack` is the same data-driven post-attack walk.
+            crate::enchantment::EnchantmentHelper::on_post_attack(
+                &self.living_entity.entity,
+                target.get_entity(),
+                &weapon,
+            );
+
+            // Mob.java:1404-1405 `setLastHurtMob` then `playAttackSound`. LivingEntity's
+            // default `playAttackSound` (LivingEntity.java:2761-2762) is an empty method
+            // and Mob does not override it, so vanilla plays no attacker-side sound here —
+            // only the victim's hurt sound (already handled by the damage pipeline). No
+            // sound call belongs in this function.
             self.living_entity
                 .last_attacking_id
                 .store(target.get_entity().entity_id, Relaxed);
