@@ -1,9 +1,7 @@
 use std::any::Any;
 
-use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use pumpkin_data::item::Item;
-use pumpkin_data::sound::{Sound, SoundCategory};
 
 pub struct ClockItem;
 
@@ -13,16 +11,12 @@ impl ItemMetadata for ClockItem {
     }
 }
 
+// Items.java:1318 registers CLOCK as a plain `Item` with no subclass, and Item.java's
+// base `use` (Item.java:189-...) only special-cases the Consumable / Equippable /
+// BlocksAttacks components, none of which a clock has. Vanilla therefore plays no
+// sound and has no special behaviour on right-click; this behaviour exists only for
+// registration (item metadata / ids()) and intentionally does nothing on use.
 impl ItemBehaviour for ClockItem {
-    fn normal_use(&self, _item: &Item, player: &Player) {
-        let world = player.world();
-        world.play_sound(
-            Sound::UiButtonClick,
-            SoundCategory::Players,
-            &player.position(),
-        );
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }

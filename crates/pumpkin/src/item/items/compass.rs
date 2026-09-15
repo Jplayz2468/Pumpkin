@@ -10,6 +10,7 @@ use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{Block, BlockDirection};
+use pumpkin_util::GameMode;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 
@@ -40,7 +41,6 @@ impl ItemBehaviour for CompassItem {
                 &location.to_f64(),
             );
 
-            let mut lodestone_compass = ItemStack::new(1, &Item::COMPASS);
             let tracker = LodestoneTrackerImpl {
                 target: Some(LodestoneTarget {
                     dimension: world.dimension.minecraft_name.to_string(),
@@ -50,16 +50,31 @@ impl ItemBehaviour for CompassItem {
                 }),
                 tracked: true,
             };
-            lodestone_compass
-                .patch
-                .push((DataComponent::LodestoneTracker, Some(tracker.to_dyn())));
 
-            item.decrement_unless_creative(player.gamemode.load(), 1);
-            let was_added = player
-                .inventory
-                .insert_stack_anywhere(&mut lodestone_compass);
-            if !was_added && !lodestone_compass.is_empty() {
-                world.drop_stack(&player.position().to_block_pos(), lodestone_compass);
+            // CompassItem.java:55 `replaceExistingStack = !player.hasInfiniteMaterials()
+            // && itemStack.getCount() == 1`: a single, non-creative compass is tagged in
+            // place (CompassItem.java:57-58) instead of being split into a new stack, so
+            // it never has to be re-inserted or dropped.
+            let is_creative = player.gamemode.load() == GameMode::Creative;
+            let replace_existing_stack = !is_creative && item.item_count == 1;
+            if replace_existing_stack {
+                item.patch
+                    .push((DataComponent::LodestoneTracker, Some(tracker.to_dyn())));
+            } else {
+                // CompassItem.java:60-65: consume one compass from the held stack and
+                // grant a separate, freshly tagged compass.
+                let mut lodestone_compass = ItemStack::new(1, &Item::COMPASS);
+                lodestone_compass
+                    .patch
+                    .push((DataComponent::LodestoneTracker, Some(tracker.to_dyn())));
+
+                item.decrement_unless_creative(player.gamemode.load(), 1);
+                let was_added = player
+                    .inventory
+                    .insert_stack_anywhere(&mut lodestone_compass);
+                if !was_added && !lodestone_compass.is_empty() {
+                    world.drop_stack(&player.position().to_block_pos(), lodestone_compass);
+                }
             }
             BlockActionResult::Success
         } else {
