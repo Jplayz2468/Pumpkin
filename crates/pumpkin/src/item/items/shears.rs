@@ -201,6 +201,16 @@ fn handle_beehive(
         &location.to_f64(),
     );
 
+    // BeehiveBlock.java useItemOn (~line 175): shearing at max honey only angers nearby bees
+    // when the hive isn't sitting in campfire smoke (BeehiveBlock.java:189-197). We don't yet
+    // decode+spawn the hive's stored bee occupants (see beehive::hive_contains_bees), so this
+    // only ports the anger-nearby-bees half of releaseBeesAndResetHoneyLevel.
+    if !crate::block::blocks::beehive::is_smokey_pos(&world, location)
+        && crate::block::blocks::beehive::hive_contains_bees(&world, location)
+    {
+        crate::block::blocks::beehive::anger_nearby_bees(&world, location);
+    }
+
     let drop_pos = location.to_centered_f64();
     for item in drops {
         let item_entity = Arc::new(ItemEntity::new(
