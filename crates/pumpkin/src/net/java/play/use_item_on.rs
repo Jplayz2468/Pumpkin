@@ -34,6 +34,28 @@ impl JavaClient {
             return Err(BlockPlacingError::InvalidHand);
         };
 
+        // Java `ServerGamePacketListenerImpl.handleUseItemOn` checks spawn protection once,
+        // before dispatching to `ServerPlayerGameMode.useItemOn`, so it gates the *entire*
+        // right-click-on-block interaction for non-op players: opening a container, using an
+        // item on a block (bonemeal, flint & steel, filling a bucket, stacking a snow layer,
+        // ...), and placing a block are all refused alike. Pumpkin previously only checked
+        // this deep inside `BlockRegistry::place_block`, so every other block interaction
+        // (e.g. `use_with_item`/`on_use`) bypassed spawn protection entirely. Check it here
+        // too, ahead of every interaction path, matching vanilla's ordering.
+        {
+            let world = player.get_entity().world.load_full();
+            if world.is_in_spawn_protection(player, &position) {
+                player.send_system_message(&pumpkin_util::text::TextComponent::translate_cross(
+                    pumpkin_data::translation::java::BUILD_SPAWN_PROTECTION,
+                    pumpkin_data::translation::java::BUILD_SPAWN_PROTECTION,
+                    [pumpkin_util::text::TextComponent::text(
+                        player.gameprofile.name.clone(),
+                    )],
+                ));
+                return Ok(());
+            }
+        }
+
         if player.gamemode.load() == GameMode::Spectator {
             let entity = &player.get_entity();
             let world = entity.world.load_full();
