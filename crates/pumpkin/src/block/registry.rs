@@ -195,6 +195,7 @@ use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::fluid::Fluid;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockDirection, BlockId, BlockState};
 use pumpkin_inventory::screen_handler::ScreenHandlerFactory;
@@ -828,6 +829,36 @@ impl BlockRegistry {
         let _replaced_id =
             world.set_block_state(&final_block_pos, new_state, BlockFlags::NOTIFY_ALL);
 
+        // Java `BlockItem.place` (BlockItem.java:86-87): `level.playSound(player, pos,
+        // this.getPlaceSound(placedState), SoundSource.BLOCKS, (soundType.getVolume() +
+        // 1.0F) / 2.0F, soundType.getPitch() * 0.8F)`. The `player` argument is vanilla's
+        // "except" entity (Level.playSound's first param, Level.java:394-395): the placing
+        // player's own client predicts the sound locally and must NOT also receive the
+        // server broadcast, so this uses the "expect" (excluding) variant, matching how
+        // e.g. the consumable-sound broadcast in `living.rs` excludes the consuming player.
+        //
+        // Bedrock's generic "place" level sound event resolves the correct per-block sound
+        // client-side from the block's network id, but the Java protocol has no such
+        // lookup: the server must pick the exact SoundEvent itself. pumpkin-data does not
+        // yet carry a per-block SoundType (no `sound_group`/`SoundType` field exists
+        // anywhere in the generated block data, and the extractor that feeds
+        // `assets/blocks.json` doesn't emit one either), so there is no way to look up the
+        // real per-block place sound here. Vanilla's own fallback for a block whose
+        // `BlockBehaviour.Properties` never calls `.sound(...)` is `SoundType.STONE`
+        // (BlockBehaviour.java:986), which is volume 1.0 / pitch 1.0 - so that is the
+        // default used here too: (1.0 + 1.0) / 2.0 = 1.0 volume, 1.0 * 0.8 = 0.8 pitch.
+        // This makes non-stone-like blocks (wood, wool, grass, ...) sound wrong, but is
+        // strictly closer to vanilla than the previous behavior, which was silent on Java
+        // for every block. A real fix needs per-block SoundType data added to the
+        // pumpkin-data codegen pipeline (see SoundType.java for the full 80+-entry table).
+        world.play_sound_raw_expect(
+            player,
+            Sound::BlockStonePlace as u16,
+            SoundCategory::Blocks,
+            &final_block_pos.to_centered_f64(),
+            1.0,
+            0.8,
+        );
         world.play_bedrock_level_sound(
             "place",
             &final_block_pos.to_centered_f64(),
