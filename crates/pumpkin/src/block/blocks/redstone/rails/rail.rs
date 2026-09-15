@@ -1,108 +1,52 @@
-use pumpkin_data::BlockStateId;
-use pumpkin_data::block_properties::HorizontalFacing;
-use pumpkin_data::block_properties::RailShape;
+use super::common;
+use crate::block::{
+    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnNeighborUpdateArgs,
+    OnPlaceArgs, OnStateReplacedArgs, PlacedArgs,
+};
+use pumpkin_data::{BlockDirection, BlockStateId};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_world::world::BlockFlags;
 
-use crate::block::BlockBehaviour;
-use crate::block::CanPlaceAtArgs;
-use crate::block::OnNeighborUpdateArgs;
-use crate::block::OnPlaceArgs;
-use crate::block::PlacedArgs;
-
-use super::StraightRailShapeExt;
-use super::common::{can_place_rail_at, rail_placement_is_valid, update_flanking_rails_shape};
-use super::{HorizontalFacingRailExt, Rail, RailElevation, RailProperties};
-
 #[pumpkin_block("minecraft:rail")]
 pub struct RailBlock;
-
 impl BlockBehaviour for RailBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        let world = args.world;
-        let block_pos = args.position;
-        let mut rail_props = RailProperties::default(args.block);
-        rail_props.set_waterlogged(args.replacing.water_source());
-
-        let shape = if let Some(east_rail) =
-            Rail::find_if_unlocked(world, block_pos, HorizontalFacing::East)
-        {
-            if Rail::find_if_unlocked(world, block_pos, HorizontalFacing::South).is_some() {
-                RailShape::SouthEast
-            } else if Rail::find_if_unlocked(world, block_pos, HorizontalFacing::North).is_some() {
-                RailShape::NorthEast
-            } else {
-                match Rail::find_if_unlocked(world, block_pos, HorizontalFacing::West) {
-                    Some(west_rail) if west_rail.elevation == RailElevation::Up => {
-                        RailShape::AscendingWest
-                    }
-                    _ => {
-                        if east_rail.elevation == RailElevation::Up {
-                            RailShape::AscendingEast
-                        } else {
-                            RailShape::EastWest
-                        }
-                    }
-                }
-            }
-        } else if let Some(south_rail) =
-            Rail::find_if_unlocked(world, block_pos, HorizontalFacing::South)
-        {
-            if Rail::find_if_unlocked(world, block_pos, HorizontalFacing::West).is_some() {
-                RailShape::SouthWest
-            } else if south_rail.elevation == RailElevation::Up {
-                RailShape::AscendingSouth
-            } else {
-                match Rail::find_if_unlocked(world, block_pos, HorizontalFacing::North) {
-                    Some(north_rail) if north_rail.elevation == RailElevation::Up => {
-                        RailShape::AscendingNorth
-                    }
-                    _ => RailShape::NorthSouth,
-                }
-            }
-        } else if let Some(west_rail) =
-            Rail::find_if_unlocked(world, block_pos, HorizontalFacing::West)
-        {
-            if Rail::find_if_unlocked(world, block_pos, HorizontalFacing::North).is_some() {
-                RailShape::NorthWest
-            } else if west_rail.elevation == RailElevation::Up {
-                RailShape::AscendingWest
-            } else {
-                RailShape::EastWest
-            }
-        } else if let Some(north_rail) =
-            Rail::find_if_unlocked(world, block_pos, HorizontalFacing::North)
-        {
-            if north_rail.elevation == RailElevation::Up {
-                RailShape::AscendingNorth
-            } else {
-                RailShape::NorthSouth
-            }
-        } else {
-            args.player
-                .living_entity
-                .entity
-                .get_horizontal_facing()
-                .to_rail_shape_flat()
-                .as_shape()
-        };
-
-        rail_props.set_shape(shape);
-        rail_props.to_state_id(args.block)
+        common::placement(args)
     }
-
     fn placed(&self, args: PlacedArgs<'_>) {
-        update_flanking_rails_shape(args.world, args.block, args.state_id, args.position);
+        common::update_direction(args.world, *args.position, args.state_id, true);
     }
-
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        common::water_update(args)
+    }
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
+        common::removed(args, false);
+    }
+    fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
+        common::can_place_rail_at(args.block_accessor, args.position)
+    }
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        if !rail_placement_is_valid(args.world, args.block, args.position) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+        if !common::rail_placement_is_valid(args.world, args.block, args.position) {
             args.world
                 .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
+        } else if args.world.block_registry.emits_redstone_power(
+            args.source_block,
+            args.source_block.default_state,
+            BlockDirection::Up,
+        ) && common::potential_connections(args.world, *args.position) == 3
+        {
+            common::update_direction(
+                args.world,
+                *args.position,
+                args.world.get_block_state_id(args.position),
+                false,
+            );
         }
-    }
-
-    fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        can_place_rail_at(args.block_accessor, args.position)
     }
 }

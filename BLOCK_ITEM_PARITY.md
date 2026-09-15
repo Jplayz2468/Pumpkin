@@ -591,3 +591,22 @@ so they must not be used to reconstruct audit completion.
   tests or gameplay runs. Custom support shapes, redstone experimental orientation,
   effect aggregation, automation inventory wrappers and all unaudited families
   remain open; these edits do not establish full 1:1 parity.
+
+## Continued source port: rail connectivity and power
+
+- Replaced custom rail placement/connection locking with RailState's ordered
+  connections, soft-connection pruning, slope precedence and redstone-dependent
+  junction selection. Placement first chooses the horizontal default, then the
+  on-place callback connects rails. Ordinary rails reconsider three-way junctions
+  when notified by a signal-source block.
+- Powered/activator rails share the source's depth-eight search, slope transitions,
+  same-block/axis checks and powered-chain requirement. Removed explicit recursive
+  neighbor rewrites and the incorrect claimed rule about powering a middle rail.
+- All rails use rigid support, source-water placement, water neighbor ticks and
+  slope/straight removal notifications with the original source block. Detector
+  rails notify connected rails directly and always refresh comparator outputs;
+  container minecart contents now supply their analog signal.
+- Command minecarts still lack a command executor/success-count implementation.
+  Dynamic support shapes, custom rail subclasses/tags, world neighbor scheduling,
+  minecart movement and protocol behavior remain broader pending work. No builds
+  or tests were run; review was against the local 26.2 source plus formatting.

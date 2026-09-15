@@ -20,14 +20,9 @@ use crate::block::OnPlaceArgs;
 use crate::block::OnScheduledTickArgs;
 use crate::block::OnStateReplacedArgs;
 use crate::block::PlacedArgs;
-use crate::entity::EntityBase;
 use crate::world::World;
 
-use super::RailProperties;
-use super::common::{
-    can_place_rail_at, compute_placed_rail_shape, rail_placement_is_valid,
-    update_flanking_rails_shape,
-};
+use super::common::{can_place_rail_at, rail_placement_is_valid};
 use pumpkin_data::block_properties::DetectorRailProperties;
 
 #[pumpkin_block("minecraft:detector_rail")]
@@ -52,8 +47,8 @@ fn update_power_to_connected(world: &Arc<World>, pos: &BlockPos, shape: RailShap
         RailShapeStraight::AscendingNorth => (pos.south(), pos.north().up()),
         RailShapeStraight::AscendingSouth => (pos.north(), pos.south().up()),
     };
-    world.update_neighbors(&c1, None);
-    world.update_neighbors(&c2, None);
+    world.update_neighbor(&c1, world.get_block(&c1));
+    world.update_neighbor(&c2, world.get_block(&c2));
 }
 
 impl DetectorRailBlock {
@@ -84,44 +79,39 @@ impl DetectorRailBlock {
             let new_state_id = props.to_state_id(block);
             world.set_block_state(pos, new_state_id, BlockFlags::NOTIFY_ALL);
             update_power_to_connected(world, pos, props.shape);
-            world.update_neighbors(pos, None);
-            world.update_neighbors(&pos.down(), None);
+            world.update_neighbors_at(pos, block, None);
+            world.update_neighbors_at(&pos.down(), block, None);
         } else if !has_minecart && was_pressed {
             props.powered = false;
             let new_state_id = props.to_state_id(block);
             world.set_block_state(pos, new_state_id, BlockFlags::NOTIFY_ALL);
             update_power_to_connected(world, pos, props.shape);
-            world.update_neighbors(pos, None);
-            world.update_neighbors(&pos.down(), None);
+            world.update_neighbors_at(pos, block, None);
+            world.update_neighbors_at(&pos.down(), block, None);
         }
 
         if has_minecart {
             world.schedule_block_tick(block, *pos, 20, TickPriority::Normal);
         }
+        world.update_neighbour_for_output_signal(pos, block);
     }
 }
 
 impl BlockBehaviour for DetectorRailBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        let mut rail_props = RailProperties::default(args.block);
-        let player_facing = args.player.get_entity().get_horizontal_facing();
-
-        rail_props.set_waterlogged(args.replacing.water_source());
-        rail_props.set_straight_shape(compute_placed_rail_shape(
-            args.world,
-            args.position,
-            player_facing,
-        ));
-
-        rail_props.to_state_id(args.block)
+        super::common::placement(args)
     }
-
     fn placed(&self, args: PlacedArgs<'_>) {
-        update_flanking_rails_shape(args.world, args.block, args.state_id, args.position);
-        self.check_pressed(args.world, args.position, args.block, args.state_id);
+        let state =
+            super::common::update_direction(args.world, *args.position, args.state_id, true);
+        args.world.update_neighbor(args.position, args.block);
+        self.check_pressed(args.world, args.position, args.block, state);
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
         if !rail_placement_is_valid(args.world, args.block, args.position) {
             args.world
                 .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
@@ -144,13 +134,13 @@ impl BlockBehaviour for DetectorRailBlock {
     }
 
     fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
-        if !args.moved {
-            let props = DetectorRailProperties::from_state_id(args.old_state_id);
-            if props.powered {
-                args.world.update_neighbors(args.position, None);
-                args.world.update_neighbors(&args.position.down(), None);
-            }
-        }
+        super::common::removed(args, true);
+    }
+    fn get_state_for_neighbor_update(
+        &self,
+        args: crate::block::GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        super::common::water_update(args)
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
@@ -177,7 +167,30 @@ impl BlockBehaviour for DetectorRailBlock {
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
         let props = DetectorRailProperties::from_state_id(args.state.id);
-        props.powered.then_some(0)
+        if !props.powered {
+            return Some(0);
+        }
+        let search_box =
+            BoundingBox::new_array([0.2, 0.0, 0.2], [0.8, 0.8, 0.8]).at_pos(*args.position);
+        let entities = args.world.get_entities_at_box(&search_box);
+        // Command carts currently have no command executor; their success count is zero.
+        if entities
+            .iter()
+            .any(|entity| entity.get_entity().entity_type == &EntityType::COMMAND_BLOCK_MINECART)
+        {
+            return Some(0);
+        }
+        for entity in entities {
+            if is_minecart(entity.get_entity().entity_type)
+                && entity.get_entity().is_alive()
+                && let Some(inventory) = entity.container_inventory()
+            {
+                return Some(crate::block::calculate_comparator_output(
+                    inventory.as_ref(),
+                ));
+            }
+        }
+        Some(0)
     }
 }
 
