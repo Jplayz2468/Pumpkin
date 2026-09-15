@@ -28,18 +28,27 @@ impl ItemBehaviour for FireworkRocketItem {
         item: &mut ItemStack,
         player: &Player,
         location: BlockPos,
-        _face: BlockDirection,
+        face: BlockDirection,
         cursor_pos: Vector3<f32>,
         _block: &Block,
         _server: &Server,
     ) -> BlockActionResult {
+        // FireworkRocketItem.java:31-33: while the player is fall-flying, `useOn` passes and
+        // `use`'s elytra-boost branch handles the interaction instead.
+        if player.get_entity().is_fall_flying() {
+            return BlockActionResult::Pass;
+        }
+
         let world = player.world();
+        // FireworkRocketItem.java:37,43-45,92-95: clickLocation offset outward from the clicked
+        // face by ROCKET_PLACEMENT_OFFSET (0.15), so the rocket doesn't spawn embedded in the block.
+        let offset = face.to_offset();
         let entity = Entity::new(
             world.clone(),
             Vector3::new(
-                f64::from(location.0.x) + f64::from(cursor_pos.x),
-                f64::from(location.0.y) + f64::from(cursor_pos.y),
-                f64::from(location.0.z) + f64::from(cursor_pos.z),
+                f64::from(location.0.x) + f64::from(cursor_pos.x) + f64::from(offset.x) * 0.15,
+                f64::from(location.0.y) + f64::from(cursor_pos.y) + f64::from(offset.y) * 0.15,
+                f64::from(location.0.z) + f64::from(cursor_pos.z) + f64::from(offset.z) * 0.15,
             ),
             &EntityType::FIREWORK_ROCKET,
         );

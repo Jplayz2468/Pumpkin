@@ -18,15 +18,20 @@ impl ItemMetadata for SnowBallItem {
 }
 
 const POWER: f32 = 1.5;
+const THROW_SOUND_VOLUME: f32 = 0.5;
 
 impl ItemBehaviour for SnowBallItem {
     fn normal_use(&self, _block: &Item, player: &Player) {
         let position = player.position();
         let world = player.world();
-        world.play_sound(
+        // SnowballItem.java:26-35: SoundSource.NEUTRAL, volume 0.5, pitch
+        // 0.4F / (random.nextFloat() * 0.4F + 0.8F).
+        world.play_sound_fine(
             Sound::EntitySnowballThrow,
             pumpkin_data::sound::SoundCategory::Neutral,
             &position,
+            THROW_SOUND_VOLUME,
+            0.4 / (rand::random::<f32>() * 0.4 + 0.8),
         );
         let entity = Entity::new(world.clone(), position, &EntityType::SNOWBALL);
         let snowball = SnowballEntity::new_shot(entity, player.get_entity());
