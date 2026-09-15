@@ -24,10 +24,10 @@ impl ItemBehaviour for FishingRodItem {
         stack: &pumpkin_data::item_stack::ItemStack,
         player: &Player,
         hand: pumpkin_util::Hand,
-        yaw: f32,
-        pitch: f32,
+        _yaw: f32,
+        _pitch: f32,
     ) {
-        self.use_rod(stack, player, hand, yaw, pitch);
+        self.use_rod(stack, player, hand);
     }
 
     fn normal_use(&self, _item: &Item, player: &Player) {
@@ -35,8 +35,6 @@ impl ItemBehaviour for FishingRodItem {
             &player.inventory.held_item(),
             player,
             pumpkin_util::Hand::Right,
-            player.living_entity.entity.yaw.load(),
-            player.living_entity.entity.pitch.load(),
         );
     }
 
@@ -51,36 +49,31 @@ impl FishingRodItem {
         stack: &pumpkin_data::item_stack::ItemStack,
         player: &Player,
         hand: pumpkin_util::Hand,
-        yaw: f32,
-        pitch: f32,
     ) {
         let world = player.world();
         let bobber_id = player.fishing_bobber.load(Ordering::Relaxed);
 
         if bobber_id == -1 {
             // Cast
-            world.play_sound(
+            // FishingRodItem.java:42-51: volume 0.5, pitch = 0.4F / (random.nextFloat() * 0.4F + 0.8F)
+            let pitch = 0.4 / (rand::random::<f32>() * 0.4 + 0.8);
+            world.play_sound_fine(
                 Sound::EntityFishingBobberThrow,
                 SoundCategory::Neutral,
                 &player.position(),
+                0.5,
+                pitch,
             );
 
+            // Position, rotation and velocity are computed inside `with_rod` from the
+            // owner's own entity rotation (FishingHook.java:82-107), not the packet's
+            // yaw/pitch - see its doc comment.
             let bobber_entity = Entity::new(
                 world.clone(),
                 player.position(),
                 &EntityType::FISHING_BOBBER,
             );
             let bobber = FishingBobberEntity::with_rod(bobber_entity, player, stack);
-
-            let look_vec = pumpkin_util::math::vector3::Vector3::new(
-                -f64::from(yaw.to_radians().sin() * pitch.to_radians().cos()),
-                -f64::from(pitch.to_radians().sin()),
-                f64::from(yaw.to_radians().cos() * pitch.to_radians().cos()),
-            );
-            bobber
-                .entity
-                .velocity
-                .store(look_vec.multiply(1.5, 1.5, 1.5));
 
             player
                 .fishing_bobber
@@ -106,10 +99,14 @@ impl FishingRodItem {
             }
             player.fishing_bobber.store(-1, Ordering::Relaxed);
 
-            world.play_sound(
+            // FishingRodItem.java:30-39: volume 1.0, pitch = 0.4F / (random.nextFloat() * 0.4F + 0.8F)
+            let pitch = 0.4 / (rand::random::<f32>() * 0.4 + 0.8);
+            world.play_sound_fine(
                 Sound::EntityFishingBobberRetrieve,
                 SoundCategory::Neutral,
                 &player.position(),
+                1.0,
+                pitch,
             );
         }
     }

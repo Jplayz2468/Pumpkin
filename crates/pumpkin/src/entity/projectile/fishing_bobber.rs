@@ -40,10 +40,53 @@ impl FishingBobberEntity {
         Self::with_rod(entity, owner, &owner.inventory.held_item())
     }
 
+    /// Positions, rotates and launches the bobber exactly like vanilla's
+    /// `FishingHook(Player, Level, int, int)` constructor (`FishingHook.java:82-107`).
+    ///
+    /// Casting direction/velocity is derived from the owner's own current entity
+    /// rotation (`player.getYRot()`/`getXRot()`), never from the use-item packet's
+    /// reported yaw/pitch - matching vanilla, which ignores that packet field here.
     pub fn with_rod(entity: Entity, owner: &Player, rod: &ItemStack) -> Self {
-        let mut owner_pos = owner.living_entity.entity.pos.load();
-        owner_pos.y += owner.living_entity.entity.get_eye_height() - 0.1;
-        entity.pos.store(owner_pos);
+        let owner_entity = &owner.living_entity.entity;
+        let y_rot = owner_entity.yaw.load();
+        let x_rot = owner_entity.pitch.load();
+
+        // FishingHook.java:87-90
+        let y_cos = (-y_rot.to_radians() - std::f32::consts::PI).cos();
+        let y_sin = (-y_rot.to_radians() - std::f32::consts::PI).sin();
+        let x_cos = -(-x_rot.to_radians()).cos();
+        let x_sin = (-x_rot.to_radians()).sin();
+
+        // FishingHook.java:91-94: snapTo(x - ySin*0.3, eyeY, z - yCos*0.3, yRot, xRot)
+        let owner_pos = owner_entity.pos.load();
+        let spawn_pos = Vector3::new(
+            owner_pos.x - f64::from(y_sin) * 0.3,
+            owner_pos.y + owner_entity.get_eye_height(),
+            owner_pos.z - f64::from(y_cos) * 0.3,
+        );
+        entity.pos.store(spawn_pos);
+
+        // FishingHook.java:95-101: three independent triangular-jittered scale factors,
+        // one per axis, applied to the look-direction vector.
+        let mut random = LegacyRand::from_seed(get_seed());
+        let direction = Vector3::new(
+            -f64::from(y_sin),
+            f64::from((-(x_sin / x_cos)).clamp(-5.0, 5.0)),
+            -f64::from(y_cos),
+        );
+        let dist = direction.length();
+        let velocity = direction.multiply(
+            0.6 / dist + random.next_triangular(0.5, 0.010_336_5),
+            0.6 / dist + random.next_triangular(0.5, 0.010_336_5),
+            0.6 / dist + random.next_triangular(0.5, 0.010_336_5),
+        );
+        entity.velocity.store(velocity);
+
+        // FishingHook.java:103-104
+        entity.set_rotation(
+            velocity.x.atan2(velocity.z).to_degrees() as f32,
+            velocity.y.atan2(velocity.horizontal_length()).to_degrees() as f32,
+        );
 
         Self {
             entity,
@@ -60,7 +103,7 @@ impl FishingBobberEntity {
             lifetime_ground: AtomicI32::new(0),
             lure: i32::from(rod.get_enchantment_level(&pumpkin_data::Enchantment::LURE)) * 100,
             luck: i32::from(rod.get_enchantment_level(&pumpkin_data::Enchantment::LUCK_OF_THE_SEA)),
-            random: Mutex::new(LegacyRand::from_seed(get_seed())),
+            random: Mutex::new(random),
         }
     }
 
@@ -188,10 +231,14 @@ impl FishingBobberEntity {
         } else if self.approach_countdown.load(Ordering::Relaxed) > 0 {
             let remaining = self.approach_countdown.fetch_sub(rate, Ordering::Relaxed) - rate;
             if remaining <= 0 {
-                world.play_sound(
+                // FishingHook.java:338: volume 0.25, pitch = 1.0 + (rand.nextFloat() - rand.nextFloat()) * 0.4
+                let pitch = 1.0 + (rng.next_f32() - rng.next_f32()) * 0.4;
+                world.play_sound_fine(
                     Sound::EntityFishingBobberSplash,
                     SoundCategory::Neutral,
                     &self.entity.pos.load(),
+                    0.25,
+                    pitch,
                 );
                 self.bite_countdown
                     .store(rng.next_inbetween_i32(20, 40), Ordering::Relaxed);
