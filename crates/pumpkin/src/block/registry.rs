@@ -47,6 +47,7 @@ use crate::block::blocks::glazed_terracotta::GlazedTerracottaBlock;
 use crate::block::blocks::grass_block::GrassBlock;
 use crate::block::blocks::grindstone::GrindstoneBlock;
 use crate::block::blocks::hay::HayBlock;
+use crate::block::blocks::heavy_core::HeavyCoreBlock;
 use crate::block::blocks::honey::HoneyBlock;
 use crate::block::blocks::huge_mushroom::HugeMushroomBlock;
 use crate::block::blocks::ice::{FrostedIceBlock, IceBlock};
@@ -275,6 +276,7 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(GlassPaneBlock);
     manager.register(GlazedTerracottaBlock);
     manager.register(HayBlock);
+    manager.register(HeavyCoreBlock);
     manager.register(HugeMushroomBlock);
     manager.register(GrindstoneBlock);
     manager.register(IceBlock);
