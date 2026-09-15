@@ -632,3 +632,24 @@ so they must not be used to reconstruct audit completion.
   Dynamic jukebox song registries, generic typed block-entity item-data application,
   source sound RNG, fluid-flow waterlogging, factory spawn reasons and the wider
   unaudited block/item pipeline remain open.
+
+## Continued source port: bells and projectile hit faces
+
+- Bells now use actual support faces for placement and single/double-wall
+  transitions, ring before powered-state changes, use the source sound volume
+  and pitch, attribute game events to the ringing entity, and send the ring
+  block event. Correct-side player hits still consume when ringing fails.
+- Ported the cached living-entity search, registered HEARD_BELL_TIME memory
+  updates, five-tick resonance start, forty-tick resonance duration and sixty-tick
+  raider glowing effect. Weak cached references avoid owning world/entity cycles.
+  Unported mob brains still cannot act on bell memories.
+- Projectile block callbacks now carry the collision face for arrows, tridents
+  and generic projectiles. Bells apply hit-height/face restrictions to projectiles.
+  Targets score in the struck face's plane, use twenty ticks for tridents as well
+  as arrows, and clear unsupported pre-powered placement states with source flags.
+  Removed target's incorrect direct power and unconditional arrow bullseye award;
+  the built-in award now requires strength fifteen and thirty horizontal blocks.
+- Explosion callbacks now distinguish block-triggering explosions so wind charges
+  can ring bells. General explosion behavior, dynamic support/collision contexts,
+  custom advancement predicates and client/protocol effects remain shared gaps.
+  Only source inspection, formatting and whitespace review; no compilation/tests.

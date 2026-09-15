@@ -308,13 +308,16 @@ impl ThrownItemEntity {
                 return;
             }
 
-            if let ProjectileHit::Block { pos, hit_pos, .. } = &h {
+            if let ProjectileHit::Block {
+                pos, hit_pos, face, ..
+            } = &h
+            {
                 let block = world.get_block(pos);
                 let state = world.get_block_state(pos);
                 if let Some(server) = world.server.upgrade() {
-                    world
-                        .block_registry
-                        .on_projectile_hit(block, &world, caller, pos, state, hit_pos, &server);
+                    world.block_registry.on_projectile_hit(
+                        block, &world, caller, pos, state, hit_pos, *face, &server,
+                    );
                 }
             }
 

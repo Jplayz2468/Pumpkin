@@ -534,6 +534,7 @@ impl<'a> Explosion<'a> {
                             caused_by_player: self.caused_by_player,
                             source: self.source,
                             state: _state,
+                            can_trigger_blocks: true,
                         });
                     }
                 }
@@ -574,6 +575,7 @@ impl<'a> Explosion<'a> {
                                 state,
                                 caused_by_player: self.caused_by_player,
                                 source: self.source,
+                                can_trigger_blocks: false,
                             });
                         }
                         let is_raining = world.is_raining();
@@ -604,6 +606,7 @@ impl<'a> Explosion<'a> {
                             caused_by_player: self.caused_by_player,
                             source: self.source,
                             state,
+                            can_trigger_blocks: false,
                         });
                     }
                 }

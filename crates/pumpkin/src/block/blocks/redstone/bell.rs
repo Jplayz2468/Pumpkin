@@ -1,30 +1,34 @@
-use crate::Arc;
-use crate::block::blocks::abstract_wall_mounting::WallMountedBlock;
 use crate::block::blocks::redstone::block_receives_redstone_power;
 use crate::block::entities::bell::BellBlockEntity;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
-    BlockBehaviour, BlockHitResult, BrokenArgs, CanPlaceAtArgs, NormalUseArgs,
-    OnNeighborUpdateArgs, OnPlaceArgs, OnProjectileHitArgs, PathComputationType, PlacedArgs,
+    BlockBehaviour, CanPlaceAtArgs, ExplodeArgs, GetStateForNeighborUpdateArgs, NormalUseArgs,
+    OnNeighborUpdateArgs, OnPlaceArgs, OnProjectileHitArgs, OnSyncedBlockEventArgs,
+    PathComputationType,
 };
+use crate::entity::EntityBase;
 use crate::world::World;
-use pumpkin_data::block_properties::HorizontalFacing;
-use pumpkin_data::block_properties::{AttachFace, BellAttachment, BellLikeProperties};
-use pumpkin_data::sound::Sound;
-use pumpkin_data::sound::SoundCategory;
+use pumpkin_data::block_properties::{BellAttachment, BellLikeProperties, HorizontalFacing};
+use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::Taggable;
-use pumpkin_data::{Block, BlockDirection, BlockState, BlockStateId};
-use pumpkin_data::{HorizontalFacingExt, tag};
+use pumpkin_data::{Block, BlockDirection, BlockState, BlockStateId, HorizontalFacingExt, tag};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_world::world::BlockFlags;
+use pumpkin_world::world::{BlockAccessor, BlockFlags};
+use std::sync::Arc;
 
 fn ring_bell(
     position: BlockPos,
     world: &Arc<World>,
     hit_direction: Option<HorizontalFacing>,
-    entity: Option<Arc<dyn crate::entity::EntityBase>>,
+    entity: Option<Arc<dyn EntityBase>>,
 ) -> bool {
+    let Some(block_entity) = world.get_block_entity(&position) else {
+        return false;
+    };
+    let Some(bell) = block_entity.as_any().downcast_ref::<BellBlockEntity>() else {
+        return false;
+    };
     let mut event = crate::plugin::block::bell_ring::BellRingEvent {
         block_pos: position,
         world: world.clone(),
@@ -38,187 +42,188 @@ fn ring_bell(
     if event.cancelled {
         return false;
     }
-
-    let (_block, state_id) = world.get_block_and_state_id(&position);
-
-    let props = BellLikeProperties::from_state_id(state_id);
-    let direction = hit_direction.unwrap_or(props.facing);
-
-    if let Some(block_entity) = world.get_block_entity(&position)
-        && let Some(be) = block_entity.as_any().downcast_ref::<BellBlockEntity>()
-    {
-        be.activate(direction);
-    }
-
+    let props = BellLikeProperties::from_state_id(world.get_block_state_id(&position));
+    let direction = event
+        .direction
+        .and_then(|d| d.to_horizontal_facing())
+        .unwrap_or(props.facing);
+    bell.activate(direction);
     world.play_sound_fine(
         Sound::BlockBellUse,
         SoundCategory::Blocks,
         &position.to_centered_f64(),
-        1.0,
         2.0,
+        1.0,
     );
-
-    world.emit_game_event(
-        pumpkin_data::game_event::GameEvent::BlockChange.name(),
+    world.emit_game_event_from_entity(
+        "block_change",
         position.to_centered_f64(),
+        event.entity.as_deref(),
+        None,
     );
     true
 }
 
-fn is_point_on_bell(
-    hit: &BlockHitResult,
-    attachment: BellAttachment,
-    block_face: HorizontalFacing,
-) -> bool {
-    if hit.face == &BlockDirection::Up || hit.face == &BlockDirection::Down {
-        return false;
-    }
-    if hit.cursor_pos.y <= 0.8124f32 {
-        match attachment {
-            BellAttachment::Floor => {
-                hit.face.to_axis() == block_face.to_block_direction().to_axis()
-            }
+fn proper_hit(face: BlockDirection, y: f64, props: &BellLikeProperties) -> bool {
+    face.is_horizontal()
+        && !(y > f64::from(0.8124_f32))
+        && match props.attachment {
+            BellAttachment::Floor => face.to_axis() == props.facing.to_block_direction().to_axis(),
             BellAttachment::SingleWall | BellAttachment::DoubleWall => {
-                hit.face.to_axis() != block_face.to_block_direction().to_axis()
+                face.to_axis() != props.facing.to_block_direction().to_axis()
             }
             BellAttachment::Ceiling => true,
         }
-    } else {
-        false
+}
+
+fn connection(props: &BellLikeProperties) -> BlockDirection {
+    match props.attachment {
+        BellAttachment::Ceiling => BlockDirection::Up,
+        BellAttachment::Floor => BlockDirection::Down,
+        _ => props.facing.to_block_direction(),
     }
 }
 
-fn is_single_wall(position: BlockPos, facing: HorizontalFacing, world: &World) -> bool {
-    !world
-        .get_block(&position.offset(facing.to_offset()))
-        .is_solid()
+fn survives(world: &dyn BlockAccessor, pos: &BlockPos, props: &BellLikeProperties) -> bool {
+    let direction = connection(props);
+    let support = world.get_block_state(&pos.offset(direction.to_offset()));
+    if direction == BlockDirection::Up {
+        !support
+            .id
+            .to_block()
+            .has_tag(&tag::Block::MINECRAFT_UNSTABLE_BOTTOM_CENTER)
+            && support.is_center_solid(BlockDirection::Down)
+    } else {
+        support.is_side_solid(direction.opposite())
+    }
 }
 
 #[pumpkin_block("minecraft:bell")]
 pub struct BellBlock;
 
-impl WallMountedBlock for BellBlock {
-    fn get_direction(&self, state_id: BlockStateId, _block: &Block) -> BlockDirection {
-        let props = BellLikeProperties::from_state_id(state_id);
-        match props.attachment {
-            BellAttachment::Ceiling => BlockDirection::Down,
-            BellAttachment::Floor => BlockDirection::Up,
-            BellAttachment::SingleWall | BellAttachment::DoubleWall => {
-                props.facing.opposite().to_block_direction()
-            }
-        }
-    }
-}
-
 impl BlockBehaviour for BellBlock {
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        if let Some(direction) = args.direction
-            && let Some(world) = args.world
-        {
-            if direction == BlockDirection::Up {
-                let block: &Block = world.get_block(args.position);
-
-                if block.has_tag(&tag::Block::MINECRAFT_UNSTABLE_BOTTOM_CENTER) {
-                    false
-                } else {
-                    let block_pos = args.position.offset(direction.to_offset());
-                    let block_state = world.get_block_state(&block_pos);
-                    block_state.is_center_solid(direction)
-                }
-            } else {
-                WallMountedBlock::can_place_at(self, world, args.position, direction)
-            }
-        } else {
-            false
-        }
-    }
-    fn broken(&self, args: BrokenArgs<'_>) {
-        let world: &World = args.world;
-        world.remove_block_entity(args.position);
+        survives(
+            args.block_accessor,
+            args.position,
+            &BellLikeProperties::from_state_id(args.state.id),
+        )
     }
 
-    fn placed(&self, args: PlacedArgs<'_>) {
-        args.world
-            .add_block_entity(Arc::new(BellBlockEntity::new(*args.position)));
-    }
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        let state = args.world.get_block_state(args.position);
-
-        let props = BellLikeProperties::from_state_id(state.id);
-
-        if !is_point_on_bell(args.hit, props.attachment, props.facing) {
-            return BlockActionResult::Pass; // Pass if Crosshair wasn't correctly positioned
+        let props = BellLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
+        if !proper_hit(*args.hit.face, f64::from(args.hit.cursor_pos.y), &props) {
+            return BlockActionResult::Pass;
         }
-        if !ring_bell(
+        if ring_bell(
             *args.position,
             args.world,
             args.hit.face.to_horizontal_facing(),
             Some(args.player.clone()),
         ) {
-            return BlockActionResult::Pass;
+            args.player.increment_stat(
+                pumpkin_data::statistic::StatisticCategory::Custom,
+                pumpkin_data::statistic::CustomStatistic::BellRing as i32,
+                1,
+            );
         }
-
-        args.player.increment_stat(
-            pumpkin_data::statistic::StatisticCategory::Custom,
-            pumpkin_data::statistic::CustomStatistic::BellRing as i32,
-            1,
-        );
-
+        // A proper hit consumes the interaction even when the entity cannot ring.
         BlockActionResult::Success
     }
 
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
+        let clicked = args.direction.opposite();
         let mut props = BellLikeProperties::default(args.block);
-
-        let block_face;
-        let facing;
-        (block_face, facing) =
-            WallMountedBlock::get_placement_face(self, args.player, args.direction);
-
-        props.facing = match block_face {
-            AttachFace::Floor | AttachFace::Ceiling => facing,
-            AttachFace::Wall => facing.opposite(),
-        };
-
-        props.attachment = match block_face {
-            AttachFace::Wall => {
-                if is_single_wall(*args.position, props.facing.opposite(), args.world) {
-                    BellAttachment::SingleWall
-                } else {
-                    BellAttachment::DoubleWall
-                }
+        if !clicked.is_horizontal() {
+            props.attachment = if clicked == BlockDirection::Down {
+                BellAttachment::Ceiling
+            } else {
+                BellAttachment::Floor
+            };
+            props.facing = args.player.get_entity().get_horizontal_facing();
+        } else {
+            props.facing = clicked.opposite().to_cardinal_direction();
+            let supported = |direction: BlockDirection| {
+                args.world
+                    .get_block_state(&args.position.offset(direction.to_offset()))
+                    .is_side_solid(direction.opposite())
+            };
+            props.attachment = if supported(clicked) && supported(clicked.opposite()) {
+                BellAttachment::DoubleWall
+            } else {
+                BellAttachment::SingleWall
+            };
+            if survives(args.world, args.position, &props) {
+                return props.to_state_id(args.block);
             }
-            AttachFace::Floor => BellAttachment::Floor,
-            AttachFace::Ceiling => BellAttachment::Ceiling,
-        };
+            props.attachment = if supported(BlockDirection::Down) {
+                BellAttachment::Floor
+            } else {
+                BellAttachment::Ceiling
+            };
+        }
+        if survives(args.world, args.position, &props) {
+            props.to_state_id(args.block)
+        } else {
+            BlockStateId::AIR
+        }
+    }
 
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        let mut props = BellLikeProperties::from_state_id(args.state_id);
+        let connected = connection(&props);
+        if connected == args.direction
+            && props.attachment != BellAttachment::DoubleWall
+            && !survives(args.world, args.position, &props)
+        {
+            return BlockStateId::AIR;
+        }
+        if args.direction.to_axis() == props.facing.to_block_direction().to_axis() {
+            let neighbor = args.neighbor_state_id.to_state();
+            if props.attachment == BellAttachment::DoubleWall
+                && !neighbor.is_side_solid(args.direction)
+            {
+                props.attachment = BellAttachment::SingleWall;
+                props.facing = args.direction.opposite().to_cardinal_direction();
+            } else if props.attachment == BellAttachment::SingleWall
+                && connected.opposite() == args.direction
+                && neighbor.is_side_solid(props.facing.to_block_direction())
+            {
+                props.attachment = BellAttachment::DoubleWall;
+            }
+        }
         props.to_state_id(args.block)
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        let world: &World = args.world;
-
-        let is_receiving_power = block_receives_redstone_power(world, args.position);
-        let state = args.world.get_block_state(args.position);
-
-        let mut props = BellLikeProperties::from_state_id(state.id);
-
-        if props.powered != is_receiving_power {
-            props.powered = is_receiving_power;
-
+        let receiving = block_receives_redstone_power(args.world, args.position);
+        let mut props =
+            BellLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
+        if props.powered != receiving {
+            if receiving {
+                ring_bell(*args.position, args.world, None, None);
+            }
+            props.powered = receiving;
             args.world.set_block_state(
                 args.position,
                 props.to_state_id(args.block),
                 BlockFlags::NOTIFY_ALL,
             );
-
-            if is_receiving_power {
-                ring_bell(*args.position, args.world, None, None);
-            }
         }
     }
 
     fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
+        let props = BellLikeProperties::from_state_id(args.state.id);
+        if !proper_hit(
+            args.hit_face,
+            args.hit_pos.y - f64::from(args.position.0.y),
+            &props,
+        ) {
+            return;
+        }
         let player = args
             .projectile
             .get_owner_id()
@@ -226,10 +231,8 @@ impl BlockBehaviour for BellBlock {
         if ring_bell(
             *args.position,
             args.world,
-            None,
-            player
-                .as_ref()
-                .map(|p| p.clone() as Arc<dyn crate::entity::EntityBase>),
+            args.hit_face.to_horizontal_facing(),
+            player.as_ref().map(|p| p.clone() as Arc<dyn EntityBase>),
         ) && let Some(player) = player
         {
             player.increment_stat(
@@ -237,6 +240,26 @@ impl BlockBehaviour for BellBlock {
                 pumpkin_data::statistic::CustomStatistic::BellRing as i32,
                 1,
             );
+        }
+    }
+
+    fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
+        if args.r#type != 1 {
+            return false;
+        }
+        if let Some(entity) = args.world.get_block_entity(args.position)
+            && let Some(bell) = entity.as_any().downcast_ref::<BellBlockEntity>()
+        {
+            bell.trigger_ring(args.world, args.data);
+            true
+        } else {
+            false
+        }
+    }
+
+    fn explode(&self, args: ExplodeArgs<'_>) {
+        if args.can_trigger_blocks {
+            ring_bell(*args.position, args.world, None, None);
         }
     }
 

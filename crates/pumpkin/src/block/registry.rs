@@ -1010,6 +1010,7 @@ impl BlockRegistry {
         position: &BlockPos,
         state: &BlockState,
         hit_pos: &Vector3<f64>,
+        hit_face: BlockDirection,
         server: &Server,
     ) {
         if let Some(pumpkin_block) = self.get_pumpkin_block(block.id) {
@@ -1021,6 +1022,7 @@ impl BlockRegistry {
                 position,
                 projectile,
                 hit_pos,
+                hit_face,
             });
         }
     }
@@ -1098,6 +1100,7 @@ impl BlockRegistry {
                 caused_by_player,
                 source: None,
                 state: world.get_block_state(position),
+                can_trigger_blocks: false,
             });
         }
     }

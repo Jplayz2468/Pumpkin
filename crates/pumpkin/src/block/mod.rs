@@ -307,6 +307,7 @@ pub struct OnProjectileHitArgs<'a> {
     pub position: &'a BlockPos,
     pub projectile: &'a dyn EntityBase,
     pub hit_pos: &'a Vector3<f64>,
+    pub hit_face: BlockDirection,
 }
 
 pub struct OnEntityStepArgs<'a> {
@@ -329,6 +330,7 @@ pub struct ExplodeArgs<'a> {
     /// Used by chain-reacting TNT to propagate ownership like vanilla's
     /// `TntBlock#wasExploded`.
     pub caused_by_player: bool,
+    pub can_trigger_blocks: bool,
 }
 
 pub struct OnSyncedBlockEventArgs<'a> {

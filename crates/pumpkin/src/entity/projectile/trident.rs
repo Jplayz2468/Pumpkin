@@ -307,7 +307,9 @@ impl EntityBase for TridentEntity {
         let world = entity.world.load();
 
         match hit {
-            ProjectileHit::Block { pos, hit_pos, .. } => {
+            ProjectileHit::Block {
+                pos, hit_pos, face, ..
+            } => {
                 self.in_ground.store(true, Ordering::Relaxed);
                 self.shake_time.store(7, Ordering::Relaxed);
                 *self
@@ -318,9 +320,9 @@ impl EntityBase for TridentEntity {
                 let block = world.get_block(&pos);
                 let state = world.get_block_state(&pos);
                 if let Some(server) = world.server.upgrade() {
-                    world
-                        .block_registry
-                        .on_projectile_hit(block, &world, self, &pos, state, &hit_pos, &server);
+                    world.block_registry.on_projectile_hit(
+                        block, &world, self, &pos, state, &hit_pos, face, &server,
+                    );
                 }
 
                 // Stop the trident

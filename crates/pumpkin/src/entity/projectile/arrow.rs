@@ -880,10 +880,7 @@ impl EntityBase for ArrowEntity {
 
         match hit {
             ProjectileHit::Block {
-                pos,
-                face: _,
-                hit_pos,
-                ..
+                pos, face, hit_pos, ..
             } => {
                 // Arrow hit a block - stick into it
                 self.in_ground.store(true, Ordering::Relaxed);
@@ -896,16 +893,8 @@ impl EntityBase for ArrowEntity {
                 let block = world.get_block(&pos);
                 let state = world.get_block_state(&pos);
                 if let Some(server) = world.server.upgrade() {
-                    world
-                        .block_registry
-                        .on_projectile_hit(block, &world, self, &pos, state, &hit_pos, &server);
-                }
-
-                if block == &pumpkin_data::Block::TARGET
-                    && let Some(player) = self.owner_id.and_then(|id| world.get_player_by_id(id))
-                {
-                    player.trigger_advancement(
-                        crate::entity::player::advancement::trigger::AdvancementTrigger::Bullseye,
+                    world.block_registry.on_projectile_hit(
+                        block, &world, self, &pos, state, &hit_pos, face, &server,
                     );
                 }
 
