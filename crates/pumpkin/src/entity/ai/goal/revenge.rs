@@ -8,6 +8,13 @@ use crate::entity::ai::goal::track_target::TrackTargetGoal;
 use crate::entity::ai::target_predicate::TargetPredicate;
 use crate::entity::mob::Mob;
 
+/// `LivingEntity.aiStep` nulls `lastHurtByMob` out once `tickCount - lastHurtByMobTimestamp
+/// > 100` (LivingEntity.java:492), so `HurtByTargetGoal.canUse`'s `getLastHurtByMob() != null`
+/// check (HurtByTargetGoal.java:35-36) stops matching after 100 ticks without a fresh hit.
+/// Pumpkin's `last_attacker_id`/`last_attacked_time` never self-clear, so this goal has to
+/// apply the same 100-tick window itself.
+const REVENGE_MEMORY_TICKS: i32 = 100;
+
 pub struct RevengeGoal {
     track_target_goal: TrackTargetGoal,
     target: Option<Arc<dyn EntityBase>>,
@@ -42,6 +49,11 @@ impl Goal for RevengeGoal {
 
         let attacker_id = living.last_attacker_id.load(Relaxed);
         if attacker_id == 0 {
+            return false;
+        }
+
+        let now = living.entity.tick_count.load(Relaxed);
+        if now - attacked_time > REVENGE_MEMORY_TICKS {
             return false;
         }
 

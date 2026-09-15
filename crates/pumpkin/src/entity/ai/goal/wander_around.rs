@@ -84,7 +84,16 @@ impl WanderAroundGoal {
         }
     }
 
-    fn find_ground_target(mob: &dyn Mob, horizontal: i32, land: bool) -> Option<Vector3<f64>> {
+    /// Shared port of `DefaultRandomPos`/`LandRandomPos` (RandomPos.java). `vertical`
+    /// mirrors the `verticalDist` parameter every Java caller passes explicitly
+    /// (`DefaultRandomPos.getPos`/`LandRandomPos.getPos`); callers in this file used to
+    /// hardcode 7, which was only correct for `RandomStrollGoal`'s own callers.
+    pub(crate) fn find_ground_target(
+        mob: &dyn Mob,
+        horizontal: i32,
+        vertical: i32,
+        land: bool,
+    ) -> Option<Vector3<f64>> {
         let me = mob.get_mob_entity();
         let entity = &me.living_entity.entity;
         let pos = entity.pos.load();
@@ -106,7 +115,7 @@ impl WanderAroundGoal {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         choose_position(|| {
-            let offset = random_direction(horizontal, 7, |bound| rng.random_range(0..bound));
+            let offset = random_direction(horizontal, vertical, |bound| rng.random_range(0..bound));
             let mut dx = f64::from(offset.x);
             let mut dz = f64::from(offset.z);
             if has_home && horizontal > 1 {
@@ -169,11 +178,11 @@ impl WanderAroundGoal {
             .can_navigate_ground();
         if ground {
             if self.avoid_water && me.living_entity.entity.is_in_water() {
-                return Self::find_ground_target(mob, 15, true)
-                    .or_else(|| Self::find_ground_target(mob, 10, false));
+                return Self::find_ground_target(mob, 15, 7, true)
+                    .or_else(|| Self::find_ground_target(mob, 10, 7, false));
             }
             let land = self.avoid_water && mob.get_random().random::<f32>() >= 0.001;
-            return Self::find_ground_target(mob, 10, land);
+            return Self::find_ground_target(mob, 10, 7, land);
         }
         // Flying and aquatic navigation need their own Java destination predicates.
         let pos = me.living_entity.entity.pos.load();
@@ -190,6 +199,18 @@ impl WanderAroundGoal {
 
 impl Goal for WanderAroundGoal {
     fn can_start(&mut self, mob: &dyn Mob) -> bool {
+        // RandomStrollGoal.java:44 `if (this.mob.hasControllingPassenger()) return false;`.
+        // Pumpkin has no "controlling passenger" concept (steering vs. passive riders), so
+        // this approximates it with "has any passenger" — correct for the common single-rider
+        // case (horses, pigs, camels) that this goal actually applies to.
+        if mob
+            .get_mob_entity()
+            .living_entity
+            .entity
+            .has_passengers()
+        {
+            return false;
+        }
         if !can_stroll(
             mob.get_mob_entity().no_action_time.load(Relaxed),
             self.chance,
@@ -201,11 +222,12 @@ impl Goal for WanderAroundGoal {
         self.target.is_some()
     }
     fn should_continue(&self, mob: &dyn Mob) -> bool {
-        !mob.get_mob_entity()
-            .navigator
+        let me = mob.get_mob_entity();
+        !me.navigator
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .is_idle()
+            && !me.living_entity.entity.has_passengers()
     }
     fn start(&mut self, mob: &dyn Mob) {
         if let Some(target) = self.target {
