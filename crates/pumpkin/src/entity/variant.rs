@@ -92,6 +92,7 @@ const CYAN: u8 = 9;
 const PURPLE: u8 = 10;
 const BLUE: u8 = 11;
 const BROWN: u8 = 12;
+const GREEN: u8 = 13;
 const RED: u8 = 14;
 const BLACK: u8 = 15;
 
@@ -319,5 +320,132 @@ mod tests {
         }
         // Unqualified names are accepted too, because that is what older saves hold.
         assert_eq!(temperature_variant_from_name("warm"), TEMPERATURE_VARIANT_WARM);
+    }
+
+    #[test]
+    fn mixes_dyes_through_the_real_crafting_recipes() {
+        // These are vanilla's two-dye recipes, so a lamb of two such parents takes the
+        // mixed colour rather than one parent's. If the recipe table shape ever changes
+        // under us this stops finding them and silently degrades to the coin flip.
+        assert_eq!(mix_dye_colors(BLUE, GREEN), Some(CYAN));
+        assert_eq!(mix_dye_colors(RED, YELLOW), Some(ORANGE));
+        assert_eq!(mix_dye_colors(RED, WHITE), Some(PINK));
+        assert_eq!(mix_dye_colors(BLACK, WHITE), Some(GRAY));
+        // Order must not matter: the recipe is shapeless.
+        assert_eq!(mix_dye_colors(GREEN, BLUE), Some(CYAN));
+    }
+
+    #[test]
+    fn falls_back_to_a_parent_when_no_recipe_mixes_the_pair() {
+        // Two of the same colour have no mixing recipe, so the result is that colour
+        // either way the coin lands.
+        assert_eq!(mix_dye_colors(RED, RED), None);
+        assert_eq!(mixed_sheep_color(RED, RED), RED);
+    }
+
+    #[test]
+    fn inherited_variant_always_comes_from_one_parent() {
+        for _ in 0..200 {
+            let child = inherit_variant(TEMPERATURE_VARIANT_COLD, TEMPERATURE_VARIANT_WARM);
+            assert!(
+                child == TEMPERATURE_VARIANT_COLD || child == TEMPERATURE_VARIANT_WARM,
+                "a calf must take one parent's variant, never a third value"
+            );
+        }
+    }
+}
+
+// -- Breeding ---------------------------------------------------------------------------
+
+/// `DyeColor.getMixedColor` (DyeColor.java): the two parents' colours are looked up as a
+/// two-dye crafting recipe — blue + yellow gives a green lamb — and only when no recipe
+/// exists does it fall back to a coin flip between them.
+///
+/// Vanilla searches the live recipe manager. This walks the same recipe table, which is
+/// the generated snapshot of it, so a datapack that adds a dye recipe is not picked up.
+pub fn mixed_sheep_color(first: u8, second: u8) -> u8 {
+    mix_dye_colors(first, second).unwrap_or_else(|| {
+        if rand::rng().random_bool(0.5) {
+            first
+        } else {
+            second
+        }
+    })
+}
+
+/// `DyeColor.findColorMixInRecipes`: a shapeless recipe taking exactly the two dyes,
+/// whose result is itself a dye.
+fn mix_dye_colors(first: u8, second: u8) -> Option<u8> {
+    use pumpkin_data::recipes::{CraftingRecipeTypes, RECIPES_CRAFTING, RecipeIngredientTypes};
+
+    let wanted = [dye_item_name(first)?, dye_item_name(second)?];
+    for recipe in RECIPES_CRAFTING {
+        let CraftingRecipeTypes::CraftingShapeless {
+            ingredients,
+            result,
+            ..
+        } = recipe
+        else {
+            continue;
+        };
+        if ingredients.len() != 2 {
+            continue;
+        }
+        let named: Vec<&str> = ingredients
+            .iter()
+            .filter_map(|ingredient| match ingredient {
+                RecipeIngredientTypes::Simple(name) => Some(*name),
+                // A dye-mixing recipe never takes a tag or a choice of items.
+                RecipeIngredientTypes::Tagged(_) | RecipeIngredientTypes::OneOf(_) => None,
+            })
+            .collect();
+        if named.len() != 2 {
+            continue;
+        }
+        // Shapeless: either order counts as a match.
+        let matches = (named[0] == wanted[0] && named[1] == wanted[1])
+            || (named[0] == wanted[1] && named[1] == wanted[0]);
+        if matches
+            && let Some(color) = dye_color_from_item_name(result.id)
+        {
+            return Some(color);
+        }
+    }
+    None
+}
+
+/// The namespaced dye item for a `DyeColor` id.
+fn dye_item_name(color: u8) -> Option<&'static str> {
+    Some(match color {
+        0 => "minecraft:white_dye",
+        1 => "minecraft:orange_dye",
+        2 => "minecraft:magenta_dye",
+        3 => "minecraft:light_blue_dye",
+        4 => "minecraft:yellow_dye",
+        5 => "minecraft:lime_dye",
+        6 => "minecraft:pink_dye",
+        7 => "minecraft:gray_dye",
+        8 => "minecraft:light_gray_dye",
+        9 => "minecraft:cyan_dye",
+        10 => "minecraft:purple_dye",
+        11 => "minecraft:blue_dye",
+        12 => "minecraft:brown_dye",
+        13 => "minecraft:green_dye",
+        14 => "minecraft:red_dye",
+        15 => "minecraft:black_dye",
+        _ => return None,
+    })
+}
+
+fn dye_color_from_item_name(name: &str) -> Option<u8> {
+    (0..16u8).find(|color| dye_item_name(*color) == Some(name))
+}
+
+/// `Cow`/`Pig`/`Chicken.getBreedOffspring`: the calf takes one parent's variant at random.
+pub fn inherit_variant(first: u8, second: u8) -> u8 {
+    if rand::rng().random_bool(0.5) {
+        first
+    } else {
+        second
     }
 }

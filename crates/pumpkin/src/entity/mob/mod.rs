@@ -994,6 +994,18 @@ pub trait Mob: EntityBase + Send + Sync {
         None
     }
 
+    fn as_cow(&self) -> Option<&crate::entity::passive::cow::CowEntity> {
+        None
+    }
+
+    fn as_pig(&self) -> Option<&crate::entity::passive::pig::PigEntity> {
+        None
+    }
+
+    fn as_sheep(&self) -> Option<&crate::entity::passive::sheep::SheepEntity> {
+        None
+    }
+
     fn as_ageable(&self) -> Option<&dyn crate::entity::ageable::AgeableMob> {
         None
     }
@@ -1281,6 +1293,14 @@ pub trait Mob: EntityBase + Send + Sync {
     fn mob_init_data_tracker(&self) {}
 
     fn mob_set_variant_name(&self, _name: &str) {}
+
+    /// `getBreedOffspring`: the newborn takes its appearance from its two parents.
+    /// Called on the baby, before it is spawned, with both parents.
+    ///
+    /// Vanilla builds the child inside the parent's `getBreedOffspring` and sets the
+    /// inherited fields there; the child is constructed first here, so the inheritance
+    /// is expressed as a hook on the child instead. Same inputs, same result.
+    fn mob_inherit_from_parents(&self, _first: &dyn EntityBase, _second: &dyn EntityBase) {}
 
     fn mob_on_lightning_strike(
         &self,

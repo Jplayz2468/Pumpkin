@@ -100,6 +100,12 @@ impl BreedGoal {
         if let Some(ageable) = baby.get_mob().and_then(Mob::as_ageable) {
             ageable.set_baby(true);
         }
+        // Vanilla sets the inherited appearance inside `getBreedOffspring`, which runs
+        // before the child enters the world; do the same here so the first metadata the
+        // client sees already carries the child's own variant or colour.
+        if let Some(baby_mob) = baby.get_mob() {
+            baby_mob.mob_inherit_from_parents(mob, mate);
+        }
         let world_full = entity.world.load_full();
         world_full.spawn_entity(baby);
     }

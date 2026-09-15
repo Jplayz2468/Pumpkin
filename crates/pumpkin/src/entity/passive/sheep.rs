@@ -19,6 +19,7 @@ use crate::entity::{
     mob::{Mob, MobEntity},
     passive::animal::Animal,
     player::Player,
+    variant,
 };
 
 use pumpkin_data::item_stack::ItemStack;
@@ -121,7 +122,35 @@ impl Animal for SheepEntity {
     }
 }
 
+/// The sheep behind an entity reference, if it is one.
+fn sheep_of(entity: &dyn EntityBase) -> Option<&SheepEntity> {
+    entity.get_mob().and_then(Mob::as_sheep)
+}
+
 impl Mob for SheepEntity {
+    fn as_sheep(&self) -> Option<&SheepEntity> {
+        Some(self)
+    }
+
+    /// `Sheep.getBreedOffspring` (Sheep.java:280): the lamb's colour is
+    /// `DyeColor.getMixedColor` of its parents — blue and yellow parents give a green
+    /// lamb — falling back to one parent's colour when the pair has no dye recipe.
+    fn mob_inherit_from_parents(&self, first: &dyn EntityBase, second: &dyn EntityBase) {
+        let (Some(a), Some(b)) = (sheep_of(first), sheep_of(second)) else {
+            return;
+        };
+        self.set_color(variant::mixed_sheep_color(a.get_color(), b.get_color()));
+    }
+
+    /// `Sheep.finalizeSpawn` (Sheep.java:301) -> `getRandomSheepColor` (Sheep.java:270):
+    /// the colour comes from a biome-dependent weighted table, so most sheep take the
+    /// biome's dominant colour and a few percent are grey, brown or — 1 in 500 — pink.
+    fn mob_finalize_spawn(&self, _reason: crate::entity::spawn::SpawnReason) {
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        self.set_color(variant::random_sheep_color(&world, &entity.block_pos.load()));
+    }
+
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }

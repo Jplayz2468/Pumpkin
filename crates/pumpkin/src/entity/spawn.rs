@@ -18,6 +18,9 @@ pub enum SpawnReason {
     Jockey,
     Conversion,
     Command,
+    /// Placed from a spawn egg. Vanilla still finalizes these, so the mob picks up its
+    /// biome-dependent variant before the egg's own components override it.
+    SpawnEgg,
     Triggered,
 }
 

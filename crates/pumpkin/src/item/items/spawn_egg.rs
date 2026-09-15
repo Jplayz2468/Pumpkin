@@ -31,6 +31,23 @@ impl ItemMetadata for SpawnEggItem {
     }
 }
 
+/// `EntityType.spawn(..., SPAWN_EGG)` runs `finalizeSpawn` before the egg's own
+/// components are applied, so an egg with no variant component still produces a mob
+/// suited to the biome — a cow from a snowy biome is a cold cow. The component override
+/// therefore has to come *after* this, not instead of it.
+fn finalize_spawn_egg(mob: &Arc<dyn EntityBase>, world: &Arc<World>) {
+    use crate::entity::spawn::{SpawnContext, SpawnReason, WorldSpawnRandom, finalize_spawn_group};
+    let mut random = WorldSpawnRandom(world);
+    finalize_spawn_group(
+        mob,
+        &mut SpawnContext {
+            reason: SpawnReason::SpawnEgg,
+            random: &mut random,
+        },
+        &mut None,
+    );
+}
+
 pub(crate) fn apply_entity_variant(item: &ItemStack, mob: &dyn EntityBase) {
     if let Some(comp) = item.get_data_component::<ChickenVariantImpl>() {
         mob.set_variant_name(&comp.value);
@@ -97,6 +114,7 @@ impl ItemBehaviour for SpawnEggItem {
             } else {
                 player.inventory.off_hand_item()
             };
+            finalize_spawn_egg(&mob, &world);
             apply_entity_variant(&stack, mob.as_ref());
             world.spawn_entity(mob);
 
@@ -180,6 +198,7 @@ impl ItemBehaviour for SpawnEggItem {
 
             mob.get_entity().set_rotation(yaw, 0.0);
 
+            finalize_spawn_egg(&mob, &world);
             apply_entity_variant(item, mob.as_ref());
 
             world.spawn_entity(mob);
@@ -204,6 +223,7 @@ impl ItemBehaviour for SpawnEggItem {
                 .store(-24000, std::sync::atomic::Ordering::Relaxed);
             mob.get_entity()
                 .set_synced_data(pumpkin_data::tracked_data::ageable_mob::DATA_BABY_ID, true);
+            finalize_spawn_egg(&mob, &world);
             apply_entity_variant(item, mob.as_ref());
             world.spawn_entity(mob);
             item.decrement_unless_creative(player.gamemode.load(), 1);

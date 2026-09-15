@@ -1,4 +1,9 @@
-use std::sync::{Arc, Weak};
+use std::sync::{
+    Arc, Weak,
+    atomic::{AtomicI32, AtomicU8, Ordering},
+};
+
+use pumpkin_protocol::codec::var_int::VarInt;
 
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
@@ -15,6 +20,7 @@ use crate::entity::{
     mob::{Mob, MobEntity},
     passive::animal::Animal,
     player::Player,
+    variant,
 };
 use pumpkin_nbt::compound::NbtCompound;
 
@@ -33,6 +39,10 @@ use crate::entity::item_steerable::{ItemBasedSteering, ItemSteerable};
 /// Wiki: <https://minecraft.wiki/w/Pig>
 pub struct PigEntity {
     pub mob_entity: MobEntity,
+    /// Index into the `pig_variant` registry (cold, temperate, warm).
+    pub variant: AtomicU8,
+    /// Index into the `pig_sound_variant` registry (big, classic, mini).
+    pub sound_variant: AtomicI32,
     pub ageable_data: crate::entity::ageable::AgeableData,
     pub steering: ItemBasedSteering,
     pub saddled: std::sync::atomic::AtomicBool,
@@ -43,6 +53,8 @@ impl PigEntity {
         let mob_entity = MobEntity::new(entity);
         let pig = Self {
             mob_entity,
+            variant: AtomicU8::new(variant::TEMPERATURE_VARIANT_TEMPERATE),
+            sound_variant: AtomicI32::new(0),
             ageable_data: crate::entity::ageable::AgeableData::default(),
             steering: ItemBasedSteering::default(),
             saddled: std::sync::atomic::AtomicBool::new(false),
@@ -81,6 +93,24 @@ impl PigEntity {
     }
 }
 
+/// `pig_sound_variant` registry size: big, classic, mini.
+const PIG_SOUND_VARIANTS: i32 = 3;
+
+impl PigEntity {
+    /// Pushes both variant fields to the client.
+    fn sync_variant(&self) {
+        let entity = self.get_entity();
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::pig::DATA_VARIANT_ID,
+            VarInt(i32::from(self.variant.load(Ordering::Relaxed))),
+        );
+        entity.set_synced_data(
+            pumpkin_data::tracked_data::pig::DATA_SOUND_VARIANT_ID,
+            VarInt(self.sound_variant.load(Ordering::Relaxed)),
+        );
+    }
+}
+
 impl AgeableMob for PigEntity {
     fn get_ageable_data(&self) -> &crate::entity::ageable::AgeableData {
         &self.ageable_data
@@ -99,7 +129,31 @@ impl Animal for PigEntity {
     }
 }
 
+/// The pig behind an entity reference, if it is one.
+fn pig_of(entity: &dyn EntityBase) -> Option<&PigEntity> {
+    entity.get_mob().and_then(Mob::as_pig)
+}
+
 impl Mob for PigEntity {
+    fn as_pig(&self) -> Option<&PigEntity> {
+        Some(self)
+    }
+
+    /// `Pig.getBreedOffspring` (Pig.java): the piglet takes one parent's variant.
+    fn mob_inherit_from_parents(&self, first: &dyn EntityBase, second: &dyn EntityBase) {
+        let (Some(a), Some(b)) = (pig_of(first), pig_of(second)) else {
+            return;
+        };
+        self.variant.store(
+            variant::inherit_variant(
+                a.variant.load(Ordering::Relaxed),
+                b.variant.load(Ordering::Relaxed),
+            ),
+            Ordering::Relaxed,
+        );
+        self.sync_variant();
+    }
+
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }
@@ -108,13 +162,54 @@ impl Mob for PigEntity {
         Some(self)
     }
 
+    /// `Pig.finalizeSpawn` (Pig.java): biome-chosen variant, unweighted sound variant.
+    fn mob_finalize_spawn(&self, _reason: crate::entity::spawn::SpawnReason) {
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        self.variant.store(
+            variant::temperature_variant_at(&world, &entity.block_pos.load()),
+            Ordering::Relaxed,
+        );
+        self.sound_variant.store(
+            variant::random_sound_variant(PIG_SOUND_VARIANTS),
+            Ordering::Relaxed,
+        );
+        self.sync_variant();
+    }
+
+    fn mob_set_variant_name(&self, name: &str) {
+        self.variant.store(
+            variant::temperature_variant_from_name(name),
+            Ordering::Relaxed,
+        );
+        self.sync_variant();
+    }
+
+    fn mob_init_data_tracker(&self) {
+        self.sync_variant();
+    }
+
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
         nbt.put_bool("Saddle", self.is_saddled());
+        nbt.put_string(
+            "variant",
+            variant::temperature_variant_name(self.variant.load(Ordering::Relaxed)).to_string(),
+        );
+        nbt.put_int("sound_variant", self.sound_variant.load(Ordering::Relaxed));
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
         if let Some(saddle) = nbt.get_byte("Saddle") {
             self.set_saddled(saddle == 1);
+        }
+        if let Some(name) = nbt.get_string("variant") {
+            self.variant.store(
+                variant::temperature_variant_from_name(name),
+                Ordering::Relaxed,
+            );
+        }
+        if let Some(sound) = nbt.get_int("sound_variant") {
+            self.sound_variant.store(sound, Ordering::Relaxed);
         }
     }
 
