@@ -11,8 +11,8 @@ use crate::world::World;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::{
-    AttackRangeImpl, AttributeModifiersImpl, EnchantmentsImpl, EquipmentSlot, KineticWeaponImpl,
-    Operation, PiercingWeaponImpl, WeaponImpl,
+    AttackRangeImpl, AttributeModifiersImpl, EnchantmentsImpl, KineticWeaponImpl, Operation,
+    PiercingWeaponImpl,
 };
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::{EntityStatus, EntityType};
@@ -222,16 +222,17 @@ impl SpearItem {
         if was_hurt {
             Self::apply_post_damage_effects(stack, target_entity);
         }
-        if target.get_living_entity().is_some()
-            && let Some(weapon) = stack.get_data_component::<WeaponImpl>()
-        {
-            let slot = if hand == Hand::Right {
-                EquipmentSlot::MAIN_HAND
-            } else {
-                EquipmentSlot::OFF_HAND
-            };
-            player.damage_item_in_slot(&slot, weapon.item_damage_per_attack as i32);
-        }
+        // Vanilla `LivingEntity.stabAttack` (LivingEntity.java:2900-2944) only calls
+        // `weaponItem.hurtEnemy(livingTarget, this)` here, which for a plain `Item`
+        // (spears are configured via `Item.Properties.spear`, not a dedicated item
+        // class) is a no-op - it does not call `ItemStack.postHurtEnemy`, which is
+        // the method that actually applies `Weapon.itemDamagePerAttack` durability
+        // loss (ItemStack.java:548-554). That method is only reached from the normal
+        // left-click melee path (`Player.itemAttackInteraction`, Player.java:1089-1109),
+        // which Pumpkin already mirrors generically in
+        // `Player::combat_weapon_durability_cost` (entity/player.rs:1444-1448). So
+        // spear jabs and kinetic drag-through hits must NOT cost durability here;
+        // doing so would double-charge durability on top of the normal swing path.
         player.add_exhaustion(0.1);
         true
     }

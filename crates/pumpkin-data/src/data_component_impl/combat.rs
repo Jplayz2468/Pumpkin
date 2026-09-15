@@ -1202,3 +1202,125 @@ impl Hash for DamageTypeImpl {
         self.damage_type.id.hash(state);
     }
 }
+
+#[cfg(test)]
+mod spear_component_tests {
+    use super::{
+        AttackRangeImpl, DataComponentImpl, KineticConditionImpl, KineticWeaponImpl,
+        PiercingWeaponImpl,
+    };
+
+    // Pins `KineticConditionImpl::test` (the real production function called from
+    // `SpearItem::kinetic_attack`) against vanilla `KineticWeapon.Condition.test`
+    // (KineticWeapon.java:167-169):
+    //   ticksUsed <= maxDurationTicks && attackerSpeed >= minSpeed && relativeSpeed >= minRelativeSpeed
+    // (vanilla also multiplies minSpeed/minRelativeSpeed by an `entityFactor`, always
+    // 1.0 for players - the only caller Pumpkin has today - so it is omitted here).
+    #[test]
+    fn condition_passes_exactly_at_all_three_boundaries() {
+        let condition = KineticConditionImpl {
+            max_duration_ticks: 10,
+            min_speed: 2.0,
+            min_relative_speed: 1.0,
+        };
+        assert!(condition.test(10, 2.0, 1.0));
+    }
+
+    #[test]
+    fn condition_fails_one_tick_past_max_duration() {
+        let condition = KineticConditionImpl {
+            max_duration_ticks: 10,
+            min_speed: 0.0,
+            min_relative_speed: 0.0,
+        };
+        assert!(!condition.test(11, 100.0, 100.0));
+    }
+
+    #[test]
+    fn condition_fails_just_under_min_speed_or_min_relative_speed() {
+        let condition = KineticConditionImpl {
+            max_duration_ticks: 10,
+            min_speed: 2.0,
+            min_relative_speed: 1.0,
+        };
+        assert!(!condition.test(0, 1.999_999, 1.0));
+        assert!(!condition.test(0, 2.0, 0.999_999));
+    }
+
+    // Item.Properties.spear (Item.java:488-546) always builds `KineticWeapon` with
+    // all three optional Condition fields present, forward_movement (0.38F), a
+    // damage_multiplier, and both sounds. If NBT round-tripping silently dropped a
+    // field (as previously happened to `Weapon.disableBlockingForSeconds`), this
+    // would catch it.
+    #[test]
+    fn kinetic_weapon_nbt_round_trip_keeps_every_field() {
+        let weapon = KineticWeaponImpl {
+            contact_cooldown_ticks: 10,
+            delay_ticks: 6,
+            dismount_conditions: Some(KineticConditionImpl {
+                max_duration_ticks: 12,
+                min_speed: 4.0,
+                min_relative_speed: 0.0,
+            }),
+            knockback_conditions: Some(KineticConditionImpl {
+                max_duration_ticks: 14,
+                min_speed: 2.5,
+                min_relative_speed: 0.0,
+            }),
+            damage_conditions: Some(KineticConditionImpl {
+                max_duration_ticks: 16,
+                min_speed: 0.0,
+                min_relative_speed: 3.5,
+            }),
+            forward_movement: 0.38,
+            damage_multiplier: 1.5,
+            sound: None,
+            hit_sound: None,
+        };
+
+        let encoded = weapon.write_data();
+        let decoded = KineticWeaponImpl::read_data(&encoded).expect("should decode");
+
+        assert_eq!(decoded, weapon);
+    }
+
+    // Item.Properties.spear (Item.java:519-526) always sets `deals_knockback: true`
+    // (non-default); a round trip through the default-swallowing `unwrap_or(true)`
+    // path would not by itself catch a dropped field, so this asserts the encoded
+    // NBT actually carries the value rather than relying on the default.
+    #[test]
+    fn piercing_weapon_nbt_round_trip_keeps_non_default_fields() {
+        let piercing = PiercingWeaponImpl {
+            deals_knockback: false,
+            dismounts: true,
+            sound: None,
+            hit_sound: None,
+        };
+
+        let encoded = piercing.write_data();
+        let decoded = PiercingWeaponImpl::read_data(&encoded).expect("should decode");
+
+        assert_eq!(decoded, piercing);
+    }
+
+    // Item.Properties.spear (Item.java:527) always builds
+    // `new AttackRange(2.0F, 4.5F, 2.0F, 6.5F, 0.125F, 0.5F)` - six distinct,
+    // non-default floats. A dropped field here would silently break the
+    // creative-vs-survival reach branch or the hitbox margin used to pick targets.
+    #[test]
+    fn attack_range_nbt_round_trip_keeps_every_field() {
+        let range = AttackRangeImpl {
+            min_reach: 2.0,
+            max_reach: 4.5,
+            min_creative_reach: 2.0,
+            max_creative_reach: 6.5,
+            hitbox_margin: 0.125,
+            mob_factor: 0.5,
+        };
+
+        let encoded = range.write_data();
+        let decoded = AttackRangeImpl::read_data(&encoded).expect("should decode");
+
+        assert_eq!(decoded, range);
+    }
+}
