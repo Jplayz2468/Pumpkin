@@ -10,9 +10,9 @@ use pumpkin_nbt::compound::NbtCompound;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        melee_attack::MeleeAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
+        destroy_egg::DestroyEggGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, revenge::RevengeGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal, zombie_attack::ZombieAttackGoal,
     },
     mob::{Mob, MobEntity, equipment::RegionalDifficulty},
 };
@@ -47,14 +47,26 @@ impl ZombifiedPiglinEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // `ZombifiedPiglin` does not override `registerGoals`, so it still
+            // inherits the turtle-egg and look-around goals from
+            // `Zombie.registerGoals` (Zombie.java:112-115); only the goals
+            // below come from its own `addBehaviourGoals`
+            // (ZombifiedPiglin.java:71-78).
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(2, Box::new(MeleeAttackGoal::new(1.0, true)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(4, DestroyEggGoal::new(1.0, 3));
+            // Vanilla uses `ZombieAttackGoal(this, 1.0, false)`
+            // (ZombifiedPiglin.java:73), not a generic melee goal.
+            goal_selector.add_goal(2, ZombieAttackGoal::new(1.0, false));
+            // `WaterAvoidingRandomStrollGoal` at priority 7
+            // (ZombifiedPiglin.java:74), not a plain stroll at 5.
+            goal_selector.add_goal(7, Box::new(WanderAroundGoal::water_avoiding(1.0)));
             goal_selector.add_goal(
-                6,
+                8,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
             );
-            goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            // Not ported: `SpearUseGoal` (ZombifiedPiglin.java:72) has no
+            // equivalent goal type in `entity::ai::goal`.
 
             let mut target_selector = mob_arc
                 .mob_entity
@@ -62,6 +74,14 @@ impl ZombifiedPiglinEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
+            // Not ported: vanilla's `NearestAttackableTargetGoal<Player>` gated
+            // on `isAngryAt` (ZombifiedPiglin.java:76) and
+            // `ResetUniversalAngerTargetGoal` (ZombifiedPiglin.java:77) belong
+            // to the `NeutralMob` universal-anger system, which has no
+            // equivalent here. This entity instead targets attackers directly
+            // in `on_damage`/`mob_tick` below (a simpler, non-goal-based
+            // stand-in for that system) — adding a competing goal-based target
+            // here would fight with that logic rather than replace it.
         };
 
         mob_arc
