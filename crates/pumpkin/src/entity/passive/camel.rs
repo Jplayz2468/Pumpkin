@@ -54,6 +54,27 @@ impl CamelEntity {
         };
 
         {
+            // IMPORTANT, read before touching this block: `Camel.registerGoals`
+            // (world/entity/animal/camel/Camel.java:161-163) is a complete override with an
+            // EMPTY body. Camel registers *zero* GoalSelector/TargetSelector goals in
+            // vanilla — none of AbstractHorse's base list applies (not even FloatGoal), and
+            // Camel doesn't call `addBehaviourGoals` either. All real camel AI (wandering,
+            // idle looking, feeding) is driven instead by the Brain/Activity system
+            // (`CamelAi.java`, using sensors + memory), which this crate has scaffolding
+            // for under `entity/ai/brain/` (registry/memory/behavior/sensor) but no
+            // `CamelAi`-equivalent port. Sit/stand and dash are separately driven by direct
+            // `mobInteract`/`tick`/`travel` logic in `Camel.java` (not goals at all;
+            // `CamelEntity` here has no sit-toggle or dash-trigger logic yet — see
+            // `is_dashing`/`set_dashing` above, which only expose the synced flag).
+            //
+            // The GoalSelector list below (Swim/EscapeDanger/Breed/Tempt/FollowParent/
+            // Wander/LookAt/RandomLook) therefore has NO counterpart in real vanilla Camel
+            // goals at all — it predates this audit as a pragmatic stand-in so camels move
+            // and breed instead of standing motionless. Deleting it would be a strict
+            // regression (a fully inert mob) in exchange for literal `registerGoals` parity,
+            // and porting genuine parity means porting `CamelAi`'s Brain activities, which
+            // is a materially larger feature than a goal-list audit. Left in place,
+            // unchanged, and flagged here as BLOCKED rather than silently "fixed" either way.
             let mut goal_selector = mob_arc
                 .mob_entity
                 .goals_selector

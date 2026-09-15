@@ -19,8 +19,9 @@ use crate::entity::{
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        tempt::TemptGoal, wander_around::WanderAroundGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        run_around_like_crazy::RunAroundLikeCrazyGoal, swim::SwimGoal, tempt::TemptGoal,
+        wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
     passive::animal::Animal,
@@ -79,6 +80,13 @@ impl HorseEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // AbstractHorse.registerGoals (AbstractHorse.java:135-136) adds both the
+            // untamed-bucking goal and the mount-panic goal at priority 1. MountPanicGoal's
+            // `shouldPanic` override (AbstractHorse.java:1050-1059) is
+            // `!isMobControlled() && super.shouldPanic()`, and `AbstractHorse.isMobControlled()`
+            // (AbstractHorse.java:817-819) unconditionally returns `false` for the plain Horse,
+            // so it reduces to plain PanicGoal here — EscapeDangerGoal is the correct port.
+            goal_selector.add_goal(1, Box::new(RunAroundLikeCrazyGoal::new(1.2)));
             goal_selector.add_goal(1, EscapeDangerGoal::new(1.2));
             goal_selector.add_goal(2, BreedGoal::new(1.0));
             goal_selector.add_goal(3, Box::new(TemptGoal::new(1.25, TEMPT_ITEMS)));
@@ -89,6 +97,15 @@ impl HorseEntity {
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
             );
             goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            // AbstractHorse.registerGoals (AbstractHorse.java:141-142) additionally adds
+            // `RandomStandGoal` at priority 9 when `canPerformRearing()` (true for Horse).
+            // `RandomStandGoal`'s Pumpkin port, `AmbientStandGoal`
+            // (crates/pumpkin/src/entity/ai/goal/ambient_stand.rs), has no public
+            // constructor (private fields, no `new`/`Default`) and its `can_start` is
+            // permanently stubbed to `return false` with a
+            // "TODO: implement when Horses are implemented" comment, so it cannot be
+            // instantiated or made functional from this file. Not wired in; needs a fix to
+            // that shared goal file, which is out of scope here (not created by this task).
         };
 
         mob_arc
@@ -169,6 +186,16 @@ impl Mob for HorseEntity {
 
     fn as_animal(&self) -> Option<&dyn Animal> {
         Some(self)
+    }
+
+    // `Mob::is_tamed`'s default (crates/pumpkin/src/entity/mob/mod.rs:1272-1275) delegates
+    // to `as_tamable()`, which horses never implement (taming is tracked via the `FLAG_TAME`
+    // synced-data bit, not the `TamableAnimal` wolf/cat-style model), so it would always
+    // report `false`. `RunAroundLikeCrazyGoal::can_start`/`should_continue` gate on
+    // `mob.is_tamed()` (mirroring `AbstractHorse.isTamed()`, AbstractHorse.java:173-175), so
+    // without this override the goal would never stop once a horse is actually tamed.
+    fn is_tamed(&self) -> bool {
+        self.is_tame()
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {

@@ -13,8 +13,8 @@ use crate::entity::{
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        tempt::TemptGoal, wander_around::WanderAroundGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, tempt::TemptGoal,
+        wander_around::WanderAroundGoal,
     },
     item_steerable::{ItemBasedSteering, ItemSteerable},
     mob::{Mob, MobEntity},
@@ -55,17 +55,43 @@ impl StriderEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // Strider.registerGoals (Strider.java:151-161) never adds a FloatGoal — Striders
+            // walk on/in lava and don't need to avoid drowning the way land/water mobs do,
+            // so the SwimGoal previously here was an extra goal vanilla never registers.
+            // Priorities/speeds/distances below are also corrected to match:
+            // FollowParentGoal is priority 5, speed 1.0 (was 4, 1.1); WanderAroundGoal
+            // stands in for RandomStrollGoal(1.0, 60) at priority 7 (was 5) — Pumpkin's
+            // WanderAroundGoal::new hardcodes its reselect interval to 120 ticks with no way
+            // to pass Strider's custom 60, so striders will re-pick a wander target half as
+            // often as vanilla; LookAtEntityGoal(Player) is priority 8, range 8.0F (was 6,
+            // 6.0).
             goal_selector.add_goal(1, EscapeDangerGoal::new(1.65));
             goal_selector.add_goal(2, BreedGoal::new(1.0));
             goal_selector.add_goal(3, Box::new(TemptGoal::new(1.4, TEMPT_ITEMS)));
-            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.1)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            // NOT PORTED: `Strider.StriderGoToLavaGoal` (Strider.java:157, 484-514),
+            // priority 4 — the "lava navigation" goal that makes striders seek out and walk
+            // into nearby lava. It overrides `getMoveToTarget()` to return the lava block
+            // itself rather than the block above it (Strider.java:490-493), but Pumpkin's
+            // generic `MoveToTargetPosGoal::get_target_pos`
+            // (crates/pumpkin/src/entity/ai/goal/move_to_target_pos.rs:109-111) hardcodes
+            // `target_pos.up()` with no trait hook to override that offset per-mob. Porting
+            // it as-is would make striders walk to stand *on top of* lava instead of *into*
+            // it — the opposite of the goal's purpose — so it's skipped rather than shipped
+            // wrong. Needs a change to the shared move_to_target_pos.rs, out of scope here.
+            goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.0)));
+            goal_selector.add_goal(7, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(
-                6,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
+                8,
+                LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
             );
-            goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            // Strider.registerGoals also adds, at priority 9, a *second* LookAtPlayerGoal
+            // targeting other Striders (`new LookAtPlayerGoal(this, Strider.class, 8.0F)`,
+            // Strider.java:161) — striders look at each other, not just at players.
+            goal_selector.add_goal(
+                9,
+                LookAtEntityGoal::with_default(mob_weak, &EntityType::STRIDER, 8.0),
+            );
         };
 
         mob_arc

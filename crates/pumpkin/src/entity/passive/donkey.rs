@@ -17,8 +17,9 @@ use crate::entity::{
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        tempt::TemptGoal, wander_around::WanderAroundGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        run_around_like_crazy::RunAroundLikeCrazyGoal, swim::SwimGoal, tempt::TemptGoal,
+        wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
     passive::animal::Animal,
@@ -72,6 +73,11 @@ impl DonkeyEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // Neither Donkey nor AbstractChestedHorse overrides `registerGoals`
+            // (grep of AbstractChestedHorse.java/Donkey.java confirms no override), so Donkey
+            // gets the full AbstractHorse base list (AbstractHorse.java:134-151), including
+            // RunAroundLikeCrazyGoal at priority 1 alongside the mount-panic goal.
+            goal_selector.add_goal(1, Box::new(RunAroundLikeCrazyGoal::new(1.2)));
             goal_selector.add_goal(1, EscapeDangerGoal::new(1.2));
             goal_selector.add_goal(2, BreedGoal::new(1.0));
             goal_selector.add_goal(3, Box::new(TemptGoal::new(1.25, TEMPT_ITEMS)));
@@ -82,6 +88,13 @@ impl DonkeyEntity {
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
             );
             goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            // AbstractHorse.registerGoals (AbstractHorse.java:141-142) also adds
+            // RandomStandGoal at priority 9 (canPerformRearing() is true, not overridden).
+            // Its Pumpkin port, AmbientStandGoal
+            // (crates/pumpkin/src/entity/ai/goal/ambient_stand.rs), has no public
+            // constructor and `can_start` is permanently stubbed to `return false`
+            // ("TODO: implement when Horses are implemented"), so it cannot be wired in
+            // without editing that shared goal file, which is out of scope here.
         };
 
         mob_arc
@@ -159,6 +172,12 @@ impl Mob for DonkeyEntity {
 
     fn as_animal(&self) -> Option<&dyn Animal> {
         Some(self)
+    }
+
+    // See HorseEntity::is_tamed (crates/pumpkin/src/entity/passive/horse.rs) for why this
+    // override is required for RunAroundLikeCrazyGoal to behave correctly.
+    fn is_tamed(&self) -> bool {
+        self.is_tame()
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {

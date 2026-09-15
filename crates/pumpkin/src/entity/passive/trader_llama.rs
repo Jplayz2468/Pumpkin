@@ -21,15 +21,35 @@ use crate::entity::{
         active_target::ActiveTargetGoal, breed::BreedGoal, escape_danger::EscapeDangerGoal,
         follow_parent::FollowParentGoal, look_around::RandomLookAroundGoal,
         look_at_entity::LookAtEntityGoal, ranged_attack::RangedAttackGoal, revenge::RevengeGoal,
-        swim::SwimGoal, tempt::TemptGoal, wander_around::WanderAroundGoal,
+        run_around_like_crazy::RunAroundLikeCrazyGoal, swim::SwimGoal, tempt::TemptGoal,
+        wander_around::WanderAroundGoal,
     },
+    living::LivingEntity,
     mob::{Mob, MobEntity, RangedAttackMob},
     passive::animal::{Animal, get_carpet_color_from_item},
+    passive::wolf::WolfEntity,
     player::Player,
     projectile::llama_spit::LlamaSpitEntity,
 };
+use crate::world::World;
 
 const TEMPT_ITEMS: &[&Item] = &[&Item::HAY_BLOCK];
+
+/// See `llama.rs`'s `is_untamed_wolf` — same port of `Llama.LlamaAttackWolfGoal`'s
+/// predicate (Llama.java:454-456), duplicated here because `TraderLlamaEntity` is a
+/// separate struct from `LlamaEntity` in Pumpkin (vanilla's `TraderLlama extends Llama`
+/// inherits it instead).
+fn is_untamed_wolf(target: &LivingEntity, world: &World) -> bool {
+    world
+        .get_entity_by_id(target.entity.entity_id)
+        .and_then(|entity| {
+            entity
+                .as_any()
+                .downcast_ref::<WolfEntity>()
+                .map(|wolf| !Mob::is_tamed(wolf))
+        })
+        .unwrap_or(false)
+}
 
 pub const FLAG_TAME: u8 = 2;
 pub const FLAG_BRED: u8 = 8;
@@ -127,15 +147,22 @@ impl TraderLlamaEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // TraderLlama.registerGoals (TraderLlama.java:62-70) calls `super.registerGoals()`
+            // (the full Llama list — see llama.rs for that port and its rationale) and then
+            // layers TraderLlama-specific goals on top. Notably it adds a *second*,
+            // faster PanicGoal(2.0) at priority 1, on top of Llama's own
+            // RunAroundLikeCrazyGoal(1.2) already at priority 1 — both goals coexist.
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, EscapeDangerGoal::new(1.2));
-            goal_selector.add_goal(2, BreedGoal::new(1.0));
+            goal_selector.add_goal(1, Box::new(RunAroundLikeCrazyGoal::new(1.2)));
+            goal_selector.add_goal(1, EscapeDangerGoal::new(2.0));
             goal_selector.add_goal(
                 3,
                 Box::new(RangedAttackGoal::new(ranged_weak, 1.25, 40, 20.0)),
             );
-            goal_selector.add_goal(4, Box::new(TemptGoal::new(1.25, TEMPT_ITEMS)));
-            goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.0)));
+            goal_selector.add_goal(3, EscapeDangerGoal::new(1.2));
+            goal_selector.add_goal(4, BreedGoal::new(1.0));
+            goal_selector.add_goal(5, Box::new(TemptGoal::new(1.25, TEMPT_ITEMS)));
+            goal_selector.add_goal(6, Box::new(FollowParentGoal::new(1.0)));
             goal_selector.add_goal(7, Box::new(WanderAroundGoal::new(0.7)));
             goal_selector.add_goal(
                 8,
@@ -143,11 +170,61 @@ impl TraderLlamaEntity {
             );
             goal_selector.add_goal(9, Box::new(RandomLookAroundGoal::default()));
 
+            // Inherited from Llama.registerGoals (see llama.rs): revenge + untamed-wolf
+            // targeting. The `didSpit`-cancel on the revenge goal isn't ported (see llama.rs).
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
             target_selector.add_goal(
                 2,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::WOLF, true),
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::WOLF,
+                    16,
+                    false,
+                    true,
+                    Some(is_untamed_wolf),
+                )),
             );
+            // TraderLlama.registerGoals additionally adds, at target-selector priority 2,
+            // `NearestAttackableTargetGoal<Zombie>` (excluding ZombifiedPiglin, which also
+            // extends Zombie in vanilla) and `NearestAttackableTargetGoal<AbstractIllager>`
+            // (TraderLlama.java:64-67). `ActiveTargetGoal` matches by a single exact
+            // `EntityType`, not a Java class hierarchy, so each concrete subtype vanilla's
+            // `Zombie`/`AbstractIllager` class would match needs its own goal instance here.
+            // Zombie's subtypes (Husk, Drowned, ZombieVillager) are covered explicitly;
+            // ZombifiedPiglin is a distinct EntityType so it's excluded automatically
+            // without needing the predicate vanilla uses. AbstractIllager's four leaf types
+            // (Pillager, Vindicator, Evoker, Illusioner) are covered explicitly too; Ravager
+            // is NOT an AbstractIllager in vanilla and is correctly left out.
+            for zombie_like in [
+                &EntityType::ZOMBIE,
+                &EntityType::HUSK,
+                &EntityType::DROWNED,
+                &EntityType::ZOMBIE_VILLAGER,
+            ] {
+                target_selector.add_goal(
+                    2,
+                    ActiveTargetGoal::with_default(&mob_arc.mob_entity, zombie_like, true),
+                );
+            }
+            for illager in [
+                &EntityType::PILLAGER,
+                &EntityType::VINDICATOR,
+                &EntityType::EVOKER,
+                &EntityType::ILLUSIONER,
+            ] {
+                target_selector.add_goal(
+                    2,
+                    ActiveTargetGoal::with_default(&mob_arc.mob_entity, illager, true),
+                );
+            }
+            // NOT PORTED: `TraderLlamaDefendWanderingTraderGoal` (TraderLlama.java:64,
+            // 132-158), target-selector priority 1 — retargets whoever last hurt the
+            // wandering trader this llama is leashed to. This needs a "last hurt by mob +
+            // timestamp" memory on `WanderingTraderEntity`
+            // (crates/pumpkin/src/entity/passive/wandering_trader.rs), which doesn't exist
+            // there today. Adding it belongs to whichever task owns the wandering-trader
+            // family, not this horse/llama/camel/strider task, so it's left undone and
+            // flagged here instead of guessed at.
         };
 
         mob_arc
@@ -270,6 +347,12 @@ impl Mob for TraderLlamaEntity {
 
     fn as_animal(&self) -> Option<&dyn Animal> {
         Some(self)
+    }
+
+    // See HorseEntity::is_tamed (crates/pumpkin/src/entity/passive/horse.rs) for why this
+    // override is required for RunAroundLikeCrazyGoal to behave correctly.
+    fn is_tamed(&self) -> bool {
+        self.is_tame()
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
