@@ -5,6 +5,7 @@ use crate::server::Server;
 use pumpkin_data::BlockDirection;
 use pumpkin_data::block_properties::CampfireLikeProperties;
 use pumpkin_data::block_transformer::SHOVEL;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::world::WorldEvent;
@@ -33,6 +34,12 @@ impl ItemBehaviour for ShovelItem {
         block: &Block,
         _server: &Server,
     ) -> BlockActionResult {
+        // ShovelItem.useOn: clicking the bottom face never flattens or douses a
+        // campfire, regardless of the block clicked (ShovelItem.java:41-43).
+        if face == BlockDirection::Down {
+            return BlockActionResult::Pass;
+        }
+
         let world = player.world();
         let get_block = |dx: i8, dy: i8, dz: i8| {
             let check_pos = BlockPos(location.0 + Vector3::new(dx as i32, dy as i32, dz as i32));
@@ -76,6 +83,10 @@ impl ItemBehaviour for ShovelItem {
                 );
                 changed = true;
             }
+        }
+
+        if changed {
+            world.emit_game_event(GameEvent::BlockChange.name(), location.to_centered_f64());
         }
 
         if changed && player.gamemode.load() != GameMode::Creative {

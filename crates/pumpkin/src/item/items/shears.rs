@@ -8,12 +8,12 @@ use crate::entity::item::ItemEntity;
 use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::server::Server;
-use pumpkin_data::BlockId;
 use pumpkin_data::block_properties::BeeNestLikeProperties;
 use pumpkin_data::block_properties::BlockProperties;
 use pumpkin_data::block_properties::CaveVinesLikeProperties;
 use pumpkin_data::block_properties::KelpLikeProperties;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
@@ -73,11 +73,12 @@ impl ItemBehaviour for ShearsItem {
             return BlockActionResult::Success;
         }
 
-        if handle_pumpkin(player, &location, block) {
-            BlockActionResult::Success
-        } else {
-            BlockActionResult::Pass
-        }
+        // Pumpkin carving is handled by `PumpkinBlock::use_with_item`
+        // (crates/pumpkin/src/block/blocks/pumpkin.rs), which mirrors vanilla's
+        // PumpkinBlock.useItemOn and is tried before this item-side handler runs
+        // (see call_use_item_on in net/java/play/use_item_on.rs). There is
+        // nothing left for shears to do here for pumpkin blocks.
+        BlockActionResult::Pass
     }
 
     fn use_on_entity(&self, _item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
@@ -152,6 +153,7 @@ fn handle_growing_plant(
         SoundCategory::Blocks,
         &location.to_f64(),
     );
+    world.emit_game_event(GameEvent::BlockChange.name(), location.to_centered_f64());
     player.damage_held_item(1);
     true
 }
@@ -195,11 +197,10 @@ fn handle_beehive(
 
     let world = player.world();
     world.set_block_state(location, new_state_id, BlockFlags::NOTIFY_ALL);
-    world.play_sound(
-        Sound::BlockBeehiveShear,
-        SoundCategory::Blocks,
-        &location.to_f64(),
-    );
+    // BeehiveBlock.java:166 plays this at the player's position, not the hive's.
+    let player_pos = player.living_entity.entity.pos.load();
+    world.play_sound(Sound::BlockBeehiveShear, SoundCategory::Blocks, &player_pos);
+    world.emit_game_event(GameEvent::Shear.name(), location.to_centered_f64());
 
     let drop_pos = location.to_centered_f64();
     for item in drops {
@@ -211,28 +212,4 @@ fn handle_beehive(
     }
     player.damage_held_item(1);
     true
-}
-
-fn handle_pumpkin(player: &Player, location: &BlockPos, block: &Block) -> bool {
-    if block.id == BlockId::PUMPKIN {
-        let world = player.world();
-        let carved_state = Block::CARVED_PUMPKIN.default_state.id;
-        world.set_block_state(location, carved_state, BlockFlags::NOTIFY_ALL);
-        world.play_sound(
-            Sound::BlockPumpkinCarve,
-            SoundCategory::Blocks,
-            &location.to_f64(),
-        );
-
-        let drop_pos = location.to_centered_f64();
-        let item_entity = Arc::new(ItemEntity::new(
-            Entity::new(world.clone(), drop_pos, &EntityType::ITEM),
-            ItemStack::new(4, &Item::PUMPKIN_SEEDS),
-        ));
-        world.spawn_entity(item_entity);
-        player.damage_held_item(1);
-        true
-    } else {
-        false
-    }
 }
