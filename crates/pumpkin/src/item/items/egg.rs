@@ -19,15 +19,20 @@ impl ItemMetadata for EggItem {
 }
 
 const POWER: f32 = 1.5;
+const THROW_SOUND_VOLUME: f32 = 0.5;
 
 impl ItemBehaviour for EggItem {
     fn normal_use(&self, _block: &Item, player: &Player) {
         let position = player.position();
         let world = player.world();
-        world.play_sound(
+        // EggItem.java:26-35: SoundSource.PLAYERS, volume 0.5, pitch
+        // 0.4F / (random.nextFloat() * 0.4F + 0.8F).
+        world.play_sound_fine(
             Sound::EntityEggThrow,
             pumpkin_data::sound::SoundCategory::Players,
             &position,
+            THROW_SOUND_VOLUME,
+            0.4 / (rand::random::<f32>() * 0.4 + 0.8),
         );
 
         // Capture the held item stack and pass it to the thrown egg entity
