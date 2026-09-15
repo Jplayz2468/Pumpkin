@@ -2,6 +2,7 @@ use pumpkin_data::tag::Taggable;
 use pumpkin_data::{
     Block, BlockState, BlockStateId, block_properties::SnowLikeProperties, item::Item, tag,
 };
+use pumpkin_inventory::screen_handler::InventoryPlayer;
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::{
@@ -47,12 +48,23 @@ impl BlockBehaviour for LayeredSnowBlock {
                 }
 
                 let mut props = SnowLikeProperties::from_state_id(state_id);
+                // Vanilla stacks a snow layer via SnowLayerBlock's `canBeReplaced`/
+                // `getStateForPlacement` combine path, the ordinary BlockItem placement
+                // flow that consumes through `BlockItem.place` -> `ItemStack.consume`
+                // (BlockItem.java:89, ItemStack.java:1082-1086: shrinks by 1 unless the
+                // player `hasInfiniteMaterials()`). This `use_with_item` arm returns
+                // `Success`, which short-circuits before Pumpkin's own
+                // placement-decrement logic in `use_item_on.rs` ever runs, so the
+                // decrement has to happen here instead.
                 if props.layers >= 8 {
                     args.world.set_block_state(
                         pos,
                         Block::SNOW_BLOCK.default_state.id,
                         BlockFlags::NOTIFY_ALL,
                     );
+                    if !args.player.has_infinite_materials() {
+                        args.item_stack.decrement(1);
+                    }
                     return BlockActionResult::Success;
                 }
                 props.layers += 1;
@@ -60,6 +72,9 @@ impl BlockBehaviour for LayeredSnowBlock {
                 let state_id = props.to_state_id(&Block::SNOW);
                 args.world
                     .set_block_state(pos, state_id, BlockFlags::NOTIFY_ALL);
+                if !args.player.has_infinite_materials() {
+                    args.item_stack.decrement(1);
+                }
                 return BlockActionResult::Success;
             }
             BlockActionResult::Pass

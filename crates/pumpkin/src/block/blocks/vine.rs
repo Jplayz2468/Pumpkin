@@ -14,6 +14,7 @@ use pumpkin_data::{
     item::Item,
     tag::{self, Taggable},
 };
+use pumpkin_inventory::screen_handler::InventoryPlayer;
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
@@ -366,6 +367,18 @@ impl BlockBehaviour for VineBlock {
                             props.to_state_id(args.block),
                             BlockFlags::NOTIFY_ALL,
                         );
+                        // Vanilla `VineBlock` has no `useItemOn` override at all (checked
+                        // VineBlock.java): attaching an extra face happens purely through
+                        // `canBeReplaced`/`getStateForPlacement` (VineBlock.java:283-292),
+                        // the ordinary BlockItem placement flow that consumes through
+                        // `BlockItem.place` -> `ItemStack.consume` (BlockItem.java:89,
+                        // ItemStack.java:1082-1086). This `use_with_item` arm duplicates
+                        // that combine logic and returns `Consume`, which short-circuits
+                        // before Pumpkin's placement-decrement logic in `use_item_on.rs`
+                        // ever runs, so the decrement has to happen here instead.
+                        if !args.player.has_infinite_materials() {
+                            args.item_stack.decrement(1);
+                        }
                         return BlockActionResult::Consume;
                     }
                 }

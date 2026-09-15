@@ -1,3 +1,4 @@
+use pumpkin_inventory::screen_handler::InventoryPlayer;
 use rustc_hash::FxHashSet;
 
 use crate::block::{
@@ -144,6 +145,18 @@ impl BlockBehaviour for MultifaceBlock {
             props.to_state_id(args.block),
             BlockFlags::NOTIFY_ALL,
         );
+        // Vanilla `MultifaceBlock` (sculk vein, glow lichen, resin clump) has no
+        // `useItemOn` override (checked MultifaceBlock.java): attaching an extra face
+        // happens purely through `canBeReplaced`/`getStateForPlacement`
+        // (MultifaceBlock.java:175-217), the ordinary BlockItem placement flow that
+        // consumes through `BlockItem.place` -> `ItemStack.consume` (BlockItem.java:89,
+        // ItemStack.java:1082-1086). This `use_with_item` arm duplicates that combine
+        // logic and returns `Consume`, which short-circuits before Pumpkin's
+        // placement-decrement logic in `use_item_on.rs` ever runs, so the decrement has
+        // to happen here instead.
+        if !args.player.has_infinite_materials() {
+            args.item_stack.decrement(1);
+        }
         BlockActionResult::Consume
     }
 
