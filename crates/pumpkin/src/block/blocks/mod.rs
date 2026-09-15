@@ -41,6 +41,7 @@ pub mod barrier;
 pub mod chain;
 pub mod glass_panes;
 pub mod glazed_terracotta;
+pub mod heavy_core;
 pub mod honey;
 pub mod iron_bars;
 pub mod scaffolding;
