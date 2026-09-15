@@ -41,6 +41,13 @@ impl ItemBehaviour for HangingEntityItem {
         _block: &Block,
         _server: &Server,
     ) -> BlockActionResult {
+        // Vanilla: `HangingEntityItem.mayPlace()` rejects any vertical face for every
+        // hanging-entity type (paintings, item frames and glow item frames alike), not
+        // just paintings. HangingEntityItem.java:79-81
+        if face == BlockDirection::Up || face == BlockDirection::Down {
+            return BlockActionResult::Fail;
+        }
+
         let world = player.world();
         let target_pos = location.offset(face.to_offset());
         let pos = Vector3::new(
@@ -50,10 +57,6 @@ impl ItemBehaviour for HangingEntityItem {
         );
 
         if item.item.id == Item::PAINTING.id {
-            if face == BlockDirection::Up || face == BlockDirection::Down {
-                return BlockActionResult::Fail;
-            }
-
             let entity = Entity::new(world.clone(), pos, &EntityType::PAINTING);
             entity
                 .data
