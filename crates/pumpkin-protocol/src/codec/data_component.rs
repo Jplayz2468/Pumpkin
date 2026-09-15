@@ -1751,15 +1751,17 @@ impl DataComponentCodec<Self> for FoodImpl {
 
 impl DataComponentCodec<Self> for UseRemainderImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_var_int(&VarInt(0))?;
-        seq.write_var_int(&VarInt(0))?;
-        seq.write_var_int(&VarInt(0))?;
-        seq.write_var_int(&VarInt(0))
+        let item = pumpkin_data::item::Item::from_registry_key(&self.item)
+            .unwrap_or(&pumpkin_data::item::Item::AIR);
+        let stack = pumpkin_data::item_stack::ItemStack::new(1, item);
+        serialize_item_stack_template(&stack, seq)
     }
 
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let _ = deserialize_item_stack_template(seq)?;
-        Ok(Self)
+        let stack = deserialize_item_stack_template(seq)?;
+        Ok(Self {
+            item: Cow::Owned(stack.item.registry_key.to_string()),
+        })
     }
 }
 

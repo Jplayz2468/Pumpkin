@@ -157,7 +157,7 @@ pub struct ItemComponents {
     #[serde(rename = "minecraft:use_effects")]
     pub use_effects: Option<serde_json::Value>,
     #[serde(rename = "minecraft:use_remainder")]
-    pub use_remainder: Option<serde_json::Value>,
+    pub use_remainder: Option<UseRemainderComponent>,
     #[serde(rename = "minecraft:writable_book_content")]
     pub writable_book_content: Option<serde_json::Value>,
 }
@@ -1004,8 +1004,12 @@ impl ToTokens for ItemComponents {
         if self.use_effects.is_some() {
             tokens.extend(quote! { (UseEffects, &UseEffectsImpl), });
         }
-        if self.use_remainder.is_some() {
-            tokens.extend(quote! { (UseRemainder, &UseRemainderImpl), });
+        if let Some(use_remainder) = &self.use_remainder {
+            let item_key = use_remainder
+                .id
+                .strip_prefix("minecraft:")
+                .unwrap_or(use_remainder.id.as_str());
+            tokens.extend(quote! { (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed(#item_key) }), });
         }
         if self.writable_book_content.is_some() {
             tokens.extend(
@@ -1054,6 +1058,15 @@ pub struct UseCooldownComponent {
 /// Serde default helper returning `false`.
 const fn return_false() -> bool {
     false
+}
+
+/// Deserialized `minecraft:use_remainder` component: the item stack (by id) left behind
+/// once this stack is fully consumed, e.g. `{"id": "minecraft:bowl"}` for stews.
+/// Mirrors `ItemStackTemplate` (`ItemStackTemplate.java:19`), reduced to the item id since
+/// remainder items in vanilla data never carry count/component overrides.
+#[derive(Deserialize, Clone)]
+pub struct UseRemainderComponent {
+    id: String,
 }
 
 /// Deserialized food component describing nutrition and saturation values.
