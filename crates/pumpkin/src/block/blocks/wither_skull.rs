@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::block::entities::skull::SkullBlockEntity;
 use crate::{
     block::{
-        BlockBehaviour, OnPlaceArgs, PathComputationType, PlacedArgs,
+        BlockBehaviour, OnNeighborUpdateArgs, OnPlaceArgs, PathComputationType, PlacedArgs,
         blocks::skull_block::SkullBlock,
     },
     entity::{Entity, boss::wither::WitherEntity},
@@ -24,8 +24,15 @@ pub struct WitherPattern {
 #[must_use]
 pub fn find_wither_pattern(world: &Arc<World>, skull_pos: &BlockPos) -> Option<WitherPattern> {
     let is_soul_block = |block: &Block| block == &Block::SOUL_SAND || block == &Block::SOUL_SOIL;
-    let is_skull =
-        |pos: &BlockPos| pos == skull_pos || world.get_block(pos) == &Block::WITHER_SKELETON_SKULL;
+    // `WitherSkullBlock.getOrCreateWitherFull` matches each skull position against
+    // `WITHER_SKELETON_SKULL` *or* `WITHER_SKELETON_WALL_SKULL`
+    // (WitherSkullBlock.java:101), so a wall-mounted wither skull completes the pattern
+    // exactly like the standing one.
+    let is_skull = |pos: &BlockPos| {
+        pos == skull_pos
+            || world.get_block(pos) == &Block::WITHER_SKELETON_SKULL
+            || world.get_block(pos) == &Block::WITHER_SKELETON_WALL_SKULL
+    };
 
     for dir in [BlockDirection::North, BlockDirection::West] {
         let opposite = dir.opposite();
@@ -80,12 +87,23 @@ fn spawn_wither(world: &Arc<World>, pattern: &WitherPattern) {
     world.spawn_entity(wither);
 }
 
-#[pumpkin_block("wither_skeleton_skull")]
+// Blocks.java:2801-2805 registers `WITHER_SKELETON_WALL_SKULL` as the wall counterpart of
+// this block via `wallVariant(WITHER_SKELETON_SKULL, ...)`; `on_place` below (delegating to
+// `SkullBlock::on_place`) picks whichever one applies based on where the player is looking.
+#[pumpkin_block("wither_skeleton_skull", "wither_skeleton_wall_skull")]
 pub struct WitherSkeletonSkullBlock;
 
 impl BlockBehaviour for WitherSkeletonSkullBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         SkullBlock::on_place(&SkullBlock, args)
+    }
+
+    // Neither `WitherSkullBlock` nor `WitherWallSkullBlock` override `neighborChanged` in
+    // vanilla, so both inherit `AbstractSkullBlock.neighborChanged`
+    // (AbstractSkullBlock.java:73-83) unmodified -- the same powered/redstone sync that
+    // plain skulls get. Delegate to the identical logic in `SkullBlock`.
+    fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        SkullBlock::on_neighbor_update(&SkullBlock, args);
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
