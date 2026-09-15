@@ -25,7 +25,6 @@ mod tests;
 
 use std::collections::BTreeMap;
 
-use crate::entity::mob::Mob;
 use crate::world::World;
 
 use behavior::{BehaviorContext, BehaviorSlot, BehaviorStatus};

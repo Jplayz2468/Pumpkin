@@ -2199,6 +2199,22 @@ impl LivingEntity {
                         .load(std::sync::atomic::Ordering::Relaxed)
                         > 0,
                 ),
+                // Facts the loot predicates ask about. Without these the conditions they
+                // gate can never pass, so they are supplied wherever the entity exposes
+                // them and left `None` otherwise -- which fails the condition closed.
+                this_is_baby: Some(
+                    dyn_self
+                        .get_mob()
+                        .and_then(crate::entity::mob::Mob::as_ageable)
+                        .is_some_and(crate::entity::ageable::AgeableMob::is_baby),
+                ),
+                this_vehicle: self
+                    .entity
+                    .vehicle
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .as_ref()
+                    .map(|vehicle| vehicle.get_entity().entity_type),
                 ..Default::default()
             };
 

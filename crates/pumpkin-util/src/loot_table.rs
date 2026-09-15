@@ -22,6 +22,53 @@ pub enum LootCondition {
         chances: &'static [f32],
     },
     AllOf(&'static [Self]),
+
+    /// `minecraft:entity_properties` on `this` with `flags.is_baby`.
+    ThisIsBaby(bool),
+    /// `minecraft:entity_properties` on `this` with `vehicle.entity_type`.
+    ThisVehicleIs(&'static str),
+    /// `minecraft:entity_properties` matching an entity type, e.g. the creeper's
+    /// "killed by a skeleton" music-disc pool.
+    EntityTypeMatches {
+        /// Which entity the predicate is about: vanilla's `"this"`, `"killer"` or
+        /// `"direct_killer"`.
+        target: EntityTarget,
+        /// A registry name, or a `#tag` to be resolved by the evaluator.
+        entity_type: &'static str,
+    },
+    /// `minecraft:entity_properties` with `type_specific/cube_mob.size` -- slime and
+    /// magma cube size gating.
+    ThisCubeSizeIs(i32),
+    /// `minecraft:entity_properties` with `type_specific/raider.is_captain`.
+    ThisIsRaidCaptain(bool),
+    /// `minecraft:damage_source_properties` asserting a damage-type tag.
+    DamageTypeHasTag {
+        tag: &'static str,
+        expected: bool,
+    },
+
+    /// `minecraft:block_state_property`: the broken block must carry these property
+    /// values. Used by cave vines (berries), double plants (which half), and others.
+    BlockStateProperties {
+        block: &'static str,
+        properties: &'static [(&'static str, &'static str)],
+    },
+
+    /// A condition the generator could not represent.
+    ///
+    /// It never passes. Before this existed, an unrepresentable condition was silently
+    /// discarded, which left the pool *unconditional* -- so a pool gated on something rare
+    /// dropped every single time. Failing closed is the safe direction: a missed rare drop
+    /// is a much smaller error than a guaranteed wrong one.
+    Unsupported,
+}
+
+/// Which entity an `entity_properties` condition is about.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EntityTarget {
+    This,
+    Killer,
+    DirectKiller,
 }
 
 /// Bonus count formulas when tools have fortune or looting enchantments.

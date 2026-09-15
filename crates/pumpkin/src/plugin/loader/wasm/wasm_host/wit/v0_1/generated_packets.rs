@@ -36,6 +36,15 @@ pub fn serialize_java_packet(
             crate::net::java::JavaClient::write_packet_for_version(&p, version, &mut buf).unwrap();
             Some(buf.into())
         }
+        ClientboundPacket::ConfigCFeatureFlags(data) => {
+            let vec_features: Vec<&str> = data.features.iter().map(|s| s.as_str()).collect();
+            let p = pumpkin_protocol::java::client::config::CFeatureFlags {
+                features: &vec_features,
+            };
+            let mut buf = Vec::new();
+            crate::net::java::JavaClient::write_packet_for_version(&p, version, &mut buf).unwrap();
+            Some(buf.into())
+        }
         ClientboundPacket::ConfigCConfigPing(data) => {
             let p = pumpkin_protocol::java::client::config::CConfigPing {
                 id: data.id.try_into().unwrap(),
@@ -1287,6 +1296,7 @@ pub fn deserialize_java_serverbound_packet(
             let p = <pumpkin_protocol::java::server::play::SSetPlayerGround as pumpkin_protocol::ServerPacket>::read(&mut payload, &version).ok()?;
             Some(ServerboundPacket::SSetPlayerGround(crate::plugin::loader::wasm::wasm_host::wit::v0_1::pumpkin::plugin::java_packets::SSetPlayerGround {
                 on_ground: p.on_ground.try_into().unwrap(),
+                horizontal_collision: p.horizontal_collision.try_into().unwrap(),
             }))
         }
         id if id == pumpkin_protocol::java::server::play::SPlayerInput::to_id(version) => {
@@ -1323,6 +1333,7 @@ pub fn deserialize_java_serverbound_packet(
                 yaw: p.yaw.try_into().unwrap(),
                 pitch: p.pitch.try_into().unwrap(),
                 ground: p.ground.try_into().unwrap(),
+                horizontal_collision: p.horizontal_collision.try_into().unwrap(),
             }))
         }
         id if id == pumpkin_protocol::java::server::play::SPlayerSession::to_id(version) => {
@@ -1535,6 +1546,14 @@ impl ToWitClientboundJava for pumpkin_protocol::java::client::config::CConfigDis
     fn to_wit(&self) -> ClientboundPacket {
         ClientboundPacket::ConfigCConfigDisconnect(crate::plugin::loader::wasm::wasm_host::wit::v0_1::pumpkin::plugin::java_packets::ConfigCConfigDisconnect {
                 reason: self.reason.to_string(),
+        })
+    }
+}
+
+impl ToWitClientboundJava for pumpkin_protocol::java::client::config::CFeatureFlags<'_> {
+    fn to_wit(&self) -> ClientboundPacket {
+        ClientboundPacket::ConfigCFeatureFlags(crate::plugin::loader::wasm::wasm_host::wit::v0_1::pumpkin::plugin::java_packets::ConfigCFeatureFlags {
+                features: self.features.iter().map(|s| s.to_string()).collect(),
         })
     }
 }
@@ -2404,6 +2423,9 @@ pub fn clientbound_java_any_to_wit(any: &dyn Any) -> Option<ClientboundPacket> {
     }
     if let Some(p) = any.downcast_ref::<pumpkin_protocol::java::client::config::CConfigDisconnect>()
     {
+        return Some(p.to_wit());
+    }
+    if let Some(p) = any.downcast_ref::<pumpkin_protocol::java::client::config::CFeatureFlags>() {
         return Some(p.to_wit());
     }
     if let Some(p) = any.downcast_ref::<pumpkin_protocol::java::client::config::CConfigPing>() {

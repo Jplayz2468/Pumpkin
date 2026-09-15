@@ -76,21 +76,9 @@ impl Behavior<MobActor> for ReportNearestPlayer {
         &self.conditions
     }
 
-    fn start(&mut self, ctx: &mut BehaviorContext<'_, MobActor>) {
-        let Some(MemoryValue::EntityId(player_id)) =
-            ctx.memories.get(MemoryModuleType::NearestVisiblePlayer)
-        else {
-            return;
-        };
-        let position = ctx.actor.position;
-        tracing::info!(
-            "[zombie brain] tick {} at ({:.1}, {:.1}, {:.1}) remembers player entity {}",
-            ctx.time,
-            position.x,
-            position.y,
-            position.z,
-            player_id,
-        );
+    fn start(&mut self, _ctx: &mut BehaviorContext<'_, MobActor>) {
+        // Intentionally silent. This behaviour exists to prove the framework runs -- the
+        // memory it depends on is asserted by the brain's own tests, not by log output.
     }
 
     fn debug_name(&self) -> &'static str {

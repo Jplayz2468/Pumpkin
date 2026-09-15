@@ -24,6 +24,39 @@ pub struct LootContextParameters {
     /// Whether the killed entity was on fire at death time.
     /// Computed from `Entity.fire_ticks > 0`.
     pub is_on_fire: Option<bool>,
+    /// Whether the killed entity was a baby. Vanilla `entity_properties` reads this
+    /// through `minecraft:flags { is_baby }`.
+    pub this_is_baby: Option<bool>,
+    /// What the killed entity was riding, if anything -- the other half of the
+    /// chicken-jockey check.
+    pub this_vehicle: Option<&'static EntityType>,
+    /// Slime and magma cube size, for `type_specific/cube_mob { size }`.
+    pub this_cube_size: Option<i32>,
+    /// Whether the killed entity was a raid captain, for
+    /// `type_specific/raider { is_captain }`.
+    pub this_is_raid_captain: Option<bool>,
+}
+
+/// Matches an entity type against a loot predicate value, which is either a registry
+/// name or a `#tag`.
+fn entity_type_matches(actual: &'static EntityType, expected: &str) -> bool {
+    use pumpkin_data::tag::Taggable;
+    if let Some(tag) = expected.strip_prefix('#') {
+        return actual.is_tagged_with(tag).unwrap_or(false);
+    }
+    let expected = expected.strip_prefix("minecraft:").unwrap_or(expected);
+    actual.resource_name == expected
+}
+
+/// Matches a damage type against a `#tag` named in a `damage_source_properties` predicate.
+fn damage_type_has_tag(damage: &DamageType, tag: &str) -> bool {
+    use pumpkin_data::tag::Taggable;
+    let tag = if tag.starts_with('#') {
+        tag.to_string()
+    } else {
+        format!("#{tag}")
+    };
+    damage.is_tagged_with(&tag).unwrap_or(false)
 }
 
 fn check_condition(
@@ -68,6 +101,56 @@ fn check_condition(
         LootCondition::AllOf(conditions) => conditions
             .iter()
             .all(|c| check_condition(*c, has_silk_touch, has_shears, fortune_level, params, rng)),
+
+        // An absent fact fails the check rather than passing it: the pools these gate are
+        // rare drops, so guessing "true" is what produced guaranteed wrong drops.
+        LootCondition::ThisIsBaby(expected) => params.this_is_baby == Some(expected),
+        LootCondition::ThisVehicleIs(name) => params
+            .this_vehicle
+            .is_some_and(|vehicle| entity_type_matches(vehicle, name)),
+        LootCondition::EntityTypeMatches {
+            target,
+            entity_type,
+        } => {
+            let actual = match target {
+                pumpkin_util::loot_table::EntityTarget::This => params.this_entity,
+                pumpkin_util::loot_table::EntityTarget::Killer => params.killer_entity,
+                pumpkin_util::loot_table::EntityTarget::DirectKiller => {
+                    params.direct_killer_entity
+                }
+            };
+            actual.is_some_and(|actual| entity_type_matches(actual, entity_type))
+        }
+        LootCondition::ThisCubeSizeIs(size) => params.this_cube_size == Some(size),
+        LootCondition::ThisIsRaidCaptain(expected) => {
+            params.this_is_raid_captain == Some(expected)
+        }
+        LootCondition::DamageTypeHasTag { tag, expected } => params
+            .damage_type
+            .as_ref()
+            .is_some_and(|damage| damage_type_has_tag(damage, tag) == expected),
+
+        // The broken block must carry every named property value. `block_state` is the
+        // state at break time, which is what vanilla's predicate reads.
+        LootCondition::BlockStateProperties { block, properties } => {
+            params.block_state.is_some_and(|state| {
+                let actual_block = pumpkin_data::Block::from_state_id(state.id);
+                let expected = block.strip_prefix("minecraft:").unwrap_or(block);
+                if actual_block.name != expected {
+                    return false;
+                }
+                actual_block.properties(state.id).is_some_and(|props| {
+                    let actual = props.to_props();
+                    properties.iter().all(|(key, value)| {
+                        actual
+                            .iter()
+                            .any(|(k, v)| k == key && v == value)
+                    })
+                })
+            })
+        }
+
+        LootCondition::Unsupported => false,
     }
 }
 
@@ -311,5 +394,107 @@ fn shuffle_and_split_items(
     for i in (1..n).rev() {
         let j = rng.next_bounded_i32((i + 1) as i32) as usize;
         result.swap(i, j);
+    }
+}
+
+#[cfg(test)]
+mod condition_tests {
+    use super::*;
+    use pumpkin_util::loot_table::EntityTarget;
+
+    fn rng() -> Xoroshiro {
+        Xoroshiro::from_seed(42)
+    }
+
+    fn check(cond: LootCondition, params: &LootContextParameters) -> bool {
+        check_condition(cond, false, false, 0, params, &mut rng())
+    }
+
+    /// The bug this guards: an unrepresentable condition used to be discarded, which left
+    /// the pool unconditional. A zombie therefore dropped the chicken-jockey music disc on
+    /// every player kill. Unsupported must never pass.
+    #[test]
+    fn unsupported_never_passes() {
+        assert!(!check(LootCondition::Unsupported, &LootContextParameters::default()));
+    }
+
+    /// The exact condition from the zombie's music-disc pool: baby *and* riding a chicken.
+    #[test]
+    fn chicken_jockey_disc_requires_baby_riding_a_chicken() {
+        let jockey = LootContextParameters {
+            this_is_baby: Some(true),
+            this_vehicle: Some(&EntityType::CHICKEN),
+            ..Default::default()
+        };
+        assert!(check(LootCondition::ThisIsBaby(true), &jockey));
+        assert!(check(LootCondition::ThisVehicleIs("minecraft:chicken"), &jockey));
+
+        // An ordinary adult zombie on foot satisfies neither.
+        let plain = LootContextParameters {
+            this_is_baby: Some(false),
+            this_vehicle: None,
+            ..Default::default()
+        };
+        assert!(!check(LootCondition::ThisIsBaby(true), &plain));
+        assert!(!check(LootCondition::ThisVehicleIs("minecraft:chicken"), &plain));
+
+        // A baby on a different mount is still not a chicken jockey.
+        let on_a_pig = LootContextParameters {
+            this_is_baby: Some(true),
+            this_vehicle: Some(&EntityType::PIG),
+            ..Default::default()
+        };
+        assert!(!check(LootCondition::ThisVehicleIs("minecraft:chicken"), &on_a_pig));
+    }
+
+    /// An unknown fact fails the condition rather than passing it -- guessing "true" is
+    /// what produced the guaranteed wrong drop in the first place.
+    #[test]
+    fn absent_facts_fail_closed() {
+        let empty = LootContextParameters::default();
+        assert!(!check(LootCondition::ThisIsBaby(true), &empty));
+        assert!(!check(LootCondition::ThisCubeSizeIs(1), &empty));
+        assert!(!check(LootCondition::ThisIsRaidCaptain(true), &empty));
+        assert!(!check(LootCondition::ThisVehicleIs("minecraft:chicken"), &empty));
+    }
+
+    /// Slime balls are gated on cube size 1; larger slimes must not drop them directly.
+    #[test]
+    fn slime_ball_only_from_size_one() {
+        for (size, expected) in [(1, true), (2, false), (4, false)] {
+            let params = LootContextParameters {
+                this_cube_size: Some(size),
+                ..Default::default()
+            };
+            assert_eq!(
+                check(LootCondition::ThisCubeSizeIs(1), &params),
+                expected,
+                "size {size}"
+            );
+        }
+    }
+
+    #[test]
+    fn entity_type_matches_by_name_and_target() {
+        let params = LootContextParameters {
+            this_entity: Some(&EntityType::ZOMBIE),
+            killer_entity: Some(&EntityType::SKELETON),
+            ..Default::default()
+        };
+        assert!(check(
+            LootCondition::EntityTypeMatches {
+                target: EntityTarget::Killer,
+                entity_type: "minecraft:skeleton",
+            },
+            &params
+        ));
+        // Right name, wrong subject.
+        assert!(!check(
+            LootCondition::EntityTypeMatches {
+                target: EntityTarget::This,
+                entity_type: "minecraft:skeleton",
+            },
+            &params
+        ));
     }
 }

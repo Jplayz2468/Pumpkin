@@ -2,7 +2,7 @@ use std::{fs, path::Path};
 
 use heck::ToShoutySnakeCase;
 use proc_macro2::{Span, TokenStream};
-use pumpkin_util::loot_table::{LootBonusFormula, LootCondition};
+use pumpkin_util::loot_table::{EntityTarget, LootBonusFormula, LootCondition};
 use quote::{format_ident, quote};
 use serde::Deserialize;
 use syn::LitStr;
@@ -76,6 +76,10 @@ struct PredicateStruct {
     items: Option<serde_json::Value>,
     #[serde(default)]
     predicates: Option<serde_json::Value>,
+    /// Everything else, kept raw. `entity_properties` and `damage_source_properties`
+    /// carry arbitrarily shaped predicates that cannot be modelled field by field.
+    #[serde(flatten)]
+    extra: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Deserialize, Clone, Debug)]
@@ -112,6 +116,15 @@ struct ConditionStruct {
     term: Option<Box<ConditionStruct>>,
     #[serde(default)]
     terms: Option<Vec<ConditionStruct>>,
+    /// `entity_properties` names its subject: "this", "killer" or "direct_killer".
+    #[serde(default)]
+    entity: Option<String>,
+    /// `block_state_property` names the block it asserts about.
+    #[serde(default)]
+    block: Option<String>,
+    /// `block_state_property` property values, all serialized as strings by vanilla.
+    #[serde(default)]
+    properties: Option<serde_json::Map<String, serde_json::Value>>,
 }
 
 fn parse_condition(cond: &ConditionStruct) -> LootCondition {
@@ -213,7 +226,173 @@ fn parse_condition(cond: &ConditionStruct) -> LootCondition {
                 LootCondition::None
             }
         }
-        _ => LootCondition::None,
+        "minecraft:block_state_property" => {
+            let Some(block) = &cond.block else {
+                return LootCondition::Unsupported;
+            };
+            let mut pairs: Vec<(&'static str, &'static str)> = Vec::new();
+            if let Some(properties) = &cond.properties {
+                for (key, value) in properties {
+                    let Some(value) = value.as_str() else {
+                        return LootCondition::Unsupported;
+                    };
+                    pairs.push((
+                        Box::leak(key.clone().into_boxed_str()) as &'static str,
+                        Box::leak(value.to_string().into_boxed_str()) as &'static str,
+                    ));
+                }
+            }
+            LootCondition::BlockStateProperties {
+                block: Box::leak(block.clone().into_boxed_str()),
+                properties: Box::leak(pairs.into_boxed_slice()),
+            }
+        }
+        "minecraft:entity_properties" => parse_entity_properties(cond),
+        "minecraft:damage_source_properties" => parse_damage_source_properties(cond),
+        // Explicitly permissive, not a silent fallthrough. These gate which half of a
+        // double plant drops, which needs a block lookup at an offset that the loot
+        // evaluator cannot do yet. Suppressing them would stop tall grass and large ferns
+        // dropping anything at all, which is worse than the current over-permissiveness.
+        // TODO: implement once the loot context can read neighbouring block states.
+        "minecraft:location_check" => LootCondition::None,
+        // Anything else cannot be represented, so it must never pass. Returning `None`
+        // here -- which is what this did before -- made the *pool* unconditional, so a
+        // pool gated on something rare dropped every single time.
+        _ => LootCondition::Unsupported,
+    }
+}
+
+/// Parses `minecraft:entity_properties`, which asserts facts about an entity involved in
+/// the drop. An empty predicate genuinely matches everything, so it stays `None`.
+fn parse_entity_properties(cond: &ConditionStruct) -> LootCondition {
+    let Some(predicate) = &cond.predicate else {
+        return LootCondition::None;
+    };
+    if predicate.extra.is_empty() {
+        return LootCondition::None;
+    }
+
+    let target = match cond.entity.as_deref() {
+        Some("killer") => EntityTarget::Killer,
+        Some("direct_killer") => EntityTarget::DirectKiller,
+        _ => EntityTarget::This,
+    };
+
+    let mut parsed: Vec<LootCondition> = Vec::new();
+    for (key, value) in &predicate.extra {
+        let condition = match key.as_str() {
+            "minecraft:flags" => value
+                .get("is_baby")
+                .and_then(serde_json::Value::as_bool)
+                .map(LootCondition::ThisIsBaby),
+            "minecraft:vehicle" => value
+                .get("minecraft:entity_type")
+                .and_then(serde_json::Value::as_str)
+                .map(|name| LootCondition::ThisVehicleIs(Box::leak(name.to_string().into_boxed_str()))),
+            "minecraft:entity_type" => value.as_str().map(|name| LootCondition::EntityTypeMatches {
+                target,
+                entity_type: Box::leak(name.to_string().into_boxed_str()),
+            }),
+            "minecraft:type_specific/cube_mob" => value
+                .get("size")
+                .and_then(serde_json::Value::as_i64)
+                .map(|size| LootCondition::ThisCubeSizeIs(size as i32)),
+            "minecraft:type_specific/raider" => value
+                .get("is_captain")
+                .and_then(serde_json::Value::as_bool)
+                .map(LootCondition::ThisIsRaidCaptain),
+            _ => None,
+        };
+        // An unrecognised key means the predicate as a whole is stricter than anything
+        // that can be expressed, so the condition must fail rather than be approximated.
+        let Some(condition) = condition else {
+            return LootCondition::Unsupported;
+        };
+        parsed.push(condition);
+    }
+
+    match parsed.len() {
+        0 => LootCondition::None,
+        1 => parsed[0],
+        _ => LootCondition::AllOf(Box::leak(parsed.into_boxed_slice())),
+    }
+}
+
+/// Parses `minecraft:damage_source_properties`, currently the damage-type tags and the
+/// direct entity's type.
+fn parse_damage_source_properties(cond: &ConditionStruct) -> LootCondition {
+    let Some(predicate) = &cond.predicate else {
+        return LootCondition::None;
+    };
+    if predicate.extra.is_empty() {
+        return LootCondition::None;
+    }
+
+    let mut parsed: Vec<LootCondition> = Vec::new();
+    for (key, value) in &predicate.extra {
+        match key.as_str() {
+            "tags" => {
+                let Some(entries) = value.as_array() else {
+                    return LootCondition::Unsupported;
+                };
+                for entry in entries {
+                    let (Some(id), Some(expected)) = (
+                        entry.get("id").and_then(serde_json::Value::as_str),
+                        entry.get("expected").and_then(serde_json::Value::as_bool),
+                    ) else {
+                        return LootCondition::Unsupported;
+                    };
+                    parsed.push(LootCondition::DamageTypeHasTag {
+                        tag: Box::leak(id.to_string().into_boxed_str()),
+                        expected,
+                    });
+                }
+            }
+            "direct_entity" => {
+                let Some(name) = value
+                    .get("minecraft:entity_type")
+                    .and_then(serde_json::Value::as_str)
+                else {
+                    return LootCondition::Unsupported;
+                };
+                parsed.push(LootCondition::EntityTypeMatches {
+                    target: EntityTarget::DirectKiller,
+                    entity_type: Box::leak(name.to_string().into_boxed_str()),
+                });
+            }
+            _ => return LootCondition::Unsupported,
+        }
+    }
+
+    match parsed.len() {
+        0 => LootCondition::None,
+        1 => parsed[0],
+        _ => LootCondition::AllOf(Box::leak(parsed.into_boxed_slice())),
+    }
+}
+
+/// Entry-level conditions, which *select between alternatives* rather than gating a whole
+/// pool.
+///
+/// The two levels degrade in opposite directions. Suppressing an unrepresentable **pool**
+/// condition skips a rare drop, which is the safe error. Suppressing an unrepresentable
+/// **entry** condition can remove every candidate from a weighted list and leave the pool
+/// yielding nothing -- sheep would stop dropping wool, because each colour is an entry
+/// gated on the sheep's colour. So an entry whose condition cannot be represented stays
+/// selectable, keeping the pool productive at the cost of ignoring the distinction.
+fn combine_entry_conditions(conditions: &[ConditionStruct]) -> LootCondition {
+    let mut parsed_list: Vec<LootCondition> = Vec::new();
+    for c in conditions {
+        let parsed = parse_condition(c);
+        if parsed == LootCondition::Unsupported || parsed == LootCondition::None {
+            continue;
+        }
+        parsed_list.push(parsed);
+    }
+    match parsed_list.len() {
+        0 => LootCondition::None,
+        1 => parsed_list[0],
+        _ => LootCondition::AllOf(Box::leak(parsed_list.into_boxed_slice())),
     }
 }
 
@@ -221,6 +400,9 @@ fn combine_conditions(conditions: &[ConditionStruct]) -> LootCondition {
     let mut parsed_list: Vec<LootCondition> = Vec::new();
     for c in conditions {
         let parsed = parse_condition(c);
+        // `None` means "always true" and adds nothing to an AllOf, so it is dropped.
+        // `Unsupported` must be kept: discarding it is precisely what turned a gated pool
+        // into an unconditional one.
         if parsed != LootCondition::None {
             parsed_list.push(parsed);
         }
@@ -337,7 +519,7 @@ fn extract_entries_with_depth(
         return;
     }
 
-    let entry_cond = match (inherited_condition, combine_conditions(&entry.conditions)) {
+    let entry_cond = match (inherited_condition, combine_entry_conditions(&entry.conditions)) {
         (LootCondition::None, cond) | (cond, LootCondition::None) => cond,
         (first, second) if first == second => first,
         (first, second) => LootCondition::AllOf(Box::leak(vec![first, second].into_boxed_slice())),
@@ -517,7 +699,7 @@ fn extract_entries_with_depth(
             let mut saw_shears = false;
 
             for child in &entry.children {
-                let child_cond = combine_conditions(&child.conditions);
+                let child_cond = combine_entry_conditions(&child.conditions);
 
                 let effective_cond = if child_cond == LootCondition::SilkTouch {
                     saw_silk = true;
@@ -561,6 +743,47 @@ fn condition_to_tokens(cond: LootCondition) -> TokenStream {
         LootCondition::NoSilkTouchOrShears => quote! { LootCondition::NoSilkTouchOrShears },
         LootCondition::SurvivesExplosion => quote! { LootCondition::SurvivesExplosion },
         LootCondition::KilledByPlayer => quote! { LootCondition::KilledByPlayer },
+        LootCondition::Unsupported => quote! { LootCondition::Unsupported },
+        LootCondition::BlockStateProperties { block, properties } => {
+            let pairs = properties.iter().map(|(k, v)| quote! { (#k, #v) });
+            quote! {
+                LootCondition::BlockStateProperties {
+                    block: #block,
+                    properties: &[#(#pairs),*],
+                }
+            }
+        }
+        LootCondition::ThisIsBaby(expected) => {
+            quote! { LootCondition::ThisIsBaby(#expected) }
+        }
+        LootCondition::ThisVehicleIs(name) => {
+            quote! { LootCondition::ThisVehicleIs(#name) }
+        }
+        LootCondition::EntityTypeMatches {
+            target,
+            entity_type,
+        } => {
+            let target = match target {
+                EntityTarget::This => quote! { EntityTarget::This },
+                EntityTarget::Killer => quote! { EntityTarget::Killer },
+                EntityTarget::DirectKiller => quote! { EntityTarget::DirectKiller },
+            };
+            quote! {
+                LootCondition::EntityTypeMatches {
+                    target: #target,
+                    entity_type: #entity_type,
+                }
+            }
+        }
+        LootCondition::ThisCubeSizeIs(size) => {
+            quote! { LootCondition::ThisCubeSizeIs(#size) }
+        }
+        LootCondition::ThisIsRaidCaptain(expected) => {
+            quote! { LootCondition::ThisIsRaidCaptain(#expected) }
+        }
+        LootCondition::DamageTypeHasTag { tag, expected } => {
+            quote! { LootCondition::DamageTypeHasTag { tag: #tag, expected: #expected } }
+        }
         LootCondition::RandomChance { chance } => {
             quote! { LootCondition::RandomChance { chance: #chance } }
         }
