@@ -44,9 +44,9 @@ fn is_untamed_wolf(target: &LivingEntity, world: &World) -> bool {
         .get_entity_by_id(target.entity.entity_id)
         .and_then(|entity| {
             entity
-                .as_any()
-                .downcast_ref::<WolfEntity>()
-                .map(|wolf| !Mob::is_tamed(wolf))
+                .get_mob()
+                .and_then(|mob| mob.as_tamable())
+                .map(|tamable| !tamable.is_tame())
         })
         .unwrap_or(false)
 }

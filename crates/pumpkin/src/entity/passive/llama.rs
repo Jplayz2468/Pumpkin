@@ -39,16 +39,16 @@ const TEMPT_ITEMS: &[&Item] = &[&Item::HAY_BLOCK];
 /// (`(target, level) -> !((Wolf)target).isTame()`, Llama.java:454-456). The
 /// `ActiveTargetGoal`/`TargetPredicate` predicate only gets a `&LivingEntity`, which
 /// doesn't carry Wolf's own tame flag, so this looks the entity back up by id and
-/// downcasts to `WolfEntity` (same `as_any().downcast_ref::<T>()` pattern used elsewhere,
-/// e.g. `passive/wandering_trader.rs`) to read its tame state via `Mob::is_tamed`.
+/// goes through `EntityBase::get_mob` -> `Mob::as_tamable`, which is object-safe,
+/// unlike `as_any` (that requires `Self: Sized` and cannot be called on a trait object).
 fn is_untamed_wolf(target: &LivingEntity, world: &World) -> bool {
     world
         .get_entity_by_id(target.entity.entity_id)
         .and_then(|entity| {
             entity
-                .as_any()
-                .downcast_ref::<WolfEntity>()
-                .map(|wolf| !Mob::is_tamed(wolf))
+                .get_mob()
+                .and_then(|mob| mob.as_tamable())
+                .map(|tamable| !tamable.is_tame())
         })
         .unwrap_or(false)
 }
