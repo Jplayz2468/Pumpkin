@@ -1,13 +1,15 @@
 use pumpkin_data::{
     Block, BlockDirection, BlockState, BlockStateId,
+    block_properties::{DoubleBlockHalf, TallSeagrassLikeProperties},
     tag::{self, Taggable},
 };
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_world::world::BlockAccessor;
+use pumpkin_world::world::{BlockAccessor, BlockFlags};
 
 use crate::block::{
-    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, blocks::plant::PlantBlockBase,
+    BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
+    blocks::plant::PlantBlockBase,
 };
 #[pumpkin_block("minecraft:seagrass")]
 pub struct SeaGrassBlock;
@@ -26,6 +28,30 @@ impl BlockBehaviour for SeaGrassBlock {
             args.position,
             args.state_id,
         )
+    }
+
+    // SeagrassBlock.java:76 isValidBonemealTarget: needs water directly above to grow into.
+    fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
+        args.world.get_block(&args.position.up()) == &Block::WATER
+    }
+
+    // SeagrassBlock.java:91 performBonemeal: turns into a two-tall tall_seagrass.
+    fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
+        let mut lower = TallSeagrassLikeProperties::default(&Block::TALL_SEAGRASS);
+        lower.half = DoubleBlockHalf::Lower;
+        let mut upper = TallSeagrassLikeProperties::default(&Block::TALL_SEAGRASS);
+        upper.half = DoubleBlockHalf::Upper;
+        // Vanilla uses setBlock flag 2 (NOTIFY_LISTENERS only) for both halves.
+        args.world.set_block_state(
+            args.position,
+            lower.to_state_id(&Block::TALL_SEAGRASS),
+            BlockFlags::NOTIFY_LISTENERS,
+        );
+        args.world.set_block_state(
+            &args.position.up(),
+            upper.to_state_id(&Block::TALL_SEAGRASS),
+            BlockFlags::NOTIFY_LISTENERS,
+        );
     }
 }
 

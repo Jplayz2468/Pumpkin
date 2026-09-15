@@ -1,12 +1,17 @@
+use std::sync::Arc;
+
 use crate::block::blocks::plant::PlantBlockBase;
 use crate::block::{
-    BlockBehaviour, BlockMetadata, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    PlacedArgs,
+    BlockBehaviour, BlockMetadata, BonemealArgs, BrokenArgs, CanPlaceAtArgs,
+    GetStateForNeighborUpdateArgs, PlacedArgs,
 };
+use crate::world::World;
 use pumpkin_data::BlockStateId;
+use pumpkin_data::block_properties::KelpLikeProperties;
 use pumpkin_data::{Block, BlockId};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
+use rand::RngExt;
 
 pub struct TwistingVinesBlock;
 impl BlockMetadata for TwistingVinesBlock {
@@ -56,6 +61,97 @@ impl BlockBehaviour for TwistingVinesBlock {
             }
         }
     }
+
+    // GrowingPlantHeadBlock.java:114 isValidBonemealTarget, delegated for the body
+    // (TWISTING_VINES_PLANT) via GrowingPlantBodyBlock.java:68.
+    fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
+        let Some(head_pos) = twisting_vines_head_pos(args.world, args.block, args.position) else {
+            return false;
+        };
+        let growth_pos = head_pos.up();
+        twisting_vines_can_grow_into(args.world.get_block(&growth_pos))
+            && args.world.is_in_build_limit(growth_pos)
+    }
+
+    // GrowingPlantHeadBlock.java:125 performBonemeal, blocksToGrow via
+    // NetherVines.getBlocksToGrowWhenBonemealed (TwistingVinesBlock.java:24).
+    fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
+        let Some(head_pos) = twisting_vines_head_pos(args.world, args.block, args.position) else {
+            return;
+        };
+        let head_state_id = args.world.get_block_state_id(&head_pos);
+        let props = KelpLikeProperties::from_state_id(head_state_id);
+        let mut next_age = (props.age + 1).min(25);
+        let blocks_to_grow = nether_vines_blocks_to_grow();
+        let mut forward_pos = head_pos.up();
+        for _ in 0..blocks_to_grow {
+            if !twisting_vines_can_grow_into(args.world.get_block(&forward_pos))
+                || !args.world.is_in_build_limit(forward_pos)
+            {
+                break;
+            }
+            let mut new_props = props;
+            new_props.age = next_age;
+            args.world.set_block_state(
+                &forward_pos,
+                new_props.to_state_id(&Block::TWISTING_VINES),
+                BlockFlags::NOTIFY_ALL,
+            );
+            forward_pos = forward_pos.up();
+            next_age = (next_age + 1).min(25);
+        }
+    }
+}
+
+// NetherVines.isValidGrowthState: grows only into air.
+fn twisting_vines_can_grow_into(block: &Block) -> bool {
+    block == &Block::AIR
+}
+
+// NetherVines.getBlocksToGrowWhenBonemealed: geometric falloff with 0.826 decay.
+fn nether_vines_blocks_to_grow() -> i32 {
+    let mut grow_probability = 1.0_f64;
+    let mut count = 0;
+    loop {
+        let roll: f64 = rand::rng().random();
+        if roll >= grow_probability {
+            break;
+        }
+        grow_probability *= 0.826;
+        count += 1;
+    }
+    count
+}
+
+/// Resolves the TWISTING_VINES head position for either the head or the body
+/// (TWISTING_VINES_PLANT), mirroring `BlockUtil.getTopConnectedBlock` (growth
+/// direction UP for twisting vines).
+fn twisting_vines_head_pos(
+    world: &Arc<World>,
+    block: &Block,
+    position: &BlockPos,
+) -> Option<BlockPos> {
+    if block == &Block::TWISTING_VINES {
+        return Some(*position);
+    }
+    if block != &Block::TWISTING_VINES_PLANT {
+        return None;
+    }
+    let max_steps = world.dimension.height + 8;
+    let mut current = *position;
+    for _ in 0..max_steps {
+        current = current.up();
+        let found = world.get_block(&current);
+        if found == &Block::TWISTING_VINES_PLANT {
+            continue;
+        }
+        return if found == &Block::TWISTING_VINES {
+            Some(current)
+        } else {
+            None
+        };
+    }
+    None
 }
 
 impl PlantBlockBase for TwistingVinesBlock {

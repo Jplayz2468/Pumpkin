@@ -2,8 +2,8 @@ use crate::block::BlockIsReplacing;
 use crate::block::blocks::plant::PlantBlockBase;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
-    BlockBehaviour, CanPlaceAtArgs, CanUpdateAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
-    PathComputationType, UseWithItemArgs,
+    BlockBehaviour, BonemealArgs, CanPlaceAtArgs, CanUpdateAtArgs, GetStateForNeighborUpdateArgs,
+    OnPlaceArgs, PathComputationType, UseWithItemArgs,
 };
 use crate::entity::EntityBase;
 use pumpkin_data::entity::EntityPose;
@@ -132,6 +132,64 @@ impl BlockBehaviour for SeaPickleBlock {
 
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {
         false
+    }
+
+    // SeaPickleBlock.java:124 isValidBonemealTarget: alive (waterlogged) pickle on coral.
+    fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
+        let props = SeaPickleProperties::from_state_id(args.state_id);
+        props.waterlogged
+            && args
+                .world
+                .get_block(&args.position.down())
+                .has_tag(&tag::Block::MINECRAFT_CORAL_BLOCKS)
+    }
+
+    // SeaPickleBlock.java:134 performBonemeal: 1:1 port, including the diamond-shaped
+    // x/z search pattern (zSpan grows 1,3,5,3,1 across the five x columns).
+    fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
+        let mut z_span = 1;
+        let mut z_offset = 0;
+        let x_start = args.position.0.x - 2;
+
+        for (count, x) in (0..5).enumerate() {
+            for z in 0..z_span {
+                let end_y = 2 + args.position.0.y - 1;
+                for start_y in (end_y - 2)..end_y {
+                    let pos = BlockPos::new(x_start + x, start_y, args.position.0.z - z_offset + z);
+                    if &pos != args.position
+                        && rand::rng().random_range(0..6) == 0
+                        && args.world.get_block(&pos) == &Block::WATER
+                        && args
+                            .world
+                            .get_block(&pos.down())
+                            .has_tag(&tag::Block::MINECRAFT_CORAL_BLOCKS)
+                    {
+                        let mut props = SeaPickleProperties::default(&Block::SEA_PICKLE);
+                        props.pickles = rand::rng().random_range(1..=4);
+                        args.world.set_block_state(
+                            &pos,
+                            props.to_state_id(&Block::SEA_PICKLE),
+                            BlockFlags::NOTIFY_ALL,
+                        );
+                    }
+                }
+            }
+            if count < 2 {
+                z_span += 2;
+                z_offset += 1;
+            } else {
+                z_span -= 2;
+                z_offset -= 1;
+            }
+        }
+
+        let mut props = SeaPickleProperties::from_state_id(args.state_id);
+        props.pickles = 4;
+        args.world.set_block_state(
+            args.position,
+            props.to_state_id(args.block),
+            BlockFlags::NOTIFY_LISTENERS,
+        );
     }
 }
 
