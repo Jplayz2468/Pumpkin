@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 
 use crossbeam::atomic::AtomicCell;
 
@@ -18,6 +18,9 @@ use crate::entity::vehicle::vehicle::VehicleEntity;
 pub struct BoatEntity {
     pub vehicle: VehicleEntity,
     ticks_underwater: AtomicCell<f32>,
+    bubble_time: AtomicI32,
+    above_bubble_column: AtomicBool,
+    bubble_drag_down: AtomicBool,
     left_paddle_moving: AtomicBool,
     right_paddle_moving: AtomicBool,
 }
@@ -27,8 +30,65 @@ impl BoatEntity {
         Self {
             vehicle: VehicleEntity::new(entity),
             ticks_underwater: AtomicCell::new(0.0),
+            bubble_time: AtomicI32::new(0),
+            above_bubble_column: AtomicBool::new(false),
+            bubble_drag_down: AtomicBool::new(false),
             left_paddle_moving: AtomicBool::new(false),
             right_paddle_moving: AtomicBool::new(false),
+        }
+    }
+
+    fn set_bubble_time(&self, time: i32) {
+        if self.bubble_time.swap(time, Ordering::Relaxed) != time {
+            self.vehicle.entity.set_synced_data(
+                pumpkin_data::tracked_data::boat::ID_BUBBLE_TIME,
+                pumpkin_protocol::codec::var_int::VarInt(time),
+            );
+        }
+    }
+
+    pub fn on_above_bubble_column(&self, drag_down: bool) {
+        self.above_bubble_column.store(true, Ordering::Relaxed);
+        self.bubble_drag_down.store(drag_down, Ordering::Relaxed);
+        if self.bubble_time.load(Ordering::Relaxed) == 0 {
+            self.set_bubble_time(60);
+        }
+    }
+
+    fn tick_bubble_column(&self) {
+        if !self.above_bubble_column.swap(false, Ordering::Relaxed) {
+            self.set_bubble_time(0);
+        }
+        let time = self.bubble_time.load(Ordering::Relaxed);
+        if time <= 0 {
+            return;
+        }
+        self.set_bubble_time(time - 1);
+        if time == 1 {
+            let entity = &self.vehicle.entity;
+            let passengers = entity
+                .passengers
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            let velocity = entity.velocity.load();
+            if self.bubble_drag_down.load(Ordering::Relaxed) {
+                entity.velocity.store(velocity.add_raw(0.0, -0.7, 0.0));
+                for passenger in passengers {
+                    entity.remove_passenger(passenger.get_entity().entity_id);
+                }
+            } else {
+                entity.velocity.store(Vector3::new(
+                    velocity.x,
+                    if passengers.iter().any(|p| p.get_player().is_some()) {
+                        2.7
+                    } else {
+                        0.6
+                    },
+                    velocity.z,
+                ));
+            }
+            entity.velocity_dirty.store(true, Ordering::Relaxed);
         }
     }
 
@@ -59,8 +119,10 @@ impl EntityBase for BoatEntity {
         None
     }
 
-    fn tick(&self, _caller: &dyn EntityBase, _server: &Server) {
+    fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         self.vehicle.tick();
+        self.vehicle.entity.tick_block_collisions(caller);
+        self.tick_bubble_column();
 
         let underwater = self.ticks_underwater.load();
         if self.vehicle.entity.touching_water.load(Ordering::Relaxed) {

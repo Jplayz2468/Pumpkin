@@ -10,8 +10,8 @@ use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::{
-    BlockBehaviour, BlockMetadata, OnEntityCollisionArgs, OnNeighborUpdateArgs,
-    OnScheduledTickArgs, PlacedArgs,
+    BlockBehaviour, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
+    OnEntityCollisionArgs, OnNeighborUpdateArgs, OnScheduledTickArgs, PlacedArgs,
 };
 use crate::world::World;
 
@@ -89,15 +89,18 @@ fn kind_from_below(block: &Block, state: BlockStateId) -> Option<BubbleColumnKin
 }
 
 fn is_source_water_state(state: BlockStateId) -> bool {
-    let Some(fluid) = Fluid::from_state_id(state) else {
+    if state.to_block() != &Block::WATER {
         return false;
+    }
+    let (fluid, fluid_state) = World::fluid_state_from_block_state(state);
+    let source_fluid = if fluid.matches_type(&Fluid::WATER) && fluid_state.is_source {
+        &Fluid::WATER
+    } else {
+        fluid
     };
-
-    fluid.has_tag(&tag::Fluid::MINECRAFT_BUBBLE_COLUMN_CAN_OCCUPY)
-        && fluid.is_source(state)
-        && fluid.states.iter().any(|fluid_state| {
-            fluid_state.block_state_id == state && fluid_state.is_still && fluid_state.is_source
-        })
+    source_fluid.has_tag(&tag::Fluid::MINECRAFT_BUBBLE_COLUMN_CAN_OCCUPY)
+        && fluid_state.is_source
+        && fluid_state.level == 8
 }
 
 fn is_source_water(world: &World, position: BlockPos) -> bool {
@@ -126,8 +129,37 @@ fn reconcile_action(
     }
 }
 
-fn schedule_reconcile(world: &Arc<World>, position: BlockPos, delay: u32) {
-    world.schedule_block_tick(&Block::BUBBLE_COLUMN, position, delay, TickPriority::Normal);
+fn schedule_reconcile(world: &World, block: &Block, position: BlockPos, delay: u32) {
+    world.schedule_block_tick(block, position, delay, TickPriority::Normal);
+}
+
+impl BubbleColumnBlock {
+    pub fn update_column(world: &Arc<World>, pos: &BlockPos) {
+        let (block, state) = world.get_block_and_state(pos);
+        let (below, below_state) = world.get_block_and_state(&pos.down());
+        let new = match reconcile_action(block, state.id, below, below_state.id) {
+            ReconcileAction::SetBubble(kind) => bubble_column_state(kind),
+            ReconcileAction::RestoreWater => source_water_state(),
+            ReconcileAction::Stop => {
+                if !is_source_water_state(state.id) {
+                    return;
+                }
+                state.id
+            }
+        };
+        world.set_block_state(pos, new, BlockFlags::NOTIFY_LISTENERS);
+        let mut pos = pos.up();
+        while world.is_in_height_limit(pos.0.y) {
+            let state = world.get_block_state_id(&pos);
+            if state.to_block() != &Block::BUBBLE_COLUMN && !is_source_water_state(state) {
+                break;
+            }
+            if world.set_block_state(&pos, new, BlockFlags::NOTIFY_LISTENERS) == new {
+                break;
+            }
+            pos = pos.up();
+        }
+    }
 }
 
 fn bubble_column_vertical_velocity(
@@ -142,8 +174,8 @@ fn bubble_column_vertical_velocity(
         (BubbleColumnKind::Upward, false) => {
             (current_y + UPWARD_ACCELERATION).min(UPWARD_MAX_SPEED)
         }
-        (BubbleColumnKind::Downward, _) => {
-            (current_y + DOWNWARD_ACCELERATION).max(DOWNWARD_MIN_SPEED)
+        (BubbleColumnKind::Downward, surface) => {
+            (current_y + DOWNWARD_ACCELERATION).max(if surface { -0.9 } else { DOWNWARD_MIN_SPEED })
         }
     }
 }
@@ -162,77 +194,165 @@ fn bubble_column_velocity(
 
 impl BlockBehaviour for BubbleColumnBlock {
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
+        if args.block != &Block::BUBBLE_COLUMN
+            || args
+                .entity
+                .get_player()
+                .is_some_and(|player| player.is_flying())
         {
-            if args.block != &Block::BUBBLE_COLUMN {
-                return;
+            return;
+        }
+        let kind = kind_from_state(args.state.id);
+        let above = args.world.get_block_state(&args.position.up());
+        let at_surface = above.collision_shapes.is_empty()
+            && World::fluid_state_from_block_state(above.id).1.is_empty;
+        let entity = args.entity.get_entity();
+        if at_surface
+            && let Some(boat) = args
+                .entity
+                .cast_any()
+                .downcast_ref::<crate::entity::vehicle::boat::BoatEntity>()
+        {
+            boat.on_above_bubble_column(matches!(kind, BubbleColumnKind::Downward));
+            return;
+        }
+        if let Some(arrow) = args
+            .entity
+            .cast_any()
+            .downcast_ref::<crate::entity::projectile::arrow::ArrowEntity>()
+            && arrow.in_ground.load(std::sync::atomic::Ordering::Relaxed)
+        {
+            return;
+        }
+        let velocity = entity.velocity.load();
+        let projectile = crate::entity::projectile::is_projectile(entity.entity_type)
+            && entity.entity_type != &pumpkin_data::entity::EntityType::ENDER_PEARL;
+        let new_velocity = if projectile {
+            velocity.add_raw(
+                0.0,
+                if matches!(kind, BubbleColumnKind::Downward) {
+                    -0.03
+                } else if at_surface {
+                    0.1
+                } else {
+                    0.06
+                },
+                0.0,
+            )
+        } else {
+            bubble_column_velocity(velocity, kind, at_surface)
+        };
+        entity.velocity.store(new_velocity);
+        if at_surface {
+            for _ in 0..2 {
+                args.world.spawn_particle(
+                    args.position.to_f64().add_raw(
+                        args.world.rand_f64(),
+                        1.0,
+                        args.world.rand_f64(),
+                    ),
+                    Vector3::new(0.0, 0.0, 0.0),
+                    1.0,
+                    1,
+                    pumpkin_data::particle::Particle::Splash,
+                );
+                args.world.spawn_particle(
+                    args.position.to_f64().add_raw(
+                        args.world.rand_f64(),
+                        1.0,
+                        args.world.rand_f64(),
+                    ),
+                    Vector3::new(0.0, 0.01, 0.0),
+                    0.2,
+                    1,
+                    pumpkin_data::particle::Particle::Bubble,
+                );
             }
-
-            let kind = kind_from_state(args.state.id);
-            let at_surface = args.world.get_block(&args.position.up()) == &Block::AIR;
-            let entity = args.entity.get_entity();
-            entity.velocity.store(bubble_column_velocity(
-                entity.velocity.load(),
-                kind,
-                at_surface,
-            ));
-
-            if let Some(player) = args.entity.get_player() {
-                player.breath_manager.reset(player);
+        } else {
+            if let Some(living) = args.entity.get_living_entity() {
+                living.fall_distance.store(0.0);
+            }
+            if let Some(falling) = args
+                .entity
+                .cast_any()
+                .downcast_ref::<crate::entity::falling::FallingEntity>()
+            {
+                falling.reset_fall_distance();
             }
         }
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
+        if args.block == &Block::WATER
+            && is_source_water(args.world, *args.position)
+            && kind_from_support(args.world.get_block(&args.position.down())).is_some()
         {
-            if args.block == &Block::WATER && is_source_water(args.world, *args.position) {
-                schedule_reconcile(args.world, *args.position, CREATE_DELAY_TICKS);
-            }
+            schedule_reconcile(args.world, args.block, *args.position, CREATE_DELAY_TICKS);
         }
     }
-
+    fn state_changed(&self, args: PlacedArgs<'_>) {
+        self.placed(args);
+    }
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        if args.block == &Block::WATER
+            && is_source_water(args.world, *args.position)
+            && kind_from_support(args.world.get_block(&args.position.down())).is_some()
         {
-            let state = args.world.get_block_state_id(args.position);
-            if args.block == &Block::BUBBLE_COLUMN {
-                schedule_reconcile(args.world, *args.position, REMOVE_DELAY_TICKS);
-            } else if args.block == &Block::WATER
-                && is_source_water_state(state)
-                && (args.source_block == &Block::BUBBLE_COLUMN
-                    || kind_from_support(args.source_block).is_some())
-            {
-                schedule_reconcile(args.world, *args.position, CREATE_DELAY_TICKS);
-            }
+            schedule_reconcile(args.world, args.block, *args.position, CREATE_DELAY_TICKS);
         }
     }
-
-    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        let state = args.world.get_block_state_id(args.position);
-        let block = Block::from_state_id(state);
-        if block != &Block::BUBBLE_COLUMN && block != &Block::WATER {
-            return;
+    fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
+        args.block != &Block::BUBBLE_COLUMN || {
+            let below = args.block_accessor.get_block(&args.position.down());
+            below == &Block::BUBBLE_COLUMN || kind_from_support(below).is_some()
         }
-
-        let below_pos = args.position.down();
-        let below_state = args.world.get_block_state_id(&below_pos);
-        let below_block = Block::from_state_id(below_state);
-
-        match reconcile_action(block, state, below_block, below_state) {
-            ReconcileAction::SetBubble(kind) => {
-                let new_state = bubble_column_state(kind);
-                args.world
-                    .set_block_state(args.position, new_state, BlockFlags::NOTIFY_ALL);
-                schedule_reconcile(args.world, args.position.up(), CREATE_DELAY_TICKS);
+    }
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        if args.block == &Block::BUBBLE_COLUMN {
+            args.world.schedule_fluid_tick(
+                &Fluid::WATER,
+                *args.position,
+                Fluid::WATER.flow_speed as u32,
+                TickPriority::Normal,
+            );
+            let below = args.world.get_block(&args.position.down());
+            if (below != &Block::BUBBLE_COLUMN && kind_from_support(below).is_none())
+                || args.direction == pumpkin_data::BlockDirection::Down
+                || (args.direction == pumpkin_data::BlockDirection::Up
+                    && args.neighbor_state_id.to_block() != &Block::BUBBLE_COLUMN
+                    && is_source_water_state(args.neighbor_state_id))
+            {
+                schedule_reconcile(args.world, args.block, *args.position, REMOVE_DELAY_TICKS);
             }
-            ReconcileAction::RestoreWater => {
-                args.world.set_block_state(
-                    args.position,
-                    source_water_state(),
-                    BlockFlags::NOTIFY_ALL,
+        } else {
+            if World::fluid_state_from_block_state(args.state_id)
+                .1
+                .is_source
+                || World::fluid_state_from_block_state(args.neighbor_state_id)
+                    .1
+                    .is_source
+            {
+                args.world.schedule_fluid_tick(
+                    &Fluid::WATER,
+                    *args.position,
+                    Fluid::WATER.flow_speed as u32,
+                    TickPriority::Normal,
                 );
-                schedule_reconcile(args.world, args.position.up(), REMOVE_DELAY_TICKS);
             }
-            ReconcileAction::Stop => {}
+            if args.direction == pumpkin_data::BlockDirection::Down
+                && is_source_water_state(args.state_id)
+                && kind_from_support(args.neighbor_state_id.to_block()).is_some()
+            {
+                schedule_reconcile(args.world, args.block, *args.position, CREATE_DELAY_TICKS);
+            }
         }
+        args.state_id
+    }
+    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        Self::update_column(args.world, args.position);
     }
 }
 

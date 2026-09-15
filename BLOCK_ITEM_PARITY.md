@@ -18,6 +18,38 @@ This checkpoint records source changes, not a passing parity result.
   Do not commit to the hosting repository's `main` or merge the four unfinished
   `agent/mob/*` branches.
 
+## Latest continuation: falling blocks, sponges and bubble columns
+
+- Falling blocks now retain fluid at takeoff while clearing carried waterlogging,
+  persist their state/time/drop/damage flags and optional block-entity payload,
+  reject occupied or unsupported landing cells, respect the entity-drop rule,
+  time out after 600 ticks (100 outside height bounds), and preserve moving-piston
+  landing deferral. Source-water/collision ray traversal catches fast concrete
+  crossing a thin water layer; concrete hardens through the landing transition.
+- Anvils now apply falling damage to living noncreative targets, damage their own
+  anvil state probabilistically, and emit landing/break events. Falling blocks use
+  their current post-collision velocity for drag and expose pickable hitboxes.
+- Sponge traversal follows Java direction order, six-edge depth and 65 accepted
+  nodes including the origin. It drains waterlogged blocks and bubble columns,
+  drops kelp/seagrass loot and processes all neighbor notifications. Wet conversion
+  uses flag 2; drying uses event 2009 and the level-random pitch. SpongeAbsorbEvent
+  is retained before the first mutation.
+- Water now schedules its own block tick when supported by the source tags,
+  rather than a bubble-column tick that the scheduler would reject. Columns form
+  or collapse upward in the same operation, use flag 2, and schedule five-tick
+  shape reconciliation and fluid ticks. Source water uses actual fluid state.
+- Bubble motion distinguishes clear collision/fluid space above, applies surface
+  downward cap -0.9, ignores flying players and embedded arrows, and uses uncapped
+  projectile acceleration except ender pearls. Surface particles consume level
+  random draws. Inside columns reset living/falling fall distance; player air
+  recovers through the existing breathing tick instead of instantly refilling on
+  body collision. Boats use a 60-tick bubble timer and launch/eject velocities.
+- Remaining: full entity random initialization, precise/swept collision callbacks,
+  projectile subclasses and trident embedding, boat splash/physics details, mob
+  breathing, portal duplication and other nonliving fall mechanics, strict NBT
+  property codec errors, generalized bucket pickup interfaces, and custom tags /
+  environment attributes. Source review/rustfmt/diff checks only; no tests/build.
+
 ## Latest continuation: archaeology blocks and continuous brushing
 
 - Suspicious sand/gravel now schedule two-tick block updates on placement, state

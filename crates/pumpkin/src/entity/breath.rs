@@ -54,7 +54,13 @@ impl BreathManager {
             return;
         }
 
-        let in_water = player.get_entity().is_submerged_in_water();
+        let in_water = player.get_entity().is_submerged_in_water()
+            && player
+                .world()
+                .get_block(&pumpkin_util::math::position::BlockPos::floored_v(
+                    player.eye_position(),
+                ))
+                != &pumpkin_data::Block::BUBBLE_COLUMN;
         let prev = self.air_supply.load(Ordering::Relaxed);
 
         if in_water {

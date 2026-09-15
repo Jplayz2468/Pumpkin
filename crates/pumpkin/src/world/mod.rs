@@ -7464,13 +7464,13 @@ impl World {
         end: Vector3<f64>,
         hit_check: impl Fn(&BlockPos, &Arc<Self>) -> bool,
     ) -> Option<(BlockPos, BlockDirection)> {
-        self.raycast_with_shape(start, end, hit_check, false)
+        self.raycast_with_shape(start, end, hit_check, false, false)
     }
 
     pub fn has_line_of_sight(self: &Arc<Self>, start: Vector3<f64>, end: Vector3<f64>) -> bool {
         start.squared_distance_to_vec(&end) <= 128.0 * 128.0
             && self
-                .raycast_with_shape(start, end, |_, _| true, true)
+                .raycast_with_shape(start, end, |_, _| true, true, false)
                 .is_none()
     }
 
@@ -7495,12 +7495,48 @@ impl World {
         (hit.is_some(), hit.map(|(_, direction, _)| direction))
     }
 
+    /// Falling concrete uses collision shapes and source-fluid surfaces along
+    /// its movement segment, so a thin water layer cannot be skipped at speed.
+    pub fn raycast_falling_block(
+        self: &Arc<Self>,
+        start: Vector3<f64>,
+        end: Vector3<f64>,
+    ) -> Option<BlockPos> {
+        self.raycast_with_shape(start, end, |_, _| true, true, true)
+            .map(|(pos, _)| pos)
+    }
+
+    fn ray_source_fluid_check(
+        &self,
+        pos: &BlockPos,
+        from: Vector3<f64>,
+        to: Vector3<f64>,
+    ) -> (bool, Option<BlockDirection>) {
+        let collision = self.ray_collision_check(pos, from, to);
+        if collision.0 {
+            return collision;
+        }
+        let (fluid, state) = Self::fluid_state_from_block_state(self.get_block_state_id(pos));
+        if !state.is_source || state.is_empty {
+            return (false, None);
+        }
+        let min = pos.0.to_f64();
+        let max = min.add_raw(
+            1.0,
+            f64::from(self.get_fluid_height(pos, fluid, state)),
+            1.0,
+        );
+        let hit = Self::intersects_aabb_with_hit(from, to, min, max);
+        (hit.is_some(), hit.map(|(_, face, _)| face))
+    }
+
     fn raycast_with_shape(
         self: &Arc<Self>,
         start_pos: Vector3<f64>,
         end_pos: Vector3<f64>,
         hit_check: impl Fn(&BlockPos, &Arc<Self>) -> bool,
         collision_shape: bool,
+        source_fluids: bool,
     ) -> Option<(BlockPos, BlockDirection)> {
         if start_pos == end_pos {
             return None;
@@ -7513,7 +7549,9 @@ impl World {
         let mut block = BlockPos::floored(from.x, from.y, from.z);
 
         if hit_check(&block, self) {
-            let (collision, direction) = if collision_shape {
+            let (collision, direction) = if source_fluids {
+                self.ray_source_fluid_check(&block, from, to)
+            } else if collision_shape {
                 self.ray_collision_check(&block, from, to)
             } else {
                 self.ray_outline_check(&block, from, to)
@@ -7600,7 +7638,9 @@ impl World {
             };
 
             if hit_check(&block, self) {
-                let (collision, direction) = if collision_shape {
+                let (collision, direction) = if source_fluids {
+                    self.ray_source_fluid_check(&block, from, to)
+                } else if collision_shape {
                     self.ray_collision_check(&block, from, to)
                 } else {
                     self.ray_outline_check(&block, from, to)
