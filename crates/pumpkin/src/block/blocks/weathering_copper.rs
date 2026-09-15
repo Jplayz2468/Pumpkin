@@ -6,10 +6,12 @@ use pumpkin_data::block_properties::{
     MangroveRootsLikeProperties, OakDoorLikeProperties, OakFenceLikeProperties,
     OakStairsLikeProperties, OakTrapdoorLikeProperties, ResinBrickSlabLikeProperties,
 };
+use pumpkin_data::fluid::Fluid;
 use pumpkin_data::tag::Taggable;
 use pumpkin_data::{Block, BlockId, BlockState, BlockStateId, Mirror, Rotation};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
+use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::blocks::doors::DoorBlock;
@@ -1036,6 +1038,59 @@ impl BlockBehaviour for WeatheringCopperGrateBlock {
     }
 }
 
+/// Waxed copper grate blocks.
+///
+/// Vanilla's copper grates are a `minecraft:waterlogged_transparent` block type
+/// (`WaterloggedTransparentBlock.java`), shared unchanged by the waxed variants since waxing
+/// only stops `WeatheringCopper.onRandomTick` from firing, not the block class itself. Waxed
+/// grates therefore keep the same waterlogging contract as the unwaxed ones and simply never
+/// call [`change_over_time`].
+#[derive(Default)]
+pub struct WaxedCopperGrateBlock;
+
+impl BlockMetadata for WaxedCopperGrateBlock {
+    fn ids() -> Box<[BlockId]> {
+        [
+            BlockId::WAXED_COPPER_GRATE,
+            BlockId::WAXED_EXPOSED_COPPER_GRATE,
+            BlockId::WAXED_WEATHERED_COPPER_GRATE,
+            BlockId::WAXED_OXIDIZED_COPPER_GRATE,
+        ]
+        .into()
+    }
+}
+
+impl BlockBehaviour for WaxedCopperGrateBlock {
+    /// Vanilla `WaterloggedTransparentBlock.getStateForPlacement`
+    /// (`WaterloggedTransparentBlock.java:34-37`): the placed state is waterlogged exactly when
+    /// it replaces a water source block.
+    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
+        let mut props = MangroveRootsLikeProperties::default(args.block);
+        props.waterlogged = args.replacing.water_source();
+        props.to_state_id(args.block)
+    }
+
+    /// Vanilla `WaterloggedTransparentBlock.updateShape` (`WaterloggedTransparentBlock.java:40-55`):
+    /// every neighbor update on a waterlogged instance re-schedules a water tick, which is what
+    /// keeps a waterlogged grate's fluid source behaving (evaporating, flowing) like ordinary
+    /// water rather than a static, non-ticking source.
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        let props = MangroveRootsLikeProperties::from_state_id(args.state_id);
+        if props.waterlogged {
+            args.world.schedule_fluid_tick(
+                &Fluid::WATER,
+                *args.position,
+                Fluid::WATER.flow_speed as u8,
+                TickPriority::Normal,
+            );
+        }
+        props.to_state_id(args.block)
+    }
+}
+
 #[cfg(test)]
 mod copper_golem_statue_tests {
     use super::*;
@@ -1071,6 +1126,53 @@ mod copper_golem_statue_tests {
             BlockId::WAXED_OXIDIZED_COPPER_GOLEM_STATUE,
         ] {
             assert!(ids.contains(&id), "{id:?} missing from waxed statue ids");
+        }
+    }
+}
+
+#[cfg(test)]
+mod waxed_copper_grate_tests {
+    use super::*;
+
+    /// The four waxed grate blocks in the 26.2 inventory
+    /// (`comparison/inventory/26.2/blocks.json`, `block_type: "minecraft:waterlogged_transparent"`)
+    /// were previously registered nowhere, so they fell through to whatever default behaviour the
+    /// registry gives unregistered blocks -- meaning they never picked up `WATERLOGGED` on
+    /// placement. This pins the family membership `WaxedCopperGrateBlock::ids` now reports.
+    #[test]
+    fn ids_cover_all_four_waxed_variants() {
+        let ids = WaxedCopperGrateBlock::ids();
+        for id in [
+            BlockId::WAXED_COPPER_GRATE,
+            BlockId::WAXED_EXPOSED_COPPER_GRATE,
+            BlockId::WAXED_WEATHERED_COPPER_GRATE,
+            BlockId::WAXED_OXIDIZED_COPPER_GRATE,
+        ] {
+            assert!(ids.contains(&id), "{id:?} missing from waxed grate ids");
+        }
+        assert_eq!(ids.len(), 4);
+    }
+
+    /// Vanilla `WaterloggedTransparentBlock` stores waterlogging as a single boolean state
+    /// property (`WaterloggedTransparentBlock.java:21,30`), backed here by
+    /// `MangroveRootsLikeProperties` (the state-id table maps every waxed grate `BlockId` to it).
+    /// `on_place` and `get_state_for_neighbor_update` both round-trip that property through
+    /// `to_state_id`/`from_state_id`; exercise the real encode/decode for every waxed grate block
+    /// and both boolean values, the same machinery those functions call in production.
+    #[test]
+    fn waterlogged_property_round_trips_for_every_waxed_grate() {
+        for id in WaxedCopperGrateBlock::ids().iter() {
+            let block = Block::from_id(*id);
+            for waterlogged in [false, true] {
+                let mut props = MangroveRootsLikeProperties::default(block);
+                props.waterlogged = waterlogged;
+                let state_id = props.to_state_id(block);
+                let round_tripped = MangroveRootsLikeProperties::from_state_id(state_id);
+                assert_eq!(
+                    round_tripped.waterlogged, waterlogged,
+                    "{id:?} did not round-trip waterlogged={waterlogged}"
+                );
+            }
         }
     }
 }

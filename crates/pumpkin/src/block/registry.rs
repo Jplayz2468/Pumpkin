@@ -229,9 +229,9 @@ use crate::block::blocks::skull_block::SkullBlock;
 use crate::block::blocks::smoker::SmokerBlock;
 use crate::block::blocks::stonecutter::StonecutterBlock;
 use crate::block::blocks::weathering_copper::{
-    WaxedCopperGolemStatueBlock, WeatheringCopperBlock, WeatheringCopperDoorBlock,
-    WeatheringCopperGrateBlock, WeatheringCopperSlabBlock, WeatheringCopperStairBlock,
-    WeatheringCopperTrapDoorBlock,
+    WaxedCopperGolemStatueBlock, WaxedCopperGrateBlock, WeatheringCopperBlock,
+    WeatheringCopperDoorBlock, WeatheringCopperGrateBlock, WeatheringCopperSlabBlock,
+    WeatheringCopperStairBlock, WeatheringCopperTrapDoorBlock,
 };
 
 #[must_use]
@@ -354,6 +354,7 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(WaxedCopperGolemStatueBlock);
     manager.register(WeatheringCopperDoorBlock);
     manager.register(WeatheringCopperGrateBlock);
+    manager.register(WaxedCopperGrateBlock);
     manager.register(WeatheringCopperSlabBlock);
     manager.register(WeatheringCopperStairBlock);
     manager.register(WeatheringCopperTrapDoorBlock);
