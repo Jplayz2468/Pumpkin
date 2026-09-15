@@ -61,6 +61,7 @@ use crate::block::blocks::logs::LogBlock;
 use crate::block::blocks::loom::LoomBlock;
 use crate::block::blocks::magma::MagmaBlock;
 use crate::block::blocks::mangrove_roots::MangroveRootsBlock;
+use crate::block::blocks::moss_block::MossBlock;
 use crate::block::blocks::mud::MudBlock;
 use crate::block::blocks::nether_portal::NetherPortalBlock;
 use crate::block::blocks::note::NoteBlock;
@@ -394,6 +395,7 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(EndRodBlock);
     manager.register(BarrierBlock);
     manager.register(MangroveRootsBlock);
+    manager.register(MossBlock);
     manager.register(LayeredSnowBlock);
     manager.register(CobwebBlock);
     manager.register(WitherRoseBlock);

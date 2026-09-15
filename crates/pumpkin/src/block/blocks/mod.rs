@@ -86,6 +86,7 @@ pub mod huge_mushroom;
 pub mod leaves;
 pub mod logs;
 pub mod mangrove_roots;
+pub mod moss_block;
 pub mod plant;
 pub mod pumpkin;
 pub mod sculk;
