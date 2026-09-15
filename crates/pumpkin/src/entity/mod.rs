@@ -265,6 +265,14 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         caller.damage_with_context(caller, amount, damage_type, None, None, None)
     }
 
+    /// Damages equipped armor durability when this entity is hit by `damage_type` for
+    /// `damage` (the pre-reduction amount). Mirrors vanilla `LivingEntity.hurtArmor`
+    /// (LivingEntity.java:1886), which is a no-op by default -- only `Player` overrides it
+    /// (Player.java:738, damages all 4 armor slots via `doHurtEquipment`); regular `Mob`s
+    /// do not override it either, so the no-op default is correct for them too. Called from
+    /// `LivingEntity::get_damage_after_armor_absorb`.
+    fn hurt_armor(&self, _damage_type: DamageType, _damage: f32) {}
+
     fn on_lightning_strike(
         &self,
         caller: &dyn EntityBase,
