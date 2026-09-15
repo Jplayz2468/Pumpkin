@@ -24,6 +24,7 @@ impl MobEffect for WindChargedMobEffect {
             gust_strength,
             ExplosionInteraction::Trigger,
             Some(BREEZE_WIND_CHARGE_EXPLOSION_DAMAGE_CALCULATOR.clone()),
+            false,
         );
 
         world.play_sound(

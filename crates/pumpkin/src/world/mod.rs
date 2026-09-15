@@ -4392,18 +4392,27 @@ impl World {
         power: f32,
         interaction: ExplosionInteraction,
     ) {
-        self.explode_with_calculator(position, power, interaction, None);
+        self.explode_with_calculator(position, power, interaction, None, false);
     }
 
+    /// `caused_by_player` mirrors vanilla's `Explosion#getIndirectSourceEntity() instanceof
+    /// Player` check (`BlockBehaviour.java:180`): pass `true` only when the explosion's
+    /// indirect source entity is a player (e.g. TNT a player ignited), so ore it breaks
+    /// drops experience. A creeper or other non-player `LivingEntity` source, and a
+    /// sourceless explosion (bed / respawn anchor), must pass `false`.
     pub fn explode_with_calculator(
         self: &Arc<Self>,
         position: Vector3<f64>,
         power: f32,
         interaction: ExplosionInteraction,
         damage_calculator: Option<Arc<dyn ExplosionDamageCalculator>>,
+        caused_by_player: bool,
     ) {
         let block_interaction = self.get_block_interaction(interaction);
         let mut explosion = Explosion::new(power, position, block_interaction);
+        if caused_by_player {
+            explosion = explosion.caused_by_player();
+        }
         if let Some(calc) = damage_calculator {
             explosion = explosion.with_damage_calculator(calc);
         }
