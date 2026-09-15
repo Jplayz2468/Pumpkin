@@ -190,6 +190,14 @@ pub struct Explosion {
     block_interaction: BlockInteraction,
     damage_calculator: Option<Arc<dyn ExplosionDamageCalculator>>,
     preserve_rails: bool,
+    /// Whether this explosion's indirect source entity is a player. Vanilla decides this
+    /// with `explosion.getIndirectSourceEntity() instanceof Player`
+    /// (`BlockBehaviour.java:180`), where `getIndirectSourceEntity` resolves to: the
+    /// primed TNT's igniting player for TNT, the entity itself for any other
+    /// `LivingEntity` source (e.g. a creeper, which is never a `Player`), and `null` for a
+    /// sourceless explosion (bed / respawn anchor). It controls whether ore broken by the
+    /// explosion drops experience.
+    caused_by_player: bool,
 }
 
 impl Explosion {
@@ -201,7 +209,14 @@ impl Explosion {
             block_interaction,
             damage_calculator: None,
             preserve_rails: false,
+            caused_by_player: false,
         }
+    }
+
+    #[must_use]
+    pub const fn caused_by_player(mut self) -> Self {
+        self.caused_by_player = true;
+        self
     }
 
     #[must_use]
@@ -505,6 +520,7 @@ impl Explosion {
                             world,
                             block,
                             position: pos,
+                            caused_by_player: self.caused_by_player,
                         });
                     }
                 }
@@ -554,13 +570,17 @@ impl Explosion {
                             is_thundering: Some(is_thundering),
                             ..Default::default()
                         };
-                        drop_loot(world, block, pos, false, &params);
+                        // Vanilla: `doDropExperienceHack = explosion.getIndirectSourceEntity()
+                        // instanceof Player` (BlockBehaviour.java:180), passed into
+                        // `state.spawnAfterBreak(..., doDropExperienceHack)` (line 192).
+                        drop_loot(world, block, pos, self.caused_by_player, &params);
                     }
                     if let Some(pumpkin_block) = pumpkin_block {
                         pumpkin_block.explode(ExplodeArgs {
                             world,
                             block,
                             position: pos,
+                            caused_by_player: self.caused_by_player,
                         });
                     }
                 }

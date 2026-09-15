@@ -95,6 +95,7 @@ impl WindChargeEntity {
             power,
             crate::world::ExplosionInteraction::Trigger,
             Some(calculator),
+            false,
         );
     }
 

@@ -612,7 +612,7 @@ impl DispenserBlock {
         let spawn_pos = Self::target_position(ctx).to_f64();
 
         let entity = Entity::new(ctx.world.clone(), spawn_pos, &EntityType::TNT);
-        let tnt = Arc::new(TNTEntity::new(entity, TNT_POWER, TNT_FUSE));
+        let tnt = Arc::new(TNTEntity::new(entity, TNT_POWER, TNT_FUSE, false));
         ctx.world.spawn_entity(tnt);
         ctx.world
             .play_sound(Sound::EntityTntPrimed, SoundCategory::Blocks, &spawn_pos);
@@ -882,7 +882,7 @@ impl DispenserBlock {
         let front_block = ctx.world.get_block(&front);
 
         let ignited = if front_block == &Block::TNT {
-            TNTBlock::prime(ctx.world, &front)
+            TNTBlock::prime(ctx.world, &front, false)
         } else {
             Ignition::ignite_block(
                 |world: Arc<World>, pos: BlockPos, new_state_id: BlockStateId| {

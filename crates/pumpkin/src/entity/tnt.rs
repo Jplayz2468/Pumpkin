@@ -16,14 +16,20 @@ pub struct TNTEntity {
     entity: Entity,
     power: f32,
     fuse: AtomicU32,
+    /// Whether a player directly primed this TNT (e.g. with flint and steel or a fire
+    /// charge). Mirrors vanilla's `PrimedTnt#owner`, which is set from the igniting
+    /// player and is only used to decide whether broken ore drops experience
+    /// (`BlockBehaviour.java:180`: `explosion.getIndirectSourceEntity() instanceof Player`).
+    primed_by_player: bool,
 }
 
 impl TNTEntity {
-    pub const fn new(entity: Entity, power: f32, fuse: u32) -> Self {
+    pub const fn new(entity: Entity, power: f32, fuse: u32, primed_by_player: bool) -> Self {
         Self {
             entity,
             power,
             fuse: AtomicU32::new(fuse),
+            primed_by_player,
         }
     }
 }
@@ -63,7 +69,13 @@ impl EntityBase for TNTEntity {
             let pos = self.entity.pos.load();
             let power = self.power;
             if world.level_info.load().game_rules.tnt_explodes {
-                world.explode(pos, power, crate::world::ExplosionInteraction::Tnt);
+                world.explode_with_calculator(
+                    pos,
+                    power,
+                    crate::world::ExplosionInteraction::Tnt,
+                    None,
+                    self.primed_by_player,
+                );
             }
         } else {
             // Safe decrement

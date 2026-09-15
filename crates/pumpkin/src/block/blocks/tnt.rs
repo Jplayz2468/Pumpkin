@@ -31,7 +31,13 @@ const DEFAULT_FUSE: u32 = 80;
 const DEFAULT_POWER: f32 = 4.0;
 
 impl TNTBlock {
-    pub fn prime(world: &Arc<World>, location: &BlockPos) -> bool {
+    /// Primes TNT at `location`. `primed_by_player` mirrors vanilla's
+    /// `TntBlock#prime(Level, BlockPos, LivingEntity)` owner argument: it is only `true`
+    /// when a player directly ignites the TNT (flint and steel / fire charge), matching
+    /// `TntBlock.java`'s `useItemOn` (passes `player`) versus its redstone/`playerWillDestroy`
+    /// call sites (pass no source). This is later used to decide whether the resulting
+    /// explosion drops experience from broken ore (`BlockBehaviour.java:180`).
+    pub fn prime(world: &Arc<World>, location: &BlockPos, primed_by_player: bool) -> bool {
         if !world.level_info.load().game_rules.tnt_explodes {
             return false;
         }
@@ -68,7 +74,12 @@ impl TNTBlock {
             return false;
         }
 
-        let tnt = Arc::new(TNTEntity::new(entity, DEFAULT_POWER, DEFAULT_FUSE));
+        let tnt = Arc::new(TNTEntity::new(
+            entity,
+            DEFAULT_POWER,
+            DEFAULT_FUSE,
+            primed_by_player,
+        ));
         world.spawn_entity(tnt);
         world.play_sound(
             pumpkin_data::sound::Sound::EntityTntPrimed,
@@ -87,7 +98,7 @@ impl BlockBehaviour for TNTBlock {
             return BlockActionResult::PassToDefaultBlockAction;
         }
 
-        if Self::prime(args.world, args.position) {
+        if Self::prime(args.world, args.position, true) {
             if args.player.gamemode.load() != GameMode::Creative {
                 if item_id == Item::FLINT_AND_STEEL.id {
                     let _ = args.item_stack.damage_item(1);
@@ -111,13 +122,13 @@ impl BlockBehaviour for TNTBlock {
         if args.block != Block::from_state_id(args.old_state_id)
             && block_receives_redstone_power(args.world, args.position)
         {
-            Self::prime(args.world, args.position);
+            Self::prime(args.world, args.position, false);
         }
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
         if block_receives_redstone_power(args.world, args.position) {
-            Self::prime(args.world, args.position);
+            Self::prime(args.world, args.position, false);
         }
     }
 
@@ -125,14 +136,20 @@ impl BlockBehaviour for TNTBlock {
         if args.player.gamemode.load() != GameMode::Creative {
             let props = TntLikeProperties::from_state_id(args.state.id);
             if props.r#unstable {
-                Self::prime(args.world, args.position);
+                // Vanilla's `playerWillDestroy` calls the no-source `prime` overload
+                // (`TntBlock.java`'s public `prime(Level, BlockPos)`), so the breaking
+                // player is NOT credited as the indirect source here either.
+                Self::prime(args.world, args.position, false);
             }
         }
     }
 
     fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
         if args.projectile.get_entity().is_on_fire() {
-            Self::prime(args.world, args.position);
+            // Vanilla credits the projectile's owner when it's a LivingEntity
+            // (`TntBlock.java` onProjectileHit). Pumpkin doesn't currently expose the
+            // projectile's owner as an entity here, so this stays conservative (false).
+            Self::prime(args.world, args.position, false);
         }
     }
 
@@ -147,7 +164,15 @@ impl BlockBehaviour for TNTBlock {
         );
         let entity = Entity::new(args.world.clone(), spawn_pos, &EntityType::TNT);
         let fuse = rand::rng().random_range(0..DEFAULT_FUSE / 4) + DEFAULT_FUSE / 8;
-        let tnt = Arc::new(TNTEntity::new(entity, DEFAULT_POWER, fuse));
+        // Vanilla propagates the triggering explosion's indirect source entity onto the
+        // newly spawned PrimedTnt (`TntBlock.java` `wasExploded`), so a chain reaction
+        // that started with a player-primed explosion keeps crediting that player.
+        let tnt = Arc::new(TNTEntity::new(
+            entity,
+            DEFAULT_POWER,
+            fuse,
+            args.caused_by_player,
+        ));
         args.world.spawn_entity(tnt);
     }
 

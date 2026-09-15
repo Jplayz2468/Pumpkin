@@ -290,6 +290,11 @@ pub struct ExplodeArgs<'a> {
     pub world: &'a Arc<World>,
     pub block: &'a Block,
     pub position: &'a BlockPos,
+    /// Whether the triggering explosion's indirect source entity is a player
+    /// (`Explosion.getIndirectSourceEntity() instanceof Player` in `BlockBehaviour.java:180`).
+    /// Used by chain-reacting TNT to propagate ownership like vanilla's
+    /// `TntBlock#wasExploded`.
+    pub caused_by_player: bool,
 }
 
 pub struct OnSyncedBlockEventArgs<'a> {
