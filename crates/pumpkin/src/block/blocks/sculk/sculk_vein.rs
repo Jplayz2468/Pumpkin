@@ -1,9 +1,9 @@
-use pumpkin_inventory::screen_handler::InventoryPlayer;
 use rustc_hash::FxHashSet;
 
+use super::spreader::{bonemeal_lichen, can_attach, can_bonemeal_lichen};
 use crate::block::{
     BlockBehaviour, BlockIsReplacing, BlockMetadata, BonemealArgs, CanPlaceAtArgs, CanUpdateAtArgs,
-    GetStateForNeighborUpdateArgs, OnPlaceArgs, UseWithItemArgs, registry::BlockActionResult,
+    GetStateForNeighborUpdateArgs, OnPlaceArgs,
 };
 use crate::entity::{EntityBase, player::Player};
 use pumpkin_data::fluid::Fluid;
@@ -13,7 +13,7 @@ use pumpkin_data::{
 };
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
-use pumpkin_world::world::{BlockAccessor, BlockFlags};
+use pumpkin_world::world::BlockAccessor;
 
 pub struct MultifaceBlock;
 
@@ -37,13 +37,12 @@ impl BlockBehaviour for MultifaceBlock {
                 args.block,
                 Some(args.player),
                 args.direction,
-                true,
+                args.use_item_on.position == *args.position,
             ) else {
                 return Block::AIR.default_state.id;
             };
             let mut props = GlowLichenLikeProperties::from_state_id(state_id);
             set_face(&mut props, direction);
-            props.waterlogged = args.replacing.water_source();
             return props.to_state_id(args.block);
         }
         let (Some(direction), _) = get_attach_direction(
@@ -52,40 +51,44 @@ impl BlockBehaviour for MultifaceBlock {
             args.block,
             Some(args.player),
             args.direction,
-            false,
+            args.use_item_on.position == *args.position,
         ) else {
             return Block::AIR.default_state.id;
         };
         let mut props = GlowLichenLikeProperties::default(args.block);
         set_face(&mut props, direction);
-        props.waterlogged = args.replacing.water_source();
+        let (fluid, fluid_state) = crate::world::World::fluid_state_from_block_state(
+            args.world.get_block_state_id(args.position),
+        );
+        props.waterlogged = fluid.matches_type(&Fluid::WATER) && fluid_state.is_source;
         props.to_state_id(args.block)
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        get_attach_direction(
-            args.block_accessor,
-            args.position,
-            args.block,
-            args.player,
-            args.direction.unwrap_or(BlockDirection::Down),
-            false,
-        )
-        .0
-        .is_some()
+        if let Some(packet) = args.use_item_on {
+            get_attach_direction(
+                args.block_accessor,
+                args.position,
+                args.block,
+                args.player,
+                args.direction.unwrap_or(BlockDirection::Down),
+                packet.position == *args.position,
+            )
+            .0
+            .is_some()
+        } else {
+            let faces = active_directions(GlowLichenLikeProperties::from_state_id(args.state.id));
+            !faces.is_empty()
+                && faces
+                    .into_iter()
+                    .all(|dir| can_attach(args.block_accessor, *args.position, dir))
+        }
     }
 
     fn can_update_at(&self, args: CanUpdateAtArgs<'_>) -> bool {
-        get_attach_direction(
-            args.world,
-            args.position,
-            args.block,
-            Some(args.player),
-            args.direction,
-            true,
-        )
-        .0
-        .is_some()
+        // MultifaceBlock.canBeReplaced only checks for a vacant face. Placement
+        // then selects a supported face in the player's nearest-looking order.
+        active_directions(GlowLichenLikeProperties::from_state_id(args.state_id)).len() < 6
     }
 
     fn get_state_for_neighbor_update(
@@ -103,10 +106,7 @@ impl BlockBehaviour for MultifaceBlock {
         }
 
         let mut new_directions = active_directions(old_props);
-        let support = args
-            .world
-            .get_block(&args.position.offset(args.direction.to_offset()));
-        if !is_solid_face(support) {
+        if !can_attach(args.world.as_ref(), *args.position, args.direction) {
             new_directions.remove(&args.direction);
         }
 
@@ -121,70 +121,15 @@ impl BlockBehaviour for MultifaceBlock {
         new_props.to_state_id(args.block)
     }
 
-    fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
-        if args.item_stack.item.id != args.block.id.as_u16() {
-            return BlockActionResult::Pass;
-        }
-        let state = args.world.get_block_state(args.position);
-        let mut props = GlowLichenLikeProperties::from_state_id(state.id);
-
-        let (Some(accurate_dir), _) = get_attach_direction(
-            args.world.as_ref(),
-            args.position,
-            args.block,
-            Some(args.player),
-            *args.hit.face,
-            true,
-        ) else {
-            return BlockActionResult::Fail;
-        };
-        set_face(&mut props, accurate_dir);
-
-        args.world.set_block_state(
-            args.position,
-            props.to_state_id(args.block),
-            BlockFlags::NOTIFY_ALL,
-        );
-        // Vanilla `MultifaceBlock` (sculk vein, glow lichen, resin clump) has no
-        // `useItemOn` override (checked MultifaceBlock.java): attaching an extra face
-        // happens purely through `canBeReplaced`/`getStateForPlacement`
-        // (MultifaceBlock.java:175-217), the ordinary BlockItem placement flow that
-        // consumes through `BlockItem.place` -> `ItemStack.consume` (BlockItem.java:89,
-        // ItemStack.java:1082-1086). This `use_with_item` arm duplicates that combine
-        // logic and returns `Consume`, which short-circuits before Pumpkin's
-        // placement-decrement logic in `use_item_on.rs` ever runs, so the decrement has
-        // to happen here instead.
-        if !args.player.has_infinite_materials() {
-            args.item_stack.decrement(1);
-        }
-        BlockActionResult::Consume
-    }
-
     fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
-        if args.block != &Block::GLOW_LICHEN {
-            return false;
-        }
-        let props = GlowLichenLikeProperties::from_state_id(args.state_id);
-        let active = active_directions(props);
-        active.len() < 6
+        args.block.id == BlockId::GLOW_LICHEN
+            && can_bonemeal_lichen(args.world, *args.position, args.state_id.to_state())
     }
 
     fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
-        if args.block != &Block::GLOW_LICHEN {
-            return;
+        if args.block.id == BlockId::GLOW_LICHEN {
+            bonemeal_lichen(args.world, *args.position, args.state_id.to_state());
         }
-        let mut props = GlowLichenLikeProperties::from_state_id(args.state_id);
-        for dir in BlockDirection::all() {
-            let support = args.world.get_block(&args.position.offset(dir.to_offset()));
-            if is_solid_face(support) {
-                set_face(&mut props, dir);
-            }
-        }
-        args.world.set_block_state(
-            args.position,
-            props.to_state_id(args.block),
-            BlockFlags::NOTIFY_ALL,
-        );
     }
 }
 
@@ -194,51 +139,31 @@ fn get_attach_direction(
     target_block: &Block,
     player_wrapper: Option<&Player>,
     click_direction: BlockDirection,
-    replacing: bool,
+    replacing_clicked: bool,
 ) -> (Option<BlockDirection>, bool) {
-    let clicked_block = block_accessor.get_block(&block_pos.offset(click_direction.to_offset()));
-
-    if !replacing && clicked_block == target_block {
-        return (None, false);
-    }
-
-    if is_solid_face(clicked_block) {
-        return (Some(click_direction), false);
-    }
-
-    let (replacing_block, replacing_block_state) = block_accessor.get_block_and_state(block_pos);
-    let already_active = if replacing_block == target_block {
-        active_directions(GlowLichenLikeProperties::from_state_id(
-            replacing_block_state.id,
-        ))
+    let (old_block, old_state) = block_accessor.get_block_and_state(block_pos);
+    let active = if old_block == target_block {
+        active_directions(GlowLichenLikeProperties::from_state_id(old_state.id))
     } else {
         FxHashSet::default()
     };
-
-    if let Some(player) = player_wrapper {
-        let fs = player.get_entity().get_entity_facing_order();
-        let directions = [
-            fs[0].to_block_direction(),
-            fs[1].to_block_direction(),
-            fs[2].to_block_direction(),
-            fs[3].to_block_direction(),
-            fs[4].to_block_direction(),
-            fs[5].to_block_direction(),
-        ];
-        for dir in directions {
-            if !already_active.contains(&dir) {
-                let support = block_accessor.get_block(&block_pos.offset(dir.to_offset()));
-                if is_solid_face(support) {
-                    return (Some(dir), false);
-                }
-            }
-        }
+    let mut directions = player_wrapper.map_or(BlockDirection::all(), |player| {
+        player
+            .get_entity()
+            .get_entity_facing_order()
+            .map(|facing| facing.to_block_direction())
+    });
+    if !replacing_clicked
+        && let Some(index) = directions.iter().position(|dir| *dir == click_direction)
+    {
+        directions[..=index].rotate_right(1);
     }
-    (None, false)
-}
-
-const fn is_solid_face(block: &Block) -> bool {
-    block.default_state.is_full_cube()
+    (
+        directions
+            .into_iter()
+            .find(|dir| !active.contains(dir) && can_attach(block_accessor, *block_pos, *dir)),
+        false,
+    )
 }
 
 fn active_directions(props: GlowLichenLikeProperties) -> FxHashSet<BlockDirection> {

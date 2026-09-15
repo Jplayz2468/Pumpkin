@@ -101,6 +101,10 @@ pub struct LivingEntity {
     pub death_time: AtomicU8,
     /// Indicates whether the entity is dead. (`on_death` called)
     pub dead: AtomicBool,
+    /// Transient vanilla LivingEntity XP-consumption flag, shared by nearby catalysts.
+    pub experience_consumed: AtomicBool,
+    pub last_damage_source_entity_id: AtomicI32,
+    pub last_damage_source_time: AtomicI64,
     /// The distance the entity has been falling.
     pub fall_distance: AtomicCell<f32>,
     pub active_effects: std::sync::Mutex<FxHashMap<&'static StatusEffect, EffectInstance>>,
@@ -311,6 +315,9 @@ impl LivingEntity {
             fall_distance: AtomicCell::new(0.0),
             death_time: AtomicU8::new(0),
             dead: AtomicBool::new(false),
+            experience_consumed: AtomicBool::new(false),
+            last_damage_source_entity_id: AtomicI32::new(-1),
+            last_damage_source_time: AtomicI64::new(0),
             item_use_time: AtomicI32::new(0),
             item_in_use: std::sync::Mutex::new(None),
             active_hand: std::sync::Mutex::new(None),
@@ -2436,7 +2443,9 @@ impl LivingEntity {
             self.drop_loot(&params);
 
             // Award experience
-            if params.killed_by_player.unwrap_or(false)
+            if !self.experience_consumed.load(Relaxed)
+                && params.killed_by_player.unwrap_or(false)
+                && dyn_self.should_drop_experience()
                 && world.level_info.load().game_rules.mob_drops
             {
                 let amount = dyn_self.get_experience_reward(killer);
@@ -2954,6 +2963,9 @@ impl LivingEntity {
             player.hunger_manager.restart();
         }
 
+        self.experience_consumed.store(false, Relaxed);
+        self.last_damage_source_entity_id.store(-1, Relaxed);
+        self.last_damage_source_time.store(0, Relaxed);
         self.dead.store(false, Relaxed);
     }
 
@@ -3811,7 +3823,24 @@ impl LivingEntity {
                 (damage_blocked * 10.0).round() as i32,
             );
         }
-        !blocked || amount > 0.0
+        let success = !blocked || amount > 0.0;
+        if success {
+            // LivingEntity.hurtServer records this AFTER die(). A catalyst handling
+            // ENTITY_DIE reads the preceding successful damage source, if still fresh.
+            self.last_damage_source_entity_id.store(
+                cause.map_or(-1, |entity| entity.get_entity().entity_id),
+                Relaxed,
+            );
+            self.last_damage_source_time.store(
+                world
+                    .level_time
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .world_age,
+                Relaxed,
+            );
+        }
+        success
     }
 
     pub fn damage(&self, caller: &dyn EntityBase, amount: f32, damage_type: DamageType) -> bool {

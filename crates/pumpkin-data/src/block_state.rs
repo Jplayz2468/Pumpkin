@@ -200,6 +200,84 @@ impl BlockState {
             .map(move |shape| shape.shift(offset))
     }
 
+    /// Whether the union of a collision face covers the given rectangle, in local
+    /// coordinates. Region axes are X/Z on horizontal faces, X/Y on Z, and Y/Z on X.
+    /// This implements !Shapes.joinIsNotEmpty(test, faceShape, ONLY_FIRST).
+    pub fn collision_face_covers(
+        &self,
+        pos: BlockPos,
+        side: BlockDirection,
+        region: [f64; 4],
+    ) -> bool {
+        // Check the union, not just individual boxes (stairs can tile a full face).
+        let rectangles: Vec<_> = self
+            .get_block_collision_shapes_at(&pos)
+            .filter_map(|shape| {
+                let (min, max, a, b, c, d) = match side {
+                    BlockDirection::Down | BlockDirection::Up => (
+                        shape.min.y,
+                        shape.max.y,
+                        shape.min.x,
+                        shape.max.x,
+                        shape.min.z,
+                        shape.max.z,
+                    ),
+                    BlockDirection::North | BlockDirection::South => (
+                        shape.min.z,
+                        shape.max.z,
+                        shape.min.x,
+                        shape.max.x,
+                        shape.min.y,
+                        shape.max.y,
+                    ),
+                    BlockDirection::West | BlockDirection::East => (
+                        shape.min.x,
+                        shape.max.x,
+                        shape.min.y,
+                        shape.max.y,
+                        shape.min.z,
+                        shape.max.z,
+                    ),
+                };
+                let boundary = if side.positive() { 1.0 } else { 0.0 };
+                (min <= boundary + 1.0e-7
+                    && max >= boundary - 1.0e-7
+                    && b > region[0]
+                    && a < region[1]
+                    && d > region[2]
+                    && c < region[3])
+                    .then_some((
+                        a.max(region[0]),
+                        b.min(region[1]),
+                        c.max(region[2]),
+                        d.min(region[3]),
+                    ))
+            })
+            .collect();
+        let mut edges = vec![region[0], region[1]];
+        for &(a, b, _, _) in &rectangles {
+            edges.extend([a, b]);
+        }
+        edges.sort_by(f64::total_cmp);
+        edges.dedup();
+        edges.windows(2).all(|interval| {
+            let mut strips: Vec<_> = rectangles
+                .iter()
+                .filter(|&&(a, b, _, _)| a <= interval[0] && b >= interval[1])
+                .map(|&(_, _, c, d)| (c, d))
+                .collect();
+            strips.sort_by(|a, b| a.0.total_cmp(&b.0));
+            let mut end = region[2];
+            for (start, stop) in strips {
+                if start > end {
+                    return false;
+                }
+                end = end.max(stop);
+            }
+            end >= region[3]
+        })
+    }
+
     pub fn get_block_outline_shapes(&self) -> impl Iterator<Item = BoundingBox> + '_ {
         let base_shapes = self
             .outline_shapes

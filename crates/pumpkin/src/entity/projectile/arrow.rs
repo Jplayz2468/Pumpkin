@@ -837,7 +837,7 @@ impl EntityBase for ArrowEntity {
                     if self.has_hit.swap(true, Ordering::SeqCst) {
                         return;
                     }
-                    caller.on_hit(h);
+                    super::handle_hit(caller, h);
                 }
                 ProjectileHit::Entity { .. } => {
                     let pierce = self.pierce_level.load(Ordering::Relaxed);
@@ -849,7 +849,7 @@ impl EntityBase for ArrowEntity {
                     if pierced_len >= pierce as usize && self.has_hit.swap(true, Ordering::SeqCst) {
                         return;
                     }
-                    caller.on_hit(h);
+                    super::handle_hit(caller, h);
                 }
             }
         }

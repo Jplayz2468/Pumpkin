@@ -22,7 +22,7 @@ use pumpkin_data::tag::Tag;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 
-use crate::world::World;
+use crate::{entity::EntityBase, world::World};
 
 /// `VibrationSystem.NO_VIBRATION_FREQUENCY`: an event no sensor reacts to.
 pub const NO_VIBRATION_FREQUENCY: u8 = 0;
@@ -200,6 +200,17 @@ impl VibrationInfo {
         source_entity: Option<i32>,
     ) -> Self {
         let source = source_entity.and_then(|id| world.get_entity_by_id(id));
+        Self::from_entity(world, event, distance, origin, source.as_deref())
+    }
+
+    fn from_entity(
+        world: &World,
+        event: GameEvent,
+        distance: f32,
+        origin: Vector3<f64>,
+        source: Option<&dyn EntityBase>,
+    ) -> Self {
+        let source_entity = source.map(|entity| entity.get_entity().entity_id);
         let source_uuid = source.as_ref().map(|e| e.get_entity().entity_uuid);
         let projectile_owner_uuid = source
             .and_then(|e| e.get_owner_id())
@@ -336,11 +347,25 @@ impl VibrationData {
         source_entity: Option<i32>,
         game_time: u64,
     ) -> bool {
+        let source = source_entity.and_then(|id| world.get_entity_by_id(id));
+        self.handle_game_event_from_entity(world, user, event, origin, source.as_deref(), game_time)
+    }
+
+    fn handle_game_event_from_entity(
+        &mut self,
+        world: &Arc<World>,
+        user: &dyn VibrationUser,
+        event: GameEvent,
+        origin: Vector3<f64>,
+        source: Option<&dyn EntityBase>,
+        game_time: u64,
+    ) -> bool {
+        let source_entity = source.map(|entity| entity.get_entity().entity_id);
         // A listener already carrying a vibration ignores everything until it lands.
         if self.current.is_some() {
             return false;
         }
-        if !is_valid_vibration(world, user, event, source_entity) {
+        if !is_valid_vibration(user, event, source) {
             return false;
         }
 
@@ -361,7 +386,7 @@ impl VibrationData {
 
         let distance = (origin.squared_distance_to_vec(&dest)).sqrt() as f32;
         self.add_candidate(
-            VibrationInfo::new(world, event, distance, origin, source_entity),
+            VibrationInfo::from_entity(world, event, distance, origin, source),
             game_time,
         );
         true
@@ -477,18 +502,29 @@ pub trait VibrationListener: VibrationUser + Send + Sync {
         source_entity: Option<i32>,
         game_time: u64,
     ) {
-        let mut data = self
-            .vibration_data()
+        let source = source_entity.and_then(|id| world.get_entity_by_id(id));
+        self.handle_vibration_from_entity(world, event, origin, source.as_deref(), game_time);
+    }
+
+    fn handle_vibration_from_entity(
+        &self,
+        world: &Arc<World>,
+        event: GameEvent,
+        origin: Vector3<f64>,
+        source: Option<&dyn EntityBase>,
+        game_time: u64,
+    ) {
+        self.vibration_data()
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        data.handle_game_event(
-            world,
-            self.as_vibration_user(),
-            event,
-            origin,
-            source_entity,
-            game_time,
-        );
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .handle_game_event_from_entity(
+                world,
+                self.as_vibration_user(),
+                event,
+                origin,
+                source,
+                game_time,
+            );
     }
 
     /// Advance this listener one tick, delivering a vibration if one arrives.
@@ -643,19 +679,14 @@ fn send_vibration_particle(
 
 /// `VibrationSystem.User.isValidVibration` (VibrationSystem.java:414).
 fn is_valid_vibration(
-    world: &Arc<World>,
     user: &dyn VibrationUser,
     event: GameEvent,
-    source_entity: Option<i32>,
+    source: Option<&dyn EntityBase>,
 ) -> bool {
     if !event_in_tag(event, &user.listenable_events()) {
         return false;
     }
-
-    let Some(entity_id) = source_entity else {
-        return true;
-    };
-    let Some(entity) = world.get_entity_by_id(entity_id) else {
+    let Some(entity) = source else {
         return true;
     };
 
@@ -683,7 +714,7 @@ fn is_valid_vibration(
     }
 
     // Dropped wool items and a warden's own footsteps dampen vibrations.
-    !entity_dampens_vibrations(entity.as_ref())
+    !entity_dampens_vibrations(entity)
 }
 
 /// Entity.java:1555, ItemEntity.java:85 and Warden.java:195. Equipped wool does
@@ -805,6 +836,16 @@ pub fn dispatch(
     origin: Vector3<f64>,
     source_entity: Option<i32>,
 ) {
+    let source = source_entity.and_then(|id| world.get_entity_by_id(id));
+    dispatch_from_entity(world, event, origin, source.as_deref());
+}
+
+pub fn dispatch_from_entity(
+    world: &Arc<World>,
+    event: GameEvent,
+    origin: Vector3<f64>,
+    source: Option<&dyn EntityBase>,
+) {
     // An event no sensor has a frequency for can never produce a vibration, so skip the
     // whole search rather than waking every nearby block entity for it.
     if vibration_frequency(event) == NO_VIBRATION_FREQUENCY
@@ -858,7 +899,7 @@ pub fn dispatch(
                 if dx * dx + dy * dy + dz * dz > radius * radius {
                     continue;
                 }
-                listener.handle_vibration(world, event, origin, source_entity, game_time);
+                listener.handle_vibration_from_entity(world, event, origin, source, game_time);
             }
         }
     }

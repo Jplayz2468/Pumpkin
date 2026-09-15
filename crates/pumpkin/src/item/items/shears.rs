@@ -91,7 +91,6 @@ fn handle_growing_plant(
     };
 
     let world = player.world();
-    world.set_block_state(location, new_state_id, BlockFlags::NOTIFY_ALL);
     world.play_sound(
         Sound::BlockGrowingPlantCrop,
         SoundCategory::Blocks,
@@ -119,7 +118,7 @@ fn handle_beehive(
         return false;
     }
 
-    let mut props = BeeNestLikeProperties::from_state_id(state_id);
+    let props = BeeNestLikeProperties::from_state_id(state_id);
 
     if props.honey_level != 5 {
         return false;
@@ -143,30 +142,7 @@ fn handle_beehive(
         drops = event.harvested_items;
     }
 
-    props.honey_level = 0;
-    let new_state_id = props.to_state_id(block);
-
     let world = player.world();
-    world.set_block_state(location, new_state_id, BlockFlags::NOTIFY_ALL);
-    // BeehiveBlock.java:166 plays this at the player's position, not the hive's.
-    let player_pos = player.living_entity.entity.pos.load();
-    world.play_sound(Sound::BlockBeehiveShear, SoundCategory::Blocks, &player_pos);
-    world.emit_game_event_with_source(
-        GameEvent::Shear.name(),
-        location.to_centered_f64(),
-        Some(player.living_entity.entity.entity_id),
-    );
-
-    // BeehiveBlock.java useItemOn (~line 175): shearing at max honey only angers nearby bees
-    // when the hive isn't sitting in campfire smoke (BeehiveBlock.java:189-197). We don't yet
-    // decode+spawn the hive's stored bee occupants (see beehive::hive_contains_bees), so this
-    // only ports the anger-nearby-bees half of releaseBeesAndResetHoneyLevel.
-    if !crate::block::blocks::beehive::is_smokey_pos(&world, location)
-        && crate::block::blocks::beehive::hive_contains_bees(&world, location)
-    {
-        crate::block::blocks::beehive::anger_nearby_bees(&world, location);
-    }
-
     let drop_pos = location.to_centered_f64();
     for item in drops {
         let item_entity = Arc::new(ItemEntity::new(
@@ -178,5 +154,21 @@ fn handle_beehive(
     if player.gamemode.load() != pumpkin_util::GameMode::Creative {
         let _ = item.damage_item(1);
     }
+    // BeehiveBlock.java:166 plays this at the player's position, not the hive's.
+    let player_pos = player.living_entity.entity.pos.load();
+    world.play_sound(Sound::BlockBeehiveShear, SoundCategory::Blocks, &player_pos);
+    world.emit_game_event_with_source(
+        GameEvent::Shear.name(),
+        location.to_centered_f64(),
+        Some(player.living_entity.entity.entity_id),
+    );
+
+    crate::block::blocks::beehive::finish_harvest(&world, location, state_id.to_state(), player);
+    player.increment_stat(
+        pumpkin_data::statistic::StatisticCategory::Used,
+        i32::from(Item::SHEARS.id),
+        1,
+    );
+
     true
 }

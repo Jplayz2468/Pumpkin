@@ -28,6 +28,10 @@ pub const FLAG_HAS_STUNG: u8 = 4;
 pub const FLAG_HAS_NECTAR: u8 = 8;
 
 pub struct BeeEntity {
+    pub hive_pos:
+        crossbeam_utils::atomic::AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
+    pub flower_pos:
+        crossbeam_utils::atomic::AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub mob_entity: MobEntity,
     pub ageable_data: AgeableData,
     pub flags: AtomicU8,
@@ -41,6 +45,8 @@ impl BeeEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
         let bee = Self {
+            hive_pos: crossbeam_utils::atomic::AtomicCell::new(None),
+            flower_pos: crossbeam_utils::atomic::AtomicCell::new(None),
             mob_entity,
             ageable_data: AgeableData::default(),
             flags: AtomicU8::new(0),
@@ -160,6 +166,17 @@ impl Mob for BeeEntity {
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
         self.write_ageable_nbt(nbt);
+        for (name, pos) in [
+            ("hive_pos", self.hive_pos.load()),
+            ("flower_pos", self.flower_pos.load()),
+        ] {
+            if let Some(pos) = pos {
+                nbt.put(
+                    name,
+                    pumpkin_nbt::tag::NbtTag::IntArray(vec![pos.0.x, pos.0.y, pos.0.z]),
+                );
+            }
+        }
         nbt.put_bool("HasNectar", self.has_nectar());
         nbt.put_bool("HasStung", self.has_stung());
         nbt.put_int(
@@ -178,6 +195,14 @@ impl Mob for BeeEntity {
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
         self.read_ageable_nbt(nbt);
+        let pos = |name| {
+            nbt.get_int_array(name).and_then(|v| match v {
+                [x, y, z] => Some(pumpkin_util::math::position::BlockPos::new(*x, *y, *z)),
+                _ => None,
+            })
+        };
+        self.hive_pos.store(pos("hive_pos"));
+        self.flower_pos.store(pos("flower_pos"));
         if let Some(nectar) = nbt.get_bool("HasNectar") {
             self.set_has_nectar(nectar);
         }
@@ -202,6 +227,9 @@ impl Mob for BeeEntity {
     }
 
     fn mob_tick(&self, _caller: &dyn EntityBase) {
+        if self.cannot_enter_hive_ticks.load(Ordering::Relaxed) > 0 {
+            self.cannot_enter_hive_ticks.fetch_sub(1, Ordering::Relaxed);
+        }
         if self.has_stung() {
             let time = self.time_since_sting.fetch_add(1, Ordering::Relaxed) + 1;
             if time >= 1200 {

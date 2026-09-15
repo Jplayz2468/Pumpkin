@@ -74,7 +74,7 @@ use pumpkin_data::fluid::FluidState;
 use pumpkin_data::game_rules::{GameRule, GameRuleValue};
 use pumpkin_data::noise_settings::NoiseSettings;
 use pumpkin_data::{
-    Block, BlockStateId,
+    Block, BlockId, BlockStateId,
     entity::{EntityStatus, EntityType},
     fluid::Fluid,
     item_stack::ItemStack,
@@ -1733,6 +1733,7 @@ impl World {
             {
                 for (entity, entity_chunk) in &tickable {
                     entity.get_entity().tick_count.fetch_add(1, Relaxed);
+                    crate::entity::projectile::emit_shoot_event(entity.as_ref());
                     entity.tick(entity.as_ref(), server_ref);
 
                     let entity_inner = entity.get_entity();
@@ -5910,6 +5911,27 @@ impl World {
             flags.insert(BlockFlags::SKIP_DROPS);
         }
 
+        // Keep the old hive available after set_block_state removes its live BE.
+        let mined_hive =
+            if cause.is_some() && matches!(broken_block.id, BlockId::BEEHIVE | BlockId::BEE_NEST) {
+                self.get_block_entity(position)
+            } else {
+                None
+            };
+        if let (Some(player), Some(entity)) = (cause, mined_hive.as_ref())
+            && let Some(hive) = entity
+                .as_any()
+                .downcast_ref::<crate::block::entities::beehive::BeehiveBlockEntity>()
+        {
+            crate::block::blocks::beehive::drop_creative_hive(
+                self,
+                position,
+                broken_block_state,
+                player,
+                hive,
+            );
+        }
+
         if !flags.contains(BlockFlags::SKIP_DROPS) {
             let tool = cause.as_ref().and_then(|p| {
                 let item = p.inventory().held_item();
@@ -5933,6 +5955,19 @@ impl World {
 
         let broken_state_id =
             self.set_block_state_with_limit(position, new_state_id, flags, update_limit);
+        if let (Some(player), Some(entity)) = (cause, mined_hive)
+            && let Some(hive) = entity
+                .as_any()
+                .downcast_ref::<crate::block::entities::beehive::BeehiveBlockEntity>()
+        {
+            crate::block::blocks::beehive::player_destroyed(
+                self,
+                position,
+                broken_block_state,
+                player,
+                hive,
+            );
+        }
         let broken_block = Block::from_state_id(broken_state_id);
         if !broken_block.is_air()
             && broken_state_id != new_state_id
@@ -6482,7 +6517,7 @@ impl World {
         }
     }
 
-    fn fluid_state_from_block_state(id: BlockStateId) -> (&'static Fluid, FluidState) {
+    pub(crate) fn fluid_state_from_block_state(id: BlockStateId) -> (&'static Fluid, FluidState) {
         let fluid = Self::get_fluid_from_state_id(id);
         let source = if fluid.matches_type(&Fluid::WATER) {
             &Fluid::WATER
@@ -7649,6 +7684,20 @@ impl World {
         source_entity: Option<i32>,
         affected_state: Option<BlockStateId>,
     ) {
+        let source = source_entity.and_then(|id| self.get_entity_by_id(id));
+        self.emit_game_event_from_entity(event_key, position, source.as_deref(), affected_state);
+    }
+
+    /// Keep event context valid when an entity has not yet spawned or its hit
+    /// effects have already removed it from the world's entity list.
+    pub fn emit_game_event_from_entity(
+        self: &Arc<Self>,
+        event_key: impl Into<String>,
+        position: Vector3<f64>,
+        source: Option<&dyn EntityBase>,
+        affected_state: Option<BlockStateId>,
+    ) {
+        let source_entity = source.map(|entity| entity.get_entity().entity_id);
         let mut event = crate::plugin::api::events::world::generic_game::GenericGameEvent::new(
             event_key.into(),
             position,
@@ -7662,6 +7711,13 @@ impl World {
                 .strip_prefix("minecraft:")
                 .unwrap_or(&event.event_key);
             if let Some(kind) = pumpkin_data::game_event::GameEvent::from_name(key) {
+                if kind == pumpkin_data::game_event::GameEvent::EntityDie {
+                    crate::block::entities::sculk_catalyst::dispatch_death(
+                        self,
+                        event.position,
+                        source_entity,
+                    );
+                }
                 // VibrationSystem.User.isValidVibration: affected wool suppresses
                 // place/break vibrations even though the event still reaches plugins.
                 use pumpkin_data::tag::Taggable;
@@ -7669,11 +7725,11 @@ impl World {
                     !Block::from_state_id(state)
                         .has_tag(&pumpkin_data::tag::Block::MINECRAFT_DAMPENS_VIBRATIONS)
                 }) {
-                    crate::block::blocks::sculk::vibration::dispatch(
+                    crate::block::blocks::sculk::vibration::dispatch_from_entity(
                         self,
                         kind,
                         event.position,
-                        source_entity,
+                        source,
                     );
                 }
             }

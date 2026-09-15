@@ -68,6 +68,11 @@ impl BlockEntity for BarrelBlockEntity {
         self.write_inventory_nbt(nbt, true);
     }
 
+    fn refresh_viewers(&self, world: &Arc<World>, source: Option<i32>) {
+        self.viewers
+            .update_viewer_count_with_source(self, world, &self.position, source);
+    }
+
     fn tick(&self, world: &Arc<World>) {
         self.viewers
             .update_viewer_count::<Self>(self, world, &self.position);
@@ -219,6 +224,10 @@ impl Inventory for BarrelBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         items[slot] = stack;
         self.mark_dirty();
+    }
+
+    fn viewer_position(&self) -> Option<BlockPos> {
+        Some(self.position)
     }
 
     fn on_open(&self) {

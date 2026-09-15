@@ -454,6 +454,12 @@ impl EntityBase for ShulkerBulletEntity {
                     Particle::Explosion,
                 );
                 entity.remove();
+                world.emit_game_event_from_entity(
+                    "projectile_land",
+                    new_bp.to_centered_f64(),
+                    Some(self),
+                    Some(world.get_block_state_id(&new_bp)),
+                );
             }
             return;
         }
@@ -529,6 +535,7 @@ impl EntityBase for ShulkerBulletEntity {
                 Particle::Explosion,
             );
             entity.remove();
+            world.emit_game_event_from_entity("projectile_land", pos, Some(self), None);
             break;
         }
 

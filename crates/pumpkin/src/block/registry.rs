@@ -543,8 +543,14 @@ pub enum BlockPlacingError {
 }
 
 fn can_replace_with_other_block(block: &Block, state: &BlockState) -> bool {
-    // Sculk veins allow replacement by another block despite their state flag.
-    block == &Block::SCULK_VEIN || state.replaceable()
+    // MultifaceBlock.canBeReplaced allows any different item, independently of
+    // the static replaceable flag. Same-item vacant-face handling is separate.
+    matches!(
+        block.id,
+        pumpkin_data::BlockId::SCULK_VEIN
+            | pumpkin_data::BlockId::GLOW_LICHEN
+            | pumpkin_data::BlockId::RESIN_CLUMP
+    ) || state.replaceable()
 }
 
 impl BlockRegistry {

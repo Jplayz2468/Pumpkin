@@ -287,7 +287,7 @@ impl EntityBase for TridentEntity {
         if let Some(h) = hit
             && !self.has_hit.swap(true, Ordering::SeqCst)
         {
-            caller.on_hit(h);
+            super::handle_hit(caller, h);
         }
     }
 

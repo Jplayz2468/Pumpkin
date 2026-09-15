@@ -60,6 +60,11 @@ impl BlockEntity for ShulkerBoxBlockEntity {
         self.write_inventory_nbt(nbt, true);
     }
 
+    fn refresh_viewers(&self, world: &Arc<World>, source: Option<i32>) {
+        self.viewers
+            .update_viewer_count_with_source(self, world, &self.position, source);
+    }
+
     fn tick(&self, world: &Arc<World>) {
         self.viewers
             .update_viewer_count::<Self>(self, world, &self.position);
@@ -151,12 +156,10 @@ impl BlockEntity for ShulkerBoxBlockEntity {
 impl ViewerCountListener for ShulkerBoxBlockEntity {
     fn on_container_open(&self, world: &Arc<World>, position: &BlockPos) {
         Self::play_sound(world, position, 1);
-        // TODO: this.world.emitGameEvent(player, GameEvent.CONTAINER_OPEN, this.pos);
     }
 
     fn on_container_close(&self, world: &Arc<World>, position: &BlockPos) {
         Self::play_sound(world, position, 0);
-        // TODO: this.world.emitGameEvent(player, GameEvent.CONTAINER_CLOSE, this.pos);
     }
 
     fn on_viewer_count_update(&self, world: &Arc<World>, position: &BlockPos, _old: u16, new: u16) {
@@ -258,6 +261,10 @@ impl Inventory for ShulkerBoxBlockEntity {
             .is_some_and(|block| block.is_tagged_with("minecraft:shulker_boxes") == Some(true))
     }
 
+    fn viewer_position(&self) -> Option<BlockPos> {
+        Some(self.position)
+    }
+
     fn on_open(&self) {
         self.viewers.open_container();
     }
@@ -331,10 +338,7 @@ mod tests {
         carried.sort_unstable();
         assert_eq!(
             carried,
-            vec![
-                (0, Item::DIAMOND.id, 7),
-                (26, Item::OAK_LOG.id, 13)
-            ]
+            vec![(0, Item::DIAMOND.id, 7), (26, Item::OAK_LOG.id, 13)]
         );
     }
 

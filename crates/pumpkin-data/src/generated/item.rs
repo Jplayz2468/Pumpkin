@@ -3585,7 +3585,7 @@ impl Item {
                     attribute_modifiers: Cow::Borrowed(&[]),
                 },
             ),
-            (Bees, &BeesImpl),
+            (Bees, &BeesImpl::EMPTY),
             (
                 BlockState,
                 &BlockStateImpl {
@@ -3761,7 +3761,7 @@ impl Item {
                     attribute_modifiers: Cow::Borrowed(&[]),
                 },
             ),
-            (Bees, &BeesImpl),
+            (Bees, &BeesImpl::EMPTY),
             (
                 BlockState,
                 &BlockStateImpl {

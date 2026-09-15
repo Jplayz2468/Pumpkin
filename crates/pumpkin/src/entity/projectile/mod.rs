@@ -32,6 +32,8 @@ use pumpkin_data::item_stack::ItemStack;
 #[must_use]
 pub fn is_projectile(entity_type: &EntityType) -> bool {
     *entity_type == EntityType::ARROW
+        || *entity_type == EntityType::SPECTRAL_ARROW
+        || *entity_type == EntityType::BREEZE_WIND_CHARGE
         || *entity_type == EntityType::TRIDENT
         || *entity_type == EntityType::EGG
         || *entity_type == EntityType::SNOWBALL
@@ -47,6 +49,41 @@ pub fn is_projectile(entity_type: &EntityType) -> bool {
         || *entity_type == EntityType::FISHING_BOBBER
         || *entity_type == EntityType::WITHER_SKULL
         || *entity_type == EntityType::LLAMA_SPIT
+}
+
+/// Projectile.tick emits this once, including projectiles loaded before their
+/// first tick. The flag is persisted as vanilla's HasBeenShot field.
+pub fn emit_shoot_event(projectile: &dyn EntityBase) {
+    let entity = projectile.get_entity();
+    if is_projectile(entity.entity_type)
+        && !entity
+            .projectile_has_been_shot
+            .swap(true, Ordering::Relaxed)
+    {
+        entity.world.load().emit_game_event_with_source(
+            "projectile_shoot",
+            entity.pos.load(),
+            projectile.get_owner_id(),
+        );
+    }
+}
+
+/// Projectile.onHit emits after the hit callback, using the impacted block's
+/// resulting state. Preserve the projectile context even if the callback removes it.
+pub fn handle_hit(projectile: &dyn EntityBase, hit: ProjectileHit) {
+    let entity = projectile.get_entity();
+    let world = entity.world.load_full();
+    let (origin, block_pos) = match &hit {
+        ProjectileHit::Block { pos, .. } => (pos.to_centered_f64(), Some(*pos)),
+        ProjectileHit::Entity { hit_pos, .. } => (*hit_pos, None),
+    };
+    projectile.on_hit(hit);
+    world.emit_game_event_from_entity(
+        "projectile_land",
+        origin,
+        Some(projectile),
+        block_pos.map(|pos| world.get_block_state_id(&pos)),
+    );
 }
 
 /// Helper to apply projectile spawned enchantment effects matching vanilla `Projectile::applyOnProjectileSpawned`.
@@ -251,7 +288,7 @@ impl ThrownItemEntity {
             }
 
             // Just trigger hit effects and remove
-            caller.on_hit(h);
+            handle_hit(caller, h);
             entity.remove();
         }
     }

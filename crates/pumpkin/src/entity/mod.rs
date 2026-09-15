@@ -757,6 +757,20 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         }
     }
 
+    /// LivingEntity.shouldDropExperience, including the ageable Hoglin override.
+    /// Zombie-family babies are Monster subclasses and are not AgeableMob here.
+    fn should_drop_experience(&self) -> bool {
+        let kind = self.get_entity().entity_type.resource_name;
+        if kind == "tadpole" {
+            return false;
+        }
+        kind == "hoglin"
+            || !self
+                .get_mob()
+                .and_then(|mob| mob.as_ageable())
+                .is_some_and(crate::entity::ageable::AgeableMob::is_baby)
+    }
+
     fn get_experience_reward(&self, _killer: Option<&dyn EntityBase>) -> u32 {
         0
     }
@@ -894,6 +908,7 @@ pub struct Entity {
     /// Elapsed entity ticks (Java Entity.tickCount), independent of age and inactivity.
     /// Transient: loading an entity starts this clock at zero.
     pub tick_count: AtomicI32,
+    pub projectile_has_been_shot: AtomicBool,
 
     pub current_biome: ArcSwap<&'static Biome>,
     pub last_biome_update_pos: AtomicCell<BlockPos>,
@@ -1048,6 +1063,7 @@ impl Entity {
             riding_cooldown: AtomicI32::new(0),
             age: AtomicI32::new(0),
             tick_count: AtomicI32::new(0),
+            projectile_has_been_shot: AtomicBool::new(false),
             current_biome: ArcSwap::new(Arc::new(current_biome)),
             last_biome_update_pos: AtomicCell::new(BlockPos::new(floor_x, floor_y, floor_z)),
             portal_cooldown: AtomicU32::new(0),
@@ -4394,6 +4410,10 @@ impl Entity {
 
 impl Entity {
     pub fn write_nbt(&self, nbt: &mut NbtCompound) {
+        if projectile::is_projectile(self.entity_type) {
+            nbt.put_bool("HasBeenShot", self.projectile_has_been_shot.load(Relaxed));
+        }
+
         let position = self.pos.load();
         nbt.put_string(
             "id",
@@ -4468,6 +4488,9 @@ impl Entity {
     }
 
     pub fn read_nbt_non_mut(&self, nbt: &NbtCompound) {
+        self.projectile_has_been_shot
+            .store(nbt.get_bool("HasBeenShot").unwrap_or(false), Relaxed);
+
         if let Some(position) = nbt.get_list("Pos")
             && position.len() >= 3
         {

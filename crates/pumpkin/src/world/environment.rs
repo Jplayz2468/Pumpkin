@@ -124,13 +124,16 @@ impl<'a> EnvironmentAttributes<'a> {
                         .unwrap_or_else(std::sync::PoisonError::into_inner);
                     weather.raining
                 };
-                raining
-                    || !self.world.dimension.has_skylight
-                    || sample_bool_track(
-                        DayTimeline::BEES_STAY_IN_HIVE_KEYFRAMES,
-                        DayTimeline::PERIOD_TICKS,
-                        self.world.get_time_of_day(),
-                    )
+                // The default attribute is false. Only the overworld day timeline
+                // and weather keep bees inside; the Nether/End have neither track.
+                self.world.dimension.has_skylight
+                    && (raining
+                        || (!self.world.dimension.has_fixed_time
+                            && sample_bool_track(
+                                DayTimeline::BEES_STAY_IN_HIVE_KEYFRAMES,
+                                DayTimeline::PERIOD_TICKS,
+                                self.world.get_time_of_day(),
+                            )))
             }
             EnvironmentAttribute::GameplayCreakingActive => {
                 self.world.dimension.has_skylight

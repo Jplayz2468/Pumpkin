@@ -2798,18 +2798,52 @@ impl DataComponentCodec<Self> for BlockStateImpl {
 
 impl DataComponentCodec<Self> for BeesImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_var_int(&VarInt(0))
+        seq.write_var_int(&VarInt(self.bees.len() as i32))?;
+        for bee in &self.bees {
+            let id = bee
+                .entity_data
+                .get_string("id")
+                .ok_or_else(|| WritingError::Message("Missing bee occupant entity id".into()))?;
+            let entity_type = pumpkin_data::entity::EntityType::from_name(
+                id.strip_prefix("minecraft:").unwrap_or(id),
+            )
+            .ok_or_else(|| WritingError::Message("Unknown bee occupant entity id".into()))?;
+            seq.write_var_int(&VarInt(i32::from(entity_type.id)))?;
+            let mut nbt = bee.entity_data.clone();
+            nbt.child_tags.remove("id");
+            seq.write_nbt(NbtTag::Compound(nbt))?;
+            seq.write_var_int(&VarInt(bee.ticks_in_hive))?;
+            seq.write_var_int(&VarInt(bee.min_ticks_in_hive))?;
+        }
+        Ok(())
     }
 
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let len = seq.get_var_int()?.0 as usize;
-        for _ in 0..len {
-            let _entity_type = seq.get_var_int()?;
-            let _nbt = seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?;
-            let _ticks = seq.get_var_int()?;
-            let _min_ticks = seq.get_var_int()?;
+        let count = seq.get_var_int()?.0;
+        if count < 0 {
+            return Err(ReadingError::Message("Negative bee occupant count".into()));
         }
-        Ok(Self)
+        let mut bees = Vec::new();
+        for _ in 0..count {
+            let id = u16::try_from(seq.get_var_int()?.0)
+                .map_err(|_| ReadingError::Message("Invalid bee occupant entity id".into()))?;
+            let entity_type = pumpkin_data::entity::EntityType::from_raw(id)
+                .ok_or_else(|| ReadingError::Message("Unknown bee occupant entity id".into()))?;
+            let Some(NbtTag::Compound(mut entity_data)) =
+                seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?
+            else {
+                return Err(ReadingError::Message(
+                    "Expected bee occupant compound".into(),
+                ));
+            };
+            entity_data.put_string("id", format!("minecraft:{}", entity_type.resource_name));
+            bees.push(BeeOccupant {
+                entity_data,
+                ticks_in_hive: seq.get_var_int()?.0,
+                min_ticks_in_hive: seq.get_var_int()?.0,
+            });
+        }
+        Ok(Self { bees })
     }
 }
 

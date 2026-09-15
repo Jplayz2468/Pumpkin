@@ -76,6 +76,16 @@ macro_rules! impl_block_entity_for_chest {
                 }
             }
 
+            fn refresh_viewers(&self, world: &Arc<$crate::world::World>, source: Option<i32>) {
+                $crate::block::viewer::ViewerCountTrackerExt::update_viewer_count_with_source(
+                    &self.viewers,
+                    self,
+                    world,
+                    &self.position,
+                    source,
+                );
+            }
+
             fn tick(&self, world: &Arc<$crate::world::World>) {
                 $crate::block::viewer::ViewerCountTrackerExt::update_viewer_count::<$struct_name>(
                     &self.viewers,
@@ -201,6 +211,10 @@ macro_rules! impl_inventory_for_chest {
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 items[slot] = stack;
                 self.mark_dirty();
+            }
+
+            fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> {
+                Some(self.position)
             }
 
             fn on_open(&self) {

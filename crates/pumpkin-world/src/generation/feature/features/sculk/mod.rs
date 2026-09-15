@@ -11,9 +11,8 @@ use pumpkin_data::BlockDirection;
 use pumpkin_data::BlockId;
 use pumpkin_data::BlockState;
 use pumpkin_data::BlockStateId;
-use pumpkin_data::block_properties::GlowLichenLikeProperties;
+use pumpkin_data::block_properties::WaterLikeProperties;
 use pumpkin_data::block_properties::is_air;
-use pumpkin_data::fluid::Fluid;
 use pumpkin_data::tag::Block::MINECRAFT_SCULK_REPLACEABLE;
 use pumpkin_data::tag::Block::MINECRAFT_SCULK_REPLACEABLE_WORLD_GEN;
 use pumpkin_util::math::position::BlockPos;
@@ -27,28 +26,25 @@ pub mod vein;
 ///
 /// Every offset in the 3×3×3 cube that shares at least one zero-axis
 /// (i.e. is NOT a corner) and is not the centre itself.
+// BlockPos.betweenClosed order: X changes fastest, then Y, then Z.
 pub const NON_CORNER_NEIGHBOURS: [Vector3<i32>; 18] = [
-    // Face-adjacent — 6
+    Vector3::new(0, -1, -1),
+    Vector3::new(-1, 0, -1),
+    Vector3::new(0, 0, -1),
+    Vector3::new(1, 0, -1),
+    Vector3::new(0, 1, -1),
+    Vector3::new(-1, -1, 0),
+    Vector3::new(0, -1, 0),
+    Vector3::new(1, -1, 0),
     Vector3::new(-1, 0, 0),
     Vector3::new(1, 0, 0),
-    Vector3::new(0, -1, 0),
-    Vector3::new(0, 1, 0),
-    Vector3::new(0, 0, -1),
-    Vector3::new(0, 0, 1),
-    // Edge-adjacent (same Y plane) — 4
-    Vector3::new(-1, 0, -1),
-    Vector3::new(-1, 0, 1),
-    Vector3::new(1, 0, -1),
-    Vector3::new(1, 0, 1),
-    // Edge-adjacent (vertical X) — 4
-    Vector3::new(-1, -1, 0),
     Vector3::new(-1, 1, 0),
-    Vector3::new(1, -1, 0),
+    Vector3::new(0, 1, 0),
     Vector3::new(1, 1, 0),
-    // Edge-adjacent (vertical Z) — 4
-    Vector3::new(0, -1, -1),
     Vector3::new(0, -1, 1),
-    Vector3::new(0, 1, -1),
+    Vector3::new(-1, 0, 1),
+    Vector3::new(0, 0, 1),
+    Vector3::new(1, 0, 1),
     Vector3::new(0, 1, 1),
 ];
 
@@ -99,12 +95,24 @@ pub fn is_sculk_replaceable(id: BlockId) -> bool {
     id.has_tag(MINECRAFT_SCULK_REPLACEABLE)
 }
 
-/// Returns `true` if the state is a waterlogged sculk vein: it holds
-/// water fluid despite not being a water block.
-#[must_use]
-fn is_waterlogged_vein(state: BlockStateId) -> bool {
-    state.to_block_id() == BlockId::SCULK_VEIN
-        && GlowLichenLikeProperties::from_state_id(state).waterlogged
+/// Water fluid carried by a block, including source water inside plants.
+fn state_has_water(state: BlockStateId) -> bool {
+    state.is_waterlogged()
+        || matches!(
+            state.to_block_id(),
+            BlockId::WATER
+                | BlockId::KELP
+                | BlockId::KELP_PLANT
+                | BlockId::SEAGRASS
+                | BlockId::TALL_SEAGRASS
+                | BlockId::BUBBLE_COLUMN
+        )
+}
+
+fn state_has_water_source(state: BlockStateId) -> bool {
+    state_has_water(state)
+        && (state.to_block_id() != BlockId::WATER
+            || WaterLikeProperties::from_state_id(state).level == 0)
 }
 
 /// Returns `true` if the block id is tagged
@@ -175,13 +183,11 @@ impl<T: GenerationCache> SculkLevel for T {
     }
 
     fn sculk_is_water_source(&self, pos: BlockPos) -> bool {
-        let (fluid, fluid_state) = GenerationCache::get_fluid_and_fluid_state(self, &pos.0);
-        fluid == Fluid::WATER && fluid_state.is_source
+        state_has_water_source(GenerationCache::get_block_state(self, &pos.0))
     }
 
     fn sculk_is_water(&self, pos: BlockPos) -> bool {
-        let (fluid, _fluid_state) = GenerationCache::get_fluid_and_fluid_state(self, &pos.0);
-        fluid == Fluid::WATER
+        state_has_water(GenerationCache::get_block_state(self, &pos.0))
     }
 
     fn sculk_is_face_sturdy(&self, pos: BlockPos, face: BlockDirection) -> bool {
@@ -254,16 +260,11 @@ impl SculkLevel for ProtoChunkSculkView<'_> {
     }
 
     fn sculk_is_water_source(&self, pos: BlockPos) -> bool {
-        // Proto chunks have no fluid simulation; water is stored as a block
-        // state, where water blocks are (by convention) sources, so a
-        // WATER block state is treated as a water source.
-        self.sculk_get(pos)
-            .is_some_and(|s| s.to_block_id() == BlockId::WATER)
+        self.sculk_get(pos).is_some_and(state_has_water_source)
     }
 
     fn sculk_is_water(&self, pos: BlockPos) -> bool {
-        self.sculk_get(pos)
-            .is_some_and(|s| s.to_block_id() == BlockId::WATER || is_waterlogged_vein(s))
+        self.sculk_get(pos).is_some_and(state_has_water)
     }
 
     fn sculk_is_face_sturdy(&self, pos: BlockPos, face: BlockDirection) -> bool {
@@ -320,8 +321,7 @@ pub mod test_utils {
         }
 
         fn sculk_is_water(&self, pos: BlockPos) -> bool {
-            self.sculk_get(pos)
-                .is_some_and(|s| s.to_block_id() == BlockId::WATER || is_waterlogged_vein(s))
+            self.sculk_get(pos).is_some_and(|s| state_has_water(s))
         }
 
         fn sculk_is_face_sturdy(&self, pos: BlockPos, face: BlockDirection) -> bool {

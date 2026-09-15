@@ -5,7 +5,8 @@
 **The requested 1:1 parity for all blocks and then all items is not complete.**
 This checkpoint records source changes, not a passing parity result.
 
-- Work branch: `codex/vanilla-spawning`, based on `1e01074e`.
+- Work branch: `codex/vanilla-spawning`. The initial continuation is in
+  `6d0f8370`; the source work below continues that checkpoint.
 - The user explicitly prohibited compilation and tests for this work. No Cargo
   check, build, test, server restart, or gameplay comparison was performed.
   Rustfmt was used to format the edited sources.
@@ -37,6 +38,62 @@ This checkpoint records source changes, not a passing parity result.
 - Added source/context-aware emission for placement, breaking, movement, damage,
   death, interactions, tool transformations, and selected redstone actions;
   explosions also emit their game event. Plugin cancellation remains respected.
+
+### Catalyst spreading, multiface blocks, walls, and stored bees (continuation)
+
+- Connected catalyst death delivery independently of vibration travel/occlusion.
+  Nearby catalysts are ordered by distance; the first consumes the living entity's
+  XP once, including deaths without player kill credit. Zero-XP deaths still bloom.
+  Added the eight-tick bloom reset and the default It Spreads advancement.
+- Added runtime charge cursors, 32-cursor/1,000-charge limits, merge rules, decay
+  delays, NBT, charge particles, substrate conversion, and sensor/shrieker growth.
+  Movement uses the vanilla 18-neighbor enumeration and shuffle. Persisted missing
+  facings and empty facings retain their distinct meanings.
+- Added collision-volume displacement when sculk replaces partial terrain. Runtime
+  vein growth uses same-position, same-plane, and wrap-around spread attempts.
+- Fixed multiface support checks, existing-face waterlogging, nearest-looking
+  placement order, and replacement. Removed the duplicate direct item interaction.
+  Glow lichen bonemeal now spreads one face using the vanilla spread search.
+- Added the missing five-XP block data for normal/calibrated sensors, catalysts,
+  and shriekers, in both source assets and generated data. Ordinary sculk already
+  had its one-XP entry. The shared silk-touch suppression still applies.
+- Walls now use collision-face coverage for tall sides and the post, honor a post
+  above before suppressing a post between tall sides, connect to copper bars,
+  preserve unchanged side connections during neighbor updates, and accept water
+  according to the actual fluid state.
+- Replaced opaque hive occupants with the shared occupant codec, saved timers,
+  ordinary/emergency release, blocked-exit checks, age/love updates, flower/hive
+  positions, nectar delivery, work sounds, and save notifications.
+- Added real `bees` component NBT and packet data, plus hive item component loading
+  and drops. Silk-touch drops retain occupants/honey; normal hive drops do not
+  duplicate occupants. Added creative occupied-hive drops and the default
+  Total Beelocation advancement condition.
+- Connected bottle/shears harvesting, smoke sedation, adjacent-fire release, and
+  player-mining release. Smoke checks use the four-pixel collision column. Fixed
+  the built-in dimension bee-stay rule so lack of skylight alone does not trap bees.
+- All of the above is **source implementation, not verified behavioral parity**.
+  No compilation, tests, server run, or gameplay comparison was performed.
+
+### World-generation sculk and upstream events (further continuation)
+
+- Reconciled world-generation sculk's neighbor enumeration with runtime/vanilla
+  (X fastest, then Y, then Z), refreshed stationary cursor facings from the captured
+  state, and shared collision-face coverage through `BlockState`.
+- Fixed sculk's source-water gates in both paths, world-generation waterlogged and
+  aquatic-plant fluid recognition, and the complete fire tag exclusion. Vanilla
+  `FluidState.is(Fluids.WATER)` excludes flowing water; Pumpkin normalizes its fluid
+  families, so the separate source flag must be checked.
+- Added projectile launch events with saved `HasBeenShot`, shared thrown/arrow/
+  trident impact events, and shulker-bullet impact events. Impact events use the
+  resulting hit-block state and preserve projectile/owner context after removal.
+- Added explicit entity context to vibration dispatch. Bee-exit events can retain
+  their source before the bee is inserted into the world.
+- Carried the acting player through generic container open/close hooks, including
+  both halves of double chests. Chests, barrels, shulker boxes, and ender chests
+  emit transition events immediately with player attribution; passive count
+  reconciliation emits without a source.
+- Added connected copper-chest scrape/wax-off particles and block-change events
+  before transformation, plus the transformed-state context on the primary event.
 
 ### Other blocks
 
@@ -106,7 +163,8 @@ base-block handlers, fluids, or data-only blocks. Rotated pillars are handled by
 `LogBlock`'s tag plus explicit IDs; liquid behavior uses the fluid registry;
 lightning rods and bars have registrations the old scanner misses.
 
-Conversely, a registered catalyst still lacks its spreading behavior. Do not turn
+Conversely, the registered catalyst lacked runtime spreading before this
+continuation. Other registered families still have behavior gaps. Do not turn
 scanner results into “100% parity.” The earlier `progress.py` also hardcodes the
 item count at 40/51 and uses disposable agent branch names as review evidence.
 Those branch names were removed during the authorized merged-worktree cleanup,
@@ -114,24 +172,32 @@ so they must not be used to reconstruct audit completion.
 
 ## Remaining work, in the user's block-then-item order
 
-1. **Finish the block audit and implementations.** The major confirmed gap is
-   sculk spreading: catalyst death-event delivery by distance and XP consumption,
-   `SculkSpreader` charge cursors/persistence, sculk substrate conversion and growth,
-   and the specialized vein spreader are absent. The existing catalyst is only
-   placement plus a minimal block entity; do not substitute a periodic random
-   spread rule for the vanilla system.
-2. Finish sculk's upstream event coverage. Many vanilla emitters are still absent
-   (for example container and projectile actions). Movement coverage here is for
-   living entities; nonliving movement, flapping, and full movement sound/effect
-   ordering still need review. Shrieker attribution also needs the actual
-   controlling-passenger and dropped-item-owner semantics. Legacy particle
-   protocol variants and Bedrock vibration particles have not been audited.
-3. Audit the remaining block families against their actual vanilla implementations,
-   including support/shape behavior and data-driven drops. Examples of visible
-   existing gaps are stored-bee release and the full wall-shape rules. Copper chest
-   scraping should also reproduce the connected half's secondary particle/event
-   effects; state/inventory synchronization alone is not the whole item behavior.
-4. **Then finish every item class and shared component path.** The earlier 40/51
+1. **Finish the block audit and implementations.** Runtime catalyst spreading,
+   multiface behavior, wall geometry, and stored-bee release now have source ports,
+   but this does not close the full family audit. Exact XP rewards still depend on
+   the shared mob reward/enchantment implementation. Dynamic collision contexts,
+   chunk-edge behavior, and protocol-version differences remain unverified.
+2. **World-generation sculk** now shares neighbor ordering and collision-face
+   coverage with runtime, but the adapters remain separate. Proto-chunk boundaries,
+   post-processing/tick scheduling, dynamic shape contexts, and the rest of the
+   feature pipeline still require source comparison.
+3. **Bee lifecycle remains incomplete.** Stored occupants can now leave, but the
+   bee's autonomous hive entry, pollination/flight, and neutral anger AI still need
+   their mob-side implementations. Explosion-triggered hive release needs the real
+   explosion source/context; shared explosion handling currently lacks it. Honeycomb
+   harvest still constructs its drops directly instead of using HARVEST_BEEHIVE's
+   complete loot context. Full custom environment attributes remain a shared gap.
+4. Finish sculk's upstream game-event coverage. Fishing-hook impact geometry and
+   event delivery still need a full port. Container interaction-range rechecks,
+   non-player container users, and the broader container lifecycle remain open.
+   Movement coverage is for living entities; nonliving movement, flapping, and
+   movement sound/effect ordering need review. Shrieker attribution still needs
+   controlling-passenger and dropped-item-owner behavior. Legacy/Bedrock vibration
+   particle handling has not been audited.
+5. Audit every remaining block family against its actual vanilla implementation,
+   including data-driven drops. A registration or a source edit is not enough
+   evidence to mark a family 1:1.
+6. **Then finish every item class and shared component path.** The earlier 40/51
    claim has no reliable per-class completion ledger. Specific known gaps:
    - Fishing still hand-builds its loot. The shared loot engine cannot yet express
      nested loot-table entries, quality weights, fishing/open-water and biome
@@ -140,11 +206,11 @@ so they must not be used to reconstruct audit completion.
    - Brush archaeology still advances from click handling rather than vanilla's
      continuous-use tick cadence; offhand use and loot context need a full port.
    - Spawn-egg offspring still use generic entity construction/baby metadata,
-     rather than the proper ageable offspring factory and eligibility checks.
+     rather than the ageable offspring factory and eligibility checks.
    - Sweep damage scaling, enchantment effects, knockback, and movement gating
-     require further review beyond the target-box correction.
+     require review beyond the target-box correction.
    - Specialized mob reactions to blocked attacks (notably ravager stun), custom
      component edge cases, protocol-version differences, and the broader item
      component/interaction pipeline still need comparison.
-5. The earlier requested regression/gameplay comparison remains unperformed.
-   Compilation and testing remain prohibited unless the user changes that instruction.
+7. The earlier regression/gameplay comparison remains unperformed. Compilation and
+   testing remain prohibited unless the user changes that instruction.

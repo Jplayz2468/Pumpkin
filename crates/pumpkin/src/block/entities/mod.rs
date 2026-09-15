@@ -75,6 +75,8 @@ pub trait BlockEntity: Any + Send + Sync {
         Self: Sized;
     fn tick(&self, _world: &Arc<World>) {}
 
+    fn refresh_viewers(&self, _world: &Arc<World>, _source: Option<i32>) {}
+
     /// This block entity as a vibration listener, if it is one.
     ///
     /// Sculk sensors and shriekers return themselves; everything else returns `None`.

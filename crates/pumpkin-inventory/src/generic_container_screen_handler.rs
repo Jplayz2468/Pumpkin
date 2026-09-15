@@ -36,7 +36,7 @@ pub fn create_generic_9x3(
         inventory,
         3,
         9,
-        player.is_spectator(),
+        player,
     )
 }
 
@@ -58,7 +58,7 @@ pub fn create_shulker_box_9x3(
         inventory,
         3,
         9,
-        player.is_spectator(),
+        player,
         true,
     )
 }
@@ -79,7 +79,7 @@ pub fn create_generic_9x6(
         inventory,
         6,
         9,
-        player.is_spectator(),
+        player,
     )
 }
 
@@ -99,7 +99,7 @@ pub fn create_generic_3x3(
         inventory,
         3,
         3,
-        player.is_spectator(),
+        player,
     )
 }
 
@@ -117,7 +117,7 @@ pub fn create_crafter_3x3(
         inventory,
         3,
         3,
-        player.is_spectator(),
+        player,
     )
 }
 
@@ -137,7 +137,7 @@ pub fn create_hopper(
         inventory,
         1,
         5,
-        player.is_spectator(),
+        player,
     )
 }
 
@@ -171,7 +171,7 @@ impl GenericContainerScreenHandler {
     /// - `inventory` - The container's inventory
     /// - `rows` - Number of rows in the container
     /// - `columns` - Number of columns in the container
-    /// - `is_spectator` - Whether the opener is a spectator
+    /// - `player` - Opener, for spectator checks and attributed container events
     fn new(
         screen_type: WindowType,
         sync_id: u8,
@@ -179,7 +179,7 @@ impl GenericContainerScreenHandler {
         inventory: Arc<dyn Inventory>,
         rows: u8,
         columns: u8,
-        is_spectator: bool,
+        player: &dyn InventoryPlayer,
     ) -> Self {
         Self::new_with_slots(
             screen_type,
@@ -188,7 +188,7 @@ impl GenericContainerScreenHandler {
             inventory,
             rows,
             columns,
-            is_spectator,
+            player,
             false,
         )
     }
@@ -201,9 +201,10 @@ impl GenericContainerScreenHandler {
         inventory: Arc<dyn Inventory>,
         rows: u8,
         columns: u8,
-        is_spectator: bool,
+        player: &dyn InventoryPlayer,
         shulker_box_slots: bool,
     ) -> Self {
+        let is_spectator = player.is_spectator();
         let mut handler = Self {
             inventory,
             rows,
@@ -214,7 +215,7 @@ impl GenericContainerScreenHandler {
         };
 
         if !is_spectator {
-            handler.inventory.on_open();
+            handler.inventory.on_open_by(player);
         }
 
         handler.add_inventory_slots();
@@ -259,7 +260,7 @@ impl ScreenHandler for GenericContainerScreenHandler {
     fn on_closed(&mut self, player: &dyn InventoryPlayer) {
         self.default_on_closed(player);
         if !self.is_spectator && !player.is_spectator() {
-            self.inventory.on_close();
+            self.inventory.on_close_by(player);
         }
     }
 

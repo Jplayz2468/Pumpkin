@@ -167,14 +167,57 @@ impl DataComponentImpl for BlockStateImpl {
     default_impl!(BlockState);
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct BeesImpl;
+/// BeehiveBlockEntity.Occupant: the same payload is used by block NBT and
+/// DataComponents.BEES. The entity's registry id lives inside entity_data in NBT.
+#[derive(Clone, Debug, PartialEq)]
+pub struct BeeOccupant {
+    pub entity_data: NbtCompound,
+    pub ticks_in_hive: i32,
+    pub min_ticks_in_hive: i32,
+}
+impl BeeOccupant {
+    pub fn read_data(tag: &NbtTag) -> Option<Self> {
+        let nbt = tag.extract_compound()?;
+        let entity_data = nbt.get_compound("entity_data")?.clone();
+        let id = entity_data.get_string("id")?;
+        crate::entity::EntityType::from_name(id.strip_prefix("minecraft:").unwrap_or(id))?;
+        Some(Self {
+            entity_data,
+            ticks_in_hive: nbt.get_int("ticks_in_hive")?,
+            min_ticks_in_hive: nbt.get_int("min_ticks_in_hive")?,
+        })
+    }
+    pub fn write_data(&self) -> NbtTag {
+        let mut nbt = NbtCompound::new();
+        nbt.put_compound("entity_data", self.entity_data.clone());
+        nbt.put_int("ticks_in_hive", self.ticks_in_hive);
+        nbt.put_int("min_ticks_in_hive", self.min_ticks_in_hive);
+        NbtTag::Compound(nbt)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BeesImpl {
+    pub bees: Vec<BeeOccupant>,
+}
 impl BeesImpl {
-    pub const fn read_data(_data: &NbtTag) -> Option<Self> {
-        Some(Self)
+    pub const EMPTY: Self = Self { bees: Vec::new() };
+    pub fn read_data(data: &NbtTag) -> Option<Self> {
+        let NbtTag::List(list) = data else {
+            return None;
+        };
+        Some(Self {
+            bees: list
+                .iter()
+                .map(BeeOccupant::read_data)
+                .collect::<Option<Vec<_>>>()?,
+        })
     }
 }
 impl DataComponentImpl for BeesImpl {
+    fn write_data(&self) -> NbtTag {
+        NbtTag::List(self.bees.iter().map(BeeOccupant::write_data).collect())
+    }
     default_impl!(Bees);
 }
 

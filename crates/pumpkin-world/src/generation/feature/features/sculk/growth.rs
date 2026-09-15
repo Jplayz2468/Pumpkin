@@ -32,7 +32,7 @@ impl GrowthRules {
         let above_id = above_state.to_block_id();
         // The block above must be air, or a water block holding water.
         if !(above_state.to_state().is_air()
-            || (above_id == BlockId::WATER && level.sculk_is_water(above)))
+            || (above_id == BlockId::WATER && level.sculk_is_water_source(above)))
         {
             return false;
         }

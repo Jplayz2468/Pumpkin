@@ -7442,6 +7442,13 @@ impl MessageCache {
 }
 
 impl InventoryPlayer for Player {
+    fn on_container_viewers_changed(&self, position: BlockPos) {
+        let world = self.world();
+        if let Some(entity) = world.get_block_entity(&position) {
+            entity.refresh_viewers(&world, Some(self.living_entity.entity.entity_id));
+        }
+    }
+
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

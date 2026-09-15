@@ -2,7 +2,9 @@ use crate::block::registry::BlockActionResult;
 use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::server::Server;
-use pumpkin_data::block_properties::{DoubleBlockHalf, OakDoorLikeProperties};
+use pumpkin_data::block_properties::{
+    ChestLikeProperties, ChestType, DoubleBlockHalf, OakDoorLikeProperties,
+};
 use pumpkin_data::block_transformer::AXE;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item_stack::ItemStack;
@@ -47,6 +49,26 @@ impl ItemBehaviour for AxeItem {
             }
             if let Some(particle) = result.entry.particle {
                 world.sync_world_event(particle, location, 0);
+                // AxeItem.spawnSoundAndParticle applies this to the connected
+                // half before the clicked half changes state.
+                if block.has_tag(&tag::Block::MINECRAFT_COPPER_CHESTS) {
+                    let props = ChestLikeProperties::from_state_id(current_state_id);
+                    let direction = match props.r#type {
+                        ChestType::Single => None,
+                        ChestType::Left => Some(props.facing.rotate_clockwise()),
+                        ChestType::Right => Some(props.facing.rotate_counter_clockwise()),
+                    };
+                    if let Some(direction) = direction {
+                        let neighbor = location.offset(direction.to_offset());
+                        world.emit_game_event_from_entity(
+                            GameEvent::BlockChange.name(),
+                            neighbor.to_centered_f64(),
+                            Some(player),
+                            Some(world.get_block_state_id(&neighbor)),
+                        );
+                        world.sync_world_event(particle, neighbor, 0);
+                    }
+                }
             }
 
             if block.has_tag(&tag::Block::MINECRAFT_DOORS) {
@@ -76,11 +98,16 @@ impl ItemBehaviour for AxeItem {
                 }
             }
 
-            world.set_block_state(&location, result.new_state_id, BlockFlags::NOTIFY_ALL);
-            world.emit_game_event_with_source(
+            world.set_block_state(
+                &location,
+                result.new_state_id,
+                BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
+            );
+            world.emit_game_event_from_entity(
                 GameEvent::BlockChange.name(),
                 location.to_centered_f64(),
-                Some(player.living_entity.entity.entity_id),
+                Some(player),
+                Some(result.new_state_id),
             );
 
             if player.gamemode.load() != GameMode::Creative {

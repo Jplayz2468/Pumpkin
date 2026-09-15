@@ -1801,10 +1801,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
     }
 
     fn get_experience_reward(&self, _killer: Option<&dyn EntityBase>) -> u32 {
-        if self
-            .as_ageable()
-            .is_some_and(crate::entity::ageable::AgeableMob::is_baby)
-        {
+        if !EntityBase::should_drop_experience(self) {
             return 0;
         }
         if zombie::is_zombie_family(self.get_entity().entity_type.resource_name)

@@ -6,6 +6,7 @@ use pumpkin_data::BlockId;
 use pumpkin_data::BlockState;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::GlowLichenLikeProperties;
+use pumpkin_data::tag::Block::MINECRAFT_FIRE;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::random::RandomGenerator;
 use pumpkin_util::random::RandomImpl;
@@ -128,7 +129,7 @@ impl VeinRules {
                 let Some(existing) = state.or_else(|| level.sculk_get(pos)) else {
                     return false;
                 };
-                if !Self::state_is_air_or_water(level, existing, pos) {
+                if !existing.to_state().is_air() && !level.sculk_is_water_source(pos) {
                     return false;
                 }
                 let faces: Vec<BlockDirection> = BlockDirection::all()
@@ -333,14 +334,12 @@ impl VeinRules {
             }
         }
         // Fire check.
-        if existing_id == Block::FIRE.id {
+        if existing_id.has_tag(MINECRAFT_FIRE) {
             return false;
         }
         // Non-water fluids can't be replaced: the existing fluid state
         // must be empty or water.
-        if existing.to_state().is_liquid()
-            && !(existing_id == BlockId::WATER && level.sculk_is_water(placement_pos))
-        {
+        if existing.to_state().is_liquid() && !level.sculk_is_water_source(placement_pos) {
             return false;
         }
         // Accept replaceable states, air, the same vein block, or a
@@ -388,44 +387,29 @@ impl VeinRules {
         Some(base.to_state())
     }
 
-    /// Checks whether a vein face can attach here: the face of the
-    /// support block must be sturdy.
+    /// A full support face or full collision face can hold a vein.
     fn can_attach_to(level: &dyn SculkLevel, pos: BlockPos, face: BlockDirection) -> bool {
         let support_pos = pos.offset(face.to_offset());
         level.sculk_is_face_sturdy(support_pos, face.opposite())
+            || level.sculk_get(support_pos).is_some_and(|state| {
+                state.to_state().collision_face_covers(
+                    support_pos,
+                    face.opposite(),
+                    [0.0, 1.0, 0.0, 1.0],
+                )
+            })
     }
 
-    /// Checks whether the given state holds water fluid.
-    fn state_has_water(level: &dyn SculkLevel, state: BlockStateId, pos: BlockPos) -> bool {
-        match state.to_block_id() {
-            BlockId::WATER => level.sculk_is_water(pos),
-            BlockId::SCULK_VEIN => {
-                let props = GlowLichenLikeProperties::from_state_id(state);
-                props.r#waterlogged
-            }
-            _ => false,
-        }
+    fn state_has_water(level: &dyn SculkLevel, _state: BlockStateId, pos: BlockPos) -> bool {
+        level.sculk_is_water(pos)
     }
 
-    /// Gate before regrowing: the state must be air or hold water.
-    fn state_is_air_or_water(level: &dyn SculkLevel, state: BlockStateId, pos: BlockPos) -> bool {
-        state.to_state().is_air() || Self::state_has_water(level, state, pos)
-    }
-
-    /// Checks whether the previous state held a water source.
     fn old_state_is_water_source(
         level: &dyn SculkLevel,
-        state: BlockStateId,
+        _state: BlockStateId,
         pos: BlockPos,
     ) -> bool {
-        match state.to_block_id() {
-            BlockId::WATER => level.sculk_is_water_source(pos),
-            BlockId::SCULK_VEIN => {
-                let props = GlowLichenLikeProperties::from_state_id(state);
-                props.r#waterlogged
-            }
-            _ => false,
-        }
+        level.sculk_is_water_source(pos)
     }
 
     /// Returns whether `state` has the given face bit set.

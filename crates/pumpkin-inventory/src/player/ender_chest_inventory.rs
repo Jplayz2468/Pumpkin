@@ -146,6 +146,14 @@ impl Inventory for EnderChestInventory {
         }
     }
 
+    fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> {
+        self.tracker
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_ref()
+            .and_then(|tracker| tracker.position)
+    }
+
     fn on_open(&self) {
         if let Some(tracker) = self
             .tracker

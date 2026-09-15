@@ -23,6 +23,28 @@ pub trait Inventory: Send + Sync + Clearable {
     fn on_open(&self) {}
     fn on_close(&self) {}
 
+    /// Physical container whose viewer transition needs sound, animation and events.
+    fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> {
+        None
+    }
+
+    fn on_open_by(&self, player: &dyn crate::screen_handler::InventoryPlayer) {
+        let position = self.viewer_position();
+        self.on_open();
+        if let Some(position) = position {
+            player.on_container_viewers_changed(position);
+        }
+    }
+
+    fn on_close_by(&self, player: &dyn crate::screen_handler::InventoryPlayer) {
+        // Ender inventories detach their tracker during on_close.
+        let position = self.viewer_position();
+        self.on_close();
+        if let Some(position) = position {
+            player.on_container_viewers_changed(position);
+        }
+    }
+
     fn count(&self, item: &Item) -> u8 {
         let mut count = 0;
 

@@ -17,6 +17,7 @@ pub mod blocks;
 pub mod entities;
 pub mod fluid;
 pub mod registry;
+pub(crate) mod shape;
 pub mod viewer;
 
 use crate::block::registry::BlockActionResult;
@@ -503,6 +504,11 @@ pub fn drop_loot(
     experience: bool,
     params: &LootContextParameters,
 ) {
+    let has_silk_touch = params.tool.as_ref().is_some_and(|tool| {
+        pumpkin_data::Enchantment::from_name("silk_touch")
+            .is_some_and(|e| tool.get_enchantment_level(e) > 0)
+    });
+    let is_hive = matches!(block.id, BlockId::BEEHIVE | BlockId::BEE_NEST);
     let key = format!("minecraft:blocks/{}", block.name);
     if let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(&key) {
         let seed: i64 = rand::random();
@@ -512,8 +518,26 @@ pub fn drop_loot(
         // Only the stack for this block itself receives them.
         if let Some(block_entity) = world.get_block_entity(pos) {
             for stack in &mut items {
-                if Block::from_item_id(stack.item.id) == Some(block) {
+                if Block::from_item_id(stack.item.id) == Some(block) && (!is_hive || has_silk_touch)
+                {
                     block_entity.write_dropped_stack_components(stack);
+                    // Both hive loot tables copy bees and honey only on their
+                    // silk-touch branch. A normal hive drop must not duplicate bees.
+                    if is_hive && let Some(state) = params.block_state {
+                        let honey =
+                            pumpkin_data::block_properties::BeeNestLikeProperties::from_state_id(
+                                state.id,
+                            )
+                            .honey_level;
+                        stack.set_data_component(
+                            pumpkin_data::data_component_impl::BlockStateImpl {
+                                properties: std::borrow::Cow::Owned(vec![(
+                                    "honey_level".into(),
+                                    honey.to_string().into(),
+                                )]),
+                            },
+                        );
+                    }
                 }
             }
         }
@@ -535,11 +559,6 @@ pub fn drop_loot(
             }
         }
     }
-
-    let has_silk_touch = params.tool.as_ref().is_some_and(|tool| {
-        pumpkin_data::Enchantment::from_name("silk_touch")
-            .is_some_and(|e| tool.get_enchantment_level(e) > 0)
-    });
 
     if experience
         && !has_silk_touch

@@ -81,6 +81,16 @@ impl Inventory for DoubleInventory {
         }
     }
 
+    fn on_open_by(&self, player: &dyn crate::screen_handler::InventoryPlayer) {
+        self.first.on_open_by(player);
+        self.second.on_open_by(player);
+    }
+
+    fn on_close_by(&self, player: &dyn crate::screen_handler::InventoryPlayer) {
+        self.first.on_close_by(player);
+        self.second.on_close_by(player);
+    }
+
     fn on_open(&self) {
         self.first.on_open();
         self.second.on_open();

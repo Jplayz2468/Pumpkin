@@ -354,13 +354,15 @@ impl ChargeCursor {
                 }
             }
 
-            // Update faces from the new position's block.
-            if let Some(state) = level.sculk_get(self.pos) {
-                let id = state.to_block_id();
-                if is_sculk_behaviour(id) {
-                    self.faces = Some(Self::available_faces(state, id));
-                }
-            }
+            current_state = level.sculk_get(self.pos);
+        }
+
+        // Remember faces even if no movement was possible. Use the captured
+        // state, as charge consumption may already have changed the world.
+        if let Some(state) = current_state
+            && is_sculk_behaviour(state.to_block_id())
+        {
+            self.faces = Some(Self::available_faces(state, state.to_block_id()));
         }
 
         // Update delays.
