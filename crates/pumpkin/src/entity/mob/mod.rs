@@ -1454,8 +1454,6 @@ impl<T: Mob + Send + 'static> EntityBase for T {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = navigator;
         }
-        self.mob_tick(caller);
-
         // Lab switch (`local_safety.only_zombie_ai`, off by default): silence every mob
         // except zombies so a test world is quiet enough to watch one mob. Deliberate
         // divergence from vanilla, not a parity behaviour.
@@ -1468,11 +1466,20 @@ impl<T: Mob + Send + 'static> EntityBase for T {
             .is_some_and(|server| server.advanced_config.local_safety.only_zombie_ai)
             && self.as_zombie_base().is_none();
 
+        let takes_goal_path = !mob_entity.is_no_ai() && self.run_goal_ai() && !silenced_by_lab;
+        // `Mob.serverAiStep` (Mob.java:716) runs `customServerAiStep` AFTER the goal
+        // selectors and navigation, not before, so a mob's own step sees the decisions
+        // the goals made this tick rather than last tick's. Mobs that do not take the
+        // goal path keep the original position.
+        if !takes_goal_path {
+            self.mob_tick(caller);
+        }
+
         if !silenced_by_lab {
             self.tick_brain(caller);
         }
 
-        if !mob_entity.is_no_ai() && self.run_goal_ai() && !silenced_by_lab {
+        if takes_goal_path {
             mob_entity.no_action_time.fetch_add(1, Relaxed);
             let tick_count = mob_entity.living_entity.entity.tick_count.load(Relaxed);
             let entity_id = mob_entity.living_entity.entity.entity_id;
@@ -1532,21 +1539,26 @@ impl<T: Mob + Send + 'static> EntityBase for T {
                     .unwrap_or_else(std::sync::PoisonError::into_inner) = navigator;
             };
 
-            // Controllers are synchronous, so we can just use normal blocks
-            {
-                let mut look_control = mob_entity
-                    .look_control
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                look_control.tick(self);
-            };
+            // Mob.serverAiStep:744 -- "mob tick", between navigation and the controls.
+            self.mob_tick(caller);
 
+            // Controllers are synchronous, so we can just use normal blocks.
+            // Vanilla ticks move before look (Mob.serverAiStep:746-751); running look
+            // first makes the head aim from the position the mob held last tick.
             {
                 let mut move_control = mob_entity
                     .move_control
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 move_control.tick(self);
+            };
+
+            {
+                let mut look_control = mob_entity
+                    .look_control
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                look_control.tick(self);
             };
         } else if !mob_entity.is_no_ai() && self.uses_brain_navigation() {
             mob_entity
