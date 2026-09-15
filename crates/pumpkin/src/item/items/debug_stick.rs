@@ -122,12 +122,26 @@ impl DebugStickItem {
                 true,
             );
         } else {
+            // Whether this block already had a persisted selection. DebugStickItem.java:71
+            // reads `debugStickState.properties().get(block)`, which is `null` the first
+            // time a block is touched.
+            let had_prior_selection = map
+                .get(&block.id)
+                .is_some_and(|prop| prop_names.contains(prop));
+            let is_backward = player.get_entity().is_sneaking();
             let cur_idx = prop_names
                 .iter()
                 .position(|name| *name == selected_prop)
                 .unwrap_or(0);
-            let is_backward = player.get_entity().is_sneaking();
-            let new_idx = if is_backward {
+            // DebugStickItem.java:81 `getRelative(properties, property, backward)` calls
+            // Util.findNextInIterable/findPreviousInIterable (Util.java:614-651). With no
+            // prior selection (`current == null`), findNextInIterable returns the first
+            // element outright (Util.java:614-632) and findPreviousInIterable returns the
+            // last element outright (Util.java:634-651) -- neither advances by one from
+            // index 0, unlike the "has a prior selection" case below.
+            let new_idx = if !had_prior_selection && !is_backward {
+                0
+            } else if is_backward {
                 (cur_idx + prop_names.len() - 1) % prop_names.len()
             } else {
                 (cur_idx + 1) % prop_names.len()
