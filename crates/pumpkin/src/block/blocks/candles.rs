@@ -2,6 +2,7 @@ use pumpkin_data::item::Item;
 use pumpkin_data::{
     BlockDirection, BlockStateId, block_properties::CandleLikeProperties, entity::EntityPose,
 };
+use pumpkin_inventory::screen_handler::InventoryPlayer;
 use pumpkin_macros::pumpkin_block_from_tag;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
@@ -56,6 +57,18 @@ impl BlockBehaviour for CandleBlock {
 
                     if properties.candles < 4 {
                         properties.candles += 1;
+                        // Vanilla adds a candle via CandleBlock's `canBeReplaced`/
+                        // `getStateForPlacement` combine path, which is the ordinary
+                        // BlockItem placement flow and consumes through
+                        // `BlockItem.place` -> `ItemStack.consume` (BlockItem.java:89,
+                        // ItemStack.java:1082-1086: shrinks by 1 unless the player
+                        // `hasInfiniteMaterials()`). This `use_with_item` arm returns
+                        // `Consume`, which short-circuits before Pumpkin's own
+                        // placement-decrement logic in `use_item_on.rs` ever runs, so
+                        // the decrement has to happen here instead.
+                        if !args.player.has_infinite_materials() {
+                            args.item_stack.decrement(1);
+                        }
                     }
 
                     properties.lit = was_lit;
