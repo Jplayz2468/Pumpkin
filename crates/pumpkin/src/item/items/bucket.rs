@@ -268,7 +268,15 @@ pub(crate) fn try_place_filled_bucket(
         return true;
     }
 
-    if state.id == Block::AIR.default_state.id || state.is_liquid() {
+    // Vanilla's `mayReplace = blockState.canBeReplaced(this.content)` (BucketItem.java:114) is
+    // not limited to air: it also covers e.g. tall grass, fire, snow layers, and other
+    // replaceable blocks. When the target isn't a liquid, vanilla force-breaks it with drops
+    // before placing the fluid (`level.destroyBlock(pos, true)`, BucketItem.java:140-141);
+    // `state.id == AIR` alone missed all of the non-air replaceable cases.
+    if state.replaceable() || state.is_liquid() {
+        if !state.is_liquid() {
+            world.break_block(&target_pos, None, BlockFlags::NOTIFY_ALL);
+        }
         world.set_block_state(
             &target_pos,
             if item.id == Item::LAVA_BUCKET.id {
@@ -331,9 +339,13 @@ impl ItemBehaviour for EmptyBucketItem {
             }
         }
 
+        // Vanilla plays the fill/pickup sound via `player.playSound`, which routes through
+        // `Player.getSoundSource()` = `SoundSource.PLAYERS` (Player.java:403-405), not BLOCKS.
+        // BucketItem.java:76 (BucketPickup path) and BucketItem.java:128 (direct source pickup)
+        // both go through this same Player#playSound.
         world.play_sound(
             get_fill_sound(item),
-            SoundCategory::Blocks,
+            SoundCategory::Players,
             &block_pos.to_f64(),
         );
 
@@ -572,7 +584,13 @@ fn release_player_bucket(
             return;
         }
     }
-    let target = if world.get_block(&pos).is_waterloggable() {
+    // Mirror the waterlogging condition used inside `try_place_filled_bucket`: lava can never
+    // waterlog a block (BucketItem.java:59 only special-cases `content == Fluids.WATER`), so a
+    // lava bucket aimed at a waterloggable block actually places at the offset position, not at
+    // `pos`. Keeping this in sync avoids playing the sound / spawning a mob at a position that
+    // doesn't match where the fluid was actually placed.
+    let target = if stack.item.id != Item::LAVA_BUCKET.id && world.get_block(&pos).is_waterloggable()
+    {
         pos
     } else {
         pos.offset(direction.to_offset())
@@ -584,9 +602,17 @@ fn release_player_bucket(
             return;
         }
         spawn_bucket_mob(&world, stack, target);
+        // BucketItem.playEmptySound (BucketItem.java:154-157) uses SoundSource.BLOCKS for
+        // water/lava/powder snow; MobBucketItem overrides it to SoundSource.NEUTRAL
+        // (MobBucketItem.java:41-44) only for the fish/axolotl/tadpole buckets.
+        let empty_sound_category = if get_mob_for_bucket(stack.item).is_some() {
+            SoundCategory::Neutral
+        } else {
+            SoundCategory::Blocks
+        };
         world.play_sound(
             get_empty_sound(stack.item),
-            SoundCategory::Neutral,
+            empty_sound_category,
             &target.to_f64(),
         );
     }
