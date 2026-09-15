@@ -52,6 +52,7 @@ use crate::block::blocks::honey::HoneyBlock;
 use crate::block::blocks::huge_mushroom::HugeMushroomBlock;
 use crate::block::blocks::ice::{FrostedIceBlock, IceBlock};
 use crate::block::blocks::infested::InfestedBlock;
+use crate::block::blocks::infested_rotated_pillar::InfestedRotatedPillarBlock;
 use crate::block::blocks::iron_bars::IronBarsBlock;
 use crate::block::blocks::jigsaw::JigsawBlock;
 use crate::block::blocks::leaves::LeavesBlock;
@@ -283,6 +284,7 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(FrostedIceBlock);
     manager.register(IronBarsBlock);
     manager.register(InfestedBlock);
+    manager.register(InfestedRotatedPillarBlock);
     manager.register(JukeboxBlock);
     manager.register(LogBlock);
     manager.register(LeavesBlock);
