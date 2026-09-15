@@ -54,6 +54,21 @@ impl BedrockClient {
                             .broken(&world, block, player, &location, server, state);
                     }
                 } else if !state.is_air() {
+                    if !player.mining.load(Ordering::Relaxed)
+                        || *player
+                            .mining_pos
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            != location
+                    {
+                        server.block_registry.attacked(crate::block::AttackArgs {
+                            world: &world,
+                            block,
+                            state_id: state.id,
+                            position: &location,
+                            player,
+                        });
+                    }
                     let speed = crate::block::calc_block_breaking(player, state, block);
                     if speed >= 1.0 {
                         player.stop_mining();

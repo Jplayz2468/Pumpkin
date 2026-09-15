@@ -70,6 +70,19 @@ impl<'a> EnvironmentAttributes<'a> {
                     0.0
                 }
             }
+            EnvironmentAttribute::GameplayTurtleEggHatchChance => {
+                // Vanilla day timeline: constant maximum modifier over the
+                // default 0.002 chance, from tick 21062 through tick 21904.
+                let time = self.world.get_time_of_day().rem_euclid(24000);
+                if self.world.dimension.has_skylight
+                    && !self.world.dimension.has_fixed_time
+                    && (21062..21905).contains(&time)
+                {
+                    1.0
+                } else {
+                    0.002
+                }
+            }
             EnvironmentAttribute::VisualSunAngle => {
                 super::calculate_celestial_angle(self.world.get_time_of_day()) * 360.0
             }

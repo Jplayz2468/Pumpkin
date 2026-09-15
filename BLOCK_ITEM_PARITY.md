@@ -18,6 +18,40 @@ This checkpoint records source changes, not a passing parity result.
   Do not commit to the hosting repository's `main` or merge the four unfinished
   `agent/mob/*` branches.
 
+## Latest continuation: eggs, coral, fire and state callbacks
+
+- Sniffer eggs schedule every hatch stage, use the hatch-boost tag, sounds/events
+  and level random delay, and spawn a baby sniffer. Turtle eggs use the day-timeline
+  hatch chance, source trampling/landing order and egg-stack behavior, and spawn
+  baby turtles with saved home positions. Frogspawn uses source-water support,
+  source hatch delay/count/positions and persistent tadpoles without item drops.
+- Same-block state changes now dispatch a separate `state_changed` callback so
+  audited handlers can run Java onPlace behavior without recreating inventories.
+  Eggs, coral plants/fans, falling blocks, anvils, dragon eggs, frosted ice,
+  redstone torches, repeaters, comparators and fire have been migrated. Other
+  handlers still need review before forwarding their legacy placement callback.
+- Coral plants/fans include their own waterlogging in survival, accept full water
+  on placement, use sturdy support faces and schedule fluid/death ticks on shape
+  updates. Dead variants retain water ticks. Coral blocks schedule drying during
+  item placement and neighbor updates. Death writes use source flag 2.
+- Ice respects the prevents-ice-melting enchantment tag and creative destruction,
+  uses source support and water neighbor notification; frosted ice uses level
+  random delays, signed light thresholds and flag-2 aging, including the onPlace
+  reschedule. Redstone uses the new state callback instead of manual duplicate
+  torch/repeater updates; burnout uses world event 1502.
+- Fire gates the whole scheduled operation by player radius, uses level random
+  draws, old-age spread decisions, correct waterlogged fuel checks, source age
+  flags and neighbor-state age preservation, source-position burnout and soul
+  fire conversion. Unsupported placement performs the source survival check.
+- Dragon eggs teleport on initial noncreative attack through a shared block
+  attack callback (Java and Bedrock), use triangular offsets, border/build-height
+  checks, flag-2 destination placement and five-tick falling updates. Breaking an
+  egg no longer teleports an already-removed block.
+- Limits: built-in dimension/biome attributes remain approximated by the existing
+  environment adapter, entity creation still lacks full spawn-reason plumbing,
+  world-border interpolation/edge semantics and remaining attack hooks are open.
+  Source review and rustfmt only; no compilation or tests were run.
+
 ## Latest continuation: remaining vegetation and feature growth
 
 - Bamboo now uses the source height count, leaf transitions, thickness, stop ages,

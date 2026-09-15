@@ -2,7 +2,10 @@ use crate::{
     block::{
         BlockBehaviour, BlockIsReplacing, BlockMetadata, CanPlaceAtArgs,
         GetStateForNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs, PlacedArgs,
-        blocks::coral::{is_dead_coral, scan_for_water, try_schedule_die_tick},
+        blocks::coral::{
+            is_dead_coral, placement_waterlogged, scan_for_waterlogged_coral, schedule_water_tick,
+            try_schedule_die_tick,
+        },
     },
     entity::EntityBase,
 };
@@ -47,12 +50,6 @@ pub type CoralFanLikeProperties = MangroveRootsLikeProperties;
 
 impl BlockBehaviour for CoralFanBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        if args.direction == BlockDirection::Down {
-            let support_block = args.world.get_block_state(&args.position.down());
-            if support_block.is_center_solid(BlockDirection::Up) {
-                return get_default_coral_fan_state_id(args.block, args.replacing.water_source());
-            }
-        }
         let mut directions = args.player.get_entity().get_entity_facing_order();
 
         if args.replacing == BlockIsReplacing::None {
@@ -66,14 +63,21 @@ impl BlockBehaviour for CoralFanBlock {
                 directions.copy_within(0..i, 1);
                 directions[0] = face;
             }
-        } else if directions[0] == Facing::Down {
-            let support_block = args.world.get_block_state(&args.position.down());
-            if support_block.is_center_solid(BlockDirection::Up) {
-                return get_default_coral_fan_state_id(args.block, args.replacing.water_source());
-            }
         }
 
         for dir in directions {
+            if dir == Facing::Down
+                && args
+                    .world
+                    .get_block_state(&args.position.down())
+                    .is_side_solid(BlockDirection::Up)
+            {
+                return get_default_coral_fan_state_id(
+                    args.block,
+                    placement_waterlogged(args.world, args.position),
+                );
+            }
+
             if let (Some(h_facing), Some(opp_facing)) = (
                 dir.to_horizontal_facing(),
                 dir.opposite().to_horizontal_facing(),
@@ -83,29 +87,34 @@ impl BlockBehaviour for CoralFanBlock {
                     return BlockStateId::AIR;
                 };
                 let mut coral_wall_fan_props = CoralWallFanLikeProperties::default(wall_block);
-                coral_wall_fan_props.waterlogged = args.replacing.water_source();
+                coral_wall_fan_props.waterlogged = placement_waterlogged(args.world, args.position);
                 coral_wall_fan_props.facing = opp_facing;
                 return coral_wall_fan_props.to_state_id(wall_block);
             }
         }
 
-        let support_block = args.world.get_block_state(&args.position.down());
-        if support_block.is_center_solid(BlockDirection::Up) {
-            return get_default_coral_fan_state_id(args.block, args.replacing.water_source());
-        }
         BlockStateId::AIR
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
+        if !is_dead_coral(args.block)
+            && !scan_for_waterlogged_coral(args.world, args.position, args.state_id)
         {
-            if !scan_for_water(args.world, args.position) {
-                try_schedule_die_tick(args.block, args.world, args.position);
-            }
+            try_schedule_die_tick(args.block, args.world, args.position);
         }
+    }
+    fn state_changed(&self, args: PlacedArgs<'_>) {
+        self.placed(args);
     }
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        if !scan_for_water(args.world, args.position) && !is_dead_coral(args.block) {
+        if !is_dead_coral(args.block)
+            && !scan_for_waterlogged_coral(
+                args.world,
+                args.position,
+                args.world.get_block_state_id(args.position),
+            )
+        {
             let current_state = args.world.get_block_state(args.position);
 
             let Some(dead_block) = get_dead_type(args.block.id) else {
@@ -123,28 +132,33 @@ impl BlockBehaviour for CoralFanBlock {
                 props.to_state_id(dead_block)
             };
 
-            args.world
-                .set_block_state(args.position, dead_block_state_id, BlockFlags::NOTIFY_ALL);
+            args.world.set_block_state(
+                args.position,
+                dead_block_state_id,
+                BlockFlags::NOTIFY_LISTENERS,
+            );
         }
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        let support_block = args.block_accessor.get_block_state(&args.position.down());
-        if support_block.is_center_solid(BlockDirection::Up) && !is_wall_fan(args.block) {
-            return true;
+        if is_wall_fan(args.block) {
+            let props = CoralWallFanLikeProperties::from_state_id(args.state.id);
+            can_place_at(args.block_accessor, args.position, props.facing.opposite())
+        } else {
+            args.block_accessor
+                .get_block_state(&args.position.down())
+                .is_side_solid(BlockDirection::Up)
         }
-        for dir in BlockDirection::horizontal() {
-            if can_place_at(args.block_accessor, args.position, dir) {
-                return true;
-            }
-        }
-        false
     }
 
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
+        if is_dead_coral(args.block) {
+            schedule_water_tick(args.world, args.position, args.state_id);
+        }
+
         if is_wall_fan(args.block) {
             let props = CoralWallFanLikeProperties::from_state_id(args.state_id);
             if props.facing.to_block_direction().opposite() == args.direction
@@ -154,11 +168,20 @@ impl BlockBehaviour for CoralFanBlock {
             }
         } else if args.direction == BlockDirection::Down {
             let support_block = args.world.get_block_state(&args.position.down());
-            if !support_block.is_center_solid(BlockDirection::Up) {
+            if !support_block.is_side_solid(BlockDirection::Up) {
                 return BlockStateId::AIR;
             }
         }
 
+        if !is_dead_coral(args.block) {
+            if is_wall_fan(args.block) {
+                schedule_water_tick(args.world, args.position, args.state_id);
+            }
+            if !scan_for_waterlogged_coral(args.world, args.position, args.state_id) {
+                try_schedule_die_tick(args.block, args.world, args.position);
+            }
+            schedule_water_tick(args.world, args.position, args.state_id);
+        }
         args.state_id
     }
 }

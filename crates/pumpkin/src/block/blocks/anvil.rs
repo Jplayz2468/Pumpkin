@@ -66,6 +66,10 @@ impl BlockBehaviour for AnvilBlock {
         Some(Box::new(AnvilScreenFactory))
     }
 
+    fn state_changed(&self, args: PlacedArgs<'_>) {
+        self.placed(args);
+    }
+
     fn placed(&self, args: PlacedArgs<'_>) {
         FallingBlock::placed(&FallingBlock, args);
     }

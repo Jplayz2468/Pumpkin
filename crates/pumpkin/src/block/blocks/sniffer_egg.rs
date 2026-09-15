@@ -1,103 +1,92 @@
-use pumpkin_data::block_properties::SnifferEggLikeProperties;
-use pumpkin_data::item::Item;
-use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::sound::{Sound, SoundCategory};
-use pumpkin_data::{BlockId, BlockState, BlockStateId};
-use pumpkin_macros::pumpkin_block;
-use pumpkin_world::tick::TickPriority;
-use pumpkin_world::world::BlockFlags;
-
-use crate::block::{
-    BlockBehaviour, BrokenArgs, OnPlaceArgs, OnScheduledTickArgs, PathComputationType, PlacedArgs,
+use crate::block::{BlockBehaviour, OnScheduledTickArgs, PathComputationType, PlacedArgs};
+use crate::entity::r#type::from_type;
+use pumpkin_data::{
+    BlockState,
+    block_properties::SnifferEggLikeProperties,
+    entity::EntityType,
+    sound::{Sound, SoundCategory},
+    tag::{self, Taggable},
+    world::WorldEvent,
 };
+use pumpkin_macros::pumpkin_block;
+use pumpkin_world::{tick::TickPriority, world::BlockFlags};
+use uuid::Uuid;
 
 #[pumpkin_block("minecraft:sniffer_egg")]
 pub struct SnifferEggBlock;
-
-impl SnifferEggBlock {
-    fn is_on_moss(
-        world: &dyn pumpkin_world::world::BlockAccessor,
-        pos: &pumpkin_util::math::position::BlockPos,
-    ) -> bool {
-        let below_pos = pos.down();
-        let state = world.get_block_state(&below_pos);
-        let block = BlockId::from_state_id(state.id);
-        block == BlockId::MOSS_BLOCK
-    }
-
-    const fn get_hatch_delay(on_moss: bool) -> u32 {
-        if on_moss { 100 } else { 200 }
-    }
-}
-
 impl BlockBehaviour for SnifferEggBlock {
-    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        let props = SnifferEggLikeProperties::default(args.block);
-        props.to_state_id(args.block)
-    }
-
     fn placed(&self, args: PlacedArgs<'_>) {
-        {
-            args.world.play_sound(
-                Sound::BlockSnifferEggPlop,
-                SoundCategory::Blocks,
-                &args.position.to_f64(),
-            );
-
-            let on_moss = Self::is_on_moss(args.world.as_ref(), args.position);
-            let delay = Self::get_hatch_delay(on_moss);
+        let boosted = args
+            .world
+            .get_block(&args.position.down())
+            .has_tag(&tag::Block::MINECRAFT_SNIFFER_EGG_HATCH_BOOST);
+        if boosted {
             args.world
-                .schedule_block_tick(args.block, *args.position, delay, TickPriority::Normal);
+                .sync_world_event(WorldEvent::ParticlesEggCrack, *args.position, 0);
         }
+        args.world.emit_game_event_from_entity(
+            "block_place",
+            args.position.to_centered_f64(),
+            None,
+            Some(args.state_id),
+        );
+        let progression_delay = if boosted { 4000 } else { 8000 };
+        args.world.schedule_block_tick(
+            args.block,
+            *args.position,
+            progression_delay + args.world.rand_bounded_i32(300) as u32,
+            TickPriority::Normal,
+        );
     }
-
+    fn state_changed(&self, args: PlacedArgs<'_>) {
+        self.placed(args);
+    }
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        let state_id = args.world.get_block_state_id(args.position);
-        let mut props = SnifferEggLikeProperties::from_state_id(state_id);
-
+        let mut props =
+            SnifferEggLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
+        let sound = if props.hatch < 2 {
+            Sound::BlockSnifferEggCrack
+        } else {
+            Sound::BlockSnifferEggHatch
+        };
+        args.world.play_sound_fine(
+            sound,
+            SoundCategory::Blocks,
+            &args.position.to_centered_f64(),
+            0.7,
+            0.9 + args.world.rand_f32() * 0.2,
+        );
         if props.hatch < 2 {
             props.hatch += 1;
             args.world.set_block_state(
                 args.position,
                 props.to_state_id(args.block),
-                BlockFlags::NOTIFY_ALL,
+                BlockFlags::NOTIFY_LISTENERS,
             );
-
-            args.world.play_sound(
-                Sound::BlockSnifferEggCrack,
-                SoundCategory::Blocks,
-                &args.position.to_f64(),
-            );
-
-            let on_moss = Self::is_on_moss(args.world.as_ref(), args.position);
-            let delay = Self::get_hatch_delay(on_moss);
-            args.world
-                .schedule_block_tick(args.block, *args.position, delay, TickPriority::Normal);
         } else {
-            args.world
-                .break_block(args.position, None, BlockFlags::SKIP_DROPS);
-
-            args.world.play_sound(
-                Sound::BlockSnifferEggHatch,
-                SoundCategory::Blocks,
-                &args.position.to_f64(),
+            args.world.break_block(
+                args.position,
+                None,
+                BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
             );
+            let sniffer = from_type(
+                &EntityType::SNIFFER,
+                args.position.to_centered_f64(),
+                args.world,
+                Uuid::new_v4(),
+            );
+            if let Some(ageable) = sniffer.get_mob().and_then(|mob| mob.as_ageable()) {
+                ageable.set_baby(true);
+            }
+            let mut yaw = args.world.rand_f32() * 360.0;
+            if yaw >= 180.0 {
+                yaw -= 360.0;
+            }
+            sniffer.get_entity().set_rotation(yaw, 0.0);
+            args.world.spawn_entity(sniffer);
         }
     }
-
-    fn broken(&self, args: BrokenArgs<'_>) {
-        {
-            args.world.play_sound(
-                Sound::BlockSnifferEggCrack,
-                SoundCategory::Blocks,
-                &args.position.to_f64(),
-            );
-            args.world
-                .drop_stack(args.position, ItemStack::new(1, &Item::SNIFFER_EGG));
-        }
-    }
-
-    fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {
+    fn is_pathfindable(&self, _state: &BlockState, _kind: PathComputationType) -> bool {
         false
     }
 }

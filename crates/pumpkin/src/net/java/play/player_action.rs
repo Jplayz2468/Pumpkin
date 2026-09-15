@@ -93,6 +93,13 @@ impl JavaClient {
                         Ordering::Relaxed,
                     );
                     if !state.is_air() {
+                        server.block_registry.attacked(crate::block::AttackArgs {
+                            world: &world,
+                            block,
+                            state_id: state.id,
+                            position: &position,
+                            player,
+                        });
                         let speed = block::calc_block_breaking(player, state, block);
                         // Instant break
                         if speed >= 1.0 {

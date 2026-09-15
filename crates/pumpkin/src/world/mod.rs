@@ -5774,7 +5774,7 @@ impl World {
             );
         }
 
-        if !flags.contains(BlockFlags::SKIP_BLOCK_ADDED_CALLBACK) && is_new_block {
+        if !flags.contains(BlockFlags::SKIP_BLOCK_ADDED_CALLBACK) {
             self.block_registry.on_placed(
                 self,
                 new_block,
@@ -5783,15 +5783,17 @@ impl World {
                 replaced_block_state_id,
                 block_moved,
             );
-            let new_fluid = self.get_fluid(position);
-            self.block_registry.on_placed_fluid(
-                self,
-                new_fluid,
-                block_state_id,
-                position,
-                replaced_block_state_id,
-                block_moved,
-            );
+            if is_new_block {
+                let new_fluid = self.get_fluid(position);
+                self.block_registry.on_placed_fluid(
+                    self,
+                    new_fluid,
+                    block_state_id,
+                    position,
+                    replaced_block_state_id,
+                    block_moved,
+                );
+            }
         }
 
         // Level.java setBlock

@@ -19,7 +19,6 @@ use pumpkin_data::BlockStateId;
 use pumpkin_data::FacingExt;
 use pumpkin_data::HorizontalFacingExt;
 use pumpkin_data::block_properties::Facing;
-use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockAccessor;
@@ -48,7 +47,9 @@ pub fn is_toggled_too_frequently(
     current_time: i64,
     add: bool,
 ) -> bool {
-    let mut lock = RECENT_TOGGLES.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut lock = RECENT_TOGGLES
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
     let entries = lock.entry((world_id, pos)).or_default();
     entries.retain(|&time| current_time.saturating_sub(time) <= 60);
 
@@ -162,7 +163,10 @@ impl BlockBehaviour for RedstoneTorchBlock {
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        if args.world.is_block_tick_scheduled(args.position, args.block) {
+        if args
+            .world
+            .is_block_tick_scheduled(args.position, args.block)
+        {
             return;
         }
 
@@ -173,18 +177,17 @@ impl BlockBehaviour for RedstoneTorchBlock {
             (props.lit, !should_be_lit(args.world, args.position, face))
         } else if args.block == &Block::REDSTONE_TORCH {
             let props = RTorchProps::from_state_id(state.id);
-            (props.lit, !should_be_lit(args.world, args.position, BlockDirection::Down))
+            (
+                props.lit,
+                !should_be_lit(args.world, args.position, BlockDirection::Down),
+            )
         } else {
             return;
         };
 
         if lit == neighbor_signal {
-            args.world.schedule_block_tick(
-                args.block,
-                *args.position,
-                2,
-                TickPriority::Normal,
-            );
+            args.world
+                .schedule_block_tick(args.block, *args.position, 2, TickPriority::Normal);
         }
     }
 
@@ -234,7 +237,10 @@ impl BlockBehaviour for RedstoneTorchBlock {
             (props.lit, !should_be_lit(args.world, args.position, face))
         } else if block == &Block::REDSTONE_TORCH {
             let props = RTorchProps::from_state_id(state.id);
-            (props.lit, !should_be_lit(args.world, args.position, BlockDirection::Down))
+            (
+                props.lit,
+                !should_be_lit(args.world, args.position, BlockDirection::Down),
+            )
         } else {
             return;
         };
@@ -242,14 +248,11 @@ impl BlockBehaviour for RedstoneTorchBlock {
         if lit {
             if neighbor_signal {
                 Self::set_lit(args.world, args.position, block, state.id, false);
-                update_neighbors(args.world, args.position);
                 if is_toggled_too_frequently(args.world.uuid, *args.position, current_time, true) {
-                    args.world.play_sound_raw(
-                        Sound::BlockRedstoneTorchBurnout as u16,
-                        SoundCategory::Blocks,
-                        &args.position.to_centered_f64(),
-                        0.5,
-                        2.6 + (args.world.rand_f32() - args.world.rand_f32()) * 0.8,
+                    args.world.sync_world_event(
+                        pumpkin_data::world::WorldEvent::RedstoneTorchBurnout,
+                        *args.position,
+                        0,
                     );
                     args.world.schedule_block_tick(
                         block,
@@ -263,8 +266,11 @@ impl BlockBehaviour for RedstoneTorchBlock {
             && !is_toggled_too_frequently(args.world.uuid, *args.position, current_time, false)
         {
             Self::set_lit(args.world, args.position, block, state.id, true);
-            update_neighbors(args.world, args.position);
         }
+    }
+
+    fn state_changed(&self, args: PlacedArgs<'_>) {
+        self.placed(args);
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
@@ -328,17 +334,37 @@ mod tests {
 
         // Toggling 7 times within 60 ticks: not burned out yet
         for i in 0..7 {
-            assert!(!is_toggled_too_frequently(world_id, pos, start_time + i * 2, true));
+            assert!(!is_toggled_too_frequently(
+                world_id,
+                pos,
+                start_time + i * 2,
+                true
+            ));
         }
 
         // 8th toggle within 60 ticks: burns out!
-        assert!(is_toggled_too_frequently(world_id, pos, start_time + 14, true));
+        assert!(is_toggled_too_frequently(
+            world_id,
+            pos,
+            start_time + 14,
+            true
+        ));
 
         // While still within 60 ticks: query returns true
-        assert!(is_toggled_too_frequently(world_id, pos, start_time + 20, false));
+        assert!(is_toggled_too_frequently(
+            world_id,
+            pos,
+            start_time + 20,
+            false
+        ));
 
         // After 61 ticks: old toggles are pruned, no longer burned out
-        assert!(!is_toggled_too_frequently(world_id, pos, start_time + 80, false));
+        assert!(!is_toggled_too_frequently(
+            world_id,
+            pos,
+            start_time + 80,
+            false
+        ));
     }
 
     #[test]
@@ -353,7 +379,17 @@ mod tests {
         for i in 0..8 {
             is_toggled_too_frequently(world_a, pos, start_time + i * 2, true);
         }
-        assert!(is_toggled_too_frequently(world_a, pos, start_time + 14, false));
-        assert!(!is_toggled_too_frequently(world_b, pos, start_time + 14, false));
+        assert!(is_toggled_too_frequently(
+            world_a,
+            pos,
+            start_time + 14,
+            false
+        ));
+        assert!(!is_toggled_too_frequently(
+            world_b,
+            pos,
+            start_time + 14,
+            false
+        ));
     }
 }

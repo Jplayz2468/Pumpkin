@@ -1,3 +1,5 @@
+use crossbeam::atomic::AtomicCell;
+use pumpkin_util::math::position::BlockPos;
 use std::sync::{
     Arc, Weak,
     atomic::{AtomicBool, Ordering},
@@ -28,16 +30,19 @@ const TEMPT_ITEMS: &[&Item] = &[&Item::SEAGRASS];
 pub struct TurtleEntity {
     pub mob_entity: MobEntity,
     pub ageable_data: AgeableData,
+    pub home_pos: AtomicCell<BlockPos>,
     pub has_egg: AtomicBool,
     pub laying_egg: AtomicBool,
 }
 
 impl TurtleEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
+        let home_pos = entity.block_pos.load();
         let mob_entity = MobEntity::new(entity);
         let turtle = Self {
             mob_entity,
             ageable_data: AgeableData::default(),
+            home_pos: AtomicCell::new(home_pos),
             has_egg: AtomicBool::new(false),
             laying_egg: AtomicBool::new(false),
         };
@@ -117,12 +122,23 @@ impl Mob for TurtleEntity {
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
         self.write_ageable_nbt(nbt);
-        nbt.put_bool("HasEgg", self.has_egg());
+        let home = self.home_pos.load();
+        nbt.put(
+            "home_pos",
+            pumpkin_nbt::tag::NbtTag::IntArray(vec![home.0.x, home.0.y, home.0.z]),
+        );
+        nbt.put_bool("has_egg", self.has_egg());
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
         self.read_ageable_nbt(nbt);
-        if let Some(has_egg) = nbt.get_bool("HasEgg") {
+        let home = nbt
+            .get_int_array("home_pos")
+            .filter(|pos| pos.len() == 3)
+            .map(|pos| BlockPos::new(pos[0], pos[1], pos[2]))
+            .unwrap_or_else(|| self.get_entity().block_pos.load());
+        self.home_pos.store(home);
+        if let Some(has_egg) = nbt.get_bool("has_egg").or_else(|| nbt.get_bool("HasEgg")) {
             self.set_has_egg(has_egg);
         }
     }

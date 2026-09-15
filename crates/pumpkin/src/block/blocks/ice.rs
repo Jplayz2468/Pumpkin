@@ -2,11 +2,10 @@ use std::sync::Arc;
 
 use pumpkin_data::block_properties::{NetherWartLikeProperties, blocks_movement};
 use pumpkin_data::dimension::Dimension;
-use pumpkin_data::{Block, BlockDirection, BlockId, BlockState, BlockStateId, Enchantment};
+use pumpkin_data::{Block, BlockDirection, BlockId, BlockState, BlockStateId};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
-use rand::RngExt;
 
 use crate::block::{
     BlockBehaviour, BlockMetadata, BrokenArgs, OnNeighborUpdateArgs, OnScheduledTickArgs,
@@ -24,6 +23,7 @@ pub fn melt(world: &Arc<World>, position: &BlockPos) {
             Block::WATER.default_state.id,
             BlockFlags::NOTIFY_ALL,
         );
+        world.update_neighbor(position, &Block::WATER);
     }
 }
 
@@ -46,7 +46,11 @@ fn slightly_melt(world: &Arc<World>, pos: &BlockPos, block: &Block, age: u8) -> 
     if age < 3 {
         let mut new_props = NetherWartLikeProperties::default(block);
         new_props.r#age = age + 1;
-        world.set_block_state(pos, new_props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+        world.set_block_state(
+            pos,
+            new_props.to_state_id(block),
+            BlockFlags::NOTIFY_LISTENERS,
+        );
         false
     } else {
         melt(world, pos);
@@ -65,8 +69,20 @@ impl BlockMetadata for IceBlock {
 impl BlockBehaviour for IceBlock {
     fn broken(&self, args: BrokenArgs<'_>) {
         {
+            if args.player.gamemode.load() == pumpkin_util::GameMode::Creative {
+                return;
+            }
             let held_item = args.player.inventory().held_item();
-            let has_silk_touch = held_item.get_enchantment_level(&Enchantment::SILK_TOUCH) > 0;
+            let has_silk_touch = held_item
+                .get_data_component::<pumpkin_data::data_component_impl::EnchantmentsImpl>()
+                .is_some_and(|data| {
+                    data.enchantment.iter().any(|(enchantment, _)| {
+                        pumpkin_data::tag::Taggable::has_tag(
+                            *enchantment,
+                            &pumpkin_data::tag::Enchantment::MINECRAFT_PREVENTS_ICE_MELTING,
+                        )
+                    })
+                });
             if !has_silk_touch {
                 if args.world.dimension.water_evaporates {
                     args.world.set_block_state(
@@ -80,10 +96,7 @@ impl BlockBehaviour for IceBlock {
                 let below_pos = args.position.down();
                 let (below_block, below_state_id) = args.world.get_block_and_state_id(&below_pos);
                 let below_state = BlockState::from_id(below_state_id);
-                if blocks_movement(below_state, below_block.id)
-                    || below_state.is_liquid()
-                    || below_state.is_solid()
-                {
+                if blocks_movement(below_state, below_block.id) || below_state.is_liquid() {
                     args.world.set_block_state(
                         args.position,
                         Block::WATER.default_state.id,
@@ -97,7 +110,7 @@ impl BlockBehaviour for IceBlock {
     fn random_tick(&self, args: RandomTickArgs<'_>) {
         let state = args.world.get_block_state(args.position);
         let block_light = args.world.get_block_light_level(args.position).unwrap_or(0);
-        if block_light > (11u8.saturating_sub(state.opacity)) {
+        if i32::from(block_light) > 11 - i32::from(state.opacity) {
             melt(args.world, args.position);
         }
     }
@@ -114,14 +127,18 @@ impl BlockMetadata for FrostedIceBlock {
 impl BlockBehaviour for FrostedIceBlock {
     fn placed(&self, args: PlacedArgs<'_>) {
         {
-            let delay = rand::rng().random_range(60..=120);
+            let delay = 60 + args.world.rand_bounded_i32(61) as u32;
             args.world
                 .schedule_block_tick(args.block, *args.position, delay, TickPriority::Normal);
         }
     }
 
+    fn state_changed(&self, args: PlacedArgs<'_>) {
+        self.placed(args);
+    }
+
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        let should_check_melt = rand::rng().random_range(0..3) == 0
+        let should_check_melt = args.world.rand_bounded_i32(3) == 0
             || fewer_neighbors_than(args.world, args.position, 4);
 
         if should_check_melt {
@@ -136,8 +153,10 @@ impl BlockBehaviour for FrostedIceBlock {
                 args.world.get_max_local_raw_brightness(args.position)
             };
 
-            let threshold = 11u8.saturating_sub(age).saturating_sub(state.opacity);
-            if brightness > threshold && slightly_melt(args.world, args.position, args.block, age) {
+            let threshold = 11 - i32::from(age) - i32::from(state.opacity);
+            if i32::from(brightness) > threshold
+                && slightly_melt(args.world, args.position, args.block, age)
+            {
                 for dir in BlockDirection::all() {
                     let neighbor_pos = args.position.offset(dir.to_offset());
                     let (neighbor_block, neighbor_state_id) =
@@ -151,7 +170,7 @@ impl BlockBehaviour for FrostedIceBlock {
                             neighbor_block,
                             neighbor_props.r#age,
                         ) {
-                            let delay = rand::rng().random_range(20..=40);
+                            let delay = 20 + args.world.rand_bounded_i32(21) as u32;
                             args.world.schedule_block_tick(
                                 neighbor_block,
                                 neighbor_pos,
@@ -165,7 +184,7 @@ impl BlockBehaviour for FrostedIceBlock {
             }
         }
 
-        let delay = rand::rng().random_range(20..=40);
+        let delay = 20 + args.world.rand_bounded_i32(21) as u32;
         args.world
             .schedule_block_tick(args.block, *args.position, delay, TickPriority::Normal);
     }
@@ -176,6 +195,10 @@ impl BlockBehaviour for FrostedIceBlock {
         {
             melt(args.world, args.position);
         }
+    }
+
+    fn random_tick(&self, args: RandomTickArgs<'_>) {
+        IceBlock.random_tick(args);
     }
 
     fn broken(&self, args: BrokenArgs<'_>) {

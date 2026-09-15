@@ -1,8 +1,8 @@
 use crate::block::{
-    BlockBehaviour, BlockMetadata, OnScheduledTickArgs, PlacedArgs,
+    BlockBehaviour, BlockMetadata, GetStateForNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs,
     blocks::coral::{is_dead_coral, scan_for_water, try_schedule_die_tick},
 };
-use pumpkin_data::{Block, BlockId, tag};
+use pumpkin_data::{Block, BlockId, BlockStateId, tag};
 use pumpkin_world::world::BlockFlags;
 pub struct CoralBlock;
 impl BlockMetadata for CoralBlock {
@@ -18,12 +18,20 @@ impl BlockMetadata for CoralBlock {
     }
 }
 impl BlockBehaviour for CoralBlock {
-    fn placed(&self, args: PlacedArgs<'_>) {
-        {
-            if !scan_for_water(args.world, args.position) && !is_dead_coral(args.block) {
-                try_schedule_die_tick(args.block, args.world, args.position);
-            }
+    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
+        if !is_dead_coral(args.block) && !scan_for_water(args.world, args.position) {
+            try_schedule_die_tick(args.block, args.world, args.position);
         }
+        args.block.default_state.id
+    }
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        if !is_dead_coral(args.block) && !scan_for_water(args.world, args.position) {
+            try_schedule_die_tick(args.block, args.world, args.position);
+        }
+        args.state_id
     }
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
         if !scan_for_water(args.world, args.position) && !is_dead_coral(args.block) {
@@ -31,8 +39,11 @@ impl BlockBehaviour for CoralBlock {
                 return;
             };
             let dead_block_state_id = dead_block.default_state.id;
-            args.world
-                .set_block_state(args.position, dead_block_state_id, BlockFlags::NOTIFY_ALL);
+            args.world.set_block_state(
+                args.position,
+                dead_block_state_id,
+                BlockFlags::NOTIFY_LISTENERS,
+            );
         }
     }
 }

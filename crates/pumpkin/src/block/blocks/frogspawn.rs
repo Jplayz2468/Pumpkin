@@ -11,7 +11,6 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
-use rand::{RngExt, rng};
 use uuid::Uuid;
 
 use crate::block::{
@@ -37,36 +36,49 @@ impl FrogspawnBlock {
     /// `pos` is the support block (i.e. the position *below* the frogspawn): it must be
     /// water (or otherwise tagged to support frogspawn), and the cell the frogspawn itself
     /// occupies (`pos.up()`) must have no fluid in it.
-    fn may_place_on(world: &World, pos: &BlockPos) -> bool {
-        let fluid = world.get_fluid(pos);
+    fn may_place_on(world: &dyn pumpkin_world::world::BlockAccessor, pos: &BlockPos) -> bool {
+        let (fluid, fluid_state) =
+            World::fluid_state_from_block_state(world.get_block_state_id(pos));
+        let tag_fluid = if fluid.matches_type(&Fluid::WATER) && fluid_state.is_source {
+            &Fluid::WATER
+        } else {
+            fluid
+        };
         let block = world.get_block(pos);
-        (fluid.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_FROGSPAWN)
+        (tag_fluid.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_FROGSPAWN)
             || block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_FROGSPAWN))
-            && *world.get_fluid(&pos.up()) == Fluid::EMPTY
+            && World::fluid_state_from_block_state(world.get_block_state_id(&pos.up()))
+                .0
+                .is_empty()
     }
 
     /// `FrogspawnBlock#getFrogspawnHatchDelay` (`FrogspawnBlock.java:64-66`).
     ///
-    fn hatch_delay() -> u32 {
-        rng().random_range(MIN_HATCH_TICK_DELAY..MAX_HATCH_TICK_DELAY) as u32
+    fn hatch_delay(world: &World) -> u32 {
+        (MIN_HATCH_TICK_DELAY + world.rand_bounded_i32(MAX_HATCH_TICK_DELAY - MIN_HATCH_TICK_DELAY))
+            as u32
     }
 
     /// `FrogspawnBlock#hatchFrogspawn` (`FrogspawnBlock.java:113-117`).
     fn hatch_frogspawn(world: &Arc<World>, pos: &BlockPos) {
-        world.break_block(pos, None, BlockFlags::SKIP_DROPS);
-        world.play_sound(Sound::BlockFrogspawnHatch, SoundCategory::Blocks, &pos.to_f64());
+        world.break_block(pos, None, BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS);
+        world.play_sound(
+            Sound::BlockFrogspawnHatch,
+            SoundCategory::Blocks,
+            &pos.to_centered_f64(),
+        );
         Self::spawn_tadpoles(world, pos);
     }
 
     /// `FrogspawnBlock#spawnTadpoles` (`FrogspawnBlock.java:123-137`).
     fn spawn_tadpoles(world: &Arc<World>, pos: &BlockPos) {
-        let tadpole_amount = rng().random_range(2..6);
+        let tadpole_amount = world.rand_bounded_i32(4) + 2;
 
         for _ in 0..tadpole_amount {
-            let x_pos = f64::from(pos.0.x) + Self::random_tadpole_position_offset();
-            let z_pos = f64::from(pos.0.z) + Self::random_tadpole_position_offset();
+            let x_pos = f64::from(pos.0.x) + Self::random_tadpole_position_offset(world);
+            let z_pos = f64::from(pos.0.z) + Self::random_tadpole_position_offset(world);
             let y_pos = f64::from(pos.0.y) - 0.5;
-            let y_rot = rng().random_range(1..361);
+            let y_rot = world.rand_bounded_i32(360) + 1;
 
             let tadpole = from_type(
                 &EntityType::TADPOLE,
@@ -85,16 +97,17 @@ impl FrogspawnBlock {
     }
 
     /// `FrogspawnBlock#getRandomTadpolePositionOffset` (`FrogspawnBlock.java:139-142`).
-    fn random_tadpole_position_offset() -> f64 {
-        rng().random::<f64>().clamp(0.2, 0.799_999_997_019_767_8)
+    fn random_tadpole_position_offset(world: &World) -> f64 {
+        world
+            .rand_f64()
+            .clamp(f64::from(0.2_f32), 0.799_999_997_019_767_8)
     }
 }
 
 impl BlockBehaviour for FrogspawnBlock {
     /// `FrogspawnBlock#canSurvive` (`FrogspawnBlock.java:54-57`).
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        args.world
-            .is_some_and(|world| Self::may_place_on(world, &args.position.down()))
+        Self::may_place_on(args.block_accessor, &args.position.down())
     }
 
     /// `FrogspawnBlock#onPlace` (`FrogspawnBlock.java:59-62`): schedules the hatch tick.
@@ -102,7 +115,7 @@ impl BlockBehaviour for FrogspawnBlock {
         args.world.schedule_block_tick(
             args.block,
             *args.position,
-            Self::hatch_delay(),
+            Self::hatch_delay(args.world),
             TickPriority::Normal,
         );
     }
@@ -121,9 +134,12 @@ impl BlockBehaviour for FrogspawnBlock {
 
     /// `FrogspawnBlock#tick` (`FrogspawnBlock.java:84-91`).
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        if !Self::may_place_on(args.world, &args.position.down()) {
-            args.world
-                .break_block(args.position, None, BlockFlags::SKIP_DROPS);
+        if !Self::may_place_on(args.world.as_ref(), &args.position.down()) {
+            args.world.break_block(
+                args.position,
+                None,
+                BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
+            );
         } else {
             Self::hatch_frogspawn(args.world, args.position);
         }
@@ -133,8 +149,11 @@ impl BlockBehaviour for FrogspawnBlock {
     /// on frogspawn destroys it.
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
         if args.entity.get_entity().entity_type.id == EntityType::FALLING_BLOCK.id {
-            args.world
-                .break_block(args.position, None, BlockFlags::SKIP_DROPS);
+            args.world.break_block(
+                args.position,
+                None,
+                BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
+            );
         }
     }
 }

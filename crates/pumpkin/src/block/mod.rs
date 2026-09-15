@@ -141,6 +141,11 @@ pub trait BlockBehaviour: Send + Sync {
     /// onBlockAdded in source code
     fn placed(&self, _args: PlacedArgs<'_>) {}
 
+    /// Java onPlace also runs when a block keeps its type but changes state.
+    /// Keep legacy block-entity initialization in placed until each handler is
+    /// migrated; state-dependent callbacks belong here too.
+    fn state_changed(&self, _args: PlacedArgs<'_>) {}
+
     fn player_placed(&self, _args: PlayerPlacedArgs<'_>) {}
 
     fn on_landed_upon(&self, args: OnLandedUponArgs<'_>) {
@@ -152,6 +157,8 @@ pub trait BlockBehaviour: Send + Sync {
     fn update_entity_movement_after_fall_on(&self, args: UpdateEntityMovementAfterFallOnArgs<'_>) {
         stop_vertical_movement_after_fall(args.entity);
     }
+
+    fn attacked(&self, _args: AttackArgs<'_>) {}
 
     fn broken(&self, _args: BrokenArgs<'_>) {}
 
@@ -227,6 +234,14 @@ pub struct BonemealArgs<'a> {
     pub block: &'a Block,
     pub position: &'a BlockPos,
     pub state_id: BlockStateId,
+}
+
+pub struct AttackArgs<'a> {
+    pub world: &'a Arc<World>,
+    pub block: &'a Block,
+    pub state_id: BlockStateId,
+    pub position: &'a BlockPos,
+    pub player: &'a Player,
 }
 
 pub struct NormalUseArgs<'a> {

@@ -103,6 +103,10 @@ impl BlockBehaviour for FallingBlock {
         args.block.default_state.id
     }
 
+    fn state_changed(&self, args: PlacedArgs<'_>) {
+        self.placed(args);
+    }
+
     fn placed(&self, args: PlacedArgs<'_>) {
         args.world
             .schedule_block_tick(args.block, *args.position, 2, TickPriority::Normal);
@@ -190,7 +194,10 @@ mod tests {
             self.get_block_state(position).id
         }
 
-        fn get_block_and_state(&self, position: &BlockPos) -> (&'static Block, &'static BlockState) {
+        fn get_block_and_state(
+            &self,
+            position: &BlockPos,
+        ) -> (&'static Block, &'static BlockState) {
             self.states
                 .get(position)
                 .copied()
@@ -212,7 +219,9 @@ mod tests {
             r#waterlogged: false,
         }
         .to_state_id(&Block::OAK_SLAB);
-        assert!(!FallingBlock::can_solidify(BlockState::from_id(dry_slab_id)));
+        assert!(!FallingBlock::can_solidify(BlockState::from_id(
+            dry_slab_id
+        )));
     }
 
     #[test]

@@ -1269,14 +1269,19 @@ impl BlockRegistry {
 
         let pumpkin_block = self.get_pumpkin_block(block.id);
         if let Some(pumpkin_block) = pumpkin_block {
-            pumpkin_block.placed(PlacedArgs {
+            let args = PlacedArgs {
                 world,
                 block,
                 state_id,
                 old_state_id,
                 position,
                 notify,
-            });
+            };
+            if old_state_id.to_block() == block {
+                pumpkin_block.state_changed(args);
+            } else {
+                pumpkin_block.placed(args);
+            }
         }
     }
 
@@ -1320,6 +1325,12 @@ impl BlockRegistry {
             );
         } else {
             stop_vertical_movement_after_fall(entity);
+        }
+    }
+
+    pub fn attacked(&self, args: super::AttackArgs<'_>) {
+        if let Some(block) = self.get_pumpkin_block(args.block.id) {
+            block.attacked(args);
         }
     }
 
