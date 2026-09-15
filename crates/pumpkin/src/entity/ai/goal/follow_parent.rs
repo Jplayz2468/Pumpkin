@@ -26,6 +26,13 @@ impl FollowParentGoal {
         }
     }
 
+    /// Port of `FollowParentGoal.canUse` (FollowParentGoal.java:22-53): it finds the
+    /// single closest same-species adult first, and only *then* rejects the goal start
+    /// if that closest candidate is within `DONT_FOLLOW_IF_CLOSER_THAN` (3 blocks,
+    /// `MIN_DISTANCE_SQ` here). Filtering out too-close candidates while searching (as
+    /// this used to do) is a different goal: it would keep looking past a nearby parent
+    /// for a farther one, instead of vanilla's "don't bother following anyone right now"
+    /// bail-out.
     fn find_parent(mob: &dyn Mob) -> Option<Arc<dyn EntityBase>> {
         let mob_entity = mob.get_mob_entity();
         let entity = &mob_entity.living_entity.entity;
@@ -49,15 +56,12 @@ impl FollowParentGoal {
                 continue;
             }
             let dist_sq = pos.squared_distance_to_vec(&c_pos);
-            if dist_sq < MIN_DISTANCE_SQ {
-                continue;
-            }
             if closest.as_ref().is_none_or(|(d, _)| dist_sq < *d) {
                 closest = Some((dist_sq, candidate.clone()));
             }
         }
 
-        closest.map(|(_, e)| e)
+        closest.filter(|(dist_sq, _)| *dist_sq >= MIN_DISTANCE_SQ).map(|(_, e)| e)
     }
 }
 
