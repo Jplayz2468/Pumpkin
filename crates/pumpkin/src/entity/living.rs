@@ -1120,6 +1120,17 @@ impl LivingEntity {
 
     pub fn try_add_effect(&self, effect: Effect) -> bool {
         let entity_type = self.entity.entity_type;
+        // These entity overrides apply to every effect source, including flowers,
+        // potions and commands (EnderDragon.addEffect / Wither*.canBeAffected).
+        if entity_type == &EntityType::ENDER_DRAGON
+            || (effect.effect_type == &StatusEffect::WITHER
+                && matches!(
+                    *entity_type,
+                    EntityType::WITHER | EntityType::WITHER_SKELETON
+                ))
+        {
+            return false;
+        }
         let eligible = if entity_type.has_tag(&tag::EntityType::MINECRAFT_IMMUNE_TO_INFESTED) {
             effect.effect_type != &StatusEffect::INFESTED
         } else if entity_type.has_tag(&tag::EntityType::MINECRAFT_IMMUNE_TO_OOZING) {

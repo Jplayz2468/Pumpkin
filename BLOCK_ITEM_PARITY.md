@@ -199,6 +199,34 @@ This checkpoint records source changes, not a passing parity result.
   invulnerable/rejected-hit pollination interruption, custom environment/advancement
   predicates, block locks/names, and cross-version metadata remain review areas.
 
+### Workstation validity and vegetation (continuation)
+
+- World-backed crafting, enchanting, anvil, smithing, stonecutter, loom,
+  cartography and grindstone menus retain the opening position and require their
+  block and interaction range. Button/rename packets also check validity.
+- Eyeblossom transformation now emits its old-state block-change context, uses
+  the Java random stream and X-first neighbor order, and serializes trail target,
+  color and lifetime for supported Java clients. Collision poison uses the bee
+  attraction predicate and does not refresh an existing poison effect.
+- Wither roses honor general damage invulnerability/removal. Wither/skeleton
+  wither immunity and dragon effect rejection now apply through the shared effect
+  path. Enchantment-driven damage immunity remains a shared gap.
+- Bush/firefly bush and flowerbed bonemeal behavior is implemented; dry-grass
+  spreading shares the vanilla direction order and world-random shuffle.
+  Flowerbeds use vegetation support tags; segmented placement preserves the
+  opposite player-facing direction and respects secondary use.
+- Hanging roots use the ceiling face and upward-neighbor gate. Spore blossoms
+  use downward center support, unstable-center exclusions and the water gate.
+  Leaf litter and short-grass growth now recheck their proper support.
+- Double plants distinguish survival from placement room, require matching species
+  and opposite halves, and create their upper half only on player placement.
+  Tall seagrass uses full-water and correct half checks. Ordinary seagrass checks
+  full water on placement and schedules water ticks while surviving updates.
+- Source comparison and rustfmt only; no compilation or tests. These changes do
+  not close the full vegetation audit: double-plant mining/drop ordering, broader
+  liquid-container handling, dynamic support shapes and protocol compatibility
+  remain shared review areas. Client-local ambient animation stays client-owned.
+
 ## Original queue: source-edit status
 
 These are implementation statuses, **not verified closures**.

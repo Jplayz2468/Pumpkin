@@ -19,7 +19,7 @@ impl BlockBehaviour for ShortPlantBlock {
     fn is_valid_bonemeal_target(&self, args: crate::block::BonemealArgs<'_>) -> bool {
         let above = args.position.up();
         args.world.is_in_height_limit(above.0.y)
-            && args.world.is_loaded(&above)
+            && <Self as PlantBlockBase>::can_place_at(self, args.world.as_ref(), args.position)
             && args.world.get_block_state(&above).is_air()
     }
 

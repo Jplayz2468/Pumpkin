@@ -4,30 +4,39 @@ use pumpkin_data::{
     tag::{self, Taggable},
 };
 use pumpkin_macros::pumpkin_block;
-use pumpkin_util::math::position::BlockPos;
-use pumpkin_world::world::{BlockAccessor, BlockFlags};
+use pumpkin_world::world::BlockFlags;
 
 use crate::block::{
     BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    blocks::plant::PlantBlockBase,
+    blocks::plant::{PlantBlockBase, full_water_at},
 };
 #[pumpkin_block("minecraft:seagrass")]
 pub struct SeaGrassBlock;
 impl BlockBehaviour for SeaGrassBlock {
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
         <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
+            && (args.use_item_on.is_none() || full_water_at(args.block_accessor, args.position))
     }
 
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        <Self as PlantBlockBase>::get_state_for_neighbor_update(
+        let result = <Self as PlantBlockBase>::get_state_for_neighbor_update(
             self,
             args.world,
             args.position,
             args.state_id,
-        )
+        );
+        if !result.to_state().is_air() {
+            args.world.schedule_fluid_tick(
+                &pumpkin_data::fluid::Fluid::WATER,
+                *args.position,
+                pumpkin_data::fluid::Fluid::WATER.flow_speed as u32,
+                pumpkin_world::tick::TickPriority::Normal,
+            );
+        }
+        result
     }
 
     // SeagrassBlock.java:76 isValidBonemealTarget: needs water directly above to grow into.
@@ -62,25 +71,7 @@ impl PlantBlockBase for SeaGrassBlock {
         pos: &pumpkin_util::math::position::BlockPos,
     ) -> bool {
         let (support_block, support_block_state) = block_accessor.get_block_and_state(pos);
-        let replacing_block = block_accessor.get_block(&pos.up());
-        if replacing_block != &Block::WATER && replacing_block != &Block::SEAGRASS {
-            return false;
-        }
-        if supports_seagrass(support_block, support_block_state) {
-            return true;
-        }
-        false
-    }
-    fn get_state_for_neighbor_update(
-        &self,
-        block_accessor: &dyn BlockAccessor,
-        block_pos: &BlockPos,
-        block_state: BlockStateId,
-    ) -> BlockStateId {
-        if !<Self as PlantBlockBase>::can_place_at(self, block_accessor, block_pos) {
-            return Block::WATER.default_state.id;
-        }
-        block_state
+        supports_seagrass(support_block, support_block_state)
     }
 }
 #[must_use]

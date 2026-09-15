@@ -1,71 +1,59 @@
-use pumpkin_data::{Block, BlockStateId};
-use pumpkin_macros::pumpkin_block;
-use pumpkin_util::math::position::BlockPos;
-use pumpkin_world::world::BlockAccessor;
-
 use crate::block::{
-    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    blocks::plant::{PlantBlockBase, seagrass::supports_seagrass},
+    BlockBehaviour, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, PlayerPlacedArgs,
+    blocks::plant::{
+        double_plant_neighbor_state, double_plant_survives, full_water_at,
+        seagrass::supports_seagrass, tall_plant::TallPlantBlock,
+    },
 };
+use pumpkin_data::BlockStateId;
+use pumpkin_macros::pumpkin_block;
+
 #[pumpkin_block("minecraft:tall_seagrass")]
 pub struct TallSeaGrassBlock;
+
 impl BlockBehaviour for TallSeaGrassBlock {
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
+        let (support, state) = args
+            .block_accessor
+            .get_block_and_state(&args.position.down());
+        let lower_survives =
+            supports_seagrass(support, state) && full_water_at(args.block_accessor, args.position);
+        if !double_plant_survives(
+            args.block_accessor,
+            args.block,
+            args.state.id,
+            args.position,
+            lower_survives,
+        ) {
+            return false;
+        }
+        if args.use_item_on.is_some() {
+            let above = args.position.up();
+            let (block, state) = args.block_accessor.get_block_and_state(&above);
+            return !args
+                .world
+                .is_some_and(|world| !world.is_in_height_limit(above.0.y))
+                && full_water_at(args.block_accessor, &above)
+                && crate::block::registry::can_replace_with_other_block(block, state);
+        }
+        true
     }
 
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        <Self as PlantBlockBase>::get_state_for_neighbor_update(
-            self,
-            args.world,
-            args.position,
-            args.state_id,
-        )
+        let (support, state) = args.world.get_block_and_state(&args.position.down());
+        let lower_survives =
+            supports_seagrass(support, state) && full_water_at(args.world, args.position);
+        double_plant_neighbor_state(&args, lower_survives)
     }
-}
 
-impl PlantBlockBase for TallSeaGrassBlock {
-    fn can_plant_on_top(
-        &self,
-        block_accessor: &dyn pumpkin_world::world::BlockAccessor,
-        pos: &pumpkin_util::math::position::BlockPos,
-    ) -> bool {
-        let (support_block, support_block_state) = block_accessor.get_block_and_state(pos);
-        let replacing_block = block_accessor.get_block(&pos.up());
-        if replacing_block != &Block::WATER && replacing_block != &Block::TALL_SEAGRASS {
-            return false;
-        }
-
-        if replacing_block == &Block::TALL_SEAGRASS {
-            //only for blockupdate
-            let block_above = block_accessor.get_block(&pos.up_height(2));
-            let is_support_seagrass_block = support_block == &Block::TALL_SEAGRASS;
-            let is_above_seagrass_block = block_above == &Block::TALL_SEAGRASS;
-            match (is_support_seagrass_block, is_above_seagrass_block) {
-                (true, true) | (false, false) => return false,
-                _ => {}
-            }
-        }
-        if support_block == &Block::TALL_SEAGRASS {
-            return true;
-        }
-        if supports_seagrass(support_block, support_block_state) {
-            return true;
-        }
-        false
+    fn player_placed(&self, args: PlayerPlacedArgs<'_>) {
+        TallPlantBlock.player_placed(args);
     }
-    fn get_state_for_neighbor_update(
-        &self,
-        block_accessor: &dyn BlockAccessor,
-        block_pos: &BlockPos,
-        block_state: BlockStateId,
-    ) -> BlockStateId {
-        if !<Self as PlantBlockBase>::can_place_at(self, block_accessor, block_pos) {
-            return Block::WATER.default_state.id;
-        }
-        block_state
+
+    fn broken(&self, args: BrokenArgs<'_>) {
+        TallPlantBlock.broken(args);
     }
 }

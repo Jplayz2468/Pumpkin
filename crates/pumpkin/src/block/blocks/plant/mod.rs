@@ -66,3 +66,100 @@ trait PlantBlockBase {
         self.can_plant_on_top(block_accessor, &block_pos.down())
     }
 }
+
+// BonemealableBlock: check N/E/S/W, then use the world's Java shuffle on growth.
+const SPREAD_DIRECTIONS: [pumpkin_data::BlockDirection; 4] = [
+    pumpkin_data::BlockDirection::North,
+    pumpkin_data::BlockDirection::East,
+    pumpkin_data::BlockDirection::South,
+    pumpkin_data::BlockDirection::West,
+];
+
+fn spreadable_neighbor(
+    world: &crate::world::World,
+    pos: &BlockPos,
+    state: &'static pumpkin_data::BlockState,
+    shuffle: bool,
+) -> Option<BlockPos> {
+    let mut directions = SPREAD_DIRECTIONS;
+    if shuffle {
+        for i in (1..directions.len()).rev() {
+            directions.swap(i, world.rand_bounded_i32((i + 1) as i32) as usize);
+        }
+    }
+    directions.into_iter().find_map(|direction| {
+        let next = pos.offset(direction.to_offset());
+        (world.get_block_state(&next).is_air()
+            && world.block_registry.can_place_at(
+                None,
+                Some(world),
+                world,
+                None,
+                state.id.to_block(),
+                state,
+                &next,
+                None,
+                None,
+            ))
+        .then_some(next)
+    })
+}
+
+fn double_plant_survives(
+    accessor: &dyn BlockAccessor,
+    block: &Block,
+    state: BlockStateId,
+    pos: &BlockPos,
+    lower_survives: bool,
+) -> bool {
+    use pumpkin_data::block_properties::{DoubleBlockHalf, TallSeagrassLikeProperties};
+    if TallSeagrassLikeProperties::from_state_id(state).half == DoubleBlockHalf::Lower {
+        lower_survives
+    } else {
+        let (below, below_state) = accessor.get_block_and_state(&pos.down());
+        below == block
+            && TallSeagrassLikeProperties::from_state_id(below_state.id).half
+                == DoubleBlockHalf::Lower
+    }
+}
+
+fn double_plant_neighbor_state(
+    args: &crate::block::GetStateForNeighborUpdateArgs<'_>,
+    lower_survives: bool,
+) -> BlockStateId {
+    use pumpkin_data::{
+        BlockDirection,
+        block_properties::{DoubleBlockHalf, TallSeagrassLikeProperties},
+    };
+    let half = TallSeagrassLikeProperties::from_state_id(args.state_id).half;
+    let other_direction = if half == DoubleBlockHalf::Lower {
+        BlockDirection::Up
+    } else {
+        BlockDirection::Down
+    };
+    if args.direction == other_direction {
+        let (other, state) = args
+            .world
+            .get_block_and_state(&args.position.offset(other_direction.to_offset()));
+        if other != args.block || TallSeagrassLikeProperties::from_state_id(state.id).half == half {
+            return Block::AIR.default_state.id;
+        }
+    }
+    if double_plant_survives(
+        args.world,
+        args.block,
+        args.state_id,
+        args.position,
+        lower_survives,
+    ) {
+        args.state_id
+    } else {
+        Block::AIR.default_state.id
+    }
+}
+
+fn full_water_at(accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
+    let (fluid, state) =
+        crate::world::World::fluid_state_from_block_state(accessor.get_block_state_id(pos));
+    fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER) && state.level == 8
+}

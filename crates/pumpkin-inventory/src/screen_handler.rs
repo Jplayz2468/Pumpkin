@@ -289,8 +289,30 @@ pub trait ScreenHandler: Send + Sync {
     }
 
     /// Checks if the player can use this container.
-    fn can_use(&self, _player: &dyn InventoryPlayer) -> bool {
-        true
+    fn can_use(&self, player: &dyn InventoryPlayer) -> bool {
+        use pumpkin_data::BlockId;
+        let behaviour = self.get_behaviour();
+        let Some(position) = behaviour.block_position else {
+            return true;
+        };
+        let blocks: &[BlockId] = match behaviour.window_type {
+            Some(WindowType::Crafting) => &[BlockId::CRAFTING_TABLE],
+            Some(WindowType::Enchantment) => &[BlockId::ENCHANTING_TABLE],
+            Some(WindowType::Anvil) => &[
+                BlockId::ANVIL,
+                BlockId::CHIPPED_ANVIL,
+                BlockId::DAMAGED_ANVIL,
+            ],
+            Some(WindowType::Smithing) => &[BlockId::SMITHING_TABLE],
+            Some(WindowType::Stonecutter) => &[BlockId::STONECUTTER],
+            Some(WindowType::Loom) => &[BlockId::LOOM],
+            Some(WindowType::CartographyTable) => &[BlockId::CARTOGRAPHY_TABLE],
+            Some(WindowType::Grindstone) => &[BlockId::GRINDSTONE],
+            _ => return true,
+        };
+        blocks
+            .iter()
+            .any(|block| player.can_use_block_type(position, *block))
     }
 
     /// Gets a reference to the screen handler behaviour.
@@ -1250,6 +1272,8 @@ pub trait ScreenHandlerFactory: Send + Sync {
 }
 
 pub struct ScreenHandlerBehaviour {
+    /// World-backed menus retain their opening block; portable menus leave it absent.
+    pub block_position: Option<pumpkin_util::math::position::BlockPos>,
     /// Slots in this screen handler (includes both container and player slots).
     pub slots: Vec<Arc<dyn Slot>>,
     /// Sync ID for client-server matching (matches the window ID in protocol).
@@ -1305,6 +1329,7 @@ impl ScreenHandlerBehaviour {
     #[must_use]
     pub fn new(sync_id: u8, window_type: Option<WindowType>) -> Self {
         Self {
+            block_position: None,
             slots: Vec::new(),
             sync_id,
             listeners: Vec::new(),

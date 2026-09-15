@@ -55,6 +55,10 @@ pub struct BeeEntity {
 }
 
 impl BeeEntity {
+    pub fn attracts_bees(state: &pumpkin_data::BlockState) -> bool {
+        goals::attracts(state)
+    }
+
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
         let bee = Self {

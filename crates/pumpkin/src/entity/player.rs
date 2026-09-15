@@ -5616,6 +5616,9 @@ impl Player {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+        if !screen_handler.can_use(self.as_ref()) {
+            return;
+        }
         if let Some(anvil_handler) = screen_handler
             .as_any_mut()
             .downcast_mut::<pumpkin_inventory::anvil::AnvilScreenHandler>()
@@ -5662,9 +5665,10 @@ impl Player {
             &self.inventory,
             self,
         ) {
-            let screen_handler_temp = screen_handler
+            let mut screen_handler_temp = screen_handler
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
+            screen_handler_temp.get_behaviour_mut().block_position = block_pos;
             let sync_id = screen_handler_temp.sync_id();
             let window_type = screen_handler_temp.window_type()?;
 
@@ -6193,7 +6197,9 @@ impl Player {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-        if i32::from(screen_handler.sync_id()) != packet.window_id.0 {
+        if i32::from(screen_handler.sync_id()) != packet.window_id.0
+            || !screen_handler.can_use(self)
+        {
             return;
         }
 

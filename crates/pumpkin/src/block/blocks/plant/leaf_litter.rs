@@ -31,11 +31,12 @@ impl BlockBehaviour for LeafLitterBlock {
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        if args.direction == BlockDirection::Down {
-            let block_below_state = args.world.get_block_state(&args.position.down());
-            if !block_below_state.is_side_solid(BlockDirection::Up) {
-                return Block::AIR.default_state.id;
-            }
+        if !args
+            .world
+            .get_block_state(&args.position.down())
+            .is_side_solid(BlockDirection::Up)
+        {
+            return Block::AIR.default_state.id;
         }
         args.state_id
     }

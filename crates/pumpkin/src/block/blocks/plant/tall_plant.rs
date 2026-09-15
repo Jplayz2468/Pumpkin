@@ -1,6 +1,5 @@
-use crate::block::{BrokenArgs, PlacedArgs};
+use crate::block::{BrokenArgs, PlayerPlacedArgs};
 use pumpkin_data::Block;
-use pumpkin_data::BlockDirection;
 use pumpkin_data::BlockId;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{DoubleBlockHalf, TallSeagrassLikeProperties};
@@ -10,7 +9,7 @@ use pumpkin_world::world::BlockFlags;
 
 use crate::block::{
     BlockBehaviour, BlockMetadata, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    blocks::plant::PlantBlockBase,
+    blocks::plant::{PlantBlockBase, double_plant_neighbor_state, double_plant_survives},
 };
 
 pub struct TallPlantBlock;
@@ -67,65 +66,54 @@ impl BlockBehaviour for TallPlantBlock {
     // renewable way to duplicate sunflowers/lilacs/rose bushes/peonies with bone meal.
     fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
         if let Some(item) = tall_flower_item(args.block) {
-            args.world.drop_stack(args.position, ItemStack::new(1, item));
+            args.world
+                .drop_stack(args.position, ItemStack::new(1, item));
         }
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        let up_pos = args.position.up();
-
-        let upper_state = args.block_accessor.get_block_state(&up_pos);
-        let Some(world) = args.world else {
-            return <Self as PlantBlockBase>::can_place_at(
-                self,
-                args.block_accessor,
-                args.position,
-            ) && upper_state.is_air();
-        };
-
-        if up_pos.0.y > world.get_top_y() {
+        let support =
+            <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position);
+        if !double_plant_survives(
+            args.block_accessor,
+            args.block,
+            args.state.id,
+            args.position,
+            support,
+        ) {
             return false;
         }
-        <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
-            && upper_state.is_air()
+        // Block placement needs room for the upper half; survival checks do not.
+        if args.use_item_on.is_some() {
+            let above = args.position.up();
+            let (block, state) = args.block_accessor.get_block_and_state(&above);
+            if args
+                .world
+                .is_some_and(|world| !world.is_in_height_limit(above.0.y))
+                || !crate::block::registry::can_replace_with_other_block(block, state)
+            {
+                return false;
+            }
+        }
+        true
     }
 
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        let tall_plant_props = TallSeagrassLikeProperties::from_state_id(args.state_id);
-        let (support_block_pos, other_block_pos) = match tall_plant_props.half {
-            DoubleBlockHalf::Upper => (args.position.down_height(2), args.position.down()),
-            DoubleBlockHalf::Lower => (args.position.down(), args.position.up()),
-        };
-        if !<Self as PlantBlockBase>::can_place_at(self, args.world, &support_block_pos.up()) {
-            return Block::AIR.default_state.id;
-        }
-
-        let (other_block, other_state_id) = args.world.get_block_and_state_id(&other_block_pos);
-        if Self::ids().contains(&other_block.id) {
-            let other_props = TallSeagrassLikeProperties::from_state_id(other_state_id);
-            let opposite_half = match tall_plant_props.half {
-                DoubleBlockHalf::Upper => DoubleBlockHalf::Lower,
-                DoubleBlockHalf::Lower => DoubleBlockHalf::Upper,
-            };
-            if other_props.half == opposite_half {
-                return args.state_id;
-            }
-        }
-        Block::AIR.default_state.id
+        let support = <Self as PlantBlockBase>::can_place_at(self, args.world, args.position);
+        double_plant_neighbor_state(&args, support)
     }
-    fn placed(&self, args: PlacedArgs<'_>) {
-        {
-            let mut tall_plant_props = TallSeagrassLikeProperties::from_state_id(args.state_id);
-            tall_plant_props.half = DoubleBlockHalf::Upper;
-            args.world.set_block_state(
-                &args.position.offset(BlockDirection::Up.to_offset()),
-                tall_plant_props.to_state_id(args.block),
-                BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_BLOCK_ADDED_CALLBACK,
-            );
-        }
+
+    fn player_placed(&self, args: PlayerPlacedArgs<'_>) {
+        let mut props = TallSeagrassLikeProperties::default(args.block);
+        props.half = DoubleBlockHalf::Upper;
+        args.world.set_block_state(
+            &args.position.up(),
+            props.to_state_id(args.block),
+            BlockFlags::NOTIFY_ALL,
+        );
     }
 
     fn broken(&self, args: BrokenArgs<'_>) {
@@ -137,7 +125,7 @@ impl BlockBehaviour for TallPlantBlock {
                 DoubleBlockHalf::Lower => args.position.up(),
             };
             let (other_block, other_state_id) = args.world.get_block_and_state_id(&other_block_pos);
-            if Self::ids().contains(&other_block.id) {
+            if other_block == args.block {
                 let other_props = TallSeagrassLikeProperties::from_state_id(other_state_id);
                 let opposite_half = match tall_plant_props.half {
                     DoubleBlockHalf::Upper => DoubleBlockHalf::Lower,

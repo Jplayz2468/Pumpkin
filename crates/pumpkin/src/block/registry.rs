@@ -542,7 +542,7 @@ pub enum BlockPlacingError {
     BlockOutOfWorld,
 }
 
-fn can_replace_with_other_block(block: &Block, state: &BlockState) -> bool {
+pub(crate) fn can_replace_with_other_block(block: &Block, state: &BlockState) -> bool {
     // MultifaceBlock.canBeReplaced allows any different item, independently of
     // the static replaceable flag. Same-item vacant-face handling is separate.
     matches!(

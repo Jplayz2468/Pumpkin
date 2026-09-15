@@ -54,29 +54,9 @@ pub trait Segmented: BlockBehaviour {
         (current + 1).min(4)
     }
 
-    fn get_facing_for_segment(
-        &self,
-        player_facing: HorizontalFacing,
-        segment_amount: u8,
-    ) -> HorizontalFacing {
-        let base_facing = match segment_amount {
-            1 => HorizontalFacing::South,
-            2 => HorizontalFacing::East,
-            3 => HorizontalFacing::North,
-            _ => HorizontalFacing::West,
-        };
-
-        match player_facing {
-            HorizontalFacing::North => base_facing,
-            HorizontalFacing::East => base_facing.rotate_clockwise(),
-            HorizontalFacing::South => base_facing.rotate_clockwise().rotate_clockwise(),
-            HorizontalFacing::West => base_facing.rotate_counter_clockwise(),
-        }
-    }
-
     fn can_update_at(&self, ctx: CanUpdateAtArgs<'_>) -> bool {
         let current_props = Self::Properties::from_state_id(ctx.state_id, ctx.block);
-        self.can_add_segment(&current_props)
+        !ctx.player.get_entity().is_sneaking() && self.can_add_segment(&current_props)
     }
 
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
@@ -96,7 +76,7 @@ pub trait Segmented: BlockBehaviour {
             let player_facing = args.player.get_entity().get_horizontal_facing();
             let mut props = Self::Properties::default(args.block);
             props.set_segment_amount(1);
-            props.set_facing(self.get_facing_for_segment(player_facing, 1));
+            props.set_facing(player_facing.rotate_clockwise().rotate_clockwise());
             props.to_state_id(args.block)
         }
     }
