@@ -167,13 +167,19 @@ impl Goal for BowAttackGoal {
         target.get_entity().is_alive() && Self::is_holding_bow(mob)
     }
 
-    fn start(&mut self, _mob: &dyn Mob) {
+    fn start(&mut self, mob: &dyn Mob) {
+        // RangedBowAttackGoal.start (RangedBowAttackGoal.java:50). The aggressive flag is
+        // what raises the skeleton's bow arm on the client; without it the mob shoots
+        // while standing in its idle pose.
+        mob.get_mob_entity().set_attacking(true);
         self.cooldown = -1;
         self.draw_ticks = 0;
         self.drawing = false;
     }
 
     fn stop(&mut self, mob: &dyn Mob) {
+        // RangedBowAttackGoal.stop (RangedBowAttackGoal.java:56).
+        mob.get_mob_entity().set_attacking(false);
         self.stop_drawing(mob);
         self.cooldown = -1;
         mob.get_mob_entity()

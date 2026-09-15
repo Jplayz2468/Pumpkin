@@ -109,6 +109,14 @@ impl ZoglinEntity {
 }
 
 impl Mob for ZoglinEntity {
+    /// `Zoglin.customServerAiStep` (Zoglin.java:235):
+    /// `setAggressive(brain.hasMemoryValue(ATTACK_TARGET))`. Goal-driven here, so the
+    /// equivalent condition is whether the zoglin currently has a target.
+    fn mob_tick(&self, _caller: &dyn EntityBase) {
+        self.mob_entity
+            .set_attacking(self.mob_entity.get_target().is_some());
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }

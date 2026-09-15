@@ -179,6 +179,10 @@ impl Goal for RangedCrossbowAttackGoal {
     }
 
     fn stop(&mut self, mob: &dyn Mob) {
+        // RangedCrossbowAttackGoal.stop (RangedCrossbowAttackGoal.java:53) drops both the
+        // aggressive pose and the target.
+        mob.get_mob_entity().set_attacking(false);
+        mob.get_mob_entity().set_target(None);
         if let Some(crossbow_mob) = mob.as_crossbow_attack_mob() {
             crossbow_mob.set_charging_crossbow(false);
         }

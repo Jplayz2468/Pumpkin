@@ -1,3 +1,4 @@
+use pumpkin_util::Hand;
 use std::sync::Arc;
 
 use pumpkin_data::BlockStateId;
@@ -127,7 +128,7 @@ impl Goal for BreakDoorGoal {
                 self.door_interact_goal.door_pos,
                 0,
             );
-            mob.get_mob_entity().living_entity.swing_hand();
+            mob.get_mob_entity().living_entity.swing(mob, Hand::Right);
         }
 
         self.break_time += 1;

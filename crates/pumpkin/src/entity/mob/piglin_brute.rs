@@ -208,6 +208,12 @@ impl Mob for PiglinBruteEntity {
     }
 
     fn mob_tick(&self, _caller: &dyn EntityBase) {
+        // PiglinBruteAi.java:122: `setAggressive(brain.hasMemoryValue(ATTACK_TARGET))`. Goal-driven here,
+        // so the equivalent condition is simply whether the mob currently has a target.
+        // This is what makes the mob raise its arms on the client while hunting.
+        self.mob_entity
+            .set_attacking(self.mob_entity.get_target().is_some());
+
         let entity = &self.mob_entity.living_entity.entity;
         if !entity.is_alive() {
             return;

@@ -6152,6 +6152,21 @@ impl Player {
 
     /// Swing the hand of the player
     pub fn swing_hand(&self, hand: Hand, all: bool) {
+        // LivingEntity.swing's guard: a swing only restarts if none is running, the
+        // current one is past halfway, or it began this tick. Players share it with
+        // mobs -- without it a fast click stream re-sends frame zero every time and the
+        // arm visibly stops moving.
+        if !crate::entity::living::should_restart_swing(
+            self.living_entity.swinging.load(Ordering::Relaxed),
+            self.living_entity.swing_time.load(Ordering::Relaxed),
+            self.living_entity.current_swing_duration(self),
+        ) {
+            return;
+        }
+        self.living_entity.swing_time.store(-1, Ordering::Relaxed);
+        self.living_entity.swinging.store(true, Ordering::Relaxed);
+        self.living_entity.swinging_arm.store(hand);
+
         let world = self.world();
         let entity_id = self.entity_id();
 

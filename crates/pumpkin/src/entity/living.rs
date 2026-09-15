@@ -75,6 +75,14 @@ use std::sync::RwLock;
 /// Represents a living entity within the game world.
 ///
 /// This struct encapsulates the core properties and behaviors of living entities, including players, mobs, and other creatures.
+/// `LivingEntity.swing`'s restart guard (LivingEntity.java): a swing may begin if none is
+/// running, the current one is past its halfway point, or it started this very tick
+/// (`swingTime < 0`). Pulled out as a free function so it can be tested without a world.
+#[must_use]
+pub fn should_restart_swing(swinging: bool, swing_time: i32, duration: i32) -> bool {
+    !swinging || swing_time >= duration / 2 || swing_time < 0
+}
+
 pub struct LivingEntity {
     /// The underlying entity object, providing basic entity information and functionality.
     pub entity: Entity,
@@ -104,6 +112,13 @@ pub struct LivingEntity {
     pub equipment_slots: Arc<FxHashMap<usize, EquipmentSlot>>,
 
     pub jumping: AtomicBool,
+
+    /// `LivingEntity.swinging`: an arm swing is in progress.
+    pub swinging: AtomicBool,
+    /// `LivingEntity.swingTime`: ticks into the current swing, or -1 the tick it starts.
+    pub swing_time: AtomicI32,
+    /// `LivingEntity.swingingArm`: which arm the current swing belongs to.
+    pub swinging_arm: AtomicCell<Hand>,
 
     pub jumping_cooldown: AtomicU8,
 
@@ -306,6 +321,9 @@ impl LivingEntity {
             equipment_drop_chances: Arc::new(std::sync::Mutex::new(FxHashMap::default())),
             equipment_slots: Arc::new(build_equipment_slots()),
             jumping: AtomicBool::new(false),
+            swinging: AtomicBool::new(false),
+            swing_time: AtomicI32::new(0),
+            swinging_arm: AtomicCell::new(Hand::Right),
             jumping_cooldown: AtomicU8::new(0),
             climbing: AtomicBool::new(false),
             climbing_pos: AtomicCell::new(None),
@@ -1352,13 +1370,62 @@ impl LivingEntity {
         }
     }
 
-    pub fn swing_hand(&self) {
+    /// `LivingEntity.getCurrentSwingDuration`: how many ticks the held item's swing takes,
+    /// shortened by haste or conduit power and lengthened by mining fatigue.
+    pub fn current_swing_duration(&self, caller: &dyn EntityBase) -> i32 {
+        use pumpkin_data::data_component_impl::SwingAnimationImpl;
+
+        let hand = self.swinging_arm.load();
+        let stack = self.get_stack_in_hand(caller, hand);
+        let duration = stack
+            .get_data_component::<SwingAnimationImpl>()
+            .map_or(SwingAnimationImpl::DEFAULT.duration, |a| a.duration);
+
+        // MobEffectUtil.hasDigSpeed / getDigSpeedAmplification: haste and conduit power
+        // both count, and the stronger of the two wins.
+        let haste = self
+            .get_effect(&StatusEffect::HASTE)
+            .map(|e| i32::from(e.amplifier));
+        let conduit = self
+            .get_effect(&StatusEffect::CONDUIT_POWER)
+            .map(|e| i32::from(e.amplifier));
+        if haste.is_some() || conduit.is_some() {
+            let amplification = haste.unwrap_or(0).max(conduit.unwrap_or(0));
+            return duration - (1 + amplification);
+        }
+        if let Some(fatigue) = self.get_effect(&StatusEffect::MINING_FATIGUE) {
+            return duration + (1 + i32::from(fatigue.amplifier)) * 2;
+        }
+        duration
+    }
+
+    /// `LivingEntity.swing(hand)` (LivingEntity.java): start an arm swing.
+    ///
+    /// The guard matters. A swing only restarts if none is running, the current one is
+    /// past its halfway point, or it began this very tick (`swingTime < 0`). Without it a
+    /// mob attacking every tick re-sends the animation from frame zero each time and the
+    /// arm never actually moves on the client.
+    pub fn swing(&self, caller: &dyn EntityBase, hand: Hand) {
+        if !should_restart_swing(
+            self.swinging.load(Relaxed),
+            self.swing_time.load(Relaxed),
+            self.current_swing_duration(caller),
+        ) {
+            return;
+        }
+
+        self.swing_time.store(-1, Relaxed);
+        self.swinging.store(true, Relaxed);
+        self.swinging_arm.store(hand);
+
         let world = self.entity.world.load();
         let entity_id = self.entity_id();
-
         let je_packet = pumpkin_protocol::java::client::play::CEntityAnimation::new(
             entity_id.into(),
-            pumpkin_protocol::java::client::play::Animation::SwingMainArm,
+            match hand {
+                Hand::Right => pumpkin_protocol::java::client::play::Animation::SwingMainArm,
+                Hand::Left => pumpkin_protocol::java::client::play::Animation::SwingOffhand,
+            },
         );
         let be_packet = pumpkin_protocol::bedrock::server::animate::SAnimate {
             action: pumpkin_protocol::bedrock::server::animate::AnimateAction::SwingArm,
@@ -1366,8 +1433,24 @@ impl LivingEntity {
             data: 0.0,
             swing_source: None,
         };
-
         world.broadcast_editioned(&je_packet, &be_packet);
+    }
+
+    /// `LivingEntity.updateSwingTime`: advance the swing one tick, ending it once it has
+    /// run its full duration. Ticked for every living entity, as vanilla does in `aiStep`.
+    pub fn update_swing_time(&self, caller: &dyn EntityBase) {
+        let duration = self.current_swing_duration(caller);
+        if self.swinging.load(Relaxed) {
+            let next = self.swing_time.load(Relaxed) + 1;
+            if next >= duration {
+                self.swing_time.store(0, Relaxed);
+                self.swinging.store(false, Relaxed);
+            } else {
+                self.swing_time.store(next, Relaxed);
+            }
+        } else {
+            self.swing_time.store(0, Relaxed);
+        }
     }
 
     fn tick_movement(&self, caller: &dyn EntityBase) {
@@ -3690,6 +3773,11 @@ impl EntityBase for LivingEntity {
     fn tick(&self, caller: &dyn EntityBase, server: &Server) {
         self.entity.tick(caller, server);
 
+        // LivingEntity.aiStep advances the swing every tick, for every living entity,
+        // whether or not it is currently swinging -- that is what ends a swing once it
+        // has run its duration.
+        self.update_swing_time(caller);
+
         // Only tick movement if the entity is alive. This prevents a dead "corpse"
         // from continuing to be simulated (accumulating fall_distance/velocity).
         // We allow movement during death animation (20 ticks) so knockback is applied.
@@ -4550,5 +4638,55 @@ mod tests {
             LivingEntity::resolve_hurt_cooldown(8.0, 5.0, true),
             Some((3.0, false))
         );
+    }
+}
+
+#[cfg(test)]
+mod swing_tests {
+    use super::should_restart_swing;
+
+    /// The default swing is 6 ticks, so its halfway point is 3.
+    const DEFAULT_DURATION: i32 = 6;
+
+    #[test]
+    fn an_idle_entity_always_starts_a_swing() {
+        assert!(should_restart_swing(false, 0, DEFAULT_DURATION));
+        assert!(should_restart_swing(false, 4, DEFAULT_DURATION));
+    }
+
+    #[test]
+    fn a_swing_in_its_first_half_is_not_restarted() {
+        // This is the case that was missing: a mob attacking every tick kept resetting
+        // the animation to frame zero, so the arm never visibly moved.
+        for swing_time in 0..DEFAULT_DURATION / 2 {
+            assert!(
+                !should_restart_swing(true, swing_time, DEFAULT_DURATION),
+                "tick {swing_time} is in the first half and must not restart"
+            );
+        }
+    }
+
+    #[test]
+    fn a_swing_past_halfway_may_restart() {
+        for swing_time in DEFAULT_DURATION / 2..DEFAULT_DURATION {
+            assert!(
+                should_restart_swing(true, swing_time, DEFAULT_DURATION),
+                "tick {swing_time} is past halfway and may restart"
+            );
+        }
+    }
+
+    #[test]
+    fn a_swing_started_this_tick_may_restart() {
+        // swingTime is -1 for the tick a swing begins, before updateSwingTime runs.
+        assert!(should_restart_swing(true, -1, DEFAULT_DURATION));
+    }
+
+    #[test]
+    fn a_haste_shortened_swing_moves_its_halfway_point() {
+        // Haste I: 6 - (1 + 0) = 5 ticks, halving to 2 rather than 3.
+        let hasted = 5;
+        assert!(!should_restart_swing(true, 1, hasted));
+        assert!(should_restart_swing(true, 2, hasted));
     }
 }

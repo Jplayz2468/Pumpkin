@@ -1,5 +1,6 @@
 #[path = "warden_navigation.rs"]
 mod navigation;
+use pumpkin_util::Hand;
 use std::sync::{Arc, Mutex, atomic::Ordering};
 
 use super::{
@@ -718,7 +719,7 @@ impl WardenEntity {
             return;
         }
         self.set_look_target(LookTarget::Entity(target.clone()), i64::MAX);
-        self.mob_entity.living_entity.swing_hand();
+        self.mob_entity.living_entity.swing(self, Hand::Right);
         world.send_entity_status(entity, EntityStatus::StartAttacking, None);
         let pitch = {
             let mut random = self

@@ -1,3 +1,4 @@
+use pumpkin_util::Hand;
 use super::{Controls, Goal};
 use crate::entity::EntityBase;
 use crate::entity::ai::pathfinder::NavigatorGoal;
@@ -117,7 +118,7 @@ impl Goal for OcelotAttackGoal {
         self.attack_time = (self.attack_time - 1).max(0);
         if dist_sq <= f64::from(melee_radius_sq) && self.attack_time <= 0 {
             self.attack_time = 20;
-            mob.get_mob_entity().living_entity.swing_hand();
+            mob.get_mob_entity().living_entity.swing(mob, Hand::Right);
             mob.get_mob_entity().try_attack(mob, target.as_ref());
         }
     }
