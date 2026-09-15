@@ -149,7 +149,9 @@ where
     let x = nbt.get_int("x")?;
     let y = nbt.get_int("y")?;
     let z = nbt.get_int("z")?;
-    let delay = nbt.get_int("t")? as u8;
+    // Vanilla stores a relative delay as an int (`SavedTick.codec`, key "t").
+    // Negative would mean "already due"; clamp rather than wrap.
+    let delay = nbt.get_int("t")?.max(0) as u32;
     let priority = TickPriority::try_from(nbt.get_int("p")?).ok()?;
     let res_loc_str = nbt.get_string("i")?;
     let res_loc = ResourceLocation::from_str(res_loc_str).ok()?;

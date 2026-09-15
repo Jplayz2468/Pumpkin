@@ -45,7 +45,7 @@ fn get_sound(block: &Block, on: bool) -> Sound {
     }
 }
 
-pub fn get_ticks_to_stay_pressed(block: &Block) -> u8 {
+pub fn get_ticks_to_stay_pressed(block: &Block) -> u32 {
     if block == &Block::STONE_BUTTON || block == &Block::POLISHED_BLACKSTONE_BUTTON {
         20
     } else {

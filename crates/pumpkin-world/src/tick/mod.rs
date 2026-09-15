@@ -8,8 +8,6 @@ use pumpkin_util::{
 
 pub mod scheduler;
 
-const MAX_TICK_DELAY: usize = 1 << 8;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 #[repr(i32)]
 pub enum TickPriority {
@@ -58,7 +56,7 @@ impl TryFrom<i32> for TickPriority {
 
 #[derive(Clone)]
 pub struct ScheduledTick<T> {
-    pub delay: u8,
+    pub delay: u32,
     pub priority: TickPriority,
     pub position: BlockPos,
     pub value: T,
@@ -132,7 +130,9 @@ where
         let x = nbt.get_int("x")?;
         let y = nbt.get_int("y")?;
         let z = nbt.get_int("z")?;
-        let delay = nbt.get_int("t")? as u8;
+        // Vanilla writes a relative delay as an int (`SavedTick.codec`, key "t").
+        // Negative values would mean "already due"; clamp rather than wrap.
+        let delay = nbt.get_int("t")?.max(0) as u32;
         let priority = TickPriority::try_from(nbt.get_int("p")?).ok()?;
         let res_loc_str = nbt.get_string("i")?;
         let res_loc = ResourceLocation::from_str(res_loc_str).ok()?;

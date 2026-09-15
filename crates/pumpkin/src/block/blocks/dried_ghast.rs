@@ -21,13 +21,8 @@ use crate::entity::r#type::from_type;
 /// `DriedGhastBlock.MAX_HYDRATION_LEVEL` (`DriedGhastBlock.java:40`).
 const MAX_HYDRATION_LEVEL: u8 = 3;
 
-/// Vanilla schedules the next hydration tick `HYDRATION_TICK_DELAY` = 5000 ticks out
-/// (`DriedGhastBlock.java:43`), but Pumpkin's scheduled-tick delay is a `u8` (max 255)
-/// (`pumpkin-world/src/level.rs`, `ScheduledTick::delay`). There is no bigger-than-`u8`
-/// scheduling primitive to build on without changing that shared type, so this is capped at
-/// the scheduler's maximum instead: the hydration state machine is faithful, but it runs
-/// roughly 20x faster than vanilla. Flagged for the batch build.
-const HYDRATION_TICK_DELAY: u8 = u8::MAX;
+/// `DriedGhastBlock.HYDRATION_TICK_DELAY` (`DriedGhastBlock.java:43`).
+const HYDRATION_TICK_DELAY: u32 = 5000;
 
 /// Pure result of one hydration tick (`DriedGhastBlock.tick`/`tickWaterlogged`,
 /// `DriedGhastBlock.java:92-113`), independent of world side effects.
@@ -142,7 +137,7 @@ impl BlockBehaviour for DriedGhastBlock {
             args.world.schedule_fluid_tick(
                 &Fluid::WATER,
                 *args.position,
-                Fluid::WATER.flow_speed as u8,
+                Fluid::WATER.flow_speed as u32,
                 TickPriority::Normal,
             );
         }

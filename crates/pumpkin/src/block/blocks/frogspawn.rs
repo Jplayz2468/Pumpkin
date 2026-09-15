@@ -47,13 +47,8 @@ impl FrogspawnBlock {
 
     /// `FrogspawnBlock#getFrogspawnHatchDelay` (`FrogspawnBlock.java:64-66`).
     ///
-    /// NOTE (uncertain): Pumpkin's scheduled block tick delay is a `u8` (max 255 ticks),
-    /// far short of vanilla's 3600-12000 tick (180-600s) range. This clamps to the
-    /// scheduler's max instead of picking an out-of-range value, so frogspawn will hatch
-    /// much sooner than in vanilla until the tick scheduler supports longer delays.
-    fn hatch_delay() -> u8 {
-        let delay = rng().random_range(MIN_HATCH_TICK_DELAY..MAX_HATCH_TICK_DELAY);
-        delay.min(i32::from(u8::MAX)) as u8
+    fn hatch_delay() -> u32 {
+        rng().random_range(MIN_HATCH_TICK_DELAY..MAX_HATCH_TICK_DELAY) as u32
     }
 
     /// `FrogspawnBlock#hatchFrogspawn` (`FrogspawnBlock.java:113-117`).

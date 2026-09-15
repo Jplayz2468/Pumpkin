@@ -97,7 +97,7 @@ impl BlockBehaviour for LightningRodBlock {
             args.world.schedule_fluid_tick(
                 &Fluid::WATER,
                 *args.position,
-                Fluid::WATER.flow_speed as u8,
+                Fluid::WATER.flow_speed as u32,
                 TickPriority::Normal,
             );
         }

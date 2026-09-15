@@ -1,5 +1,5 @@
 //! Decisions shared by the live shrieker and direct Java contract probes.
-pub const SHRIEK_TICKS: u8 = 90;
+pub const SHRIEK_TICKS: u32 = 90;
 
 pub const fn can_respond(can_summon: bool, peaceful: bool, spawn_wardens: bool) -> bool {
     can_summon && !peaceful && spawn_wardens

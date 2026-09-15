@@ -1,29 +1,42 @@
+use std::collections::BTreeMap;
 use std::sync::{
     Mutex,
-    atomic::{AtomicUsize, Ordering},
+    atomic::{AtomicU64, Ordering},
 };
 
 use pumpkin_util::math::position::BlockPos;
 use rustc_hash::FxHashSet;
 
-use crate::tick::{MAX_TICK_DELAY, OrderedTick, ScheduledTick};
+use crate::tick::{OrderedTick, ScheduledTick};
 
+/// Per-chunk scheduled-tick queue, keyed by absolute trigger tick.
+///
+/// This mirrors Java's `LevelChunkTicks`, where a `ScheduledTick` carries an absolute
+/// `triggerTick` (`ScheduledTick.java`) and the queue is drained in `DRAIN_ORDER`
+/// (trigger tick, then priority, then sub-tick order). An earlier implementation here
+/// used a fixed 256-slot ring indexed by `(offset + delay) % 256`, which silently
+/// capped every delay at 255 ticks -- vanilla routinely schedules far longer ones
+/// (frogspawn hatches after 3600-12000 ticks, `FrogspawnBlock.java`; dried ghast
+/// hydration steps every 5000, `DriedGhastBlock.java`). A `BTreeMap` keyed by trigger
+/// tick has no such ceiling.
+///
+/// Because a drain removes exactly one trigger-tick bucket, the trigger time is implicit
+/// within a bucket and `OrderedTick`'s `(priority, sub_tick_order)` ordering remains the
+/// correct intra-tick comparator, unchanged from the ring implementation.
 pub struct ChunkTickScheduler<T> {
     inner: Mutex<Option<Box<ChunkTickSchedulerInner<T>>>>,
-    offset: AtomicUsize,
+    /// Absolute tick this chunk's queue has advanced to. Monotonic; never wraps.
+    current_tick: AtomicU64,
 }
 
 struct ChunkTickSchedulerInner<T> {
-    tick_queue: [Vec<OrderedTick<T>>; MAX_TICK_DELAY],
+    tick_queue: BTreeMap<u64, Vec<OrderedTick<T>>>,
     queued_ticks: FxHashSet<(BlockPos, T)>,
 }
 
 impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
     pub fn step_tick(&self) -> Vec<OrderedTick<&'a T>> {
-        // Atomic update for the offset
-        let current_offset = self.offset.fetch_add(1, Ordering::SeqCst) % MAX_TICK_DELAY;
-        let next_offset = (current_offset + 1) % MAX_TICK_DELAY;
-        self.offset.store(next_offset, Ordering::SeqCst);
+        let due_at = self.current_tick.fetch_add(1, Ordering::SeqCst);
 
         let mut inner_guard = self
             .inner
@@ -33,7 +46,7 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
             return Vec::new();
         };
 
-        let res = std::mem::take(&mut inner.tick_queue[current_offset]);
+        let res = inner.tick_queue.remove(&due_at).unwrap_or_default();
 
         if !res.is_empty() {
             for next_tick in &res {
@@ -49,22 +62,23 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
     }
 
     pub fn schedule_tick(&self, tick: &ScheduledTick<&'a T>, sub_tick_order: i64) {
-        let offset = self.offset.load(Ordering::SeqCst);
+        let trigger = self
+            .current_tick
+            .load(Ordering::SeqCst)
+            .saturating_add(u64::from(tick.delay));
         let mut inner_guard = self
             .inner
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let inner = inner_guard.get_or_insert_with(|| {
             Box::new(ChunkTickSchedulerInner {
-                tick_queue: std::array::from_fn(|_| Vec::new()),
+                tick_queue: BTreeMap::new(),
                 queued_ticks: FxHashSet::default(),
             })
         });
 
         if inner.queued_ticks.insert((tick.position, tick.value)) {
-            let index = (offset + tick.delay as usize) % MAX_TICK_DELAY;
-
-            inner.tick_queue[index].push(OrderedTick {
+            inner.tick_queue.entry(trigger).or_default().push(OrderedTick {
                 priority: tick.priority,
                 sub_tick_order,
                 position: tick.position,
@@ -89,7 +103,6 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
         let Some(inner) = inner_guard.as_mut() else {
             return;
         };
-
         let contains = |position: &BlockPos| {
             position.0.x >= min.0.x
                 && position.0.x < max.0.x
@@ -99,9 +112,10 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
                 && position.0.z < max.0.z
         };
 
-        for queue in &mut inner.tick_queue {
+        for queue in inner.tick_queue.values_mut() {
             queue.retain(|tick| !contains(&tick.position));
         }
+        inner.tick_queue.retain(|_, queue| !queue.is_empty());
         inner
             .queued_ticks
             .retain(|(position, _)| !contains(position));
@@ -122,7 +136,7 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
 
     #[must_use]
     pub fn to_vec(&self) -> Vec<ScheduledTick<&'a T>> {
-        let offset = self.offset.load(Ordering::SeqCst);
+        let now = self.current_tick.load(Ordering::SeqCst);
         let inner_guard = self
             .inner
             .lock()
@@ -132,9 +146,10 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
         };
 
         let mut ordered = Vec::with_capacity(inner.queued_ticks.len());
-        for i in 0..MAX_TICK_DELAY {
-            let index = (offset + i) % MAX_TICK_DELAY;
-            ordered.extend(inner.tick_queue[index].iter().map(|tick| (tick, i as u8)));
+        for (trigger, queue) in &inner.tick_queue {
+            // Saved delays are relative to now, as `ScheduledTick.toSavedTick` does.
+            let delay = trigger.saturating_sub(now) as u32;
+            ordered.extend(queue.iter().map(|tick| (tick, delay)));
         }
         // Java LevelChunkTicks::pack saves by sequence, not by trigger time.
         // Restoring the saved list then preserves its relative sequence numbers.
@@ -170,7 +185,7 @@ impl<'a, T: std::hash::Hash + Eq + 'static> FromIterator<ScheduledTick<&'a T>>
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let inner = inner_guard.get_or_insert_with(|| {
                 Box::new(ChunkTickSchedulerInner {
-                    tick_queue: std::array::from_fn(|_| Vec::new()),
+                    tick_queue: BTreeMap::new(),
                     queued_ticks: FxHashSet::default(),
                 })
             });
@@ -189,7 +204,7 @@ impl<T> Default for ChunkTickScheduler<T> {
     fn default() -> Self {
         Self {
             inner: Mutex::new(None),
-            offset: AtomicUsize::new(0),
+            current_tick: AtomicU64::new(0),
         }
     }
 }
@@ -280,5 +295,25 @@ mod tests {
         queue.step_tick();
         queue.step_tick();
         assert_eq!(saved(), [(0, 18), (1, 0)]);
+    }
+
+    #[test]
+    fn long_delays_survive_beyond_the_old_ring_size() {
+        // The previous 256-slot ring made a 5000-tick delay fire at 5000 % 256 = 136.
+        // Vanilla schedules delays this long routinely (DriedGhastBlock hydration = 5000).
+        let queue = ChunkTickScheduler::default();
+        queue.schedule_tick(
+            &ScheduledTick {
+                delay: 5000,
+                priority: TickPriority::Normal,
+                position: BlockPos::new(0, 64, 0),
+                value: &0u8,
+            },
+            0,
+        );
+        for _ in 0..5000 {
+            assert!(queue.step_tick().is_empty());
+        }
+        assert_eq!(queue.step_tick().len(), 1);
     }
 }
