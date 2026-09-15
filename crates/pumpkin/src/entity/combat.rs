@@ -37,7 +37,10 @@ impl AttackType {
         let held_item = player.inventory().held_item();
         let is_mace = held_item.item.id == pumpkin_data::item::Item::MACE.id;
 
-        if is_mace && !on_ground && fall_distance > 1.5 {
+        // Mirrors vanilla `MaceItem.canSmashAttack` (MaceItem.java:153-155): only
+        // fall distance and not currently elytra-gliding gate the smash attack -
+        // there is no on-ground requirement in vanilla.
+        if is_mace && fall_distance > 1.5 && !entity.is_fall_flying() {
             return Self::MaceSmash;
         }
 
@@ -53,12 +56,37 @@ impl AttackType {
             return Self::Critical;
         }
 
-        if sword && is_strong && !is_bedrock {
+        // Mirrors vanilla `Player.isSweepAttack` (Player.java:1043-1053): sweeping
+        // additionally requires being on the ground. Vanilla also requires the
+        // player's horizontal movement to be below `getSpeed() * 2.5`; that check is
+        // not ported here (see report) because there is no known-movement-speed
+        // equivalent available at this call site to verify against.
+        if sword && is_strong && !is_bedrock && on_ground {
             return Self::Sweeping;
         }
 
         if is_strong { Self::Strong } else { Self::Weak }
     }
+}
+
+/// Computes the mace smash attack's fall-distance damage bonus, mirroring vanilla
+/// `MaceItem.getAttackDamageBonus` (MaceItem.java:92-117). The bonus is tiered: 4
+/// damage per block for the first 3 blocks, 2 damage per block from 3 to 8 blocks,
+/// then 1 damage per block beyond that - plus any enchantment (e.g. Density) bonus
+/// per fall-distance block, on top.
+///
+/// Callers must already have checked `MaceItem.canSmashAttack`
+/// (`fall_distance > 1.5 && !is_fall_flying`) before calling this.
+#[must_use]
+pub fn mace_smash_damage_bonus(fall_distance: f64, enchantment_bonus_per_block: f64) -> f64 {
+    let tiered_bonus = if fall_distance <= 3.0 {
+        4.0 * fall_distance
+    } else if fall_distance <= 8.0 {
+        12.0 + 2.0 * (fall_distance - 3.0)
+    } else {
+        22.0 + (fall_distance - 8.0)
+    };
+    tiered_bonus + enchantment_bonus_per_block * fall_distance
 }
 
 /// Scales a knockback `strength` by a living entity's knockback resistance,
@@ -632,6 +660,42 @@ mod tests {
     #[test]
     fn zero_resistance_keeps_full_strength() {
         assert_eq!(knockback_after_resistance(0.4, 0.0), 0.4);
+    }
+
+    // Pins `mace_smash_damage_bonus` against vanilla `MaceItem.getAttackDamageBonus`
+    // (MaceItem.java:99-113): 4 dmg/block up to 3 blocks, 2 dmg/block from 3 to 8, then
+    // 1 dmg/block beyond - calling the real production function, not a re-derivation.
+    #[test]
+    fn mace_smash_bonus_is_zero_at_zero_fall_distance() {
+        assert_eq!(mace_smash_damage_bonus(0.0, 0.0), 0.0);
+    }
+
+    #[test]
+    fn mace_smash_bonus_first_tier_is_four_per_block() {
+        // MaceItem.java:103-104: fallDistance <= 3.0 -> damage = 4.0 * fallDistance.
+        assert_eq!(mace_smash_damage_bonus(1.5, 0.0), 6.0);
+        assert_eq!(mace_smash_damage_bonus(3.0, 0.0), 12.0);
+    }
+
+    #[test]
+    fn mace_smash_bonus_second_tier_is_two_per_block_above_twelve() {
+        // MaceItem.java:105-106: fallDistance <= 8.0 -> 12.0 + 2.0 * (fallDistance - 3.0).
+        assert_eq!(mace_smash_damage_bonus(5.0, 0.0), 16.0);
+        assert_eq!(mace_smash_damage_bonus(8.0, 0.0), 22.0);
+    }
+
+    #[test]
+    fn mace_smash_bonus_third_tier_is_one_per_block_above_twenty_two() {
+        // MaceItem.java:107-108: else -> 22.0 + fallDistance - 8.0.
+        assert_eq!(mace_smash_damage_bonus(10.0, 0.0), 24.0);
+        assert_eq!(mace_smash_damage_bonus(20.0, 0.0), 34.0);
+    }
+
+    #[test]
+    fn mace_smash_bonus_adds_enchantment_bonus_scaled_by_fall_distance() {
+        // MaceItem.java:111-113: enchantment bonus is multiplied by fallDistance and
+        // added on top of the tiered damage.
+        assert_eq!(mace_smash_damage_bonus(5.0, 1.0), 16.0 + 5.0);
     }
 
     #[test]
