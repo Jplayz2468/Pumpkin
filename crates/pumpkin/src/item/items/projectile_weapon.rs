@@ -33,14 +33,22 @@ impl ProjectileWeaponItem {
         weapon: &ItemStack,
         projectile: &ItemStack,
         is_crit: bool,
-        is_creative: bool,
+        _is_creative: bool,
     ) -> ArrowEntity {
         let arrow_entity = Entity::new(
             world,
             shooter.pos.load(),
             ArrowEntity::entity_type_for_item(projectile.item),
         );
-        let pickup = if is_creative {
+        // AbstractArrow.java:97-101: pickup eligibility is driven by whether the *fired*
+        // stack carries `IntangibleProjectile`, not directly by the shooter's gamemode.
+        // `useAmmo` (see `use_ammo` below) sets that marker whenever the ammo cost was zero
+        // -- creative holders, forced multishot copies, and ammo-cost-zeroing effects like
+        // Infinity all end up with a fired stack that can't be looted back except in creative.
+        let pickup = if projectile
+            .get_data_component::<pumpkin_data::data_component_impl::IntangibleProjectileImpl>()
+            .is_some()
+        {
             ArrowPickup::CreativeOnly
         } else {
             ArrowPickup::Allowed

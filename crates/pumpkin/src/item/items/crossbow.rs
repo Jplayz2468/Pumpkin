@@ -70,6 +70,14 @@ impl ItemBehaviour for CrossbowItem {
 
                 let drawn = ProjectileWeaponItem::draw(&stack, &projectile, is_creative);
                 if !drawn.is_empty() {
+                    // Only remove the arrow from the inventory when it wasn't drawn "for
+                    // free" -- mirrors `useAmmo` only splitting the stack when
+                    // `ammoToUse > 0` (ProjectileWeaponItem.java:124-144).
+                    let drawn_for_free = drawn.iter().all(|item| {
+                        item.get_data_component::<pumpkin_data::data_component_impl::IntangibleProjectileImpl>()
+                            .is_some()
+                    });
+
                     let mut charged_nbts = Vec::new();
                     for item in drawn {
                         let mut arrow_nbt = pumpkin_nbt::compound::NbtCompound::new();
@@ -87,6 +95,7 @@ impl ItemBehaviour for CrossbowItem {
 
                     if let Some(slot) = arrow_slot
                         && !is_creative
+                        && !drawn_for_free
                     {
                         player.consume_arrow(slot);
                     }
@@ -149,8 +158,51 @@ impl CrossbowItem {
                 held.patch
                     .retain(|(id, _)| *id != DataComponent::ChargedProjectiles);
                 player.inventory().set_held_item(held);
-                player.damage_held_item(1);
+
+                // ProjectileWeaponItem.java:59-76: `weapon.hurtAndBreak` is called once per
+                // projectile actually shot, inside the loop -- so a Multishot crossbow (3
+                // arrows) spends 3 durability per trigger pull, not 1. Stop early if the
+                // weapon breaks partway through, matching `if (weapon.isEmpty()) break;`.
+                for _ in 0..projectiles.len() {
+                    player.damage_held_item(1);
+                    if player.inventory().held_item().is_empty() {
+                        break;
+                    }
+                }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Pins `EnchantmentHelper::modify_crossbow_charge_time` (used for the crossbow's charge
+    /// duration, `CrossbowItem.getChargeDuration` at CrossbowItem.java:253-256:
+    /// `floor((1.25 + delta) * 20)`) against vanilla's Quick Charge data
+    /// (`quick_charge.json`'s `crossbow_charging_time` effect is `linear(base: -0.25,
+    /// per_level_above_first: -0.25)` seconds, i.e. -5 ticks per level on top of the 25-tick
+    /// base draw).
+    #[test]
+    fn quick_charge_reduces_charge_duration_by_five_ticks_per_level() {
+        let base = ItemStack::new(1, &Item::CROSSBOW);
+        assert_eq!(
+            crate::enchantment::EnchantmentHelper::modify_crossbow_charge_time(&base, 25),
+            25
+        );
+
+        for level in 1..=3u16 {
+            let mut enchanted = ItemStack::new(1, &Item::CROSSBOW);
+            enchanted.add_enchantment(&pumpkin_data::Enchantment::QUICK_CHARGE, level);
+            let expected = 25 - 5 * i32::from(level);
+            assert_eq!(
+                crate::enchantment::EnchantmentHelper::modify_crossbow_charge_time(
+                    &enchanted, 25
+                ),
+                expected,
+                "Quick Charge {level} should yield {expected} ticks"
+            );
         }
     }
 }
