@@ -2868,27 +2868,20 @@ impl Entity {
 
     /// Applies knockback to the entity, following vanilla Minecraft's mechanics.
     ///
-    /// This function calculates the entity's new velocity based on the specified knockback strength and direction.
+    /// This is the `LivingEntity.knockback` formula (`LivingEntity.java:1641-1659`):
+    /// callers are expected to have already scaled `strength` by
+    /// `1.0 - KNOCKBACK_RESISTANCE` (see `combat::knockback_after_resistance`), matching
+    /// how vanilla does `power *= 1.0 - this.getAttributeValue(Attributes.KNOCKBACK_RESISTANCE)`
+    /// at the top of `knockback()` before the `power <= 0.0` early-out.
+    ///
+    /// This used to duplicate [`Self::apply_knockback`] without the `strength <= 0.0`
+    /// early-out or the `velocity_dirty` flag, so a melee hit that produced a valid
+    /// knockback vector never marked the victim's velocity for resync - the server
+    /// applied the knockback but the client was never told about it. Delegating to
+    /// `apply_knockback` (which already ports the formula faithfully, including that
+    /// flag) fixes that instead of maintaining a second, drifting copy of the same math.
     pub fn knockback(&self, strength: f64, x: f64, z: f64) {
-        // This has some vanilla magic
-        let mut x = x;
-        let mut z = z;
-        while x.mul_add(x, z * z) < 1.0E-5 {
-            x = (rand::random::<f64>() - rand::random::<f64>()) * 0.01;
-            z = (rand::random::<f64>() - rand::random::<f64>()) * 0.01;
-        }
-
-        let var8 = Vector3::new(x, 0.0, z).normalize() * strength;
-        let velocity = self.velocity.load();
-        self.velocity.store(Vector3::new(
-            velocity.x / 2.0 - var8.x,
-            if self.on_ground.load(Relaxed) {
-                (velocity.y / 2.0 + strength).min(0.4)
-            } else {
-                velocity.y
-            },
-            velocity.z / 2.0 - var8.z,
-        ));
+        self.apply_knockback(strength, x, z);
     }
 
     pub fn set_sneaking(&self, sneaking: bool) {
