@@ -1,13 +1,15 @@
 use pumpkin_data::{
     Block, BlockDirection, BlockId, BlockStateId, FacingExt,
     block_properties::AmethystClusterLikeProperties,
+    sound::{Sound, SoundCategory},
 };
 use pumpkin_macros::pumpkin_block;
 use pumpkin_world::world::BlockFlags;
+use rand::RngExt;
 
 use crate::block::{
     BlockBehaviour, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
-    RandomTickArgs, blocks::abstract_wall_mounting::WallMountedBlock,
+    OnProjectileHitArgs, RandomTickArgs, blocks::abstract_wall_mounting::WallMountedBlock,
 };
 
 const ALL_DIRECTIONS: [BlockDirection; 6] = [
@@ -112,4 +114,21 @@ impl BlockBehaviour for BuddingAmethystBlock {
 pub fn can_cluster_grow_at_state(block: &Block, state_id: BlockStateId) -> bool {
     block.default_state.is_air()
         || (block == &Block::WATER && state_id == Block::WATER.default_state.id)
+}
+
+/// The solid `minecraft:amethyst_block`, distinct from the bud/cluster growth stages above.
+#[pumpkin_block("minecraft:amethyst_block")]
+pub struct AmethystBlockBlock;
+
+impl BlockBehaviour for AmethystBlockBlock {
+    // AmethystBlock.java: onProjectileHit plays a chime whenever a projectile strikes the block.
+    fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
+        args.world.play_sound_fine(
+            Sound::BlockAmethystBlockChime,
+            SoundCategory::Blocks,
+            &args.position.to_centered_f64(),
+            1.0,
+            0.5 + rand::rng().random::<f32>() * 1.2,
+        );
+    }
 }
