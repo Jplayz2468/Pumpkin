@@ -20,10 +20,10 @@ use crate::entity::{
     },
     mob::{
         Mob, MobEntity, RangedAttackMob,
-        patrol::{PatrolData, PatrollingMonster},
+        patrol::{LongDistancePatrolGoal, PatrolData, PatrollingMonster},
         raider::{
-            PathfindToRaidGoal, Raider, RaiderCelebrationGoal, RaiderData,
-            RaiderMoveThroughVillageGoal,
+            ObtainRaidLeaderBannerGoal, PathfindToRaidGoal, Raider, RaiderCelebrationGoal,
+            RaiderData, RaiderMoveThroughVillageGoal,
         },
     },
     projectile::splash_potion::SplashPotionEntity,
@@ -90,24 +90,62 @@ impl WitchEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // Witch.java:67 `FloatGoal` -> SwimGoal
             goal_selector.add_goal(1, Box::new(SwimGoal::default()));
+            // Raider.java:64 `ObtainRaidLeaderBannerGoal` priority 1 — was entirely missing.
+            goal_selector.add_goal(1, Box::new(ObtainRaidLeaderBannerGoal));
+            // Witch.java:68 `RangedAttackGoal(this, 1.0, 60, 10.0F)`
             goal_selector.add_goal(
                 2,
                 Box::new(RangedAttackGoal::new(ranged_weak, 1.0, 60, 10.0)),
             );
-            goal_selector.add_goal(3, Box::new(RaiderMoveThroughVillageGoal::new(1.05)));
+            // Witch.java:69 `WaterAvoidingRandomStrollGoal(this, 1.0)` — was a plain
+            // `WanderAroundGoal::new(1.0)` at the wrong priority (4) with no water avoidance.
+            goal_selector.add_goal(2, Box::new(WanderAroundGoal::water_avoiding(1.0)));
+            // Raider.java:65 `PathfindToRaidGoal<>(this)` priority 3
             goal_selector.add_goal(3, Box::new(PathfindToRaidGoal::default()));
-            goal_selector.add_goal(4, Box::new(RaiderCelebrationGoal));
-            goal_selector.add_goal(4, Box::new(WanderAroundGoal::new(1.0)));
+            // Witch.java:70 `LookAtPlayerGoal(this, Player.class, 8.0F)` priority 3 (no
+            // probability arg -> vanilla's own default 0.02F, matching `with_default`)
             goal_selector.add_goal(
-                5,
+                3,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
             );
-            goal_selector.add_goal(6, Box::new(RandomLookAroundGoal::default()));
+            // Witch.java:71 `RandomLookAroundGoal(this)` priority 3 — unlike the other raider
+            // mobs in this family, this one really is vanilla's own goal here, not a
+            // stand-in for an unsupported "look at any Mob" wildcard.
+            goal_selector.add_goal(3, Box::new(RandomLookAroundGoal::default()));
+            // PatrollingMonster.java:40 `LongDistancePatrolGoal<>(this, 0.7, 0.595)` priority 4
+            // — was entirely missing before: witches never long-distance patrolled.
+            goal_selector.add_goal(4, Box::new(LongDistancePatrolGoal::new(0.7, 0.595)));
+            // Raider.java:66 `RaiderMoveThroughVillageGoal(this, 1.05F, 1)` priority 4 (was 3)
+            goal_selector.add_goal(4, Box::new(RaiderMoveThroughVillageGoal::new(1.05)));
+            // Raider.java:67 `RaiderCelebration(this)` priority 5 (was 4)
+            goal_selector.add_goal(5, Box::new(RaiderCelebrationGoal));
 
+            // Witch.java:72 `HurtByTargetGoal(this, Raider.class)` priority 1 — deliberately
+            // has NO `.setAlertOthers()` here (unlike every other raider mob in this family),
+            // so RevengeGoal (ai/goal/revenge.rs) is actually a complete port for Witch, not
+            // an approximation missing group-alert behaviour.
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
+            // Witch.java:73 `this.healRaidersGoal` (`NearestHealableRaiderTargetGoal<Raider>`,
+            // priority 2): finds the nearest hurt ally `Raider` mid-raid and sets it as the
+            // witch's target so `performRangedAttack`'s `target instanceof Raider` branch
+            // (ported below in `throw_potion`) throws it a healing/regeneration potion instead
+            // of a harmful one. NOT IMPLEMENTED: this needs a new target-selector goal type
+            // plus the `aiStep`-driven cooldown coordination with `attackPlayersGoal`
+            // (Witch.java:112-118, `healRaidersGoal.decrementCooldown()` gating
+            // `attackPlayersGoal.setCanAttack(...)`) that no existing pumpkin goal type models.
+            // A witch here never seeks out hurt allies to heal on its own — the ported
+            // `throw_potion` branch below only ever fires if something else sets a Raider as
+            // its target, which nothing currently does. Self-healing (drinking a potion when
+            // its own health is low) is unaffected: that's already implemented in `mob_tick`.
+            //
+            // Witch.java:74 `this.attackPlayersGoal` (`NearestAttackableWitchTargetGoal<Player>`,
+            // priority 3): the same player search as below, but gated off while
+            // `healRaidersGoal` is on cooldown. Approximated here with a plain, ungated
+            // `ActiveTargetGoal(PLAYER)` since the gating goal above doesn't exist.
             target_selector.add_goal(
-                2,
+                3,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
             );
         };
@@ -148,7 +186,19 @@ impl WitchEntity {
 
         let mut potion = &Potion::HARMING;
 
-        if let Some(target_living) = target.get_living_entity() {
+        // Witch.java:230-237: `if (target instanceof Raider) { ... this.setTarget(null); }` —
+        // an ally raider gets healed/buffed instead of attacked, and is immediately released
+        // as the witch's target afterward. Checked first, same as vanilla.
+        if target.get_mob().is_some_and(|m| m.as_raider().is_some()) {
+            if let Some(target_living) = target.get_living_entity() {
+                potion = if target_living.health.load() <= 4.0 {
+                    &Potion::HEALING
+                } else {
+                    &Potion::REGENERATION
+                };
+            }
+            self.mob_entity.set_target(None);
+        } else if let Some(target_living) = target.get_living_entity() {
             let r: f32 = rand::random();
             if dist >= 8.0 && !target_living.has_effect(&StatusEffect::SLOWNESS) {
                 potion = &Potion::SLOWNESS;

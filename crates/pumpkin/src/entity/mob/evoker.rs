@@ -11,12 +11,14 @@ use pumpkin_util::math::vector3::Vector3;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        Controls, Goal, active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, swim::SwimGoal, wander_around::WanderAroundGoal,
+        Controls, Goal, active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, revenge::RevengeGoal,
+        swim::SwimGoal, wander_around::WanderAroundGoal,
     },
+    living::LivingEntity,
     mob::{
         Mob, MobEntity,
-        patrol::{PatrolData, PatrollingMonster},
+        patrol::{LongDistancePatrolGoal, PatrolData, PatrollingMonster},
         raider::{
             ObtainRaidLeaderBannerGoal, PathfindToRaidGoal, Raider, RaiderCelebrationGoal,
             RaiderData, RaiderMoveThroughVillageGoal,
@@ -25,6 +27,7 @@ use crate::entity::{
     projectile::evoker_fangs::EvokerFangsEntity,
     r#type::from_type,
 };
+use crate::world::World;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -83,20 +86,57 @@ impl EvokerEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // Evoker.java:56 `FloatGoal` -> SwimGoal
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // Evoker.java:57 `Evoker.EvokerCastingSpellGoal()`
             goal_selector.add_goal(1, Box::new(EvokerCastingSpellGoal::new(mob_weak.clone())));
-            goal_selector.add_goal(2, Box::new(ObtainRaidLeaderBannerGoal));
-            goal_selector.add_goal(3, Box::new(RaiderMoveThroughVillageGoal::new(1.05)));
+            // Raider.java:64 `ObtainRaidLeaderBannerGoal` priority 1 (was priority 2)
+            goal_selector.add_goal(1, Box::new(ObtainRaidLeaderBannerGoal));
+            // Evoker.java:58 `AvoidEntityGoal<>(this, Player.class, 8.0F, 0.6, 1.0)` — entirely
+            // missing before: evokers never fled from players while not casting.
+            goal_selector.add_goal(
+                2,
+                Box::new(AvoidEntityGoal::new(&EntityType::PLAYER, 8.0, 0.6, 1.0)),
+            );
+            // Evoker.java:59 `AvoidEntityGoal<>(this, Creaking.class, 8.0F, 0.6, 1.0)` — also
+            // entirely missing before.
+            goal_selector.add_goal(
+                3,
+                Box::new(AvoidEntityGoal::new(&EntityType::CREAKING, 8.0, 0.6, 1.0)),
+            );
+            // Raider.java:65 `PathfindToRaidGoal<>(this)` priority 3
             goal_selector.add_goal(3, Box::new(PathfindToRaidGoal::default()));
+            // Evoker.java:60 `Evoker.EvokerSummonSpellGoal()`
             goal_selector.add_goal(4, Box::new(EvokerSummonSpellGoal::new(mob_weak.clone())));
+            // PatrollingMonster.java:40 `LongDistancePatrolGoal<>(this, 0.7, 0.595)` priority 4
+            // — entirely missing before: evokers never long-distance patrolled.
+            goal_selector.add_goal(4, Box::new(LongDistancePatrolGoal::new(0.7, 0.595)));
+            // Raider.java:66 `RaiderMoveThroughVillageGoal(this, 1.05F, 1)` priority 4 (was 3)
+            goal_selector.add_goal(4, Box::new(RaiderMoveThroughVillageGoal::new(1.05)));
+            // Evoker.java:61 `Evoker.EvokerAttackSpellGoal()`
             goal_selector.add_goal(5, Box::new(EvokerAttackSpellGoal::new(mob_weak.clone())));
+            // Raider.java:67 `RaiderCelebration(this)` priority 5 (was 7)
+            goal_selector.add_goal(5, Box::new(RaiderCelebrationGoal));
+            // Evoker.java:62 `Evoker.EvokerWololoSpellGoal()`
             goal_selector.add_goal(6, Box::new(EvokerWololoSpellGoal::new(mob_weak)));
-            goal_selector.add_goal(7, Box::new(RaiderCelebrationGoal));
+            // Evoker.java:63 `RandomStrollGoal(this, 0.6)`
             goal_selector.add_goal(8, Box::new(WanderAroundGoal::new(0.6)));
+            // Evoker.java:64 `LookAtPlayerGoal(this, Player.class, 3.0F, 1.0F)` — vanilla passes
+            // probability 1.0F, `with_default` hardcodes 0.02, so this needs the full
+            // constructor to match.
             goal_selector.add_goal(
                 9,
-                LookAtEntityGoal::with_default(mob_interface_weak, &EntityType::PLAYER, 3.0),
+                Box::new(LookAtEntityGoal::new(
+                    mob_interface_weak,
+                    &EntityType::PLAYER,
+                    3.0,
+                    1.0,
+                    false,
+                )),
             );
+            // Evoker.java:65 `LookAtPlayerGoal(this, Mob.class, 8.0F)` priority 10 wants "look
+            // at any nearby Mob"; LookAtEntityGoal (ai/goal/look_at_entity.rs, not ours to
+            // modify) only supports one concrete EntityType. Kept as closest idle-look fallback.
             goal_selector.add_goal(10, Box::new(RandomLookAroundGoal::default()));
 
             let mut target_selector = mob_arc
@@ -104,17 +144,49 @@ impl EvokerEntity {
                 .target_selector
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
+            // Evoker.java:66 `HurtByTargetGoal(this, Raider.class).setAlertOthers()` priority 1
+            // — entirely missing before. RevengeGoal (ai/goal/revenge.rs) is the closest
+            // existing type, but its "alert nearby raiders" behaviour is an explicit TODO in
+            // that file (not ours to extend), so a struck evoker retaliates itself but won't
+            // call in allies.
             target_selector.add_goal(
                 1,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
+                Box::new(RevengeGoal::new(true)),
             );
+            // Evoker.java:67 `NearestAttackableTargetGoal<>(this, Player.class,
+            // true).setUnseenMemoryTicks(300)`. `ActiveTargetGoal::with_default` has no way to
+            // configure unseen-memory ticks (that constant lives on the private
+            // `TrackTargetGoal` it builds internally, in the restricted active_target.rs), so
+            // the 300-tick memory extension can't be ported without touching that file.
             target_selector.add_goal(
                 2,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::VILLAGER, true),
+                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
             );
+            // Evoker.java:68 `NearestAttackableTargetGoal<>(this, AbstractVillager.class,
+            // false).setUnseenMemoryTicks(300)` — mustSee is `false`, was `true`.
             target_selector.add_goal(
                 3,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::IRON_GOLEM, true),
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::VILLAGER,
+                    10,
+                    false,
+                    false,
+                    Some(|_target: &LivingEntity, _world: &World| true),
+                )),
+            );
+            // Evoker.java:69 `NearestAttackableTargetGoal<>(this, IronGolem.class, false)` —
+            // mustSee is `false`, was `true`.
+            target_selector.add_goal(
+                3,
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::IRON_GOLEM,
+                    10,
+                    false,
+                    false,
+                    Some(|_target: &LivingEntity, _world: &World| true),
+                )),
             );
         };
 
