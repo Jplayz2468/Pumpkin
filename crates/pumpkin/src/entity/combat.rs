@@ -24,25 +24,21 @@ pub enum AttackType {
     Sweeping,
     Strong,
     Weak,
-    MaceSmash,
 }
 
 impl AttackType {
-    pub fn new(player: &Player, attack_cooldown_progress: f32) -> Self {
+    /// Classifies the ordinary strong/weak/crit/sweep/knockback ladder from vanilla
+    /// `Player.attack` (Player.java:951-1004). This is independent of a mace smash
+    /// attack (`MaceItem.canSmashAttack`): vanilla's `canCriticalAttack` has no
+    /// weapon-type condition, so a mace hit can be critical too - callers compute
+    /// the mace smash bonus separately and apply it before the critical multiplier.
+    pub fn new(player: &Player, victim: &dyn EntityBase, attack_cooldown_progress: f32) -> Self {
         let entity = &player.get_entity();
 
         let sprinting = entity.is_sprinting();
         let on_ground = entity.on_ground.load(Ordering::Relaxed);
         let fall_distance = player.living_entity.fall_distance.load();
         let held_item = player.inventory().held_item();
-        let is_mace = held_item.item.id == pumpkin_data::item::Item::MACE.id;
-
-        // Mirrors vanilla `MaceItem.canSmashAttack` (MaceItem.java:153-155): only
-        // fall distance and not currently elytra-gliding gate the smash attack -
-        // there is no on-ground requirement in vanilla.
-        if is_mace && fall_distance > 1.5 && !entity.is_fall_flying() {
-            return Self::MaceSmash;
-        }
 
         let sword = held_item.is_sword();
         let is_bedrock = matches!(player.client.as_ref(), ClientPlatform::Bedrock(_));
@@ -52,7 +48,20 @@ impl AttackType {
             return Self::Knockback;
         }
 
-        if is_strong && !on_ground && fall_distance > 0.0 {
+        if is_critical_attack(
+            is_strong,
+            f64::from(fall_distance),
+            on_ground,
+            player.living_entity.climbing.load(Ordering::Relaxed),
+            entity.is_in_water(),
+            player
+                .living_entity
+                .get_effect(&pumpkin_data::effect::StatusEffect::BLINDNESS)
+                .is_some(),
+            player.is_passenger(),
+            sprinting,
+            victim.get_living_entity().is_some(),
+        ) {
             return Self::Critical;
         }
 
@@ -67,6 +76,44 @@ impl AttackType {
 
         if is_strong { Self::Strong } else { Self::Weak }
     }
+}
+
+/// Mirrors vanilla `Player.canCriticalAttack` (Player.java:1030-1039) combined with
+/// the `fullStrengthAttack` gate from `Player.attack` (Player.java:962, 970):
+/// `attackStrengthScale > 0.9F`. Every condition must hold for a critical hit - a
+/// falling player who is on a ladder, in water, blinded, riding, sprinting, or
+/// attacking a non-living target (e.g. an item frame) never crits.
+#[must_use]
+#[allow(clippy::too_many_arguments)]
+pub fn is_critical_attack(
+    is_full_strength_attack: bool,
+    fall_distance: f64,
+    on_ground: bool,
+    on_climbable: bool,
+    in_water: bool,
+    has_blindness: bool,
+    is_passenger: bool,
+    is_sprinting: bool,
+    victim_is_living: bool,
+) -> bool {
+    is_full_strength_attack
+        && fall_distance > 0.0
+        && !on_ground
+        && !on_climbable
+        && !in_water
+        && !has_blindness
+        && !is_passenger
+        && !is_sprinting
+        && victim_is_living
+}
+
+/// Computes the attack-strength damage multiplier, mirroring vanilla
+/// `Player.baseDamageScaleFactor` (Player.java:1207-1210): `0.2 + scale^2 * 0.8`.
+/// `attack_strength_scale` is `Player.getAttackStrengthScale(0.5F)`
+/// (Player.java:1826-1828), already clamped to `[0, 1]`.
+#[must_use]
+pub fn base_damage_scale_factor(attack_strength_scale: f64) -> f64 {
+    attack_strength_scale.powi(2).mul_add(0.8, 0.2)
 }
 
 /// Computes the mace smash attack's fall-distance damage bonus, mirroring vanilla
@@ -97,22 +144,30 @@ pub fn knockback_after_resistance(strength: f64, resistance: f64) -> f64 {
 }
 
 pub fn handle_knockback(attacker: &Entity, victim: &dyn EntityBase, strength: f64) {
-    let resistance = victim.get_living_entity().map_or(0.0, |living| {
-        living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE)
-    });
-    let strength = knockback_after_resistance(strength * 0.5, resistance);
+    // Player.java:1140-1156 `causeExtraKnockback`: the gate (`knockbackAmount >
+    // 0.0F`) is on the PRE-resistance amount the attacker computed, not on whether
+    // the push actually moved a knockback-resistant victim - `LivingEntity.knockback`
+    // applies the victim's own resistance internally. Mirrors the same pre/post
+    // resistance split already used for mob attacks in `extra_knockback::apply`.
+    let pre_resistance_strength = strength * 0.5;
+    if pre_resistance_strength > 0.0 {
+        let resistance = victim.get_living_entity().map_or(0.0, |living| {
+            living.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE)
+        });
+        let scaled = knockback_after_resistance(pre_resistance_strength, resistance);
+        if scaled > 0.0 {
+            let yaw = attacker.yaw.load();
+            victim.get_entity().knockback(
+                scaled,
+                f64::from((yaw.to_radians()).sin()),
+                f64::from(-(yaw.to_radians()).cos()),
+            );
+        }
 
-    if strength > 0.0 {
-        let yaw = attacker.yaw.load();
-        victim.get_entity().knockback(
-            strength,
-            f64::from((yaw.to_radians()).sin()),
-            f64::from(-(yaw.to_radians()).cos()),
-        );
+        let velocity = attacker.velocity.load();
+        attacker.velocity.store(velocity.multiply(0.6, 1.0, 0.6));
+        attacker.set_sprinting(false);
     }
-
-    let velocity = attacker.velocity.load();
-    attacker.velocity.store(velocity.multiply(0.6, 1.0, 0.6));
 }
 
 pub fn spawn_sweep_particle(attacker_entity: &Entity, world: &World, pos: &Vector3<f64>) {
@@ -152,9 +207,6 @@ pub fn player_attack_sound(pos: &Vector3<f64>, world: &World, attack_type: Attac
         }
         AttackType::Weak => {
             world.play_sound(Sound::EntityPlayerAttackWeak, SoundCategory::Players, pos);
-        }
-        AttackType::MaceSmash => {
-            world.play_sound(Sound::ItemMaceSmashAir, SoundCategory::Players, pos);
         }
     }
 }
@@ -715,5 +767,97 @@ mod tests {
         // Stacked armour modifiers can push resistance above 1.0; the result is
         // negative and callers guard on `strength > 0.0`.
         assert!(knockback_after_resistance(0.4, 1.2) < 0.0);
+    }
+
+    // Pins `base_damage_scale_factor` against vanilla `Player.baseDamageScaleFactor`
+    // (Player.java:1207-1210): `0.2 + scale^2 * 0.8`, calling the real function.
+    #[test]
+    fn base_damage_scale_factor_is_minimum_at_zero_charge() {
+        assert!((base_damage_scale_factor(0.0) - 0.2).abs() < 1e-9);
+    }
+
+    #[test]
+    fn base_damage_scale_factor_is_full_at_max_charge() {
+        assert!((base_damage_scale_factor(1.0) - 1.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn base_damage_scale_factor_at_half_charge() {
+        // 0.2 + 0.5^2 * 0.8 = 0.4
+        assert!((base_damage_scale_factor(0.5) - 0.4).abs() < 1e-9);
+    }
+
+    // Pins `is_critical_attack` against vanilla `Player.canCriticalAttack`
+    // (Player.java:1030-1039) plus the `fullStrengthAttack` gate from
+    // `Player.attack` (Player.java:962, 970) - calling the real function so a bug
+    // in any single condition fails the test, not a re-derived copy of the logic.
+    #[test]
+    fn critical_attack_requires_full_strength_and_falling_and_airborne() {
+        assert!(is_critical_attack(
+            true, 1.0, false, false, false, false, false, false, true
+        ));
+    }
+
+    #[test]
+    fn critical_attack_false_when_not_full_strength() {
+        assert!(!is_critical_attack(
+            false, 1.0, false, false, false, false, false, false, true
+        ));
+    }
+
+    #[test]
+    fn critical_attack_false_when_not_falling() {
+        assert!(!is_critical_attack(
+            true, 0.0, false, false, false, false, false, false, true
+        ));
+    }
+
+    #[test]
+    fn critical_attack_false_when_on_ground() {
+        assert!(!is_critical_attack(
+            true, 1.0, true, false, false, false, false, false, true
+        ));
+    }
+
+    #[test]
+    fn critical_attack_false_when_on_climbable() {
+        assert!(!is_critical_attack(
+            true, 1.0, false, true, false, false, false, false, true
+        ));
+    }
+
+    #[test]
+    fn critical_attack_false_when_in_water() {
+        assert!(!is_critical_attack(
+            true, 1.0, false, false, true, false, false, false, true
+        ));
+    }
+
+    #[test]
+    fn critical_attack_false_when_blinded() {
+        assert!(!is_critical_attack(
+            true, 1.0, false, false, false, true, false, false, true
+        ));
+    }
+
+    #[test]
+    fn critical_attack_false_when_riding() {
+        assert!(!is_critical_attack(
+            true, 1.0, false, false, false, false, true, false, true
+        ));
+    }
+
+    #[test]
+    fn critical_attack_false_when_sprinting() {
+        assert!(!is_critical_attack(
+            true, 1.0, false, false, false, false, false, true, true
+        ));
+    }
+
+    #[test]
+    fn critical_attack_false_when_target_not_living() {
+        assert!(!is_critical_attack(
+            true, 1.0, false, false, false, false, false, false, false
+        ));
     }
 }

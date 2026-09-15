@@ -1166,20 +1166,15 @@ impl Player {
 
         let inventory = self.inventory();
         let item_stack = inventory.held_item();
-        if !item_stack.is_empty() {
-            self.increment_stat(
-                statistics::StatisticCategory::Used,
-                item_stack.item.id as i32,
-                1,
-            );
-        }
+        // NOTE: the generic "used" stat for the held item is awarded further below,
+        // only on a landed hit with a weapon - see `ItemStack.hurtEnemy`
+        // (ItemStack.java:534-544), not unconditionally here.
 
         let base_damage = self
             .living_entity
             .get_attribute_value(&Attributes::ATTACK_DAMAGE);
         let base_attack_speed = 4.0;
 
-        let mut damage_multiplier = 1.0;
         let mut add_damage = 0.0;
         let mut add_speed = 0.0;
         let mut extra_ench_damage = 0.0;
@@ -1251,15 +1246,14 @@ impl Player {
         };
         self.last_attacked_ticks.store(0, Ordering::Relaxed);
 
-        // Only reduce attack damage if in cooldown
+        // Vanilla `Player.baseDamageScaleFactor` (Player.java:1207-1210) is applied
+        // unconditionally; at `attack_cooldown_progress == 1.0` it evaluates to
+        // exactly `1.0`, so this is equivalent to the old "only if in cooldown" gate.
         // TODO: Enchantments are reduced in the same way, just without the square.
-        if attack_cooldown_progress < 1.0 {
-            damage_multiplier = attack_cooldown_progress.powi(2).mul_add(0.8, 0.2);
-        }
+        let damage_multiplier = combat::base_damage_scale_factor(attack_cooldown_progress);
 
         // Modify the added damage based on the multiplier.
         let mut damage = (base_damage + add_damage) * damage_multiplier;
-        damage += extra_ench_damage * attack_cooldown_progress;
 
         if let Some(strength) = self
             .living_entity
@@ -1276,21 +1270,42 @@ impl Player {
         damage = damage.max(0.0);
 
         let pos = victim_entity.pos.load();
-        let attack_type = AttackType::new(self, attack_cooldown_progress as f32);
+
+        // Mirrors vanilla `MaceItem.canSmashAttack` (MaceItem.java:153-155): only
+        // fall distance and not currently elytra-gliding gate the smash attack -
+        // there is no on-ground requirement in vanilla.
+        let is_mace = item_stack.item.id == pumpkin_data::item::Item::MACE.id;
+        let fall_distance = f64::from(self.living_entity.fall_distance.load());
+        let is_mace_smash = is_mace && fall_distance > 1.5 && !attacker_entity.is_fall_flying();
+
+        // `AttackType` now only classifies the ordinary strong/weak/crit/sweep/
+        // knockback ladder, independent of the mace smash bonus below - vanilla's
+        // `canCriticalAttack` (Player.java:1030-1039) has no weapon-type condition,
+        // so a mace hit can be critical too (Player.java:962-975).
+        let attack_type = AttackType::new(self, victim.as_ref(), attack_cooldown_progress as f32);
+
+        if is_mace_smash {
+            // MaceItem.java:92-117: `getAttackDamageBonus` is added to baseDamage
+            // BEFORE the critical-hit multiplier below (Player.java:971-975), so a
+            // critical mace smash multiplies the fall-damage bonus too.
+            let ench_bonus_per_block =
+                crate::enchantment::EnchantmentHelper::modify_fall_based_damage(&item_stack, 0.0);
+            damage += combat::mace_smash_damage_bonus(fall_distance, ench_bonus_per_block);
+        }
 
         if matches!(attack_type, AttackType::Critical) {
             damage *= 1.5;
         }
 
-        let is_mace_smash = matches!(attack_type, AttackType::MaceSmash);
-        if is_mace_smash {
-            let fall_distance = f64::from(self.living_entity.fall_distance.load());
-            // MaceItem.java:111-113: enchantments (e.g. Density) add a per-fall-block
-            // bonus on top of the tiered damage computed by `mace_smash_damage_bonus`.
-            let ench_bonus_per_block =
-                crate::enchantment::EnchantmentHelper::modify_fall_based_damage(&item_stack, 0.0);
-            damage += combat::mace_smash_damage_bonus(fall_distance, ench_bonus_per_block);
-        }
+        // Player.java:975-978: `magicBoost` (the enchantment damage bonus, scaled by
+        // the same charge factor) is added to `totalDamage` after the critical-hit
+        // multiplier, so it is never multiplied by it.
+        damage += extra_ench_damage * attack_cooldown_progress;
+
+        // Captured for the damage-indicator particle count in `damageStatsAndHearts`
+        // (Player.java:1076-1086), which uses the health actually lost (post-armor/
+        // absorption), not the raw pre-mitigation `damage` value.
+        let victim_health_before_hit = victim.get_living_entity().map(|l| l.health.load());
 
         if !victim.damage_with_context(
             victim.as_ref(),
@@ -1325,17 +1340,28 @@ impl Player {
         }
 
         if is_mace_smash {
-            let fall_distance = self.living_entity.fall_distance.load();
-            self.living_entity.fall_distance.store(0.0);
+            // MaceItem.java:64-73: the ground/air sound is chosen from the TARGET's
+            // `onGround()` state (heavy vs. regular ground sound if grounded,
+            // otherwise the air variant) - not the attacker's own fall distance,
+            // which only picks the heavy threshold. This is a separate, additional
+            // sound layered on top of the ordinary attack sound played below.
+            // `postHurtEnemy` (MaceItem.java:86-90) then resets the attacker's fall
+            // distance.
+            let victim_on_ground = victim_entity.on_ground.load(Ordering::Relaxed);
             world.play_sound(
-                if fall_distance > 5.0 {
-                    Sound::ItemMaceSmashGroundHeavy
+                if victim_on_ground {
+                    if fall_distance > 5.0 {
+                        Sound::ItemMaceSmashGroundHeavy
+                    } else {
+                        Sound::ItemMaceSmashGround
+                    }
                 } else {
-                    Sound::ItemMaceSmashGround
+                    Sound::ItemMaceSmashAir
                 },
                 SoundCategory::Players,
                 &pos,
             );
+            self.living_entity.fall_distance.store(0.0);
         }
 
         player_attack_sound(&pos, &world, attack_type);
@@ -1426,7 +1452,41 @@ impl Player {
         // 2. Refactor compute cost as a closure: damage_held_item(self, |stack| -> i32 { ... })
         // 3. In practice, single-player scenarios are safe (this is not multiplayer). Document
         //    as a known limitation if refactoring is deemed too invasive.
+        // Vanilla `ItemStack.hurtEnemy` (ItemStack.java:534-544) awards the generic
+        // "used" stat for the weapon only on a landed hit (we are past the no-damage
+        // early return), and only when the item carries a `Weapon` data component
+        // (`this.has(DataComponents.WEAPON)`) - not unconditionally on every swing.
+        if item_stack.get_data_component::<WeaponImpl>().is_some() {
+            self.increment_stat(
+                statistics::StatisticCategory::Used,
+                item_stack.item.id as i32,
+                1,
+            );
+        }
         self.damage_held_item(Self::combat_weapon_durability_cost(&item_stack));
+
+        // Player.java:1076-1086 `damageStatsAndHearts`: spawn damage-indicator
+        // particles sized by the health actually lost, when it exceeds 2 hearts.
+        if let Some(health_before) = victim_health_before_hit
+            && let Some(victim_living) = victim.get_living_entity()
+        {
+            let actual_damage = health_before - victim_living.health.load();
+            if actual_damage > 2.0 {
+                let count = (actual_damage * 0.5) as i32;
+                let particle_pos = Vector3::new(
+                    pos.x,
+                    pos.y + f64::from(victim_entity.height()) * 0.5,
+                    pos.z,
+                );
+                world.spawn_particle(
+                    particle_pos,
+                    Vector3::new(0.1, 0.0, 0.1),
+                    0.2,
+                    count,
+                    Particle::DamageIndicator,
+                );
+            }
+        }
 
         // Vanilla `Player#attack` ends the successful-hit branch with
         // `causeFoodExhaustion(0.1F)`. Only landed hits exhaust; the miss/no-damage
