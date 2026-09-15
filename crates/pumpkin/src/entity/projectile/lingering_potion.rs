@@ -200,6 +200,12 @@ impl EntityBase for LingeringPotionEntity {
             hit_pos,
             &pumpkin_data::entity::EntityType::AREA_EFFECT_CLOUD,
         );
+        // ThrownLingeringPotion.onHitAsPotion (ThrownLingeringPotion.java:32-45): radius 3.0,
+        // duration 600, radiusOnUse -0.5F (radiusPerTick is derived as -radius/duration inside
+        // `AreaEffectCloudEntity::create`, matching `-radius/duration` there). `waitTime` is
+        // explicitly set to 10 (not AreaEffectCloud's default of 20), and `durationOnUse` is left
+        // at AreaEffectCloud's default of 0 (not -100, which would shrink the cloud's remaining
+        // life every time it re-applies effects).
         let cloud = crate::entity::area_effect_cloud::AreaEffectCloudEntity::create(
             cloud_entity,
             stack,
@@ -207,9 +213,9 @@ impl EntityBase for LingeringPotionEntity {
             600,
             3.0,
             20,
-            20,
+            10,
             -0.5,
-            -100,
+            0,
         );
 
         world.spawn_entity(cloud);
