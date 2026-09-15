@@ -519,6 +519,9 @@ impl MobEntity {
             .get_attribute_value(&Attributes::ATTACK_DAMAGE);
         let attack_damage =
             crate::enchantment::EnchantmentHelper::modify_damage(&weapon, base_damage) as f32;
+        let attack_damage = caller
+            .get_mob()
+            .map_or(attack_damage, |mob| mob.modify_attack_damage(attack_damage));
 
         // Mob.java:1392 `weapon.getDamageSource(this)`. ItemStack.getDamageSource
         // (ItemStack.java:1126-1131) tries a per-stack DAMAGE_TYPE component, then
@@ -602,6 +605,17 @@ impl MobEntity {
             self.living_entity
                 .last_attack_time
                 .store(self.living_entity.entity.tick_count.load(Relaxed), Relaxed);
+
+            // Per-species `doHurtTarget` overrides -- cave spider poison, wither skeleton
+            // wither, husk hunger, and so on. Every one of them runs `super.doHurtTarget`
+            // first and applies its effect only when that returned true, which is exactly
+            // here: after the damage, knockback and post-attack enchantment effects.
+            //
+            // This hook existed but was never called, so the overrides that did exist
+            // (cave spider, hoglin, zoglin) silently did nothing.
+            if let Some(mob) = caller.get_mob() {
+                mob.on_attack(target);
+            }
         }
     }
 
@@ -967,6 +981,16 @@ pub trait Mob: EntityBase + Send + Sync {
     }
 
     fn on_attack(&self, _target: &dyn EntityBase) {}
+
+    /// Lets a species replace the flat `ATTACK_DAMAGE` roll its melee hit would deal.
+    ///
+    /// Most mobs deal exactly their attribute value, but a few randomise it inside
+    /// `doHurtTarget` -- the iron golem's swing lands anywhere between half and one and a
+    /// half times its attack damage (IronGolem.java). Damage has to be decided before the
+    /// hit, so this cannot live in `on_attack`, which runs after it.
+    fn modify_attack_damage(&self, base: f32) -> f32 {
+        base
+    }
 
     fn on_eating_grass(&self) {}
 

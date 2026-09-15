@@ -1,6 +1,10 @@
 use std::sync::Arc;
 
+use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::EntityType;
+
+use crate::entity::EntityBase;
+use pumpkin_data::potion::Effect;
 
 use crate::entity::{
     Entity,
@@ -54,6 +58,22 @@ impl WitherSkeletonEntity {
 impl Mob for WitherSkeletonEntity {
     fn get_mob_entity(&self) -> &MobEntity {
         &self.entity.mob_entity
+    }
+
+    /// `WitherSkeleton.doHurtTarget` (WitherSkeleton.java): a successful hit gives the
+    /// victim wither for a flat 200 ticks, on every difficulty.
+    fn on_attack(&self, target: &dyn EntityBase) {
+        if let Some(living) = target.get_living_entity() {
+            living.add_effect(Effect {
+                effect_type: &StatusEffect::WITHER,
+                duration: 200,
+                amplifier: 0,
+                ambient: false,
+                show_particles: true,
+                show_icon: true,
+                blend: false,
+            });
+        }
     }
 
     /// WitherSkeleton.java:106-110 `getArrow`: `arrow.igniteForSeconds(100.0F)`,

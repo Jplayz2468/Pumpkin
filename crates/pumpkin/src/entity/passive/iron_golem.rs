@@ -9,6 +9,7 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::GameMode;
+use rand::RngExt;
 
 use crate::entity::{
     Entity, EntityBase,
@@ -126,6 +127,45 @@ impl Mob for IronGolemEntity {
 
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
+    }
+
+    /// `IronGolem.doHurtTarget` (IronGolem.java): the golem's hit is randomised rather
+    /// than flat -- half its attack damage plus a roll over the whole value, so a golem
+    /// with 15 attack damage deals between 7.5 and 21.5.
+    fn modify_attack_damage(&self, base: f32) -> f32 {
+        let whole = base as i32;
+        if whole > 0 {
+            base / 2.0 + rand::rng().random_range(0..whole) as f32
+        } else {
+            base
+        }
+    }
+
+    /// The rest of `IronGolem.doHurtTarget`: the swing animation, a fixed upward shove
+    /// scaled by the victim's knockback resistance, and the attack sound.
+    fn on_attack(&self, target: &dyn EntityBase) {
+        self.attack_animation_tick.store(10, Ordering::Relaxed);
+        let entity = self.get_entity();
+        let world = entity.world.load();
+        world.send_entity_status(entity, EntityStatus::StartAttacking, None);
+
+        let knockback_resistance = target.get_living_entity().map_or(0.0, |living| {
+            living.get_attribute_value(&pumpkin_data::attributes::Attributes::KNOCKBACK_RESISTANCE)
+        });
+        let scale = (1.0 - knockback_resistance).max(0.0);
+        let victim = target.get_entity();
+        let mut velocity = victim.velocity.load();
+        velocity.y += 0.4 * scale;
+        victim.velocity.store(velocity);
+        victim
+            .velocity_dirty
+            .store(true, Ordering::Relaxed);
+
+        world.play_sound(
+            Sound::EntityIronGolemAttack,
+            SoundCategory::Neutral,
+            &entity.pos.load(),
+        );
     }
 
     fn mob_tick(&self, _caller: &dyn EntityBase) {
