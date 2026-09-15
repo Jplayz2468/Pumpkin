@@ -138,6 +138,7 @@ pub mod decorated_pot;
 pub mod fletching_table;
 pub mod loom;
 pub mod smithing_table;
+pub mod dried_ghast;
 pub mod sniffer_egg;
 pub mod structure_block;
 pub mod trial_spawner;
