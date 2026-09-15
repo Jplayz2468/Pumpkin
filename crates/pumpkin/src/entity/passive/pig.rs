@@ -60,17 +60,21 @@ impl PigEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // Pig.java:81-89 — vanilla leaves priority 2 unused (Breed is 3, not 2); every
+            // goal from BreedGoal onward is shifted one slot lower than the naive sequence.
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(1, EscapeDangerGoal::new(1.25));
-            goal_selector.add_goal(2, BreedGoal::new(1.0));
-            goal_selector.add_goal(3, Box::new(TemptGoal::new(1.2, PIG_FOOD)));
-            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.1)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(3, BreedGoal::new(1.0));
+            // Pig.java:84-85 combines two TemptGoal instances (carrot-on-a-stick, then the
+            // PIG_FOOD tag) at the same priority; PIG_FOOD here already carries both.
+            goal_selector.add_goal(4, Box::new(TemptGoal::new(1.2, PIG_FOOD)));
+            goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.1)));
+            goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(
-                6,
+                7,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
             );
-            goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
         };
 
         mob_arc
@@ -85,11 +89,13 @@ impl AgeableMob for PigEntity {
 
 impl Animal for PigEntity {
     fn is_food(&self, item_stack: &ItemStack) -> bool {
+        // Pig.java:252-254 `isFood` only checks ItemTags.PIG_FOOD (carrot/potato/beetroot).
+        // Carrot on a stick tempts (see PIG_FOOD/TemptGoal above) but is NOT breeding food in
+        // vanilla, so it must not be included here.
         use pumpkin_data::tag::Taggable;
         item_stack
             .item
             .has_tag(&pumpkin_data::tag::Item::MINECRAFT_PIG_FOOD)
-            || PIG_FOOD.iter().any(|i| i.id == item_stack.item.id)
     }
 }
 
