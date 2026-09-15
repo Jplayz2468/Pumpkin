@@ -158,6 +158,7 @@ use crate::block::blocks::spreading_snowy_block::{MyceliumBlock, PodzolBlock};
 use crate::block::blocks::stairs::StairBlock;
 use crate::block::blocks::structure_block::StructureBlock;
 use crate::block::blocks::structure_void::StructureVoidBlock;
+use crate::block::blocks::sulfur_spike::SulfurSpikeBlock;
 use crate::block::blocks::test_block::{TestBlock, TestInstanceBlock};
 use crate::block::blocks::tinted_glass::TintedGlassBlock;
 use crate::block::blocks::tnt::TNTBlock;
@@ -396,6 +397,7 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(SporeBlossomBlock);
     manager.register(ConduitBlock);
     manager.register(DripstoneBlock);
+    manager.register(SulfurSpikeBlock);
     manager.register(TwistingVinesBlock);
     manager.register(WeepingVinesBlock);
     manager.register(CactusFlowerBlock);

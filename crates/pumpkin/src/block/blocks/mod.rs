@@ -88,6 +88,7 @@ pub mod mangrove_roots;
 pub mod plant;
 pub mod pumpkin;
 pub mod sculk;
+pub mod sulfur_spike;
 pub mod vine;
 
 // Terrain / environment / physics
