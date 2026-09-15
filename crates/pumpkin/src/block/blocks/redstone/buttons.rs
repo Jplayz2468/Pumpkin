@@ -18,11 +18,11 @@ type ButtonLikeProperties = pumpkin_data::block_properties::LeverLikeProperties;
 
 use crate::block::CanPlaceAtArgs;
 use crate::block::EmitsRedstonePowerArgs;
+use crate::block::ExplodeArgs;
 use crate::block::GetRedstonePowerArgs;
 use crate::block::GetStateForNeighborUpdateArgs;
 use crate::block::OnEntityCollisionArgs;
 use crate::block::OnPlaceArgs;
-use crate::block::OnProjectileHitArgs;
 use crate::block::OnScheduledTickArgs;
 use crate::block::OnStateReplacedArgs;
 use crate::block::blocks::abstract_wall_mounting::WallMountedBlock;
@@ -32,17 +32,34 @@ use crate::block::{BlockBehaviour, NormalUseArgs};
 use crate::world::World;
 
 fn get_sound(block: &Block, on: bool) -> Sound {
-    if block == &Block::STONE_BUTTON || block == &Block::POLISHED_BLACKSTONE_BUTTON {
-        if on {
-            Sound::BlockStoneButtonClickOn
+    let (off, on_sound) =
+        if block == &Block::STONE_BUTTON || block == &Block::POLISHED_BLACKSTONE_BUTTON {
+            (
+                Sound::BlockStoneButtonClickOff,
+                Sound::BlockStoneButtonClickOn,
+            )
+        } else if block == &Block::CHERRY_BUTTON {
+            (
+                Sound::BlockCherryWoodButtonClickOff,
+                Sound::BlockCherryWoodButtonClickOn,
+            )
+        } else if block == &Block::BAMBOO_BUTTON {
+            (
+                Sound::BlockBambooWoodButtonClickOff,
+                Sound::BlockBambooWoodButtonClickOn,
+            )
+        } else if block == &Block::CRIMSON_BUTTON || block == &Block::WARPED_BUTTON {
+            (
+                Sound::BlockNetherWoodButtonClickOff,
+                Sound::BlockNetherWoodButtonClickOn,
+            )
         } else {
-            Sound::BlockStoneButtonClickOff
-        }
-    } else if on {
-        Sound::BlockWoodenButtonClickOn
-    } else {
-        Sound::BlockWoodenButtonClickOff
-    }
+            (
+                Sound::BlockWoodenButtonClickOff,
+                Sound::BlockWoodenButtonClickOn,
+            )
+        };
+    if on { on_sound } else { off }
 }
 
 pub fn get_ticks_to_stay_pressed(block: &Block) -> u32 {
@@ -70,10 +87,21 @@ fn press_button(
         button_props.to_state_id(block),
         BlockFlags::NOTIFY_ALL,
     );
+    ButtonBlock::update_neighbors(world, block_pos, block, button_props);
     let delay = get_ticks_to_stay_pressed(block);
     world.schedule_block_tick(block, *block_pos, delay, TickPriority::Normal);
-    ButtonBlock::update_neighbors(world, block_pos, button_props);
-    world.play_block_sound(get_sound(block, true), SoundCategory::Blocks, *block_pos);
+    if let Some(player) = source_entity.and_then(|id| world.get_player_by_id(id)) {
+        world.play_sound_raw_expect(
+            &player,
+            get_sound(block, true) as u16,
+            SoundCategory::Blocks,
+            &block_pos.to_centered_f64(),
+            1.0,
+            1.0,
+        );
+    } else {
+        world.play_block_sound(get_sound(block, true), SoundCategory::Blocks, *block_pos);
+    }
     world.emit_game_event_with_source(
         GameEvent::BlockActivate.name(),
         block_pos.to_centered_f64(),
@@ -112,91 +140,24 @@ impl BlockBehaviour for ButtonBlock {
         }
     }
 
-    fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
-        if can_button_be_activated_by_arrows(args.block) {
-            let entity_type = &args.projectile.get_entity().entity_type;
-            if *entity_type == &EntityType::ARROW
-                || *entity_type == &EntityType::SPECTRAL_ARROW
-                || *entity_type == &EntityType::TRIDENT
-            {
-                let state = args.world.get_block_state(args.position);
-                let props = ButtonLikeProperties::from_state_id(state.id);
-                if !props.powered {
-                    press_button(
-                        args.world,
-                        args.position,
-                        args.block,
-                        props,
-                        Some(args.projectile.get_entity().entity_id),
-                    );
-                }
-            }
+    fn explode(&self, args: ExplodeArgs<'_>) {
+        if args.can_trigger_blocks {
+            click_button(args.world, args.position, None);
         }
     }
 
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
-        if can_button_be_activated_by_arrows(args.block) {
-            let entity_type = &args.entity.get_entity().entity_type;
-            if *entity_type == &EntityType::ARROW
-                || *entity_type == &EntityType::SPECTRAL_ARROW
-                || *entity_type == &EntityType::TRIDENT
-            {
-                let props = ButtonLikeProperties::from_state_id(args.state.id);
-                if !props.powered {
-                    press_button(
-                        args.world,
-                        args.position,
-                        args.block,
-                        props,
-                        Some(args.entity.get_entity().entity_id),
-                    );
-                }
-            }
+        if can_button_be_activated_by_arrows(args.block)
+            && !ButtonLikeProperties::from_state_id(args.state.id).powered
+        {
+            Self::check_pressed(args.world, args.position, args.block, args.state.id);
         }
     }
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        let state = args.world.get_block_state(args.position);
-        let mut props = ButtonLikeProperties::from_state_id(state.id);
-        if props.powered {
-            let should_be_pressed = if can_button_be_activated_by_arrows(args.block) {
-                let aabb = BoundingBox::from_block(args.position);
-                args.world.get_entities_at_box(&aabb).iter().any(|e| {
-                    let entity_type = &e.get_entity().entity_type;
-                    *entity_type == &EntityType::ARROW
-                        || *entity_type == &EntityType::SPECTRAL_ARROW
-                        || *entity_type == &EntityType::TRIDENT
-                })
-            } else {
-                false
-            };
-
-            if should_be_pressed {
-                let delay = get_ticks_to_stay_pressed(args.block);
-                args.world.schedule_block_tick(
-                    args.block,
-                    *args.position,
-                    delay,
-                    TickPriority::Normal,
-                );
-            } else {
-                props.powered = false;
-                args.world.set_block_state(
-                    args.position,
-                    props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_ALL,
-                );
-                Self::update_neighbors(args.world, args.position, props);
-                args.world.play_block_sound(
-                    get_sound(args.block, false),
-                    SoundCategory::Blocks,
-                    *args.position,
-                );
-                args.world.emit_game_event(
-                    GameEvent::BlockDeactivate.name(),
-                    args.position.to_centered_f64(),
-                );
-            }
+        let state = args.world.get_block_state_id(args.position);
+        if ButtonLikeProperties::from_state_id(state).powered {
+            Self::check_pressed(args.world, args.position, args.block, state);
         }
     }
 
@@ -222,24 +183,24 @@ impl BlockBehaviour for ButtonBlock {
         if !args.moved {
             let button_props = ButtonLikeProperties::from_state_id(args.old_state_id);
             if button_props.powered {
-                Self::update_neighbors(args.world, args.position, button_props);
+                Self::update_neighbors(args.world, args.position, args.block, button_props);
             }
         }
     }
 
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = ButtonLikeProperties::from_state_id(args.block.default_state.id);
-        (props.face, props.facing) =
-            WallMountedBlock::get_placement_face(self, args.player, args.direction);
+        let Some((face, facing)) = WallMountedBlock::placement(self, &args) else {
+            return BlockStateId::AIR;
+        };
+        props.face = face;
+        props.facing = facing;
 
         props.to_state_id(args.block)
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        // Use the provided direction, or fallback to the current state's direction if missing
-        let direction = args
-            .direction
-            .unwrap_or_else(|| self.get_direction(args.state.id, args.block));
+        let direction = self.get_direction(args.state.id, args.block).opposite();
 
         WallMountedBlock::can_place_at(self, args.block_accessor, args.position, direction)
     }
@@ -264,10 +225,78 @@ impl WallMountedBlock for ButtonBlock {
 }
 
 impl ButtonBlock {
-    fn update_neighbors(world: &Arc<World>, block_pos: &BlockPos, props: ButtonLikeProperties) {
+    fn check_pressed(world: &Arc<World>, pos: &BlockPos, block: &Block, state: BlockStateId) {
+        let mut props = ButtonLikeProperties::from_state_id(state);
+        let arrow = if can_button_be_activated_by_arrows(block) {
+            // Vanilla uses the bounds of the current outline, including the thinner pressed state.
+            let bounds = state
+                .to_state()
+                .get_block_outline_shapes_at(pos)
+                .reduce(|a, b| {
+                    BoundingBox::new(
+                        pumpkin_util::math::vector3::Vector3::new(
+                            a.min.x.min(b.min.x),
+                            a.min.y.min(b.min.y),
+                            a.min.z.min(b.min.z),
+                        ),
+                        pumpkin_util::math::vector3::Vector3::new(
+                            a.max.x.max(b.max.x),
+                            a.max.y.max(b.max.y),
+                            a.max.z.max(b.max.z),
+                        ),
+                    )
+                });
+            bounds.and_then(|bounds| {
+                world
+                    .get_entities_at_box(&bounds.shift(pos.to_f64()))
+                    .into_iter()
+                    .find(|entity| {
+                        let kind = entity.get_entity().entity_type;
+                        !entity.is_spectator()
+                            && (kind == &EntityType::ARROW
+                                || kind == &EntityType::SPECTRAL_ARROW
+                                || kind == &EntityType::TRIDENT)
+                    })
+            })
+        } else {
+            None
+        };
+        let pressed = arrow.is_some();
+        if props.powered != pressed {
+            props.powered = pressed;
+            world.set_block_state(pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+            Self::update_neighbors(world, pos, block, props);
+            world.play_block_sound(get_sound(block, pressed), SoundCategory::Blocks, *pos);
+            world.emit_game_event_from_entity(
+                if pressed {
+                    "block_activate"
+                } else {
+                    "block_deactivate"
+                },
+                pos.to_centered_f64(),
+                arrow.as_deref(),
+                None,
+            );
+        }
+        if pressed {
+            world.schedule_block_tick(
+                block,
+                *pos,
+                get_ticks_to_stay_pressed(block),
+                TickPriority::Normal,
+            );
+        }
+    }
+
+    fn update_neighbors(
+        world: &Arc<World>,
+        block_pos: &BlockPos,
+        block: &Block,
+        props: ButtonLikeProperties,
+    ) {
         let direction = props.get_direction().opposite();
-        world.update_neighbors(block_pos, None);
-        world.update_neighbors(&block_pos.offset(direction.to_offset()), None);
+        world.update_neighbors_at(block_pos, block, None);
+        world.update_neighbors_at(&block_pos.offset(direction.to_offset()), block, None);
     }
 }
 

@@ -11,6 +11,44 @@ use crate::{block::GetStateForNeighborUpdateArgs, entity::player::Player};
 pub trait WallMountedBlock: Send + Sync {
     fn get_direction(&self, state_id: BlockStateId, block: &Block) -> BlockDirection;
 
+    /// FaceAttachedHorizontalDirectionalBlock tries the context's ordered support directions.
+    fn placement(
+        &self,
+        args: &crate::block::OnPlaceArgs<'_>,
+    ) -> Option<(AttachFace, HorizontalFacing)> {
+        let mut directions = args.player.get_entity().get_entity_facing_order();
+        if args.use_item_on.position != *args.position {
+            if let Some(index) = directions
+                .iter()
+                .position(|direction| *direction == args.direction.to_facing())
+            {
+                directions[..=index].rotate_right(1);
+            }
+        }
+        for direction in directions {
+            let direction = direction.to_block_direction();
+            let (face, facing) = if direction.is_horizontal() {
+                (
+                    AttachFace::Wall,
+                    direction.opposite().to_cardinal_direction(),
+                )
+            } else {
+                (
+                    if direction == BlockDirection::Up {
+                        AttachFace::Ceiling
+                    } else {
+                        AttachFace::Floor
+                    },
+                    args.player.get_entity().get_horizontal_facing(),
+                )
+            };
+            if self.can_place_at(args.world, args.position, direction) {
+                return Some((face, facing));
+            }
+        }
+        None
+    }
+
     fn get_placement_face(
         &self,
         player: &Player,

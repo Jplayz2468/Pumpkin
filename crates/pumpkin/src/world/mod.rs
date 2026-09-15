@@ -7049,7 +7049,8 @@ impl World {
         let block_pos = block_entity.get_position();
         let chunk_pos = block_pos.chunk_position();
         let block_entity_nbt = block_entity.chunk_data_nbt();
-        let entity_id = block_entity.resource_location().to_string();
+        let mut full_nbt = NbtCompound::new();
+        block_entity.write_internal(&mut full_nbt);
 
         if let Some(nbt) = &block_entity_nbt {
             let bytes = pumpkin_nbt::Nbt::from(nbt.clone()).write_unnamed();
@@ -7068,14 +7069,7 @@ impl World {
             .or_default()
             .insert(block_pos, block_entity);
 
-        if let Some(nbt) = block_entity_nbt {
-            let mut full_nbt = nbt;
-            full_nbt.put_string("id", entity_id);
-            full_nbt.put_int("x", block_pos.0.x);
-            full_nbt.put_int("y", block_pos.0.y);
-            full_nbt.put_int("z", block_pos.0.z);
-            self.add_block_entity_nbt(block_pos, &full_nbt);
-        }
+        self.add_block_entity_nbt(block_pos, &full_nbt);
 
         self.level.read_chunk_sync(&chunk_pos, |chunk| {
             chunk.mark_dirty(true);
@@ -7164,14 +7158,11 @@ impl World {
                     bytes.as_ref().into(),
                 ),
             );
-            let mut full_nbt = nbt.clone();
-            full_nbt.put_string("id", block_entity.resource_location().to_string());
-            let pos = block_entity.get_position();
-            full_nbt.put_int("x", pos.0.x);
-            full_nbt.put_int("y", pos.0.y);
-            full_nbt.put_int("z", pos.0.z);
-            self.add_block_entity_nbt(block_pos, &full_nbt);
         }
+        // Update packets may intentionally omit persistent fields such as cooking timers.
+        let mut full_nbt = NbtCompound::new();
+        block_entity.write_internal(&mut full_nbt);
+        self.add_block_entity_nbt(block_pos, &full_nbt);
         self.level.read_chunk_sync(&chunk_pos, |chunk| {
             chunk.mark_dirty(true);
         });

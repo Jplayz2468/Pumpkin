@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use crate::block::{
-    CanPlaceAtArgs, EmitsRedstonePowerArgs, GetRedstonePowerArgs, GetStateForNeighborUpdateArgs,
-    OnPlaceArgs, OnStateReplacedArgs, blocks::abstract_wall_mounting::WallMountedBlock,
+    CanPlaceAtArgs, EmitsRedstonePowerArgs, ExplodeArgs, GetRedstonePowerArgs,
+    GetStateForNeighborUpdateArgs, OnPlaceArgs, OnStateReplacedArgs,
+    blocks::abstract_wall_mounting::WallMountedBlock,
 };
 use pumpkin_data::{
     Block, BlockDirection, BlockStateId, HorizontalFacingExt,
@@ -64,12 +65,15 @@ pub struct LeverBlock;
 
 impl BlockBehaviour for LeverBlock {
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        toggle_lever(
-            args.world,
-            args.position,
-            Some(args.player.living_entity.entity.entity_id),
-        );
-        BlockActionResult::Consume
+        // LeverBlock.useWithoutItem deliberately calls pull with a null player.
+        toggle_lever(args.world, args.position, None);
+        BlockActionResult::Success
+    }
+
+    fn explode(&self, args: ExplodeArgs<'_>) {
+        if args.can_trigger_blocks {
+            toggle_lever(args.world, args.position, None);
+        }
     }
 
     fn emits_redstone_power(&self, _args: EmitsRedstonePowerArgs<'_>) -> bool {
@@ -104,17 +108,17 @@ impl BlockBehaviour for LeverBlock {
 
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = LeverLikeProperties::default(args.block);
-        (props.face, props.facing) =
-            WallMountedBlock::get_placement_face(self, args.player, args.direction);
+        let Some((face, facing)) = WallMountedBlock::placement(self, &args) else {
+            return BlockStateId::AIR;
+        };
+        props.face = face;
+        props.facing = facing;
 
         props.to_state_id(args.block)
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        // Use the provided direction, or fallback to the current state's direction if missing
-        let direction = args
-            .direction
-            .unwrap_or_else(|| self.get_direction(args.state.id, args.block));
+        let direction = self.get_direction(args.state.id, args.block).opposite();
 
         WallMountedBlock::can_place_at(self, args.block_accessor, args.position, direction)
     }
@@ -145,8 +149,12 @@ impl LeverBlock {
         lever_props: LeverLikeProperties,
     ) {
         let direction = lever_props.get_direction().opposite();
-        world.update_neighbors(block_pos, None);
-        world.update_neighbors(&block_pos.offset(direction.to_offset()), None);
+        world.update_neighbors_at(block_pos, &Block::LEVER, None);
+        world.update_neighbors_at(
+            &block_pos.offset(direction.to_offset()),
+            &Block::LEVER,
+            None,
+        );
     }
 }
 

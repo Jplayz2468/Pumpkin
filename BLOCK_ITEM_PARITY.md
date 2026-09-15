@@ -680,3 +680,20 @@ so they must not be used to reconstruct audit completion.
   container-vs-block-entity clear semantics, dynamic recipe/feature registries,
   generic typed item NBT application, item initialization RNG, client/persistent NBT
   separation and full damage/enchantment/effect aggregation remain shared work.
+
+## Continued source port: mounted switches and persistent block-entity data
+
+- Buttons, levers and grindstones now use the ordered placement-direction search;
+  survival checks use the resulting state's attachment rather than packet-facing
+  guesses. Buttons search the actual pressed/unpressed outline for the first
+  arrow, replacing full-cube detection and the extra projectile-hit shortcut.
+- Button press ordering, source neighbor notifications, material-specific click
+  sounds and player sound exclusion follow the source. Levers return success and
+  use the source's null ringing entity for ordinary use. Triggering explosions
+  activate buttons/levers; removal notifications retain the original block source.
+- Block-entity add/update now writes persistent NBT separately from optional client
+  update tags. Reduced client tags can no longer overwrite saved cooking progress
+  or omit a jukebox/lectern merely because it has no block-entity update packet.
+- Source and format review only; no builds/tests. Experimental redstone orientation,
+  custom block-set definitions, generic event/shape ordering and protocol-version
+  coverage remain open alongside all other unaudited families and item paths.

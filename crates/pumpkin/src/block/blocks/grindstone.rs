@@ -59,17 +59,17 @@ impl BlockBehaviour for GrindstoneBlock {
 
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = GrindstoneLikeProperties::from_state_id(args.block.default_state.id);
-        (props.face, props.facing) =
-            WallMountedBlock::get_placement_face(self, args.player, args.direction);
+        let Some((face, facing)) = WallMountedBlock::placement(self, &args) else {
+            return BlockStateId::AIR;
+        };
+        props.face = face;
+        props.facing = facing;
 
         props.to_state_id(args.block)
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        // Use the provided direction, or fallback to the current state's direction if missing
-        let direction = args
-            .direction
-            .unwrap_or_else(|| self.get_direction(args.state.id, args.block));
+        let direction = self.get_direction(args.state.id, args.block).opposite();
 
         WallMountedBlock::can_place_at(self, args.block_accessor, args.position, direction)
     }
