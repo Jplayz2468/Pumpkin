@@ -1,4 +1,4 @@
-use crate::block::blocks::amethyst::{AmethystBlock, BuddingAmethystBlock};
+use crate::block::blocks::amethyst::{AmethystBlock, AmethystBlockBlock, BuddingAmethystBlock};
 use crate::block::blocks::anvil::AnvilBlock;
 use crate::block::blocks::banners::BannerBlock;
 use crate::block::blocks::barrel::BarrelBlock;
@@ -409,6 +409,7 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(CoralPlantBlock);
     manager.register(CoralBlock);
     manager.register(AmethystBlock);
+    manager.register(AmethystBlockBlock);
     manager.register(BuddingAmethystBlock);
     manager.register(GrassBlock);
     manager.register(MyceliumBlock);
