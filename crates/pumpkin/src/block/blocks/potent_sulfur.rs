@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use pumpkin_data::block_properties::{PotentSulfurLikeProperties, PotentSulfurState};
 use pumpkin_data::fluid::Fluid;
 use pumpkin_data::sound::{Sound, SoundCategory};
@@ -32,9 +30,6 @@ impl BlockBehaviour for PotentSulfurBlock {
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
-        args.world
-            .add_block_entity(Arc::new(PotentSulfurBlockEntity::new(*args.position)));
-
         // Vanilla `PotentSulfurBlock.onPlace` (`PotentSulfurBlock.java:102-117`): a geyser
         // that starts out already active announces its eruption immediately.
         let props = PotentSulfurLikeProperties::from_state_id(args.state_id);
@@ -53,9 +48,16 @@ impl BlockBehaviour for PotentSulfurBlock {
                 SoundCategory::Blocks,
                 &args.position.to_centered_f64(),
             );
-            args.world
-                .emit_game_event("block_activate", args.position.to_centered_f64());
+            args.world.emit_game_event_from_entity(
+                "block_activate",
+                args.position.to_centered_f64(),
+                None,
+                Some(args.state_id),
+            );
         }
+    }
+    fn state_changed(&self, args: PlacedArgs<'_>) {
+        self.placed(args);
     }
 }
 
@@ -66,7 +68,8 @@ impl BlockBehaviour for PotentSulfurBlock {
 fn valid_block_state(world: &World, pos: &BlockPos, state_id: BlockStateId) -> BlockStateId {
     let mut props = PotentSulfurLikeProperties::from_state_id(state_id);
 
-    let (above_fluid, above_fluid_state) = world.get_fluid_and_fluid_state(&pos.up());
+    let (above_fluid, above_fluid_state) =
+        World::fluid_state_from_block_state(world.get_block_state_id(&pos.up()));
     if !(above_fluid.matches_type(&Fluid::WATER) && above_fluid_state.is_source) {
         props.potent_sulfur_state = PotentSulfurState::Dry;
         return props.to_state_id(&Block::POTENT_SULFUR);
@@ -74,7 +77,8 @@ fn valid_block_state(world: &World, pos: &BlockPos, state_id: BlockStateId) -> B
 
     let below_pos = pos.down();
     let below_block = world.get_block(&below_pos);
-    let (_, below_fluid_state) = world.get_fluid_and_fluid_state(&below_pos);
+    let (_, below_fluid_state) =
+        World::fluid_state_from_block_state(world.get_block_state_id(&below_pos));
     // Vanilla `isSourceIfFluid`: no fluid at all, or a fluid source, both count.
     let is_source_if_fluid = below_fluid_state.is_empty || below_fluid_state.is_source;
 

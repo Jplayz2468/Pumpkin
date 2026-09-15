@@ -59,6 +59,18 @@ impl FallingEntity {
         }
     }
 
+    pub fn set_hurts_entities(&self, amount: f32, max: i32) {
+        self.hurt_entities.store(true, Ordering::Relaxed);
+        self.fall_damage_amount.store(amount);
+        self.fall_damage_max.store(max, Ordering::Relaxed);
+    }
+
+    pub fn check_fall_distance_accumulation(&self) {
+        if self.entity.velocity.load().y > -0.5 {
+            self.fall_distance.store(self.fall_distance.load().min(1.0));
+        }
+    }
+
     pub fn reset_fall_distance(&self) {
         self.fall_distance.store(0.0);
     }
@@ -79,7 +91,11 @@ impl FallingEntity {
             .map_or(state, |state| state.id)
     }
 
-    pub fn replace_spawn(world: &Arc<World>, position: BlockPos, block_state: BlockStateId) {
+    pub fn replace_spawn(
+        world: &Arc<World>,
+        position: BlockPos,
+        block_state: BlockStateId,
+    ) -> Arc<Self> {
         let falling_state = Self::with_waterlogged(block_state, false);
         let entity = Entity::new(
             world.clone(),
@@ -108,7 +124,8 @@ impl FallingEntity {
                 .block_state_id,
             BlockFlags::NOTIFY_ALL,
         );
-        world.spawn_entity(falling);
+        world.spawn_entity(falling.clone());
+        falling
     }
 
     fn drop_block_item(&self, world: &Arc<World>) {
@@ -134,6 +151,21 @@ impl FallingEntity {
         let state = self.block_state_id.load();
         if state.to_block().has_tag(&tag::Block::MINECRAFT_ANVIL) && !self.entity.is_silent() {
             world.sync_world_event(WorldEvent::SoundAnvilBroken, *pos, 0);
+        } else if !self.entity.is_silent()
+            && matches!(
+                state.to_block().id,
+                BlockId::POINTED_DRIPSTONE | BlockId::SULFUR_SPIKE
+            )
+        {
+            world.sync_world_event(
+                if state.to_block() == &Block::SULFUR_SPIKE {
+                    WorldEvent::SoundSulfurSpikeLand
+                } else {
+                    WorldEvent::SoundPointedDripstoneLand
+                },
+                *pos,
+                0,
+            );
         } else if matches!(
             state.to_block().id,
             BlockId::SUSPICIOUS_SAND | BlockId::SUSPICIOUS_GRAVEL
@@ -163,6 +195,11 @@ impl FallingEntity {
             .min(self.fall_damage_max.load(Ordering::Relaxed) as f32);
         let damage_type = if is_anvil {
             DamageType::FALLING_ANVIL
+        } else if matches!(
+            state.to_block().id,
+            BlockId::POINTED_DRIPSTONE | BlockId::SULFUR_SPIKE
+        ) {
+            DamageType::FALLING_STALACTITE
         } else {
             DamageType::FALLING_BLOCK
         };

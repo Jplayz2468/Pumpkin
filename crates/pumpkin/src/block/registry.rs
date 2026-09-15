@@ -773,20 +773,6 @@ impl BlockRegistry {
             return Ok(None);
         }
 
-        if !self.can_place_at(
-            Some(server),
-            Some(&*world),
-            &*world,
-            Some(player),
-            placed_block,
-            placed_block.default_state,
-            &final_block_pos,
-            Some(final_face),
-            Some(use_item_on),
-        ) {
-            return Ok(None);
-        }
-
         let new_state = self.on_place(
             server,
             &world,
@@ -801,6 +787,25 @@ impl BlockRegistry {
         // Mirror vanilla obstruction checks: only entities that block building should prevent
         // placement. (e.g. arrows/xp orbs/displays/markers should not)
         let state = BlockState::from_id(new_state);
+        // Vanilla validates survival on the placement state, after facing, halves
+        // and waterlogging have been chosen. AIR represents failed placement.
+        if state.is_air() {
+            return Ok(None);
+        }
+        if !self.can_place_at(
+            Some(server),
+            Some(&*world),
+            &*world,
+            Some(player),
+            new_state.to_block(),
+            state,
+            &final_block_pos,
+            Some(final_face),
+            Some(use_item_on),
+        ) {
+            return Ok(None);
+        }
+
         let mut buildable = true;
         for shape in state.get_block_collision_shapes_at(&final_block_pos) {
             let placed_box = shape.at_pos(final_block_pos);

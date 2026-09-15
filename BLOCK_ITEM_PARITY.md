@@ -530,3 +530,29 @@ so they must not be used to reconstruct audit completion.
 - Source review and standalone formatting only; no compilation or tests. Sound
   packet seed/range delivery, complete placement contexts, loot random sequences,
   and inherited behavior across all remaining families are still open.
+
+## Continued source port: speleothems and geysers
+
+- Pointed dripstone and sulfur spikes now share the SpeleothemBlock source
+  algorithm: facing/support, exact tip/frustum/base/middle updates, sneak merging,
+  water scheduling, delayed unsupported destruction/falling and trident breaks.
+  Removed whole-column mutation from placement/player-break callbacks.
+- Added natural growth with the source probability, search bounds, random order,
+  substrate/water requirements, and sulfur's shorter maximum length. Added
+  dripstone source-fluid transfer, mud-to-clay conversion, obstruction scans,
+  delayed cauldron filling and the matching world/game events.
+- Falling speleothems use the source tip-only damage amount and falling-stalactite
+  damage type, plus each subclass's broken-on-landing sound. Upward dripstone tips
+  use the stalagmite fall-distance offset/multiplier via a shared typed fall-damage
+  helper. The inherited living fall pipeline still has broader pending review.
+- Potent sulfur now preserves the factory-created block entity and executes its
+  activation callback on same-block state changes. Deactivation retains old-state
+  context; countdown NBT always writes the source field. Geyser launch uses source
+  float constants, fall-distance capping and velocity synchronization; players
+  retain client-authoritative force simulation. Dynamic collision contexts and
+  player-controlled vehicle authority remain shared gaps.
+- Corrected shared placement ordering: choose the actual placement state before
+  checking survival, including facing and halves, and reject failed AIR placement.
+- Formatting and source inspection only; no compile/test/gameplay execution.
+  Custom speleothem tags, dynamic collision/shape offsets, placement callbacks,
+  fall mechanics and protocol behavior still prevent a blanket 1:1 claim.

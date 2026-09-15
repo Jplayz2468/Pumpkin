@@ -2245,6 +2245,21 @@ impl LivingEntity {
         fall_distance: f32,
         damage_per_distance: f32,
     ) {
+        self.handle_fall_damage_with_type(
+            caller,
+            fall_distance,
+            damage_per_distance,
+            DamageType::FALL,
+        );
+    }
+
+    pub fn handle_fall_damage_with_type(
+        &self,
+        caller: &dyn EntityBase,
+        fall_distance: f32,
+        damage_per_distance: f32,
+        damage_type: DamageType,
+    ) {
         let may_fly = caller.get_player().is_some_and(|player| {
             player
                 .abilities
@@ -2287,7 +2302,7 @@ impl LivingEntity {
             self.get_attribute_value(&Attributes::FALL_DAMAGE_MULTIPLIER),
         );
         if damage > 0.0 {
-            let check_damage = self.damage(caller, damage, DamageType::FALL); // Fall
+            let check_damage = self.damage(caller, damage, damage_type);
             if check_damage {
                 self.entity
                     .play_sound(Self::get_fall_sound(fall_distance as i32));

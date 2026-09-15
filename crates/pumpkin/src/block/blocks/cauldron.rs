@@ -62,6 +62,56 @@ fn give_item_or_drop(
 }
 
 impl BlockBehaviour for CauldronBlock {
+    fn on_scheduled_tick(&self, args: crate::block::OnScheduledTickArgs<'_>) {
+        let Some(fluid) = super::dripstone::cauldron_drip(args.world, *args.position) else {
+            return;
+        };
+        let state = args.world.get_block_state(args.position);
+        if !super::dripstone::accepts_drip(state, fluid) {
+            return;
+        }
+        let old_level = if args.block == &Block::WATER_CAULDRON {
+            WaterCauldronLikeProperties::from_state_id(state.id).level
+        } else {
+            0
+        };
+        if old_level == 3 {
+            return;
+        }
+        if !fire_cauldron_change(
+            args.world,
+            *args.position,
+            i32::from(old_level),
+            i32::from(old_level + 1),
+            crate::plugin::block::cauldron_level_change::CauldronChangeReason::NaturalFill,
+            None,
+        ) {
+            return;
+        }
+        let (next, event) = if fluid == &pumpkin_data::Fluid::LAVA {
+            (
+                Block::LAVA_CAULDRON.default_state.id,
+                pumpkin_data::world::WorldEvent::SoundDripLavaIntoCauldron,
+            )
+        } else {
+            let mut props = WaterCauldronLikeProperties::default(&Block::WATER_CAULDRON);
+            props.level = old_level + 1;
+            (
+                props.to_state_id(&Block::WATER_CAULDRON),
+                pumpkin_data::world::WorldEvent::SoundDripWaterIntoCauldron,
+            )
+        };
+        args.world
+            .set_block_state(args.position, next, BlockFlags::NOTIFY_ALL);
+        args.world.emit_game_event_from_entity(
+            "block_change",
+            args.position.to_centered_f64(),
+            None,
+            Some(next),
+        );
+        args.world.sync_world_event(event, *args.position, 0);
+    }
+
     #[allow(clippy::too_many_lines)]
     fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
         let item_id = args.item_stack.item.id;
