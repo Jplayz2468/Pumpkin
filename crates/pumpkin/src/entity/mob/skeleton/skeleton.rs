@@ -2,7 +2,11 @@ use std::sync::Arc;
 
 use crate::entity::{
     Entity,
-    mob::{Mob, MobEntity, equipment::RegionalDifficulty, skeleton::SkeletonEntityBase},
+    mob::{
+        Mob, MobEntity,
+        equipment::RegionalDifficulty,
+        skeleton::{DEFAULT_BOW_ATTACK_INTERVAL, SkeletonEntityBase},
+    },
 };
 use crate::world::World;
 
@@ -12,7 +16,8 @@ pub struct SkeletonEntity {
 
 impl SkeletonEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let entity = SkeletonEntityBase::new(entity);
+        // Skeleton.java has no `getHardAttackInterval` override.
+        let entity = SkeletonEntityBase::new(entity, DEFAULT_BOW_ATTACK_INTERVAL);
         let skeleton = Self { entity };
         Arc::new(skeleton)
     }

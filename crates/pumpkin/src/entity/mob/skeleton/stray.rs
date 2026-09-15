@@ -2,7 +2,10 @@ use std::sync::Arc;
 
 use crate::entity::{
     Entity,
-    mob::{Mob, MobEntity, skeleton::SkeletonEntityBase},
+    mob::{
+        Mob, MobEntity,
+        skeleton::{DEFAULT_BOW_ATTACK_INTERVAL, SkeletonEntityBase},
+    },
 };
 
 pub struct StraySkeletonEntity {
@@ -11,7 +14,8 @@ pub struct StraySkeletonEntity {
 
 impl StraySkeletonEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
-        let entity = SkeletonEntityBase::new(entity);
+        // Stray.java has no `getHardAttackInterval` override.
+        let entity = SkeletonEntityBase::new(entity, DEFAULT_BOW_ATTACK_INTERVAL);
         let stray = Self { entity };
         Arc::new(stray)
     }
