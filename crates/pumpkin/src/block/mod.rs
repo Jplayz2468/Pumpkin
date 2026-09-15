@@ -2,9 +2,9 @@ use pumpkin_data::fluid::Fluid;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockId, BlockState};
 
+use crate::block::random::BlockRandom;
 use pumpkin_data::BlockStateId;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::random::legacy_rand::LegacyRand;
 use pumpkin_util::random::{RandomGenerator, get_seed, xoroshiro128::Xoroshiro};
 
 use crate::entity::experience_orb::ExperienceOrbEntity;
@@ -16,6 +16,7 @@ use std::sync::Arc;
 pub mod blocks;
 pub mod entities;
 pub mod fluid;
+pub mod random;
 pub mod registry;
 pub(crate) mod shape;
 pub mod viewer;
@@ -326,7 +327,7 @@ pub struct RandomTickArgs<'a> {
     pub world: &'a Arc<World>,
     pub block: &'a Block,
     pub position: &'a BlockPos,
-    pub random: &'a mut LegacyRand,
+    pub random: &'a mut BlockRandom<'a>,
 }
 
 impl<'a> RandomTickArgs<'a> {

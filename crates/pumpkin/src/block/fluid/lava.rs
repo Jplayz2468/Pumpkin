@@ -195,7 +195,7 @@ impl FluidBehaviour for FlowingLava {
         _fluid: &Fluid,
         world: &Arc<World>,
         block_pos: &BlockPos,
-        random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+        random: &mut crate::block::random::BlockRandom<'_>,
     ) {
         use pumpkin_util::random::RandomImpl;
         if !Self::can_spread_fire_around(world, block_pos) {

@@ -73,7 +73,7 @@ impl CropBlockBase for NetherWartBlock {
         &self,
         world: &Arc<World>,
         pos: &BlockPos,
-        random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+        random: &mut crate::block::random::BlockRandom<'_>,
     ) {
         use pumpkin_util::random::RandomImpl;
         let (block, state) = world.get_block_and_state_id(pos);

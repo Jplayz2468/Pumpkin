@@ -11,7 +11,7 @@ use pumpkin_protocol::{VarInt, java::client::play::CParticle, ser::NetworkWriteE
 use pumpkin_util::{
     Difficulty,
     math::{position::BlockPos, vector3::Vector3},
-    random::{RandomImpl, legacy_rand::LegacyRand},
+    random::RandomImpl,
     version::JavaMinecraftVersion,
 };
 use pumpkin_world::{tick::TickPriority, world::BlockFlags};
@@ -118,7 +118,7 @@ fn try_changing_state(
     world: &Arc<World>,
     current_block: &Block,
     pos: &BlockPos,
-    mut random: Option<&mut LegacyRand>,
+    mut random: Option<&mut crate::block::random::BlockRandom<'_>>,
 ) -> bool {
     let is_open = current_block == &Block::OPEN_EYEBLOSSOM;
     let should_be_open = world.eyeblossom_open(pos).unwrap_or(is_open);
@@ -181,7 +181,7 @@ fn spawn_transform_particle(
     world: &World,
     pos: &BlockPos,
     open: bool,
-    random: &mut Option<&mut LegacyRand>,
+    random: &mut Option<&mut crate::block::random::BlockRandom<'_>>,
 ) {
     let mut next_double = || {
         if let Some(random) = random.as_deref_mut() {

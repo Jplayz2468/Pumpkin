@@ -10,8 +10,7 @@ use pumpkin_data::{
     block_properties::{HorizontalFacing, WallTorchLikeProperties, WheatLikeProperties},
     tag::{self, Taggable},
 };
-use pumpkin_util::math::position::BlockPos;
-use pumpkin_world::world::{BlockAccessor, BlockFlags};
+use pumpkin_world::world::BlockFlags;
 
 type StemProperties = WheatLikeProperties;
 type AttachedStemProperties = WallTorchLikeProperties;
@@ -60,37 +59,35 @@ impl BlockBehaviour for StemBlock {
         <Self as CropBlockBase>::perform_bonemeal(self, args.world, args.position);
         let (_, state) = args.world.get_block_and_state_id(args.position);
         if StemProperties::from_state_id(state).age == 7 {
-            let mut random = args
-                .world
-                .random
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut random = crate::block::random::BlockRandom::Shared(&args.world.random);
             BlockBehaviour::random_tick(
                 self,
                 RandomTickArgs {
                     world: args.world,
                     block: args.block,
                     position: args.position,
-                    random: &mut *random,
+                    random: &mut random,
                 },
             );
         }
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
+        stem_supports(
+            args.block,
+            args.block_accessor.get_block(&args.position.down()),
+        )
     }
 
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        <Self as PlantBlockBase>::get_state_for_neighbor_update(
-            self,
-            args.world,
-            args.position,
-            args.state_id,
-        )
+        if stem_supports(args.block, args.world.get_block(&args.position.down())) {
+            args.state_id
+        } else {
+            Block::AIR.default_state.id
+        }
     }
 
     fn random_tick(&self, mut args: RandomTickArgs<'_>) {
@@ -106,30 +103,38 @@ impl BlockBehaviour for StemBlock {
                 args.world.set_block_state(
                     args.position,
                     Self::state_with_age(block, state, age + 1),
-                    BlockFlags::NOTIFY_NEIGHBORS,
+                    BlockFlags::NOTIFY_LISTENERS,
                 );
             } else {
-                let horizontals = HorizontalFacing::all();
+                let horizontals = [
+                    HorizontalFacing::North,
+                    HorizontalFacing::East,
+                    HorizontalFacing::South,
+                    HorizontalFacing::West,
+                ];
                 let facing = horizontals[args.rand_bounded_i32(horizontals.len() as i32) as usize];
                 let dir = facing.to_block_direction();
                 let plant_block_pos = args.position.offset(dir.to_offset());
                 let plant_block_state = args.world.get_block_state(&plant_block_pos);
                 let under_block: &Block = args.world.get_block(&plant_block_pos.down());
                 if plant_block_state.is_air()
-                    && (under_block == &Block::FARMLAND
-                        || under_block.has_tag(&tag::Block::MINECRAFT_DIRT))
+                    && under_block.has_tag(if block == &Block::PUMPKIN_STEM {
+                        &tag::Block::MINECRAFT_SUPPORTS_PUMPKIN_STEM_FRUIT
+                    } else {
+                        &tag::Block::MINECRAFT_SUPPORTS_MELON_STEM_FRUIT
+                    })
                 {
                     let attached_stem = Self::get_attached_stem(facing, block);
                     let gourd = Self::get_gourd(block);
                     args.world.set_block_state(
                         &plant_block_pos,
                         gourd.default_state.id,
-                        BlockFlags::NOTIFY_NEIGHBORS,
+                        BlockFlags::NOTIFY_ALL,
                     );
                     args.world.set_block_state(
                         args.position,
                         attached_stem,
-                        BlockFlags::NOTIFY_NEIGHBORS,
+                        BlockFlags::NOTIFY_ALL,
                     );
                 }
             }
@@ -137,15 +142,15 @@ impl BlockBehaviour for StemBlock {
     }
 }
 
-impl PlantBlockBase for StemBlock {
-    fn can_plant_on_top(&self, block_accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
-        let block = block_accessor.get_block(pos);
-        if block == &Block::PUMPKIN_STEM {
-            block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_PUMPKIN_STEM)
+pub(super) fn stem_supports(stem: &Block, support: &Block) -> bool {
+    support.has_tag(
+        if stem == &Block::PUMPKIN_STEM || stem == &Block::ATTACHED_PUMPKIN_STEM {
+            &tag::Block::MINECRAFT_SUPPORTS_PUMPKIN_STEM
         } else {
-            block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_MELON_STEM)
-        }
-    }
+            &tag::Block::MINECRAFT_SUPPORTS_MELON_STEM
+        },
+    )
 }
 
+impl PlantBlockBase for StemBlock {}
 impl CropBlockBase for StemBlock {}

@@ -118,7 +118,7 @@ impl BlockBehaviour for BambooBlock {
 fn update_leaves_and_grow(
     world: &Arc<World>,
     position: &BlockPos,
-    random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+    random: &mut crate::block::random::BlockRandom<'_>,
 ) {
     use pumpkin_util::random::RandomImpl;
     let above_pos = position.up();
@@ -177,9 +177,8 @@ fn update_leaves_and_grow(
 
     props.age = u8::from(!(props.age != 1 && block_two_below == &Block::BAMBOO));
 
-    props.stage = u8::from(
-        !((bamboo_count < 11 || random.next_f32() >= 0.25) && bamboo_count != 15),
-    );
+    props.stage =
+        u8::from(!((bamboo_count < 11 || random.next_f32() >= 0.25) && bamboo_count != 15));
 
     world.set_block_state(&above_pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
 }
@@ -219,7 +218,7 @@ fn bone_meal(world: &Arc<World>, position: &BlockPos) {
     let bamboo_below = count_bamboo_below(world, position);
 
     let growth_amount = {
-        let mut random = world.random.lock().unwrap();
+        let mut random = crate::block::random::BlockRandom::Shared(&world.random);
         random.next_bounded_i32(2) + 1
     };
 
@@ -243,7 +242,7 @@ fn bone_meal(world: &Arc<World>, position: &BlockPos) {
             return;
         }
 
-        let mut random = world.random.lock().unwrap();
+        let mut random = crate::block::random::BlockRandom::Shared(&world.random);
         update_leaves_and_grow(world, &next_pos, &mut random);
     }
 }

@@ -2208,15 +2208,12 @@ impl World {
                         && let Some(pumpkin_block) =
                             world.block_registry.get_pumpkin_block(block.id)
                     {
-                        let mut random = world
-                            .random
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner);
+                        let mut random = crate::block::random::BlockRandom::Shared(&world.random);
                         pumpkin_block.random_tick(RandomTickArgs {
                             world: &world,
                             block,
                             position: &pos,
-                            random: &mut *random,
+                            random: &mut random,
                         });
                     }
 
@@ -2224,11 +2221,8 @@ impl World {
                         && let Some(pumpkin_fluid) =
                             world.block_registry.get_pumpkin_fluid(fluid.id)
                     {
-                        let mut random = world
-                            .random
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner);
-                        pumpkin_fluid.random_tick(fluid, &world, &pos, &mut *random);
+                        let mut random = crate::block::random::BlockRandom::Shared(&world.random);
+                        pumpkin_fluid.random_tick(fluid, &world, &pos, &mut random);
                     }
                 }
             }
@@ -5902,6 +5896,39 @@ impl World {
         flags: BlockFlags,
         update_limit: u32,
     ) -> Option<BlockStateId> {
+        self.break_block_with_entity(
+            position,
+            cause,
+            cause.map(|p| p.as_ref() as &dyn EntityBase),
+            flags,
+            update_limit,
+        )
+    }
+
+    /// Non-player block destruction keeps its entity in loot and game-event context.
+    pub fn break_block_from_entity(
+        self: &Arc<Self>,
+        position: &BlockPos,
+        source: &dyn EntityBase,
+        flags: BlockFlags,
+    ) -> Option<BlockStateId> {
+        self.break_block_with_entity(
+            position,
+            None,
+            Some(source),
+            flags,
+            neighbor_updater::DEFAULT_UPDATE_LIMIT,
+        )
+    }
+
+    fn break_block_with_entity(
+        self: &Arc<Self>,
+        position: &BlockPos,
+        cause: Option<&Arc<Player>>,
+        source: Option<&dyn EntityBase>,
+        flags: BlockFlags,
+        update_limit: u32,
+    ) -> Option<BlockStateId> {
         if let Some(player) = cause
             && self.is_in_spawn_protection(player, position)
         {
@@ -5982,17 +6009,19 @@ impl World {
             let params = crate::world::loot::LootContextParameters {
                 tool,
                 block_state: Some(broken_block_state),
-                position: Some(position.to_f64()),
+                position: Some(position.to_centered_f64()),
+                this_entity: source.map(|source| source.get_entity().entity_type),
                 killed_by_player: Some(cause.is_some()),
                 ..Default::default()
             };
             crate::block::drop_loot(self, broken_block, position, true, &params);
         }
 
-        let new_state_id = if broken_block.is_waterlogged(broken_block_state.id) {
-            Block::WATER.default_state.id
-        } else {
+        let (_, remaining_fluid) = Self::fluid_state_from_block_state(broken_block_state.id);
+        let new_state_id = if remaining_fluid.is_empty {
             Block::AIR.default_state.id
+        } else {
+            remaining_fluid.block_state_id
         };
 
         let broken_state_id =
@@ -6045,10 +6074,10 @@ impl World {
         }
 
         if broken_state_id != new_state_id {
-            self.emit_game_event_with_context(
+            self.emit_game_event_from_entity(
                 "block_destroy",
                 position.to_centered_f64(),
-                cause.map(|player| player.get_entity().entity_id),
+                source,
                 Some(broken_state_id),
             );
         }

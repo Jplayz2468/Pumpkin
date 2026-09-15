@@ -32,7 +32,7 @@ impl BlockBehaviour for CactusBlock {
             let mut i = 1;
             while args.world.get_block(&args.position.down_height(i)) == &Block::CACTUS {
                 i += 1;
-                if 1 == 3 && age == 15 {
+                if i == 3 && age == 15 {
                     return;
                 }
             }
@@ -58,6 +58,13 @@ impl BlockBehaviour for CactusBlock {
                     args.position,
                     new_props.to_state_id(&Block::CACTUS),
                     BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
+                );
+                args.world.block_registry.on_neighbor_update(
+                    args.world,
+                    &Block::CACTUS,
+                    &block_up,
+                    &Block::CACTUS,
+                    false,
                 );
             }
             if age < 15 {

@@ -537,7 +537,7 @@ pub fn change_over_time(
     world: &Arc<World>,
     position: &BlockPos,
     block: &Block,
-    random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+    random: &mut crate::block::random::BlockRandom<'_>,
 ) {
     use pumpkin_util::random::RandomImpl;
 

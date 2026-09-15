@@ -1,15 +1,9 @@
 use pumpkin_data::{
     Block, BlockId, BlockStateId,
     block_properties::{WallTorchLikeProperties, WheatLikeProperties},
-    tag::{self, Taggable},
 };
-use pumpkin_util::math::position::BlockPos;
-use pumpkin_world::world::BlockAccessor;
 
-use crate::block::{
-    BlockBehaviour, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    blocks::plant::PlantBlockBase,
-};
+use crate::block::{BlockBehaviour, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs};
 
 type AttachedStemProperties = WallTorchLikeProperties;
 
@@ -42,7 +36,10 @@ impl AttachedStemBlock {
 
 impl BlockBehaviour for AttachedStemBlock {
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
+        super::stem::stem_supports(
+            args.block,
+            args.block_accessor.get_block(&args.position.down()),
+        )
     }
 
     fn get_state_for_neighbor_update(
@@ -51,28 +48,16 @@ impl BlockBehaviour for AttachedStemBlock {
     ) -> BlockStateId {
         let props = AttachedStemProperties::from_state_id(args.state_id);
         if args.direction.to_horizontal_facing() == Some(props.facing)
-            && args.neighbor_state_id != Self::get_gourd(args.block).default_state.id
+            && args.neighbor_state_id.to_block() != Self::get_gourd(args.block)
         {
             let mut props = StemProperties::default(Self::get_stem(args.block));
             props.age = 7;
             return props.to_state_id(Self::get_stem(args.block));
         }
-        <Self as PlantBlockBase>::get_state_for_neighbor_update(
-            self,
-            args.world,
-            args.position,
-            args.state_id,
-        )
-    }
-}
-
-impl PlantBlockBase for AttachedStemBlock {
-    fn can_plant_on_top(&self, block_accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
-        let block = block_accessor.get_block(pos);
-        if block == &Block::ATTACHED_PUMPKIN_STEM {
-            block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_PUMPKIN_STEM)
+        if super::stem::stem_supports(args.block, args.world.get_block(&args.position.down())) {
+            args.state_id
         } else {
-            block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_MELON_STEM)
+            Block::AIR.default_state.id
         }
     }
 }

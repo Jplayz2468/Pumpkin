@@ -227,6 +227,37 @@ This checkpoint records source changes, not a passing parity result.
   liquid-container handling, dynamic support shapes and protocol compatibility
   remain shared review areas. Client-local ambient animation stays client-owned.
 
+### Crops, growing vines, and nested random updates (continuation)
+
+- Ordinary crops require raw light level eight to survive in the live world;
+  growth retains its separate level-nine gate. Crop moisture uses `grows_crops`
+  and optional moisture data. Added ravager trampling with mob-griefing gating.
+- Pitcher crops now use the moisture-based growth roll, light/build-height checks,
+  safe upper-space checks for random and bonemeal growth, valid lower-half lookup,
+  opposite-half survival and vanilla update flags. Fixed torchflower age-zero
+  conversion and melon/pumpkin stem support selection, fruit tags, random direction
+  order and update flags.
+- Kelp, twisting vines, weeping vines and cave vines now share the growing-plant
+  lifecycle: randomized placement ages, head/body transitions, one-tick support
+  destruction, natural growth rolls, head discovery and bonemeal growth. Kelp
+  checks full-water placement and schedules fluid ticks; cave-vine transitions
+  preserve berries and natural growth rolls their berry chance.
+- Sweet-berry growth uses above-block brightness and its block-change event.
+  Sweet/glow berry harvesting uses the built-in tables, plugin harvest callbacks,
+  picking sounds, update flags and attributed block-change events. Corrected cocoa
+  placement/support state selection and growth flags, and cactus's three-high
+  early return and explicit growth neighbor notification.
+- Non-player block destruction now retains the source for loot and game events.
+  Broken blocks restore their actual fluid state, including aquatic plants.
+- Added a shared Java random adapter for block/fluid random ticks and the bamboo
+  and stem bonemeal callbacks. It locks each draw, allowing nested shape updates
+  to consume the same world stream without recursively locking a held mutex.
+- Source review, rustfmt and diff whitespace checks only; no compilation or tests.
+  Light data for non-world accessors, shared block-interaction loot context/random
+  sequences, double-plant mining/drop order, liquid-container rules, block update
+  flag mapping, custom block data and client-controlled mount movement remain
+  broader dependencies. This is not a full block-family or item parity closure.
+
 ## Original queue: source-edit status
 
 These are implementation statuses, **not verified closures**.

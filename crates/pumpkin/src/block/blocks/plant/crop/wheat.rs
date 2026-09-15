@@ -20,19 +20,22 @@ impl BlockBehaviour for WheatBlock {
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
+        <Self as CropBlockBase>::can_survive(self, args.world, args.block_accessor, args.position)
     }
 
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        <Self as PlantBlockBase>::get_state_for_neighbor_update(
-            self,
-            args.world,
-            args.position,
-            args.state_id,
-        )
+        if <Self as CropBlockBase>::can_survive(self, Some(args.world), args.world, args.position) {
+            args.state_id
+        } else {
+            pumpkin_data::Block::AIR.default_state.id
+        }
+    }
+
+    fn on_entity_collision(&self, args: crate::block::OnEntityCollisionArgs<'_>) {
+        super::ravager_collision(args);
     }
 
     fn random_tick(&self, args: RandomTickArgs<'_>) {

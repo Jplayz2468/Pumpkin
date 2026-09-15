@@ -1,8 +1,6 @@
 use pumpkin_data::block_properties::{CocoaLikeProperties, HorizontalFacing};
 use pumpkin_data::tag::Taggable;
-use pumpkin_data::{
-    Block, BlockState, BlockStateId, FacingExt, HorizontalFacingExt, Mirror, Rotation, tag,
-};
+use pumpkin_data::{Block, BlockState, BlockStateId, HorizontalFacingExt, Mirror, Rotation, tag};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
@@ -11,7 +9,6 @@ use crate::block::{
     BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
     PathComputationType, RandomTickArgs,
 };
-use crate::entity::EntityBase;
 
 pub const MAX_AGE: u8 = 2;
 
@@ -35,9 +32,8 @@ impl CocoaBlock {
 
 impl BlockBehaviour for CocoaBlock {
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        let state_id = args.block_accessor.get_block_state_id(args.position);
-        if state_id != Block::AIR.default_state.id {
-            let props = CocoaProperties::from_state_id(state_id);
+        if args.use_item_on.is_none() {
+            let props = CocoaProperties::from_state_id(args.state.id);
             return Self::can_survive(args.block_accessor, args.position, props.facing);
         }
         for facing in [
@@ -57,7 +53,11 @@ impl BlockBehaviour for CocoaBlock {
         let mut props = CocoaProperties::default(args.block);
         props.age = 0;
 
-        let directions = args.player.get_entity().get_entity_facing_order();
+        let directions = crate::block::blocks::vine::get_nearest_looking_directions(
+            args.player,
+            args.use_item_on.position == *args.position,
+            args.direction.opposite(),
+        );
         for dir in directions {
             if let Some(facing) = dir.to_horizontal_facing()
                 && Self::can_survive(args.world, args.position, facing)
@@ -92,7 +92,7 @@ impl BlockBehaviour for CocoaBlock {
                 args.world.set_block_state(
                     args.position,
                     props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_ALL,
+                    BlockFlags::NOTIFY_LISTENERS,
                 );
             }
         }
@@ -115,7 +115,7 @@ impl BlockBehaviour for CocoaBlock {
                 args.world.set_block_state(
                     args.position,
                     props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_ALL,
+                    BlockFlags::NOTIFY_LISTENERS,
                 );
             }
         }

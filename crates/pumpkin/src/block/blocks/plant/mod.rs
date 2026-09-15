@@ -20,6 +20,7 @@ pub mod eyeblossom;
 pub mod flower;
 pub mod flowerbed;
 pub mod fungus;
+mod growing;
 pub mod hanging_moss;
 pub mod hanging_roots;
 pub mod kelp;
@@ -138,10 +139,9 @@ fn double_plant_neighbor_state(
         BlockDirection::Down
     };
     if args.direction == other_direction {
-        let (other, state) = args
-            .world
-            .get_block_and_state(&args.position.offset(other_direction.to_offset()));
-        if other != args.block || TallSeagrassLikeProperties::from_state_id(state.id).half == half {
+        if args.neighbor_state_id.to_block() != args.block
+            || TallSeagrassLikeProperties::from_state_id(args.neighbor_state_id).half == half
+        {
             return Block::AIR.default_state.id;
         }
     }
@@ -162,4 +162,42 @@ fn full_water_at(accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
     let (fluid, state) =
         crate::world::World::fluid_state_from_block_state(accessor.get_block_state_id(pos));
     fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER) && state.level == 8
+}
+
+fn harvest_loot(
+    args: &crate::block::NormalUseArgs<'_>,
+    table: &pumpkin_util::loot_table::LootTable,
+) -> bool {
+    use pumpkin_util::random::RandomImpl;
+    let seed = args
+        .world
+        .random
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .next_i64();
+    let params = crate::world::loot::LootContextParameters {
+        block_state: Some(args.world.get_block_state(args.position)),
+        world_time: args.world.level_info.load().day_time as u64,
+        is_raining: Some(args.world.is_raining()),
+        is_thundering: Some(args.world.is_thundering()),
+        ..Default::default()
+    };
+    let drops = crate::world::loot::generate_loot_with_context(table, seed, &params);
+    let mut event =
+        crate::plugin::api::events::player::player_harvest_block::PlayerHarvestBlockEvent {
+            player: args.player.clone(),
+            block_pos: *args.position,
+            harvested_items: drops,
+            cancelled: false,
+        };
+    args.server
+        .plugin_manager
+        .fire_blocking(args.server, &mut event);
+    if event.cancelled {
+        return false;
+    }
+    for stack in event.harvested_items {
+        args.world.drop_stack(args.position, stack);
+    }
+    true
 }

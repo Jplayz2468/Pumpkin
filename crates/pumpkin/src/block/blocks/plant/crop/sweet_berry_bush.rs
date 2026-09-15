@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     block::{
         BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, NormalUseArgs,
@@ -10,14 +8,17 @@ use crate::{
     world::World,
 };
 use pumpkin_data::{
-    Block, BlockStateId, block_properties::NetherWartLikeProperties, damage::DamageType,
-    entity::EntityType, item::Item, item_stack::ItemStack,
+    Block, BlockStateId,
+    block_properties::NetherWartLikeProperties,
+    damage::DamageType,
+    entity::EntityType,
+    item::Item,
+    sound::{Sound, SoundCategory},
 };
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
-use rand::RngExt;
 
 #[pumpkin_block("minecraft:sweet_berry_bush")]
 pub struct SweetBerryBushBlock;
@@ -36,32 +37,30 @@ impl BlockBehaviour for SweetBerryBushBlock {
         let mut props = NetherWartLikeProperties::from_state_id(state_id);
         match props.age {
             2 | 3 => {
-                let index = props.age;
-                let count: u8 = rand::rng().random_range((index - 1)..=(index));
-                let mut drops = vec![ItemStack::new(count, &Item::SWEET_BERRIES)];
-                if let Some(player_arc) = args.world.get_player_by_uuid(args.player.gameprofile.id)
-                    && let Some(server) = args.world.server.upgrade()
-                {
-                    let mut event = crate::plugin::api::events::player::player_harvest_block::PlayerHarvestBlockEvent {
-                        player: player_arc,
-                        block_pos: *args.position,
-                        harvested_items: drops.clone(),
-                        cancelled: false,
-                    };
-                    server.plugin_manager.fire_blocking(&server, &mut event);
-                    if event.cancelled {
-                        return BlockActionResult::Pass;
-                    }
-                    drops = event.harvested_items;
+                if !super::super::harvest_loot(
+                    &args,
+                    &pumpkin_data::loot_table::HARVEST_SWEET_BERRY_BUSH,
+                ) {
+                    return BlockActionResult::Pass;
                 }
+                args.world.play_sound_fine(
+                    Sound::BlockSweetBerryBushPickBerries,
+                    SoundCategory::Blocks,
+                    &args.position.to_centered_f64(),
+                    1.0,
+                    0.8_f32 + args.world.rand_f32() * 0.4_f32,
+                );
                 props.age = 1;
-                for stack in drops {
-                    args.world.drop_stack(args.position, stack);
-                }
                 args.world.set_block_state(
                     args.position,
                     props.to_state_id(&Block::SWEET_BERRY_BUSH),
-                    BlockFlags::NOTIFY_ALL,
+                    BlockFlags::NOTIFY_LISTENERS,
+                );
+                args.world.emit_game_event_from_entity(
+                    "block_change",
+                    args.position.to_centered_f64(),
+                    Some(args.player.as_ref()),
+                    Some(props.to_state_id(&Block::SWEET_BERRY_BUSH)),
                 );
                 BlockActionResult::SuccessServer
             }
@@ -105,7 +104,10 @@ impl BlockBehaviour for SweetBerryBushBlock {
         if entity.entity_type == &EntityType::FOX || entity.entity_type == &EntityType::BEE {
             return;
         }
-        entity.slow_movement(args.state, Vector3::new(0.8, 0.75, 0.8));
+        entity.slow_movement(
+            args.state,
+            Vector3::new(f64::from(0.8_f32), f64::from(0.75_f32), f64::from(0.8_f32)),
+        );
         let mov = if living_entity.is_player() {
             living_entity.get_movement()
         } else {
@@ -118,7 +120,9 @@ impl BlockBehaviour for SweetBerryBushBlock {
             return;
         }
 
-        if mov.horizontal_length_squared() <= 0.0 || (mov.x.abs() < 0.003 && mov.z.abs() < 0.003) {
+        if mov.horizontal_length_squared() <= 0.0
+            || (mov.x.abs() < f64::from(0.003_f32) && mov.z.abs() < f64::from(0.003_f32))
+        {
             return;
         }
 
@@ -127,8 +131,22 @@ impl BlockBehaviour for SweetBerryBushBlock {
     }
 
     fn random_tick(&self, mut args: RandomTickArgs<'_>) {
-        if args.rand_bounded_i32(5) == 0 {
-            <Self as CropBlockBase>::random_tick(self, args.world, args.position, args.random);
+        let mut props =
+            NetherWartLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
+        if props.age < 3
+            && args.rand_bounded_i32(5) == 0
+            && args.world.get_raw_brightness(&args.position.up(), 0) >= 9
+        {
+            props.age += 1;
+            let state = props.to_state_id(args.block);
+            args.world
+                .set_block_state(args.position, state, BlockFlags::NOTIFY_LISTENERS);
+            args.world.emit_game_event_from_entity(
+                "block_change",
+                args.position.to_centered_f64(),
+                None,
+                Some(state),
+            );
         }
     }
 }
@@ -169,27 +187,5 @@ impl CropBlockBase for SweetBerryBushBlock {
         let mut props = NetherWartLikeProperties::from_state_id(state);
         props.age = age as u8;
         props.to_state_id(block)
-    }
-
-    fn random_tick(
-        &self,
-        world: &Arc<World>,
-        pos: &BlockPos,
-        _random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
-    ) {
-        let (block, state) = world.get_block_and_state_id(pos);
-        let age = self.get_age(state, block);
-        if age < self.max_age() {
-            let state_above = world.get_block_state(&pos.up());
-
-            if state_above.is_full_cube() || state_above.is_solid() {
-                return;
-            }
-            world.set_block_state(
-                pos,
-                self.state_with_age(block, state, age + 1),
-                BlockFlags::NOTIFY_NEIGHBORS,
-            );
-        }
     }
 }

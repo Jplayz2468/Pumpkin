@@ -124,7 +124,7 @@ impl SpreadingSnowyBlock {
         pos: &BlockPos,
         base_block: &'static Block,
         default_block_state: &'static BlockState,
-        random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+        random: &mut crate::block::random::BlockRandom<'_>,
     ) {
         use pumpkin_util::random::RandomImpl;
         if !Self::can_stay_alive(state, world, pos) {

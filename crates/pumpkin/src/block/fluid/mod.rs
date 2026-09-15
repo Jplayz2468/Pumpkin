@@ -97,7 +97,7 @@ pub trait FluidBehaviour: Send + Sync {
         _fluid: &Fluid,
         _world: &Arc<World>,
         _block_pos: &BlockPos,
-        _random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+        _random: &mut crate::block::random::BlockRandom<'_>,
     ) {
     }
 

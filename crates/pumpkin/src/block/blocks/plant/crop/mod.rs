@@ -5,7 +5,7 @@ use pumpkin_data::{
     Block,
     BlockDirection::{East, North, South, West},
     BlockStateId,
-    block_properties::{FarmlandLikeProperties, WheatLikeProperties},
+    block_properties::WheatLikeProperties,
 };
 use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
@@ -13,7 +13,6 @@ use pumpkin_world::world::{BlockAccessor, BlockFlags};
 use crate::{block::blocks::plant::PlantBlockBase, world::World};
 
 type CropProperties = WheatLikeProperties;
-type FarmlandProperties = FarmlandLikeProperties;
 
 pub mod beetroot;
 pub mod carrot;
@@ -26,6 +25,16 @@ pub mod torch_flower;
 pub mod wheat;
 
 trait CropBlockBase: PlantBlockBase {
+    fn can_survive(
+        &self,
+        world: Option<&World>,
+        accessor: &dyn BlockAccessor,
+        pos: &BlockPos,
+    ) -> bool {
+        world.is_none_or(|world| world.get_raw_brightness(pos, 0) >= 8)
+            && <Self as PlantBlockBase>::can_place_at(self, accessor, pos)
+    }
+
     // Deliberately NOT named `can_plant_on_top`: that would collide with the
     // `PlantBlockBase` method of the same name without overriding it, and
     // `PlantBlockBase`'s defaults would silently keep using the generic
@@ -78,7 +87,7 @@ trait CropBlockBase: PlantBlockBase {
         &self,
         world: &Arc<World>,
         pos: &BlockPos,
-        random: &mut pumpkin_util::random::legacy_rand::LegacyRand,
+        random: &mut crate::block::random::BlockRandom<'_>,
     ) {
         use pumpkin_util::random::RandomImpl;
         if world.get_raw_brightness(pos, 0) < 9 {
@@ -123,10 +132,19 @@ pub fn get_available_moisture(world: &World, pos: &BlockPos, block: &Block) -> f
 
             let (block, block_state) =
                 world.get_block_and_state_id(&down_pos.offset(Vector3 { x: dx, y: 0, z: dz }));
-            if block == &Block::FARMLAND {
+            if block.has_tag(&tag::Block::MINECRAFT_GROWS_CROPS) {
                 local_moisture = 1.0;
-                let props = FarmlandProperties::from_state_id(block_state);
-                if props.moisture != 0 {
+                let moisture = block
+                    .properties(block_state)
+                    .and_then(|props| {
+                        props
+                            .to_props()
+                            .into_iter()
+                            .find(|(key, _)| *key == "moisture")
+                    })
+                    .and_then(|(_, value)| value.parse::<u8>().ok())
+                    .unwrap_or(0);
+                if moisture > 0 {
                     local_moisture = 3.0;
                 }
             }
@@ -155,4 +173,13 @@ pub fn get_available_moisture(world: &World, pos: &BlockPos, block: &Block) -> f
     }
 
     moisture
+}
+
+pub(super) fn ravager_collision(args: crate::block::OnEntityCollisionArgs<'_>) {
+    if args.entity.get_entity().entity_type == &pumpkin_data::entity::EntityType::RAVAGER
+        && args.world.level_info.load().game_rules.mob_griefing
+    {
+        args.world
+            .break_block_from_entity(args.position, args.entity, BlockFlags::NOTIFY_ALL);
+    }
 }

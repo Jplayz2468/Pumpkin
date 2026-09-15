@@ -1,12 +1,16 @@
-use pumpkin_data::block_properties::{DoubleBlockHalf, PitcherCropLikeProperties};
-use pumpkin_data::{Block, BlockStateId, tag, tag::Taggable};
-use pumpkin_macros::pumpkin_block;
-use pumpkin_world::world::{BlockAccessor, BlockFlags};
-
-use crate::block::{
-    BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
-    RandomTickArgs,
+use crate::{
+    block::{
+        BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
+        OnEntityCollisionArgs, RandomTickArgs,
+    },
+    world::World,
 };
+use pumpkin_data::block_properties::{DoubleBlockHalf, PitcherCropLikeProperties};
+use pumpkin_data::{Block, BlockDirection, BlockStateId, tag, tag::Taggable};
+use pumpkin_macros::pumpkin_block;
+use pumpkin_util::math::position::BlockPos;
+use pumpkin_world::world::{BlockAccessor, BlockFlags};
+use std::sync::Arc;
 
 pub const MAX_AGE: u8 = 4;
 
@@ -14,32 +18,82 @@ pub const MAX_AGE: u8 = 4;
 pub struct PitcherCropBlock;
 
 impl PitcherCropBlock {
-    #[must_use]
-    pub fn can_survive(
-        world: &dyn BlockAccessor,
-        pos: &pumpkin_util::math::position::BlockPos,
+    fn can_survive(
+        world: Option<&World>,
+        accessor: &dyn BlockAccessor,
+        pos: &BlockPos,
         props: &PitcherCropLikeProperties,
     ) -> bool {
-        let below = world.get_block(&pos.down());
+        let (below, state) = accessor.get_block_and_state(&pos.down());
         if props.half == DoubleBlockHalf::Lower {
-            below.has_tag(&tag::Block::MINECRAFT_SUPPORTS_CROPS) || below == &Block::FARMLAND
+            world.is_none_or(|world| world.get_raw_brightness(pos, 0) >= 8)
+                && below.has_tag(&tag::Block::MINECRAFT_SUPPORTS_CROPS)
         } else {
             below == &Block::PITCHER_CROP
+                && PitcherCropLikeProperties::from_state_id(state.id).half == DoubleBlockHalf::Lower
+        }
+    }
+
+    fn lower_half(
+        world: &World,
+        pos: &BlockPos,
+        state: BlockStateId,
+    ) -> Option<(BlockPos, PitcherCropLikeProperties)> {
+        if state.to_block() == &Block::PITCHER_CROP {
+            let props = PitcherCropLikeProperties::from_state_id(state);
+            if props.half == DoubleBlockHalf::Lower {
+                return Some((*pos, props));
+            }
+        }
+        let below_pos = pos.down();
+        let (below, state) = world.get_block_and_state(&below_pos);
+        if below != &Block::PITCHER_CROP {
+            return None;
+        }
+        let props = PitcherCropLikeProperties::from_state_id(state.id);
+        (props.half == DoubleBlockHalf::Lower).then_some((below_pos, props))
+    }
+
+    fn can_grow(world: &World, pos: &BlockPos, props: &PitcherCropLikeProperties, age: u8) -> bool {
+        props.age < MAX_AGE
+            && world.get_raw_brightness(pos, 0) >= 8
+            && world.is_in_height_limit(pos.up().0.y)
+            && (age < 3 || {
+                let (above, state) = world.get_block_and_state(&pos.up());
+                state.is_air() || above == &Block::PITCHER_CROP
+            })
+    }
+
+    fn grow(world: &Arc<World>, pos: &BlockPos, mut props: PitcherCropLikeProperties) {
+        let age = (props.age + 1).min(MAX_AGE);
+        if !Self::can_grow(world, pos, &props, age) {
+            return;
+        }
+        props.age = age;
+        world.set_block_state(
+            pos,
+            props.to_state_id(&Block::PITCHER_CROP),
+            BlockFlags::NOTIFY_LISTENERS,
+        );
+        if age >= 3 {
+            props.half = DoubleBlockHalf::Upper;
+            world.set_block_state(
+                &pos.up(),
+                props.to_state_id(&Block::PITCHER_CROP),
+                BlockFlags::NOTIFY_ALL,
+            );
         }
     }
 }
 
 impl BlockBehaviour for PitcherCropBlock {
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        let props = PitcherCropLikeProperties::from_state_id(args.state.id);
-        Self::can_survive(args.block_accessor, args.position, &props)
-    }
-
-    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        let mut props = PitcherCropLikeProperties::default(args.block);
-        props.age = 0;
-        props.half = DoubleBlockHalf::Lower;
-        props.to_state_id(args.block)
+        Self::can_survive(
+            args.world,
+            args.block_accessor,
+            args.position,
+            &PitcherCropLikeProperties::from_state_id(args.state.id),
+        )
     }
 
     fn get_state_for_neighbor_update(
@@ -47,99 +101,51 @@ impl BlockBehaviour for PitcherCropBlock {
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
         let props = PitcherCropLikeProperties::from_state_id(args.state_id);
-        if !Self::can_survive(args.world, args.position, &props) {
-            return Block::AIR.default_state.id;
-        }
-
-        if props.half == DoubleBlockHalf::Lower && props.age >= 3 {
-            let above = args.world.get_block(&args.position.up());
-            if above != &Block::PITCHER_CROP {
-                return Block::AIR.default_state.id;
-            }
-        } else if props.half == DoubleBlockHalf::Upper {
-            let below = args.world.get_block(&args.position.down());
-            if below != &Block::PITCHER_CROP {
-                return Block::AIR.default_state.id;
-            }
-        }
-
-        args.state_id
-    }
-
-    fn random_tick(&self, args: RandomTickArgs<'_>) {
-        let state_id = args.world.get_block_state_id(args.position);
-        let mut props = PitcherCropLikeProperties::from_state_id(state_id);
-        if props.half == DoubleBlockHalf::Lower && props.age < MAX_AGE {
-            let next_age = props.age + 1;
-            if next_age >= 3 {
-                let above_pos = args.position.up();
-                let above_state = args.world.get_block_state(&above_pos);
-                if !above_state.is_air()
-                    && Block::from_state_id(above_state.id) != &Block::PITCHER_CROP
+        if props.age >= 3 {
+            let other_direction = if props.half == DoubleBlockHalf::Lower {
+                BlockDirection::Up
+            } else {
+                BlockDirection::Down
+            };
+            if args.direction == other_direction {
+                if args.neighbor_state_id.to_block() != &Block::PITCHER_CROP
+                    || PitcherCropLikeProperties::from_state_id(args.neighbor_state_id).half
+                        == props.half
                 {
-                    return;
+                    return Block::AIR.default_state.id;
                 }
             }
-            props.age = next_age;
-            args.world.set_block_state(
-                args.position,
-                props.to_state_id(args.block),
-                BlockFlags::NOTIFY_ALL,
-            );
-            if next_age >= 3 {
-                let mut upper_props = props;
-                upper_props.half = DoubleBlockHalf::Upper;
-                args.world.set_block_state(
-                    &args.position.up(),
-                    upper_props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_ALL,
-                );
+        }
+        if Self::can_survive(Some(args.world), args.world, args.position, &props) {
+            args.state_id
+        } else {
+            Block::AIR.default_state.id
+        }
+    }
+
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        let props =
+            PitcherCropLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
+        if props.half == DoubleBlockHalf::Lower && props.age < MAX_AGE {
+            let speed = super::get_available_moisture(args.world, args.position, args.block);
+            if args.rand_bounded_i32((25.0_f32 / speed) as i32 + 1) == 0 {
+                Self::grow(args.world, args.position, props);
             }
         }
     }
 
     fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
-        let props = PitcherCropLikeProperties::from_state_id(args.state_id);
-        if props.half == DoubleBlockHalf::Lower {
-            props.age < MAX_AGE
-        } else {
-            let lower_state = args.world.get_block_state_id(&args.position.down());
-            let lower_props = PitcherCropLikeProperties::from_state_id(lower_state);
-            lower_props.age < MAX_AGE
-        }
+        Self::lower_half(args.world, args.position, args.state_id)
+            .is_some_and(|(pos, props)| Self::can_grow(args.world, &pos, &props, props.age + 1))
     }
 
     fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
-        let props = PitcherCropLikeProperties::from_state_id(args.state_id);
-        let (lower_pos, lower_props) = if props.half == DoubleBlockHalf::Lower {
-            (*args.position, props)
-        } else {
-            (
-                args.position.down(),
-                PitcherCropLikeProperties::from_state_id(
-                    args.world.get_block_state_id(&args.position.down()),
-                ),
-            )
-        };
-
-        if lower_props.age < MAX_AGE {
-            let next_age = lower_props.age + 1;
-            let mut new_lower = lower_props;
-            new_lower.age = next_age;
-            args.world.set_block_state(
-                &lower_pos,
-                new_lower.to_state_id(args.block),
-                BlockFlags::NOTIFY_ALL,
-            );
-            if next_age >= 3 {
-                let mut upper_props = new_lower;
-                upper_props.half = DoubleBlockHalf::Upper;
-                args.world.set_block_state(
-                    &lower_pos.up(),
-                    upper_props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_ALL,
-                );
-            }
+        if let Some((pos, props)) = Self::lower_half(args.world, args.position, args.state_id) {
+            Self::grow(args.world, &pos, props);
         }
+    }
+
+    fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
+        super::ravager_collision(args);
     }
 }
