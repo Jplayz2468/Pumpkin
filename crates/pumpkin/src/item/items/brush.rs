@@ -14,6 +14,7 @@ use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::world::WorldEvent;
 use pumpkin_data::{Block, BlockDirection, BlockId};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -31,10 +32,31 @@ fn get_archaeology_loot(is_sand: bool, location: BlockPos, world: &World) -> Ite
         && let Some(brushable) = block_entity
             .as_any()
             .downcast_ref::<BrushableBlockBlockEntity>()
-        && let Ok(mut item_guard) = brushable.item.lock()
-        && let Some(item) = item_guard.take()
     {
-        return item;
+        if let Ok(mut item_guard) = brushable.item.lock()
+            && let Some(item) = item_guard.take()
+        {
+            return item;
+        }
+
+        // BrushableBlockEntity#unpackLootTable (BrushableBlockEntity.java:91-111): a
+        // structure (desert pyramid / trail ruins) bakes a specific loot table + seed
+        // into the block entity's NBT. That must be used ahead of any generic default,
+        // so a brushed block yields the loot the structure actually placed there.
+        if let Ok(mut loot_table_guard) = brushable.loot_table.lock()
+            && let Some(table_key) = loot_table_guard.take()
+            && let Some(table) = pumpkin_data::loot_table::get_loot_table(&table_key)
+        {
+            let seed = brushable
+                .loot_table_seed
+                .lock()
+                .map(|seed| *seed)
+                .unwrap_or(0);
+            let items = crate::world::loot::generate_loot(table, seed);
+            if let Some(first) = items.into_iter().next() {
+                return first;
+            }
+        }
     }
 
     let loot_key = if is_sand {
@@ -137,14 +159,17 @@ impl ItemBehaviour for BrushItem {
 
             world.set_block_state(&location, replacement_state_id, BlockFlags::NOTIFY_ALL);
 
-            world.play_sound(
-                if is_sand {
-                    Sound::ItemBrushBrushingSandComplete
-                } else {
-                    Sound::ItemBrushBrushingGravelComplete
-                },
-                SoundCategory::Blocks,
-                &block_center,
+            // BrushableBlockEntity#brushingCompleted plays no direct SoundEvent; it fires
+            // level event 3008 (BrushableBlockEntity.java:126-136), which the client
+            // renders as the block-break particles/sound for `current_state_id`. Vanilla
+            // never actually plays SoundEvents.BRUSH_*_COMPLETED here (BrushableBlock is
+            // registered with the same sound for both `brush_sound` and
+            // `brush_completed_sound`, see Blocks.java:328-357, and the completed getter
+            // has no caller), so use the world event Pumpkin already models instead.
+            world.sync_world_event(
+                WorldEvent::ParticlesAndSoundBrushBlockComplete,
+                location,
+                i32::from(current_state_id.as_u16()),
             );
 
             let loot_item = get_archaeology_loot(is_sand, location, &world);
@@ -158,9 +183,13 @@ impl ItemBehaviour for BrushItem {
                 loot_item,
             ));
             world.spawn_entity(item_entity);
-        }
 
-        player.damage_held_item(1);
+            // BrushItem.onUseTick only calls `itemStack.hurtAndBreak(1, ...)` when
+            // `BrushableBlockEntity#brush` returns true, which happens solely on the
+            // final call that completes the block (BrushItem.java:82-92,
+            // BrushableBlockEntity.java:60-82) -- not on every intermediate dusted stage.
+            player.damage_held_item(1);
+        }
 
         let stack = player.inventory().held_item();
         player

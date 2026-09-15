@@ -59,6 +59,9 @@ impl ItemBehaviour for EnderEyeItem {
         let new_state_id = props.to_state_id(block);
 
         world.set_block_state(&location, new_state_id, BlockFlags::NOTIFY_LISTENERS);
+        // EnderEyeItem.java:51: comparators reading the frame's `eye` state must be
+        // notified now, or they won't refresh until an unrelated neighbor update.
+        world.update_neighbour_for_output_signal(&location, &Block::END_PORTAL_FRAME);
         // Consume one item.
         item.decrement_unless_creative(player.gamemode.load(), 1);
         world.sync_world_event(WorldEvent::EndPortalFrameFill, location, 0);
@@ -89,10 +92,12 @@ impl ItemBehaviour for EnderEyeItem {
             return;
         };
 
+        // EnderEyeItem.java:92: `player.getY(0.5)` = player Y + half of the *player's*
+        // bounding-box height, not the eye entity's own height.
         let spawn_pos = Vector3::new(
             player.get_entity().pos.load().x,
             player.get_entity().pos.load().y
-                + f64::from(EntityType::EYE_OF_ENDER.dimension[1]) * 0.5,
+                + f64::from(player.get_entity().entity_type.dimension[1]) * 0.5,
             player.get_entity().pos.load().z,
         );
 

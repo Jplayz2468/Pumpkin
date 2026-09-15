@@ -5,7 +5,7 @@ use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::world::{BlockFlags, World};
 use pumpkin_data::Block;
-use pumpkin_data::fluid::Fluid;
+use pumpkin_data::block_properties::WaterProperties;
 use pumpkin_data::item::Item;
 use pumpkin_data::sound::Sound;
 use pumpkin_util::math::position::BlockPos;
@@ -27,7 +27,18 @@ impl ItemBehaviour for PlaceOnWaterBlockItem {
             if state_id == Block::AIR.default_state.id {
                 return false;
             }
-            Fluid::from_state_id(state_id).is_some()
+            let block = Block::from_state_id(state_id);
+            if block.id == Block::WATER.id {
+                // PlaceOnWaterBlockItem.java:24: getPlayerPOVHitResult(..., ClipContext.
+                // Fluid.SOURCE_ONLY) only registers a hit on a still-water *source*
+                // (level 0), matching GlassBottleItem's raycast (glass_bottle.rs). Any
+                // other fluid (flowing water, lava) must NOT register a hit here -- the
+                // previous `Fluid::from_state_id(state_id).is_some()` accepted every
+                // fluid, including lava and flowing water, which vanilla's SOURCE_ONLY
+                // clip explicitly excludes.
+                return WaterProperties::from_state_id(state_id).level == 0;
+            }
+            block.is_waterlogged(state_id)
         };
 
         let Some((hit_pos, _)) = world.raycast(start_pos, end_pos, checker) else {
