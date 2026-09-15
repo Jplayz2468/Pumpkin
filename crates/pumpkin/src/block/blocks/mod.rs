@@ -81,6 +81,7 @@ pub mod amethyst;
 pub mod carved_pumpkin;
 pub mod dripstone;
 pub mod farmland;
+pub mod frogspawn;
 pub mod hay;
 pub mod huge_mushroom;
 pub mod leaves;
