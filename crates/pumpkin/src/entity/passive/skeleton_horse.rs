@@ -15,8 +15,9 @@ use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
-        escape_danger::EscapeDangerGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, swim::SwimGoal, wander_around::WanderAroundGoal,
+        breed::BreedGoal, follow_parent::FollowParentGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, run_around_like_crazy::RunAroundLikeCrazyGoal,
+        wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
     passive::animal::Animal,
@@ -60,14 +61,36 @@ impl SkeletonHorseEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, EscapeDangerGoal::new(1.2));
+            // SkeletonHorse.addBehaviourGoals (SkeletonHorse.java:66-68) is overridden to an
+            // *empty* body, unlike Horse/Donkey/Mule. That means SkeletonHorse gets NONE of
+            // AbstractHorse.addBehaviourGoals's FloatGoal(0)/MountPanicGoal(1)/TemptGoal(3)
+            // (AbstractHorse.java:147-151) — no swimming, no panic, and it can't be tempted
+            // with food. It still gets the rest of the base list from registerGoals itself
+            // (AbstractHorse.java:134-145, not overridden): RunAroundLikeCrazyGoal(1),
+            // BreedGoal(2), FollowParentGoal(4), WaterAvoidingRandomStrollGoal(6),
+            // LookAtPlayerGoal(7), RandomLookAroundGoal(8). Previously this file had the
+            // inverse mistake: it kept SwimGoal/EscapeDangerGoal (which vanilla drops) and
+            // dropped RunAroundLikeCrazyGoal/BreedGoal/FollowParentGoal (which vanilla keeps).
+            goal_selector.add_goal(1, Box::new(RunAroundLikeCrazyGoal::new(1.2)));
+            goal_selector.add_goal(2, BreedGoal::new(1.0));
+            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.0)));
             goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(0.7)));
             goal_selector.add_goal(
                 7,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
             );
             goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            // RandomStandGoal is still added at priority 9 (canPerformRearing() not
+            // overridden by SkeletonHorse). Not wired in: see the AmbientStandGoal note in
+            // horse.rs — that goal has no public constructor and its `can_start` is
+            // permanently stubbed to `false`.
+            //
+            // Also not ported: SkeletonHorse.setTrap's dynamic `SkeletonTrapGoal` insertion
+            // at priority 1 (SkeletonHorse.java:161-169), which drives the "skeleton horse
+            // trap" mechanic (lightning strikes summon skeleton riders). That needs a
+            // SkeletonTrapGoal port plus the trap-lightning spawn logic in
+            // finalizeSpawn/thunder handling, which doesn't exist in this codebase yet and is
+            // well beyond a goal-list port.
         };
 
         mob_arc
@@ -127,6 +150,12 @@ impl Mob for SkeletonHorseEntity {
 
     fn as_animal(&self) -> Option<&dyn Animal> {
         Some(self)
+    }
+
+    // See HorseEntity::is_tamed (crates/pumpkin/src/entity/passive/horse.rs) for why this
+    // override is required for RunAroundLikeCrazyGoal to behave correctly.
+    fn is_tamed(&self) -> bool {
+        self.is_tame()
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {

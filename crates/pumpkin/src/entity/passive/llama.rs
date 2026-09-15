@@ -21,15 +21,37 @@ use crate::entity::{
         active_target::ActiveTargetGoal, breed::BreedGoal, escape_danger::EscapeDangerGoal,
         follow_parent::FollowParentGoal, look_around::RandomLookAroundGoal,
         look_at_entity::LookAtEntityGoal, ranged_attack::RangedAttackGoal, revenge::RevengeGoal,
-        swim::SwimGoal, tempt::TemptGoal, wander_around::WanderAroundGoal,
+        run_around_like_crazy::RunAroundLikeCrazyGoal, swim::SwimGoal, tempt::TemptGoal,
+        wander_around::WanderAroundGoal,
     },
+    living::LivingEntity,
     mob::{Mob, MobEntity, RangedAttackMob},
     passive::animal::{Animal, get_carpet_color_from_item},
+    passive::wolf::WolfEntity,
     player::Player,
     projectile::llama_spit::LlamaSpitEntity,
 };
+use crate::world::World;
 
 const TEMPT_ITEMS: &[&Item] = &[&Item::HAY_BLOCK];
+
+/// Port of the predicate half of `Llama.LlamaAttackWolfGoal`
+/// (`(target, level) -> !((Wolf)target).isTame()`, Llama.java:454-456). The
+/// `ActiveTargetGoal`/`TargetPredicate` predicate only gets a `&LivingEntity`, which
+/// doesn't carry Wolf's own tame flag, so this looks the entity back up by id and
+/// downcasts to `WolfEntity` (same `as_any().downcast_ref::<T>()` pattern used elsewhere,
+/// e.g. `passive/wandering_trader.rs`) to read its tame state via `Mob::is_tamed`.
+fn is_untamed_wolf(target: &LivingEntity, world: &World) -> bool {
+    world
+        .get_entity_by_id(target.entity.entity_id)
+        .and_then(|entity| {
+            entity
+                .as_any()
+                .downcast_ref::<WolfEntity>()
+                .map(|wolf| !Mob::is_tamed(wolf))
+        })
+        .unwrap_or(false)
+}
 
 pub const FLAG_TAME: u8 = 2;
 pub const FLAG_BRED: u8 = 8;
@@ -127,15 +149,23 @@ impl LlamaEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // Llama.registerGoals (Llama.java:117-130) is a *complete* override — it does
+            // NOT call AbstractHorse's addBehaviourGoals, so llamas never get
+            // MountPanicGoal at priority 1 (only RunAroundLikeCrazyGoal). Instead a plain
+            // PanicGoal(1.2) is registered at priority 3, alongside the ranged spit attack.
+            // Previously this file had EscapeDangerGoal wrongly at priority 1, BreedGoal at
+            // 2 instead of 4, TemptGoal at 4 instead of 5, and FollowParentGoal at 5 instead
+            // of 6 — and was missing RunAroundLikeCrazyGoal(1) and the priority-3 PanicGoal.
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, EscapeDangerGoal::new(1.2));
-            goal_selector.add_goal(2, BreedGoal::new(1.0));
+            goal_selector.add_goal(1, Box::new(RunAroundLikeCrazyGoal::new(1.2)));
             goal_selector.add_goal(
                 3,
                 Box::new(RangedAttackGoal::new(ranged_weak, 1.25, 40, 20.0)),
             );
-            goal_selector.add_goal(4, Box::new(TemptGoal::new(1.25, TEMPT_ITEMS)));
-            goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.0)));
+            goal_selector.add_goal(3, EscapeDangerGoal::new(1.2));
+            goal_selector.add_goal(4, BreedGoal::new(1.0));
+            goal_selector.add_goal(5, Box::new(TemptGoal::new(1.25, TEMPT_ITEMS)));
+            goal_selector.add_goal(6, Box::new(FollowParentGoal::new(1.0)));
             goal_selector.add_goal(7, Box::new(WanderAroundGoal::new(0.7)));
             goal_selector.add_goal(
                 8,
@@ -143,12 +173,43 @@ impl LlamaEntity {
             );
             goal_selector.add_goal(9, Box::new(RandomLookAroundGoal::default()));
 
+            // Llama.LlamaHurtByTargetGoal (Llama.java:474-487) is a HurtByTargetGoal that
+            // additionally cancels itself when the llama itself just spat (`didSpit`), so a
+            // spit attack doesn't also aggro the llama onto its own target via revenge.
+            // RevengeGoal here doesn't have that cancel hook (would need touching the
+            // shared revenge.rs to add one), so a llama that spits may keep its revenge
+            // target one tick longer than vanilla. Documented deviation, not fixed.
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
+            // Llama.LlamaAttackWolfGoal (Llama.java:454-462): NearestAttackableTargetGoal
+            // over Wolf, reevaluate-frequency 16, mustSee=false, mustReach=true, restricted
+            // to untamed wolves. Previously ported with `with_default` (reciprocal_chance
+            // 10, check_visibility true) and no untamed-only predicate, so a llama would
+            // also target tamed wolves. `getFollowDistance() * 0.25` (Llama.java:459-461)
+            // isn't ported: ActiveTargetGoal always uses the full follow-range attribute,
+            // and there's no hook to scale it per-goal without editing active_target.rs.
             target_selector.add_goal(
                 2,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::WOLF, true),
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::WOLF,
+                    16,
+                    false,
+                    true,
+                    Some(is_untamed_wolf),
+                )),
             );
         };
+
+        // NOT PORTED: `LlamaFollowCaravanGoal` (Llama.java:120,
+        // world/entity/ai/goal/LlamaFollowCaravanGoal.java), priority 2 in vanilla. It
+        // needs llama-family "caravan" chain state (`inCaravan`/`joinCaravan`/
+        // `leaveCaravan`/`getCaravanHead`/`hasCaravanTail`) and, critically, a way to find
+        // *other* nearby Llama-or-TraderLlama entities and treat them uniformly regardless
+        // of which of Pumpkin's two separate structs (`LlamaEntity`/`TraderLlamaEntity`)
+        // they are — vanilla's `Llama` is a common superclass, but Pumpkin has no shared
+        // trait exposing this across both types, and the only place to add one (the `Mob`
+        // trait in entity/mob/mod.rs) is a shared file outside this task's scope. Skipped
+        // rather than guessed at.
 
         mob_arc
     }
@@ -270,6 +331,12 @@ impl Mob for LlamaEntity {
 
     fn as_animal(&self) -> Option<&dyn Animal> {
         Some(self)
+    }
+
+    // See HorseEntity::is_tamed (crates/pumpkin/src/entity/passive/horse.rs) for why this
+    // override is required for RunAroundLikeCrazyGoal to behave correctly.
+    fn is_tamed(&self) -> bool {
+        self.is_tame()
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {

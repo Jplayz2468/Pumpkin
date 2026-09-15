@@ -8,6 +8,7 @@ use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_nbt::compound::NbtCompound;
 use uuid::Uuid;
 
@@ -15,13 +16,19 @@ use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
-        escape_danger::EscapeDangerGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, swim::SwimGoal, wander_around::WanderAroundGoal,
+        breed::BreedGoal, follow_parent::FollowParentGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, run_around_like_crazy::RunAroundLikeCrazyGoal,
+        swim::SwimGoal, tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
     passive::animal::Animal,
     player::Player,
 };
+
+// ZombieHorse.addBehaviourGoals (ZombieHorse.java:125-128) uses `ItemTags.ZOMBIE_HORSE_FOOD`
+// for its TemptGoal, which is a *different, narrower* tag than the horse_tempt_items tag
+// plain Horse uses (VanillaItemTagsProvider.java:464): just red_mushroom.
+const TEMPT_ITEMS: &[&Item] = &[&Item::RED_MUSHROOM];
 
 pub const FLAG_TAME: u8 = 2;
 pub const FLAG_SADDLE: u8 = 4;
@@ -60,14 +67,29 @@ impl ZombieHorseEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // ZombieHorse.addBehaviourGoals (ZombieHorse.java:125-128) overrides the base
+            // AbstractHorse hook to only FloatGoal(0) + TemptGoal(3, ZOMBIE_HORSE_FOOD) — it
+            // deliberately drops MountPanicGoal, so a zombie horse never panics/flees. The
+            // rest of the base registerGoals list (AbstractHorse.java:134-145, not
+            // overridden) still applies: RunAroundLikeCrazyGoal(1), BreedGoal(2),
+            // FollowParentGoal(4), WaterAvoidingRandomStrollGoal(6), LookAtPlayerGoal(7),
+            // RandomLookAroundGoal(8). Previously this file had EscapeDangerGoal at priority
+            // 1 (an extra goal vanilla never adds for ZombieHorse) and was missing
+            // RunAroundLikeCrazyGoal/BreedGoal/TemptGoal/FollowParentGoal entirely.
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, EscapeDangerGoal::new(1.2));
+            goal_selector.add_goal(1, Box::new(RunAroundLikeCrazyGoal::new(1.2)));
+            goal_selector.add_goal(2, BreedGoal::new(1.0));
+            goal_selector.add_goal(3, Box::new(TemptGoal::new(1.25, TEMPT_ITEMS)));
+            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.0)));
             goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(0.7)));
             goal_selector.add_goal(
                 7,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
             );
             goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            // RandomStandGoal (priority 9, canPerformRearing() not overridden) is not wired
+            // in — see the AmbientStandGoal note in horse.rs (no public constructor,
+            // can_start permanently stubbed to false).
         };
 
         mob_arc
@@ -115,8 +137,13 @@ impl AgeableMob for ZombieHorseEntity {
 }
 
 impl Animal for ZombieHorseEntity {
-    fn is_food(&self, _item_stack: &ItemStack) -> bool {
-        false
+    // ZombieHorse.isFood (ZombieHorse.java:172-174) is `itemStack.is(ItemTags.ZOMBIE_HORSE_FOOD)`
+    // — this previously always returned `false`, so a zombie horse could never be bred or
+    // fed via the generic Animal-feeding path (this also backs BreedGoal/TemptGoal above).
+    fn is_food(&self, item_stack: &ItemStack) -> bool {
+        item_stack
+            .item
+            .has_tag(&tag::Item::MINECRAFT_ZOMBIE_HORSE_FOOD)
     }
 }
 
@@ -127,6 +154,12 @@ impl Mob for ZombieHorseEntity {
 
     fn as_animal(&self) -> Option<&dyn Animal> {
         Some(self)
+    }
+
+    // See HorseEntity::is_tamed (crates/pumpkin/src/entity/passive/horse.rs) for why this
+    // override is required for RunAroundLikeCrazyGoal to behave correctly.
+    fn is_tamed(&self) -> bool {
+        self.is_tame()
     }
 
     fn mob_write_nbt(&self, nbt: &mut NbtCompound) {
