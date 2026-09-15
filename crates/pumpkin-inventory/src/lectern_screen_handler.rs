@@ -105,12 +105,11 @@ impl ScreenHandler for LecternScreenHandler {
                 true
             }
             Self::TAKE_BOOK_BUTTON_ID => {
-                let stack = self.inventory.remove_stack(0);
-                if stack.is_empty() {
+                if !player.may_build() {
                     return false;
                 }
+                let stack = self.inventory.remove_stack(0);
                 self.inventory.mark_dirty();
-                self.controller.on_book_taken();
                 offer_or_drop_stack(player, stack);
                 self.send_content_updates();
                 true

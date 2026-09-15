@@ -7,7 +7,7 @@ use pumpkin_data::block_properties::CampfireLikeProperties;
 use pumpkin_data::block_transformer::SHOVEL;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::sound::SoundCategory;
 use pumpkin_data::world::WorldEvent;
 use pumpkin_data::{Block, tag};
 use pumpkin_util::GameMode;
@@ -53,13 +53,17 @@ impl ItemBehaviour for ShovelItem {
             SHOVEL.transform(block, world.get_block_state_id(&location), face, &get_block)
         {
             if let Some(sound) = result.entry.sound {
-                world.play_sound(sound, SoundCategory::Blocks, &location.to_f64());
+                world.play_sound(sound, SoundCategory::Blocks, &location.to_centered_f64());
             }
             if let Some(particle) = result.entry.particle {
                 world.sync_world_event(particle, location, 0);
             }
 
-            world.set_block_state(&location, result.new_state_id, BlockFlags::NOTIFY_ALL);
+            world.set_block_state(
+                &location,
+                result.new_state_id,
+                BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
+            );
             damage = result.entry.item_damage_per_use;
             changed = true;
         } else if block == &Block::CAMPFIRE || block == &Block::SOUL_CAMPFIRE {
@@ -68,28 +72,28 @@ impl ItemBehaviour for ShovelItem {
             if campfire_props.lit {
                 world.sync_world_event(WorldEvent::SoundExtinguishFire, location, 0);
 
+                world.emit_game_event_from_entity(
+                    "block_change",
+                    location.to_centered_f64(),
+                    Some(player),
+                    None,
+                );
                 campfire_props.lit = false;
                 world.set_block_state(
                     &location,
                     campfire_props.to_state_id(block),
-                    BlockFlags::NOTIFY_ALL,
-                );
-                world.play_sound_fine(
-                    Sound::BlockFireExtinguish,
-                    SoundCategory::Ambient,
-                    &location.to_f64(),
-                    0.5,
-                    2.0,
+                    BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
                 );
                 changed = true;
             }
         }
 
         if changed {
-            world.emit_game_event_with_source(
+            world.emit_game_event_from_entity(
                 GameEvent::BlockChange.name(),
                 location.to_centered_f64(),
-                Some(player.living_entity.entity.entity_id),
+                Some(player),
+                Some(world.get_block_state_id(&location)),
             );
         }
 

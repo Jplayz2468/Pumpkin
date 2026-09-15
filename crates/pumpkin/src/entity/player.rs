@@ -7500,6 +7500,12 @@ impl MessageCache {
 }
 
 impl InventoryPlayer for Player {
+    fn may_build(&self) -> bool {
+        self.abilities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .allow_modify_world
+    }
     fn can_use_block_type(&self, position: BlockPos, block: pumpkin_data::BlockId) -> bool {
         self.world().get_block(&position).id == block
             && self.can_interact_with_block_at(&position, 4.0)

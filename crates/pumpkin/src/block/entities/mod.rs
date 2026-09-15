@@ -155,6 +155,10 @@ pub trait BlockEntity: Any + Send + Sync {
     fn get_inventory(self: Arc<Self>) -> Option<Arc<dyn Inventory>> {
         None
     }
+    /// Some menu inventories (for example lecterns) are not automation containers.
+    fn get_automation_inventory(self: Arc<Self>) -> Option<Arc<dyn Inventory>> {
+        self.get_inventory()
+    }
     fn set_block_state(&mut self, _block_state: BlockStateId) {}
     /// The chunk already holds the replacement, so callbacks needing the old
     /// state (for example an active shrieker) must receive it explicitly.

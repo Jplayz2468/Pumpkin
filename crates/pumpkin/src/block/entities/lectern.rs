@@ -1,13 +1,21 @@
-use pumpkin_data::data_component_impl::{WritableBookContentImpl, WrittenBookContentImpl};
+use crate::block::blocks::lectern::LecternBlock;
+use crate::entity::{Entity, item::ItemEntity};
+use crate::world::World;
+use pumpkin_data::block_properties::LecternLikeProperties;
+use pumpkin_data::data_component_impl::{
+    BlockEntityDataImpl, WritableBookContentImpl, WrittenBookContentImpl,
+};
+use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::{BlockStateId, HorizontalFacingExt};
 use pumpkin_nbt::compound::NbtCompound;
-use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::math::vector3::Vector3;
 use std::{
     any::Any,
     sync::{
-        Arc, Mutex,
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        Arc, Mutex, Weak,
+        atomic::{AtomicBool, AtomicI32, Ordering},
     },
 };
 
@@ -16,8 +24,9 @@ use pumpkin_inventory::{Clearable, Inventory};
 
 pub struct LecternBlockEntity {
     pub position: BlockPos,
+    world: Mutex<Weak<World>>,
     pub book: Arc<Mutex<ItemStack>>,
-    pub page: AtomicUsize,
+    pub page: AtomicI32,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
 }
@@ -41,16 +50,14 @@ impl BlockEntity for LecternBlockEntity {
             .unwrap_or_else(|| ItemStack::EMPTY.clone());
 
         let page_count = Self::page_count_of(&book_stack);
-        let page = nbt
-            .get_int("Page")
-            .unwrap_or(0)
-            .clamp(0, page_count.saturating_sub(1).max(0)) as usize;
+        let page = nbt.get_int("Page").unwrap_or(0).max(0).min(page_count - 1);
         let book = Arc::new(Mutex::new(book_stack));
 
         Self {
             position,
+            world: Mutex::new(Weak::new()),
             book,
-            page: AtomicUsize::new(page),
+            page: AtomicI32::new(page),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
         }
@@ -65,12 +72,16 @@ impl BlockEntity for LecternBlockEntity {
             let mut book_nbt = NbtCompound::default();
             book.write_item_stack(&mut book_nbt);
             nbt.put_compound("Book", book_nbt);
+            nbt.put_int("Page", self.page.load(Ordering::Relaxed));
         }
-        nbt.put_int("Page", self.page.load(Ordering::Relaxed) as i32);
     }
 
     fn get_inventory(self: Arc<Self>) -> Option<Arc<dyn Inventory>> {
         Some(self)
+    }
+
+    fn get_automation_inventory(self: Arc<Self>) -> Option<Arc<dyn Inventory>> {
+        None
     }
 
     fn is_comparator_dirty(&self) -> bool {
@@ -89,17 +100,42 @@ impl BlockEntity for LecternBlockEntity {
         self.dirty.store(false, Ordering::Relaxed);
     }
 
-    fn chunk_data_nbt(&self) -> Option<NbtCompound> {
-        let mut nbt = NbtCompound::new();
-        if let Ok(book) = self.book.try_lock()
-            && !book.is_empty()
-        {
-            let mut book_nbt = NbtCompound::new();
-            book.write_item_stack(&mut book_nbt);
-            nbt.put("Book", NbtTag::Compound(book_nbt));
+    fn set_world(&self, world: Weak<World>) {
+        *self.world.lock().unwrap() = world;
+    }
+
+    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+        if let Some(data) = stack.get_data_component::<BlockEntityDataImpl>() {
+            if data.nbt.get_string("id").is_some_and(|id| id != Self::ID) {
+                return;
+            }
+            let loaded = Self::from_nbt(&data.nbt, self.position);
+            *self.book.lock().unwrap() = loaded.get_stack(0);
+            self.page
+                .store(loaded.page.load(Ordering::Relaxed), Ordering::Relaxed);
+            self.mark_dirty();
         }
-        nbt.put_int("Page", self.page.load(Ordering::Relaxed) as i32);
-        Some(nbt)
+    }
+
+    fn on_block_replaced_with_state(
+        self: Arc<Self>,
+        world: &Arc<World>,
+        position: &BlockPos,
+        old_state: BlockStateId,
+    ) {
+        let props = LecternLikeProperties::from_state_id(old_state);
+        if props.has_book {
+            let facing = props.facing.to_offset();
+            let at = Vector3::new(
+                f64::from(position.0.x) + 0.5 + f64::from(facing.x) * 0.25,
+                f64::from(position.0.y) + 1.0,
+                f64::from(position.0.z) + 0.5 + f64::from(facing.z) * 0.25,
+            );
+            world.spawn_entity(Arc::new(ItemEntity::new(
+                Entity::new(world.clone(), at, &EntityType::ITEM),
+                self.get_stack(0),
+            )));
+        }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
@@ -114,11 +150,47 @@ impl LecternBlockEntity {
     pub fn new(position: BlockPos) -> Self {
         Self {
             position,
+            world: Mutex::new(Weak::new()),
             book: Arc::new(Mutex::new(ItemStack::EMPTY.clone())),
-            page: AtomicUsize::new(0),
+            page: AtomicI32::new(0),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
         }
+    }
+
+    pub fn set_book(&self, stack: ItemStack) {
+        *self.book.lock().unwrap() = stack;
+        self.page.store(0, Ordering::Relaxed);
+        self.mark_dirty();
+    }
+
+    pub fn has_book(&self) -> bool {
+        let book = self.book.lock().unwrap();
+        book.get_data_component::<WrittenBookContentImpl>()
+            .is_some()
+            || book
+                .get_data_component::<WritableBookContentImpl>()
+                .is_some()
+    }
+
+    pub fn set_page(&self, page: i32) {
+        let page = page.max(0).min(self.page_count() - 1);
+        if self.page.swap(page, Ordering::Relaxed) != page {
+            self.mark_dirty();
+            let world = self.world.lock().unwrap().upgrade();
+            if let Some(world) = world {
+                LecternBlock::pulse(&world, &self.position);
+            }
+        }
+    }
+
+    fn on_book_removed(&self) {
+        self.page.store(0, Ordering::Relaxed);
+        let world = self.world.lock().unwrap().upgrade();
+        if let Some(world) = world {
+            LecternBlock::set_has_book(&world, &self.position, false, None);
+        }
+        self.mark_dirty();
     }
 
     /// Number of pages in a writable or written book, `0` for anything else.
@@ -151,17 +223,20 @@ impl LecternBlockEntity {
             .book
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if book.is_empty() {
-            return 0;
-        }
-
         let page_count = Self::page_count_of(&book);
         let progress = if page_count > 1 {
             self.page.load(Ordering::Relaxed) as f32 / (page_count - 1) as f32
         } else {
             1.0
         };
-        (progress * 14.0).floor() as u8 + 1
+        (progress * 14.0).floor() as u8
+            + u8::from(
+                book.get_data_component::<WrittenBookContentImpl>()
+                    .is_some()
+                    || book
+                        .get_data_component::<WritableBookContentImpl>()
+                        .is_some(),
+            )
     }
 }
 
@@ -170,7 +245,7 @@ impl Inventory for LecternBlockEntity {
         &self,
         player: &dyn pumpkin_inventory::screen_handler::InventoryPlayer,
     ) -> bool {
-        !self.is_empty() && player.can_use_block_inventory(self.position, self)
+        self.has_book() && player.can_use_block_inventory(self.position, self)
     }
 
     fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> {
@@ -188,45 +263,47 @@ impl Inventory for LecternBlockEntity {
             .is_empty()
     }
 
-    fn get_stack(&self, _slot: usize) -> ItemStack {
+    fn get_stack(&self, slot: usize) -> ItemStack {
+        if slot != 0 {
+            return ItemStack::EMPTY.clone();
+        }
         self.book
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
     }
 
-    fn remove_stack(&self, _slot: usize) -> ItemStack {
-        let mut removed = ItemStack::EMPTY.clone();
-        let mut guard = self
-            .book
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        std::mem::swap(&mut removed, &mut *guard);
-        self.mark_dirty();
+    fn remove_stack(&self, slot: usize) -> ItemStack {
+        if slot != 0 {
+            return ItemStack::EMPTY.clone();
+        }
+        let removed = std::mem::replace(&mut *self.book.lock().unwrap(), ItemStack::EMPTY.clone());
+        self.on_book_removed();
         removed
     }
 
-    fn remove_stack_specific(&self, _slot: usize, amount: u8) -> ItemStack {
-        let mut stack = self
-            .book
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if stack.is_empty() {
+    fn remove_stack_specific(&self, slot: usize, amount: u8) -> ItemStack {
+        if slot != 0 {
             return ItemStack::EMPTY.clone();
         }
-        let res = stack.split(amount);
-        self.mark_dirty();
-        res
+        let (result, empty) = {
+            let mut book = self.book.lock().unwrap();
+            let result = book.split(amount);
+            (result, book.is_empty())
+        };
+        if empty {
+            self.on_book_removed();
+        }
+        result
     }
 
-    fn set_stack(&self, _slot: usize, stack: ItemStack) {
-        *self
-            .book
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = stack;
-        // A freshly placed book always opens on its first page.
-        self.page.store(0, Ordering::Relaxed);
-        self.mark_dirty();
+    // Lectern's menu container cannot accept replacement items; setBook is separate.
+    fn set_stack(&self, _slot: usize, _stack: ItemStack) {}
+    fn is_valid_slot_for(&self, _slot: usize, _stack: &ItemStack) -> bool {
+        false
+    }
+    fn get_max_count_per_stack(&self) -> u8 {
+        1
     }
 
     fn mark_dirty(&self) {
@@ -241,10 +318,6 @@ impl Inventory for LecternBlockEntity {
 
 impl Clearable for LecternBlockEntity {
     fn clear(&self) {
-        *self
-            .book
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = ItemStack::EMPTY.clone();
-        self.mark_dirty();
+        self.set_book(ItemStack::EMPTY.clone());
     }
 }

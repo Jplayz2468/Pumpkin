@@ -264,7 +264,7 @@ fn try_place_powder_snow(world: &Arc<World>, pos: BlockPos, direction: BlockDire
     true
 }
 
-/// SimpleWaterloggedBlock.placeLiquid, including DriedGhastBlock's placement sound.
+/// Water-container placement, including campfire extinguishing and dried-ghast sound.
 fn place_water_in_container(
     world: &Arc<World>,
     pos: BlockPos,
@@ -274,7 +274,21 @@ fn place_water_in_container(
     if block.is_waterlogged(state) {
         return;
     }
-    if let Some(wet) = block.set_waterlogged(state, true) {
+    if let Some(mut wet) = block.set_waterlogged(state, true) {
+        if block == &Block::CAMPFIRE || block == &Block::SOUL_CAMPFIRE {
+            let mut props =
+                pumpkin_data::block_properties::CampfireLikeProperties::from_state_id(wet);
+            if props.lit {
+                world.play_sound(
+                    Sound::BlockFireExtinguish,
+                    SoundCategory::Blocks,
+                    &pos.to_centered_f64(),
+                );
+                world.emit_game_event("block_change", pos.to_centered_f64());
+            }
+            props.lit = false;
+            wet = props.to_state_id(block);
+        }
         world.set_block_state(&pos, wet, BlockFlags::NOTIFY_ALL);
         world.schedule_fluid_tick(&Fluid::WATER, pos, 5, TickPriority::Normal);
         if block == &Block::DRIED_GHAST {

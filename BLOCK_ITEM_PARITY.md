@@ -653,3 +653,30 @@ so they must not be used to reconstruct audit completion.
   can ring bells. General explosion behavior, dynamic support/collision contexts,
   custom advancement predicates and client/protocol effects remain shared gaps.
   Only source inspection, formatting and whitespace review; no compilation/tests.
+
+## Continued source port: lecterns, campfires and container drops
+
+- Lectern page changes and all inventory removals now drive the source two-tick
+  pulse, reset HAS_BOOK, emit attributed state events and notify below with the
+  lectern as source. Removed late broken-block book scattering; pre-removal drops
+  use the facing offset. Corrected no-book interactions, HAS_BOOK comparator
+  gating, page clamping (including zero-page books), save fields and menu insertion
+  restrictions. Taking the book respects the player's mayBuild ability.
+- Lecterns receive saved book/page item data and distinguish creative gamemaster
+  HAS_BOOK placement. Added a separate automation-inventory hook so hoppers and
+  droppers do not treat the lectern menu as a container; droppers use the shared
+  container search, including combined chests and container entities.
+- Campfires accept food while unlit, consume full-slot food interactions, initialize
+  cooking on insertion and emit completion/insertion events. Completion retains
+  source timer values and falls back to the input if its recipe vanished; cooldown
+  clamps against the stored total. Client data contains items, not cooking timers.
+  Source-water placement, burning-projectile ignition and bucket extinguishing
+  now use their proper transitions; neighbor shape updates no longer force LIT off.
+  Shovel extinguishing uses both source event points without the extra wrong sound.
+- Shared container scattering now uses world random, separate arithmetic operations,
+  source stack splits/triangular velocity and zero pickup delay. Campfire results
+  and all four removal slots use this path, including empty-slot RNG consumption.
+- No compilation, tests or gameplay. Written-book command/text resolution, menu
+  container-vs-block-entity clear semantics, dynamic recipe/feature registries,
+  generic typed item NBT application, item initialization RNG, client/persistent NBT
+  separation and full damage/enchantment/effect aggregation remain shared work.

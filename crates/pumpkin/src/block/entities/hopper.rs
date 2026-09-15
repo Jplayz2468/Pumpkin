@@ -429,7 +429,7 @@ impl HopperBlockEntity {
         }
         if let Some(inventory) = world
             .get_block_entity(pos)
-            .and_then(|entity| entity.get_inventory())
+            .and_then(|entity| entity.get_automation_inventory())
         {
             return Some(inventory);
         }

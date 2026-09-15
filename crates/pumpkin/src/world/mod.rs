@@ -151,7 +151,7 @@ use pumpkin_util::{
 };
 use pumpkin_util::{
     math::{get_section_cord, position::chunk_section_from_pos, vector2::Vector2},
-    random::{RandomImpl, get_seed, xoroshiro128::Xoroshiro},
+    random::{RandomImpl, get_seed},
 };
 use pumpkin_world::world::{GetBlockError, WorldPortalExt};
 use pumpkin_world::{
@@ -6496,31 +6496,20 @@ impl World {
     pub fn scatter_stack(self: &Arc<Self>, x: f64, y: f64, z: f64, mut stack: ItemStack) {
         const TRIANGULAR_DEVIATION: f64 = 0.114_850_001_711_398_36;
 
-        const XZ_MODE: f64 = 0.0;
-        const Y_MODE: f64 = 0.2;
-
         let width = f64::from(EntityType::ITEM.dimension[0]);
         let half_width = width / 2.0;
         let spawn_area = 1.0 - width;
-
-        let mut rng = Xoroshiro::from_seed(get_seed());
-
-        // TODO: Use world random here: world.random.nextDouble()
-        let x = rng.next_f64().mul_add(spawn_area, x.floor()) + half_width;
-        let y = rng.next_f64().mul_add(spawn_area, y.floor());
-        let z = rng.next_f64().mul_add(spawn_area, z.floor()) + half_width;
-
+        let x = x.floor() + self.rand_f64() * spawn_area + half_width;
+        let y = y.floor() + self.rand_f64() * spawn_area;
+        let z = z.floor() + self.rand_f64() * spawn_area + half_width;
         while !stack.is_empty() {
-            let item = stack.split((rng.next_bounded_i32(21) + 10) as u8);
-            let velocity = Vector3::new(
-                rng.next_triangular(XZ_MODE, TRIANGULAR_DEVIATION),
-                rng.next_triangular(Y_MODE, TRIANGULAR_DEVIATION),
-                rng.next_triangular(XZ_MODE, TRIANGULAR_DEVIATION),
-            );
-
+            let item = stack.split((self.rand_bounded_i32(21) + 10) as u8);
             let entity = Entity::new(self.clone(), Vector3::new(x, y, z), &EntityType::ITEM);
-            let entity = Arc::new(ItemEntity::new_with_velocity(entity, item, velocity, 10));
-            self.spawn_entity(entity);
+            let triangle = |mode| mode + TRIANGULAR_DEVIATION * (self.rand_f64() - self.rand_f64());
+            let velocity = Vector3::new(triangle(0.0), triangle(0.2), triangle(0.0));
+            self.spawn_entity(Arc::new(ItemEntity::new_with_velocity(
+                entity, item, velocity, 0,
+            )));
         }
     }
     /* End ItemScatterer.java */

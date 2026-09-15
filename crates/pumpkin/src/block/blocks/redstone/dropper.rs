@@ -164,9 +164,7 @@ impl BlockBehaviour for DropperBlock {
                     .position
                     .offset(props.facing.to_block_direction().to_offset());
 
-                if let Some(entity) = args.world.get_block_entity(&target_pos)
-                    && let Some(container) = entity.get_inventory()
-                {
+                if let Some(container) = HopperBlockEntity::container_at(args.world, &target_pos) {
                     let backup = item.clone();
                     let one_item = item.split(1);
 
