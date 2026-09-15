@@ -18,12 +18,12 @@ use std::{
 use tracing::{debug, error, info, trace, warn};
 
 mod active_chunks;
-pub mod neighbor_updater;
 pub mod chunker;
 pub mod explosion;
 pub mod generation_cache;
 pub mod loot;
 pub mod map;
+pub mod neighbor_updater;
 pub mod portal;
 pub mod raid;
 pub mod random_sequences;
@@ -936,9 +936,7 @@ impl World {
             if processed > MAX_SYNCED_BLOCK_EVENTS_PER_TICK {
                 error!(
                     "Synced block event chain exceeded {MAX_SYNCED_BLOCK_EVENTS_PER_TICK} events in one tick; dropping the rest. Last position: {}, {}, {}",
-                    event.pos.0.x,
-                    event.pos.0.y,
-                    event.pos.0.z
+                    event.pos.0.x, event.pos.0.y, event.pos.0.z
                 );
                 let mut queue = self
                     .synced_block_event_queue
@@ -1264,12 +1262,10 @@ impl World {
                 continue;
             }
             let mut buf = Vec::new();
-            for meta in [
-                Metadata::new(
-                    pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMISATION,
-                    skin_parts,
-                ),
-            ] {
+            for meta in [Metadata::new(
+                pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMISATION,
+                skin_parts,
+            )] {
                 let _ = meta.write(&mut buf, &version);
             }
             buf.put_u8(255);
@@ -1324,14 +1320,26 @@ impl World {
         category: SoundCategory,
         position: &Vector3<f64>,
     ) {
-        let seed = rng().random::<i64>();
+        self.play_sound_event_fine(sound, category, position, 1.0, 1.0);
+    }
+
+    pub fn play_sound_event_fine(
+        &self,
+        sound: &pumpkin_data::data_component_impl::IdOr<
+            pumpkin_data::data_component_impl::SoundEvent,
+        >,
+        category: SoundCategory,
+        position: &Vector3<f64>,
+        volume: f32,
+        pitch: f32,
+    ) {
         let packet = CSoundEffect::new(
             data_to_proto_sound(sound),
             category,
             position,
-            1.0,
-            1.0,
-            seed,
+            volume,
+            pitch,
+            rng().random::<i64>(),
         );
         self.broadcast_packet_all(&packet);
     }
@@ -1788,6 +1796,7 @@ impl World {
             });
             block_entities.extend(keyed.into_iter().map(|(_, _, be)| be));
         }
+        drop(active_chunks);
         let block_entity_count = block_entities.len();
 
         let t_be = std::time::Instant::now();
@@ -2152,7 +2161,9 @@ impl World {
             .active_chunks
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let random_ticks = self.level.get_random_ticks(&active_chunks, random_tick_speed);
+        let random_ticks = self
+            .level
+            .get_random_ticks(&active_chunks, random_tick_speed);
         let handle = server.runtime.clone();
 
         // 1. Ice and Snow / Precipitation ticking
@@ -2614,19 +2625,14 @@ impl World {
 
         // Reference: Vanilla Java 26.2 `ServerLevel.java:544-578` (`tickThunder`).
         if is_raining && is_thundering && self.rand_bounded_i32(100_000) == 0 {
-            let rand_pos = self
-                .level
-                .get_block_random_pos(chunk_pos.x << 4, 0, chunk_pos.y << 4, 15);
+            let rand_pos =
+                self.level
+                    .get_block_random_pos(chunk_pos.x << 4, 0, chunk_pos.y << 4, 15);
             let height = chunk
                 .heightmap
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .get(
-                    MotionBlocking,
-                    rand_pos.0.x,
-                    rand_pos.0.z,
-                    self.min_y,
-                );
+                .get(MotionBlocking, rand_pos.0.x, rand_pos.0.z, self.min_y);
             let random_pos = Vector3::new(rand_pos.0.x, height, rand_pos.0.z);
             // TODO this.getBrightness(LightLayer.SKY, blockPos) >= 15;
             // TODO heightmap
@@ -4456,6 +4462,7 @@ impl World {
             return;
         }
 
+        self.emit_game_event("explode", position);
         let block_count = explosion.explode(self);
         let particle = if power < 2.0 {
             Particle::Explosion
@@ -5704,7 +5711,13 @@ impl World {
         let is_new_block = old_block != new_block;
         let block_moved = flags.contains(BlockFlags::MOVED);
 
+        // CopperChestBlock.shouldChangedStateKeepBlockEntity: scraping, waxing
+        // and oxidation change the block id without destroying its inventory.
+        let keep_copper_chest = old_block
+            .has_tag(&pumpkin_data::tag::Block::MINECRAFT_COPPER_CHESTS)
+            && new_block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_COPPER_CHESTS);
         if is_new_block
+            && !keep_copper_chest
             && old_block.default_state.block_entity_type != u16::MAX
             && let Some(entity) = self.get_block_entity(position)
         {
@@ -5918,7 +5931,8 @@ impl World {
             Block::AIR.default_state.id
         };
 
-        let broken_state_id = self.set_block_state_with_limit(position, new_state_id, flags, update_limit);
+        let broken_state_id =
+            self.set_block_state_with_limit(position, new_state_id, flags, update_limit);
         let broken_block = Block::from_state_id(broken_state_id);
         if !broken_block.is_air()
             && broken_state_id != new_state_id
@@ -5953,6 +5967,14 @@ impl World {
             }
         }
 
+        if broken_state_id != new_state_id {
+            self.emit_game_event_with_context(
+                "block_destroy",
+                position.to_centered_f64(),
+                cause.map(|player| player.get_entity().entity_id),
+                Some(broken_state_id),
+            );
+        }
         Some(broken_state_id)
     }
 
@@ -6402,7 +6424,8 @@ impl World {
     }
     /// Vanilla `ServerLevel.isHandlingTick()` (`ServerLevel.java:646`).
     pub fn is_handling_tick(&self) -> bool {
-        self.handling_tick.load(std::sync::atomic::Ordering::Relaxed)
+        self.handling_tick
+            .load(std::sync::atomic::Ordering::Relaxed)
     }
 
     pub const fn get_top_y(&self) -> i32 {
@@ -6604,7 +6627,8 @@ impl World {
             });
         }
 
-        if let Some(neighbor_pumpkin_fluid) = self.block_registry.get_pumpkin_fluid(neighbor_fluid.id)
+        if let Some(neighbor_pumpkin_fluid) =
+            self.block_registry.get_pumpkin_fluid(neighbor_fluid.id)
         {
             neighbor_pumpkin_fluid.on_neighbor_update(self, neighbor_fluid, neighbor_pos, false);
         }
@@ -7603,13 +7627,56 @@ impl World {
         Self::broadcast_bedrock_grouped(be_packet, bedrock_recipients.into_iter());
     }
 
-    pub fn emit_game_event(&self, event_key: impl Into<String>, position: Vector3<f64>) {
+    pub fn emit_game_event(self: &Arc<Self>, event_key: impl Into<String>, position: Vector3<f64>) {
+        self.emit_game_event_with_source(event_key, position, None);
+    }
+
+    /// Preserve attribution through sensor activation so shriekers can identify
+    /// the responsible player (SculkShriekerBlockEntity.tryGetPlayer).
+    pub fn emit_game_event_with_source(
+        self: &Arc<Self>,
+        event_key: impl Into<String>,
+        position: Vector3<f64>,
+        source_entity: Option<i32>,
+    ) {
+        self.emit_game_event_with_context(event_key, position, source_entity, None);
+    }
+
+    pub fn emit_game_event_with_context(
+        self: &Arc<Self>,
+        event_key: impl Into<String>,
+        position: Vector3<f64>,
+        source_entity: Option<i32>,
+        affected_state: Option<BlockStateId>,
+    ) {
         let mut event = crate::plugin::api::events::world::generic_game::GenericGameEvent::new(
             event_key.into(),
             position,
         );
         if let Some(server) = self.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);
+        }
+        if !event.cancelled {
+            let key = event
+                .event_key
+                .strip_prefix("minecraft:")
+                .unwrap_or(&event.event_key);
+            if let Some(kind) = pumpkin_data::game_event::GameEvent::from_name(key) {
+                // VibrationSystem.User.isValidVibration: affected wool suppresses
+                // place/break vibrations even though the event still reaches plugins.
+                use pumpkin_data::tag::Taggable;
+                if affected_state.is_none_or(|state| {
+                    !Block::from_state_id(state)
+                        .has_tag(&pumpkin_data::tag::Block::MINECRAFT_DAMPENS_VIBRATIONS)
+                }) {
+                    crate::block::blocks::sculk::vibration::dispatch(
+                        self,
+                        kind,
+                        event.position,
+                        source_entity,
+                    );
+                }
+            }
         }
     }
 

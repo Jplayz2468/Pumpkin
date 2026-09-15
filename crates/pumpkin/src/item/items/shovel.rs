@@ -86,7 +86,11 @@ impl ItemBehaviour for ShovelItem {
         }
 
         if changed {
-            world.emit_game_event(GameEvent::BlockChange.name(), location.to_centered_f64());
+            world.emit_game_event_with_source(
+                GameEvent::BlockChange.name(),
+                location.to_centered_f64(),
+                Some(player.living_entity.entity.entity_id),
+            );
         }
 
         if changed && player.gamemode.load() != GameMode::Creative {

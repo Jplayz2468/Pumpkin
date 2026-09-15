@@ -839,6 +839,9 @@ pub struct Entity {
     pub horizontal_collision: AtomicBool,
     /// Indicates whether the entity is on the ground (may not always be accurate).
     pub on_ground: AtomicBool,
+    /// Entity.applyMovementEmissionAndPlaySound accumulates distance, rather
+    /// than producing one STEP per tick or per movement packet.
+    movement_emission: std::sync::Mutex<(f32, f32)>,
     /// Indicates whether the entity is touching water
     pub touching_water: AtomicBool,
     /// Indicates the fluid height
@@ -990,6 +993,7 @@ impl Entity {
             entity_uuid,
             entity_type,
             on_ground: AtomicBool::new(false),
+            movement_emission: std::sync::Mutex::new((0.0, 1.0)),
             touching_water: AtomicBool::new(false),
             water_height: AtomicCell::new(0.0),
             touching_lava: AtomicBool::new(false),
@@ -1273,7 +1277,10 @@ impl Entity {
     /// (`set_pose`) and for another entity, e.g. a dismounting passenger
     /// (`remove_passenger_internal`), and so it is cheap to unit-test.
     #[must_use]
-    pub fn dimensions_for_pose(entity_type: &'static EntityType, pose: EntityPose) -> EntityDimensions {
+    pub fn dimensions_for_pose(
+        entity_type: &'static EntityType,
+        pose: EntityPose,
+    ) -> EntityDimensions {
         if entity_type == &EntityType::WARDEN {
             crate::entity::mob::warden::dimensions(pose)
         } else if entity_type == &EntityType::PLAYER {
@@ -2350,6 +2357,63 @@ impl Entity {
     // Move by a delta, adjust for collisions, and send
 
     // Does not send movement. That must be done separately
+    /// Event half of Entity.java:872-906 and 991-1014. Player packets use the
+    /// same distance accumulator as server-controlled movement.
+    pub fn emit_movement_events(&self, caller: &dyn EntityBase, movement: Vector3<f64>) {
+        if caller.get_living_entity().is_none()
+            || !self.is_affected_by_blocks()
+            || caller
+                .get_player()
+                .is_some_and(crate::entity::player::Player::is_spectator)
+        {
+            return;
+        }
+        let world = self.world.load_full();
+        let supporting = caller
+            .get_player()
+            .and_then(crate::entity::player::Player::get_supporting_block_pos)
+            .or_else(|| self.get_supporting_block_pos());
+        // Entity.getOnPos falls back to the block below the entity when no
+        // collision support was found (e.g. swimming or climbing).
+        let pos = supporting.unwrap_or_else(|| self.get_block_with_y_offset(0.2).0);
+        let (block, state) = world.get_block_and_state(&pos);
+        let climbable = block.has_tag(&tag::Block::MINECRAFT_CLIMBABLE)
+            || block.id == pumpkin_data::BlockId::POWDER_SNOW;
+        let length = if climbable {
+            movement.length()
+        } else {
+            movement.horizontal_length_squared().sqrt()
+        };
+        let event = {
+            let mut distance = self
+                .movement_emission
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            distance.0 += (length * 0.6_f32 as f64) as f32;
+            if distance.0 <= distance.1 || block.is_air() {
+                return;
+            }
+            let event = if (self.on_ground.load(Relaxed)
+                || climbable
+                || (self.is_sneaking() && movement.y == 0.0))
+                && !self.is_swimming()
+            {
+                Some(("step", Some(state.id)))
+            } else if self.is_in_water() {
+                Some(("swim", None))
+            } else {
+                None
+            };
+            if event.is_some() {
+                distance.1 = (distance.0 as i32 + 1) as f32;
+            }
+            event
+        };
+        if let Some((kind, state)) = event {
+            world.emit_game_event_with_context(kind, self.pos.load(), Some(self.entity_id), state);
+        }
+    }
+
     pub fn move_entity(&self, caller: &dyn EntityBase, mut motion: Vector3<f64>) {
         if caller.get_player().is_some() {
             return;
@@ -2378,6 +2442,7 @@ impl Entity {
         let final_move = self.adjust_movement_for_collisions(motion, caller);
 
         self.move_pos(final_move);
+        self.emit_movement_events(caller, final_move);
 
         if let Some(living) = caller.get_living_entity()
             && living.controlled_speed.load().is_some()
@@ -2422,9 +2487,11 @@ impl Entity {
                 self.velocity
                     .store(Vector3::new(velocity[0], velocity[1], velocity[2]));
                 if bounced {
-                    self.world
-                        .load()
-                        .emit_game_event("minecraft:bounce", self.pos.load());
+                    self.world.load().emit_game_event_with_source(
+                        "minecraft:bounce",
+                        self.pos.load(),
+                        Some(self.entity_id),
+                    );
                     self.velocity_dirty.store(true, Ordering::Relaxed);
                 }
             }
@@ -4696,7 +4763,10 @@ mod tests {
     #[test]
     fn generated_per_type_eye_heights_diverge_from_the_old_hardcoded_player_value() {
         let old_hardcoded_standing_eye_height = 1.62_f32;
-        assert_eq!(EntityType::PLAYER.eye_height, old_hardcoded_standing_eye_height);
+        assert_eq!(
+            EntityType::PLAYER.eye_height,
+            old_hardcoded_standing_eye_height
+        );
 
         for entity_type in [
             &EntityType::CHICKEN,
@@ -4721,10 +4791,19 @@ mod tests {
         let swimming = Entity::dimensions_for_pose(&EntityType::ZOMBIE, EntityPose::Swimming);
         let dying = Entity::dimensions_for_pose(&EntityType::ZOMBIE, EntityPose::Dying);
 
-        for (name, other) in [("crouching", crouching), ("swimming", swimming), ("dying", dying)]
-        {
-            assert_eq!(other.width, standing.width, "zombie width changed for {name}");
-            assert_eq!(other.height, standing.height, "zombie height changed for {name}");
+        for (name, other) in [
+            ("crouching", crouching),
+            ("swimming", swimming),
+            ("dying", dying),
+        ] {
+            assert_eq!(
+                other.width, standing.width,
+                "zombie width changed for {name}"
+            );
+            assert_eq!(
+                other.height, standing.height,
+                "zombie height changed for {name}"
+            );
             assert_eq!(
                 other.eye_height, standing.eye_height,
                 "zombie eye height changed for {name}"

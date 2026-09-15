@@ -120,6 +120,7 @@ impl JavaClient {
 
                 let new_on_ground = packet.collision & FLAG_ON_GROUND != 0;
                 entity.on_ground.store(new_on_ground, Ordering::Relaxed);
+                entity.emit_movement_events(player.as_ref(), pos - last_pos);
                 let world = &player.world();
 
                 // TODO: Warn when player moves to quickly
@@ -267,6 +268,7 @@ impl JavaClient {
                     .on_ground
                     .store((packet.collision & FLAG_ON_GROUND) != 0, Ordering::Relaxed);
 
+                entity.emit_movement_events(player.as_ref(), pos - last_pos);
                 entity.set_rotation(wrap_degrees(packet.yaw) % 360.0, wrap_degrees(packet.pitch));
 
                 let entity_id = entity.entity_id;

@@ -240,6 +240,29 @@ impl IDSetContent for crate::item::Item {
     }
 }
 
+// DamageType constants are values; retain stable registry references for holder sets.
+impl IDSetContent for crate::damage::DamageType {
+    fn registry_id(&self) -> u16 {
+        self.id as u16
+    }
+    fn to_string(&self) -> String {
+        format!("minecraft:{}", self.resource_name)
+    }
+    fn from_id(id: u16) -> Option<&'static Self> {
+        static TYPES: std::sync::LazyLock<Vec<crate::damage::DamageType>> =
+            std::sync::LazyLock::new(|| {
+                (0..=u8::MAX)
+                    .filter_map(crate::damage::DamageType::from_id)
+                    .collect()
+            });
+        TYPES.iter().find(|kind| u16::from(kind.id) == id)
+    }
+    fn from_str(name: &str) -> Option<&'static Self> {
+        let kind = Self::from_name(name.strip_prefix("minecraft:").unwrap_or(name))?;
+        <Self as IDSetContent>::from_id(kind.id as u16)
+    }
+}
+
 #[derive(Clone, Hash, PartialEq, Debug)]
 pub enum IDSet<T: IDSetContent + 'static> {
     Tag(Cow<'static, str>),

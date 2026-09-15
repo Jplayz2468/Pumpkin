@@ -1,3 +1,4 @@
+use super::is_exception_for_connection;
 use crate::block::{
     BlockBehaviour, GetStateForNeighborUpdateArgs, OnPlaceArgs, PathComputationType,
 };
@@ -32,6 +33,7 @@ impl BlockBehaviour for WallBlock {
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
         let wall_props = WallProperties::from_state_id(args.state_id);
+        super::schedule_waterlogged_tick(args.world, args.position, wall_props.waterlogged);
         compute_wall_state(wall_props, args.world, args.block, args.position)
     }
 
@@ -120,7 +122,8 @@ pub fn compute_wall_state(
     // above (`hasCorner`, ported as `!(cross || connected_north_south || connected_east_west)`),
     // vanilla checks `hasHighWall`: two opposite TALL sides already reach full height, so no
     // center post is needed regardless of what's above.
-    let has_high_wall = (wall_props.north == NorthWall::Tall && wall_props.south == SouthWall::Tall)
+    let has_high_wall = (wall_props.north == NorthWall::Tall
+        && wall_props.south == SouthWall::Tall)
         || (wall_props.east == EastWall::Tall && wall_props.west == WestWall::Tall);
 
     wall_props.up = if !(cross || connected_north_south || connected_east_west) {
@@ -186,21 +189,6 @@ fn is_connected(
         }
     }
     connected
-}
-
-/// `Block.isExceptionForConnection` (Block.java:251-259): these blocks are excluded from
-/// the generic "sturdy face" connection rule used by panes, fences and walls even though
-/// several of them (pumpkins, melons, leaves, barriers, closed shulker boxes) do have a
-/// sturdy face on every side. Mirrors the helper of the same name in
-/// `block/blocks/glass_panes.rs`; see that file's note about a shared helper.
-fn is_exception_for_connection(block: &Block) -> bool {
-    block.has_tag(&tag::Block::MINECRAFT_LEAVES)
-        || block == &Block::BARRIER
-        || block == &Block::CARVED_PUMPKIN
-        || block == &Block::JACK_O_LANTERN
-        || block == &Block::MELON
-        || block == &Block::PUMPKIN
-        || block.has_tag(&tag::Block::MINECRAFT_SHULKER_BOXES)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

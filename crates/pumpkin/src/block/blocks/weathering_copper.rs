@@ -607,6 +607,120 @@ pub fn change_over_time(
     }
 }
 
+/// WeatheringCopperBarsBlock.java inherits its base block's placement/support behavior;
+/// weathering supplements that behavior instead of replacing it.
+pub struct WeatheringCopperBarsBlock;
+impl BlockMetadata for WeatheringCopperBarsBlock {
+    fn ids() -> Box<[BlockId]> {
+        [
+            BlockId::COPPER_BARS,
+            BlockId::EXPOSED_COPPER_BARS,
+            BlockId::WEATHERED_COPPER_BARS,
+            BlockId::OXIDIZED_COPPER_BARS,
+        ]
+        .into()
+    }
+}
+impl BlockBehaviour for WeatheringCopperBarsBlock {
+    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
+        super::iron_bars::IronBarsBlock.on_place(args)
+    }
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        super::iron_bars::IronBarsBlock.get_state_for_neighbor_update(args)
+    }
+    fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
+        super::iron_bars::IronBarsBlock.can_place_at(args)
+    }
+    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        super::iron_bars::IronBarsBlock.on_scheduled_tick(args);
+    }
+    fn is_pathfindable(&self, state: &BlockState, kind: PathComputationType) -> bool {
+        super::iron_bars::IronBarsBlock.is_pathfindable(state, kind)
+    }
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
+    }
+}
+
+/// WeatheringCopperChainBlock.java inherits its base block's placement/support behavior;
+/// weathering supplements that behavior instead of replacing it.
+pub struct WeatheringCopperChainBlock;
+impl BlockMetadata for WeatheringCopperChainBlock {
+    fn ids() -> Box<[BlockId]> {
+        [
+            BlockId::COPPER_CHAIN,
+            BlockId::EXPOSED_COPPER_CHAIN,
+            BlockId::WEATHERED_COPPER_CHAIN,
+            BlockId::OXIDIZED_COPPER_CHAIN,
+        ]
+        .into()
+    }
+}
+impl BlockBehaviour for WeatheringCopperChainBlock {
+    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
+        super::chain::ChainBlock.on_place(args)
+    }
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        super::chain::ChainBlock.get_state_for_neighbor_update(args)
+    }
+    fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
+        super::chain::ChainBlock.can_place_at(args)
+    }
+    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        super::chain::ChainBlock.on_scheduled_tick(args);
+    }
+    fn is_pathfindable(&self, state: &BlockState, kind: PathComputationType) -> bool {
+        super::chain::ChainBlock.is_pathfindable(state, kind)
+    }
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
+    }
+}
+
+/// WeatheringLanternBlock.java inherits its base block's placement/support behavior;
+/// weathering supplements that behavior instead of replacing it.
+pub struct WeatheringLanternBlock;
+impl BlockMetadata for WeatheringLanternBlock {
+    fn ids() -> Box<[BlockId]> {
+        [
+            BlockId::COPPER_LANTERN,
+            BlockId::EXPOSED_COPPER_LANTERN,
+            BlockId::WEATHERED_COPPER_LANTERN,
+            BlockId::OXIDIZED_COPPER_LANTERN,
+        ]
+        .into()
+    }
+}
+impl BlockBehaviour for WeatheringLanternBlock {
+    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
+        super::lanterns::LanternBlock.on_place(args)
+    }
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        super::lanterns::LanternBlock.get_state_for_neighbor_update(args)
+    }
+    fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
+        super::lanterns::LanternBlock.can_place_at(args)
+    }
+    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        super::lanterns::LanternBlock.on_scheduled_tick(args);
+    }
+    fn is_pathfindable(&self, state: &BlockState, kind: PathComputationType) -> bool {
+        super::lanterns::LanternBlock.is_pathfindable(state, kind)
+    }
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Block implementations
 // ---------------------------------------------------------------------------
@@ -1241,7 +1355,10 @@ mod weathering_lightning_rod_tests {
             BlockId::WEATHERED_LIGHTNING_ROD,
             BlockId::OXIDIZED_LIGHTNING_ROD,
         ] {
-            assert!(ids.contains(&id), "{id:?} missing from weathering lightning rod ids");
+            assert!(
+                ids.contains(&id),
+                "{id:?} missing from weathering lightning rod ids"
+            );
         }
     }
 
@@ -1253,15 +1370,24 @@ mod weathering_lightning_rod_tests {
     /// after the last.
     #[test]
     fn lightning_rod_progression_matches_vanilla_chain() {
-        assert_eq!(get_next(&Block::LIGHTNING_ROD), Some(&Block::EXPOSED_LIGHTNING_ROD));
-        assert_eq!(get_next(&Block::EXPOSED_LIGHTNING_ROD), Some(&Block::WEATHERED_LIGHTNING_ROD));
+        assert_eq!(
+            get_next(&Block::LIGHTNING_ROD),
+            Some(&Block::EXPOSED_LIGHTNING_ROD)
+        );
+        assert_eq!(
+            get_next(&Block::EXPOSED_LIGHTNING_ROD),
+            Some(&Block::WEATHERED_LIGHTNING_ROD)
+        );
         assert_eq!(
             get_next(&Block::WEATHERED_LIGHTNING_ROD),
             Some(&Block::OXIDIZED_LIGHTNING_ROD)
         );
         assert_eq!(get_next(&Block::OXIDIZED_LIGHTNING_ROD), None);
 
-        assert_eq!(get_previous(&Block::EXPOSED_LIGHTNING_ROD), Some(&Block::LIGHTNING_ROD));
+        assert_eq!(
+            get_previous(&Block::EXPOSED_LIGHTNING_ROD),
+            Some(&Block::LIGHTNING_ROD)
+        );
         assert_eq!(
             get_previous(&Block::WEATHERED_LIGHTNING_ROD),
             Some(&Block::EXPOSED_LIGHTNING_ROD)
@@ -1320,7 +1446,10 @@ mod weathering_lightning_rod_tests {
                         let (from_block, to_block) = (window[0], window[1]);
                         state_id = with_properties_of(from_block, state_id, to_block);
                         let round_tripped = LightningRodLikeProperties::from_state_id(state_id);
-                        assert_eq!(round_tripped.facing, facing, "facing lost going into {to_block:?}");
+                        assert_eq!(
+                            round_tripped.facing, facing,
+                            "facing lost going into {to_block:?}"
+                        );
                         assert_eq!(
                             round_tripped.powered, powered,
                             "powered lost going into {to_block:?}"

@@ -1,3 +1,4 @@
+use super::is_exception_for_connection;
 use crate::block::{
     BlockBehaviour, GetStateForNeighborUpdateArgs, OnPlaceArgs, PathComputationType,
 };
@@ -26,6 +27,7 @@ impl BlockBehaviour for GlassPaneBlock {
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
         let pane_props = GlassPaneProperties::from_state_id(args.state_id);
+        super::schedule_waterlogged_tick(args.world, args.position, pane_props.waterlogged);
         compute_pane_state(pane_props, args.world, args.block, args.position)
     }
 
@@ -87,20 +89,6 @@ fn is_connected(
         // tag equivalent of that instanceof check, not just the plain `minecraft:iron_bars` id.
         || other_block.has_tag(&tag::Block::MINECRAFT_BARS)
         || other_block.has_tag(&tag::Block::MINECRAFT_WALLS)
-}
-
-/// `Block.isExceptionForConnection` (Block.java:251-259): these blocks are excluded from
-/// the generic "sturdy face" connection rule used by panes, fences and walls even though
-/// several of them (pumpkins, melons, leaves, barriers, closed shulker boxes) do have a
-/// sturdy face on every side.
-fn is_exception_for_connection(block: &Block) -> bool {
-    block.has_tag(&tag::Block::MINECRAFT_LEAVES)
-        || block == &Block::BARRIER
-        || block == &Block::CARVED_PUMPKIN
-        || block == &Block::JACK_O_LANTERN
-        || block == &Block::MELON
-        || block == &Block::PUMPKIN
-        || block.has_tag(&tag::Block::MINECRAFT_SHULKER_BOXES)
 }
 
 #[cfg(test)]

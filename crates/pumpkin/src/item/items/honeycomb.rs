@@ -37,7 +37,12 @@ impl ItemBehaviour for HoneyCombItem {
         _server: &Server,
     ) -> BlockActionResult {
         let world = player.world();
-        if try_wax_block(&world, location, block) {
+        if try_wax_block(
+            &world,
+            location,
+            block,
+            Some(player.living_entity.entity.entity_id),
+        ) {
             item.decrement_unless_creative(player.gamemode.load(), 1);
             BlockActionResult::Success
         } else {
@@ -52,7 +57,12 @@ impl ItemBehaviour for HoneyCombItem {
 
 /// Waxes the block at `location` if it has a waxed equivalent, emitting the wax
 /// particles and sound on success.
-pub(crate) fn try_wax_block(world: &Arc<World>, location: BlockPos, block: &Block) -> bool {
+pub(crate) fn try_wax_block(
+    world: &Arc<World>,
+    location: BlockPos,
+    block: &Block,
+    source_entity: Option<i32>,
+) -> bool {
     let Some(replacement) = get_waxed_equivalent(block.id) else {
         return false;
     };
@@ -62,7 +72,11 @@ pub(crate) fn try_wax_block(world: &Arc<World>, location: BlockPos, block: &Bloc
 
     world.set_block_state(&location, new_state_id, BlockFlags::NOTIFY_ALL);
     world.sync_world_event(WorldEvent::ParticlesAndSoundWaxOn, location, 0);
-    world.emit_game_event(GameEvent::BlockChange.name(), location.to_centered_f64());
+    world.emit_game_event_with_source(
+        GameEvent::BlockChange.name(),
+        location.to_centered_f64(),
+        source_entity,
+    );
     true
 }
 

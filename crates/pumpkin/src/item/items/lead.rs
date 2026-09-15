@@ -124,7 +124,11 @@ impl ItemBehaviour for LeadItem {
             // knot never shrinks the item stack — there is no itemStack.shrink call anywhere
             // in this method. The lead was already spent when it was first attached to the mob.
             world.play_sound(Sound::ItemLeadTied, SoundCategory::Neutral, &knot_center);
-            world.emit_game_event(GameEvent::BlockAttach.name(), location.to_centered_f64());
+            world.emit_game_event_with_source(
+                GameEvent::BlockAttach.name(),
+                location.to_centered_f64(),
+                Some(player.living_entity.entity.entity_id),
+            );
             BlockActionResult::Success
         } else {
             BlockActionResult::Pass

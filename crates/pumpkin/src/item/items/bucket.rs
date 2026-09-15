@@ -37,7 +37,6 @@ impl ItemMetadata for FilledBucketItem {
         [
             Item::WATER_BUCKET.id,
             Item::LAVA_BUCKET.id,
-            Item::POWDER_SNOW_BUCKET.id,
             Item::AXOLOTL_BUCKET.id,
             Item::COD_BUCKET.id,
             Item::SALMON_BUCKET.id,
@@ -106,6 +105,34 @@ const fn get_fill_sound(item: &Item) -> Sound {
         Sound::ItemBucketFillPowderSnow
     } else {
         Sound::ItemBucketFill
+    }
+}
+
+/// ItemUtils.createFilledResult for an interaction stack (either hand).
+pub(crate) fn exchange_bucket_stack(player: &Player, stack: &mut ItemStack, result: &'static Item) {
+    if player.gamemode.load() == GameMode::Creative {
+        let already_has = player
+            .inventory
+            .main_inventory
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .iter()
+            .any(|item| item.item.id == result.id);
+        if already_has {
+            return;
+        }
+    } else {
+        stack.decrement(1);
+        if stack.is_empty() {
+            *stack = ItemStack::new(1, result);
+            return;
+        }
+    }
+    let mut filled = ItemStack::new(1, result);
+    if !player.inventory.insert_stack_anywhere(&mut filled) && !filled.is_empty() {
+        player
+            .world()
+            .drop_stack(&player.position().to_block_pos(), filled);
     }
 }
 
@@ -352,33 +379,6 @@ impl ItemBehaviour for EmptyBucketItem {
         give_player_bucket_item(player, item);
     }
 
-    fn use_on_entity(&self, _item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
-        let ent = entity.get_entity();
-        let entity_type = ent.entity_type;
-        if (entity_type == &EntityType::COW
-            || entity_type == &EntityType::MOOSHROOM
-            || entity_type == &EntityType::GOAT)
-            && ent.age.load(Ordering::Relaxed) >= 0
-        {
-            let world = ent.world.load();
-            let sound = if entity_type == &EntityType::GOAT {
-                if let Some(goat) = entity
-                    .cast_any()
-                    .downcast_ref::<crate::entity::passive::goat::GoatEntity>()
-                    && goat.is_screaming()
-                {
-                    Sound::EntityGoatScreamingMilk
-                } else {
-                    Sound::EntityGoatMilk
-                }
-            } else {
-                Sound::EntityCowMilk
-            };
-            world.play_sound(sound, SoundCategory::Neutral, &ent.pos.load());
-            give_player_bucket_item(player, &Item::MILK_BUCKET);
-        }
-    }
-
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }
@@ -589,12 +589,12 @@ fn release_player_bucket(
     // lava bucket aimed at a waterloggable block actually places at the offset position, not at
     // `pos`. Keeping this in sync avoids playing the sound / spawning a mob at a position that
     // doesn't match where the fluid was actually placed.
-    let target = if stack.item.id != Item::LAVA_BUCKET.id && world.get_block(&pos).is_waterloggable()
-    {
-        pos
-    } else {
-        pos.offset(direction.to_offset())
-    };
+    let target =
+        if stack.item.id != Item::LAVA_BUCKET.id && world.get_block(&pos).is_waterloggable() {
+            pos
+        } else {
+            pos.offset(direction.to_offset())
+        };
     if should_evaporate_in_nether(stack.item, &world) {
         play_bucket_evaporation(&world, &target.to_f64());
     } else {

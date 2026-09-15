@@ -105,9 +105,10 @@ impl JavaClient {
                             let before = stack.clone();
                             let interacted = event.target.interact(player, &mut stack);
                             if !interacted {
-                                server
-                                    .item_registry
-                                    .use_on_entity(&mut stack, player, event.target);
+                                let result = server.item_registry.use_on_entity(&mut stack, player, event.target);
+                                if matches!(result, crate::block::registry::BlockActionResult::SuccessServer) {
+                                    player.swing_hand(hand, true);
+                                }
                             }
                             if !stack.are_equal(&before) {
                                 player.increment_stat(StatisticCategory::Used, item_id as i32, 1);

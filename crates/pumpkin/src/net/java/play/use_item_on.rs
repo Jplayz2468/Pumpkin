@@ -186,7 +186,13 @@ impl JavaClient {
             // TODO: Config
             // Decrease block count
             if player.gamemode.load() != GameMode::Creative {
-                item.decrement(1);
+                // SolidBucketItem.useOn returns an empty bucket after BlockItem.place.
+                // Its use-in-air path is Item.use, not BucketItem's fluid raycast.
+                if item.item == &pumpkin_data::item::Item::POWDER_SNOW_BUCKET {
+                    item = ItemStack::new(1, &pumpkin_data::item::Item::BUCKET);
+                } else {
+                    item.decrement(1);
+                }
             }
         }
 

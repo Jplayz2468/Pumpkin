@@ -285,7 +285,14 @@ impl BedrockClient {
                                     face,
                                 ) && player.gamemode.load() != GameMode::Creative
                                 {
-                                    stack.decrement(1);
+                                    if stack.item == &pumpkin_data::item::Item::POWDER_SNOW_BUCKET {
+                                        stack = pumpkin_data::item_stack::ItemStack::new(
+                                            1,
+                                            &pumpkin_data::item::Item::BUCKET,
+                                        );
+                                    } else {
+                                        stack.decrement(1);
+                                    }
                                 }
                             }
                         }
@@ -442,9 +449,15 @@ impl BedrockClient {
                                 let Some(server) = world.server.upgrade() else {
                                     return;
                                 };
-                                server
+                                let result = server
                                     .item_registry
                                     .use_on_entity(&mut stack, player, target);
+                                if matches!(
+                                    result,
+                                    crate::block::registry::BlockActionResult::SuccessServer
+                                ) {
+                                    player.swing_hand(pumpkin_util::Hand::Right, true);
+                                }
                             }
                             if !stack.are_equal(&before) {
                                 player.increment_stat(

@@ -24,12 +24,20 @@ impl ItemMetadata for DyeItem {
 }
 
 impl ItemBehaviour for DyeItem {
-    fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
+    fn use_on_entity(
+        &self,
+        item: &mut ItemStack,
+        player: &Player,
+        entity: Arc<dyn EntityBase>,
+    ) -> crate::block::registry::BlockActionResult {
         // DyeItem.java:21: `target instanceof Sheep sheep && sheep.isAlive() && !sheep.isSheared()`
         if let Some(sheep) = entity
             .cast_any()
             .downcast_ref::<crate::entity::passive::sheep::SheepEntity>()
             && entity.get_entity().is_alive()
+            && entity
+                .get_living_entity()
+                .is_some_and(|living| living.health.load() > 0.0)
             && !sheep.is_sheared()
             && let Some(color) =
                 crate::entity::passive::animal::get_dye_color_from_item(item.get_item())
@@ -48,7 +56,9 @@ impl ItemBehaviour for DyeItem {
             );
             sheep.set_color(color);
             item.decrement_unless_creative(player.gamemode.load(), 1);
+            return crate::block::registry::BlockActionResult::Success;
         }
+        crate::block::registry::BlockActionResult::Pass
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

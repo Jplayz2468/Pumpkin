@@ -1833,14 +1833,15 @@ impl DataComponentCodec<Self> for ToolImpl {
 impl DataComponentCodec<Self> for WeaponImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
         seq.write_var_int(&VarInt::from(self.item_damage_per_attack as i32))?;
-        seq.write_f32(0.0)
+        seq.write_f32(self.disable_blocking_for_seconds)
     }
 
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
         let item_damage_per_attack = seq.get_var_int()?.0 as u32;
-        let _disable_blocking_for_seconds = seq.get_f32()?;
+        let disable_blocking_for_seconds = seq.get_f32()?;
         Ok(Self {
             item_damage_per_attack,
+            disable_blocking_for_seconds,
         })
     }
 }
@@ -1921,56 +1922,99 @@ impl DataComponentCodec<Self> for DeathProtectionImpl {
 
 impl DataComponentCodec<Self> for BlocksAttacksImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_f32(0.0)?;
-        seq.write_f32(1.0)?;
-        seq.write_var_int(&VarInt(0))?;
-        seq.write_var_int(&VarInt(0))?;
-        seq.write_bool(false)?;
-        seq.write_bool(false)?;
-        seq.write_bool(false)
+        seq.write_f32(self.block_delay_seconds)?;
+        seq.write_f32(self.disable_cooldown_scale)?;
+        seq.write_var_int(&VarInt(self.damage_reductions.len() as i32))?;
+        for reduction in self.damage_reductions.iter() {
+            seq.write_f32(reduction.horizontal_blocking_angle)?;
+            seq.write_bool(reduction.damage_types.is_some())?;
+            if let Some(types) = &reduction.damage_types {
+                serialize_idset(types, seq)?;
+            }
+            seq.write_f32(reduction.base)?;
+            seq.write_f32(reduction.factor)?;
+        }
+        // ItemDamageFunction is three floats, not a tagged union/discriminator.
+        seq.write_f32(self.item_damage.threshold)?;
+        seq.write_f32(self.item_damage.base)?;
+        seq.write_f32(self.item_damage.factor)?;
+        seq.write_bool(self.bypassed_by.is_some())?;
+        if let Some(types) = &self.bypassed_by {
+            serialize_idset(types, seq)?;
+        }
+        for sound in [&self.block_sound, &self.disabled_sound] {
+            seq.write_bool(sound.is_some())?;
+            if let Some(sound) = sound {
+                crate::IdOr::<crate::SoundEvent>::write(
+                    &data_to_proto_sound(sound),
+                    seq,
+                    |w, e| {
+                        w.write_string(&e.sound_name)?;
+                        w.write_option(&e.range, |w, range| w.write_f32(*range))
+                    },
+                )?;
+            }
+        }
+        Ok(())
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let _block_delay = seq.get_f32()?;
-        let _disable_scale = seq.get_f32()?;
-        let red_len = seq.get_var_int()?.0 as usize;
-        for _ in 0..red_len {
-            let _ = seq.get_f32()?;
-            if seq.get_bool()? {
-                let id_type = seq.get_var_int()?.0;
-                if id_type == 0 {
-                    let _ = seq.get_str()?;
-                } else if id_type > 0 {
-                    for _ in 0..(id_type - 1) {
-                        let _ = seq.get_var_int()?;
-                    }
-                }
+        let block_delay_seconds = seq.get_f32()?;
+        let disable_cooldown_scale = seq.get_f32()?;
+        let count = seq.get_var_int()?.0;
+        if !(0..=65536).contains(&count) {
+            return Err(ReadingError::Message(
+                "Invalid blocking reduction count".into(),
+            ));
+        }
+        let mut damage_reductions = Vec::with_capacity(count as usize);
+        for _ in 0..count {
+            damage_reductions.push(BlockingDamageReduction {
+                horizontal_blocking_angle: seq.get_f32()?,
+                damage_types: if seq.get_bool()? {
+                    Some(deserialize_idset(seq)?)
+                } else {
+                    None
+                },
+                base: seq.get_f32()?,
+                factor: seq.get_f32()?,
+            });
+        }
+        let item_damage = BlockingItemDamage {
+            threshold: seq.get_f32()?,
+            base: seq.get_f32()?,
+            factor: seq.get_f32()?,
+        };
+        let bypassed_by = if seq.get_bool()? {
+            Some(deserialize_idset(seq)?)
+        } else {
+            None
+        };
+        let mut read_sound = || -> Result<Option<IdOr<SoundEvent>>, ReadingError> {
+            if !seq.get_bool()? {
+                return Ok(None);
             }
-            let _ = seq.get_f32()?;
-            let _ = seq.get_f32()?;
-        }
-        let item_damage_type = seq.get_var_int()?.0;
-        if item_damage_type == 1 {
-            let _ = seq.get_f32()?;
-            let _ = seq.get_f32()?;
-        }
-        if seq.get_bool()? {
-            let id_type = seq.get_var_int()?.0;
-            if id_type == 0 {
-                let _ = seq.get_str()?;
-            } else if id_type > 0 {
-                for _ in 0..(id_type - 1) {
-                    let _ = seq.get_var_int()?;
-                }
-            }
-        }
-        if seq.get_bool()? {
-            let _ = seq.get_var_int()?;
-        }
-        if seq.get_bool()? {
-            let _ = seq.get_var_int()?;
-        }
-        Ok(Self)
+            let proto = crate::IdOr::<crate::SoundEvent>::read(seq, |r| {
+                Ok(crate::SoundEvent {
+                    sound_name: r.get_str()?.to_string(),
+                    range: r.get_option(NetworkReadExt::get_f32)?,
+                })
+            })
+            .map_err(|e| ReadingError::Message(format!("Invalid blocking sound: {e}")))?;
+            Ok(Some(proto_to_data_sound(&proto).ok_or_else(|| {
+                ReadingError::Message("Unknown blocking sound".into())
+            })?))
+        };
+        let block_sound = read_sound()?;
+        let disabled_sound = read_sound()?;
+        Ok(Self {
+            block_delay_seconds,
+            disable_cooldown_scale,
+            damage_reductions: Cow::Owned(damage_reductions),
+            item_damage,
+            bypassed_by,
+            block_sound,
+            disabled_sound,
+        })
     }
 }
 

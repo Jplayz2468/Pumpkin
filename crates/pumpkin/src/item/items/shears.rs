@@ -30,31 +30,10 @@ impl ItemMetadata for ShearsItem {
     }
 }
 
-const fn get_wool_item_for_color(color: u8) -> &'static Item {
-    match color {
-        0 => &Item::WHITE_WOOL,
-        1 => &Item::ORANGE_WOOL,
-        2 => &Item::MAGENTA_WOOL,
-        3 => &Item::LIGHT_BLUE_WOOL,
-        4 => &Item::YELLOW_WOOL,
-        5 => &Item::LIME_WOOL,
-        6 => &Item::PINK_WOOL,
-        7 => &Item::GRAY_WOOL,
-        8 => &Item::LIGHT_GRAY_WOOL,
-        9 => &Item::CYAN_WOOL,
-        10 => &Item::PURPLE_WOOL,
-        11 => &Item::BLUE_WOOL,
-        12 => &Item::BROWN_WOOL,
-        13 => &Item::GREEN_WOOL,
-        14 => &Item::RED_WOOL,
-        _ => &Item::BLACK_WOOL,
-    }
-}
-
 impl ItemBehaviour for ShearsItem {
     fn use_on_block(
         &self,
-        _item: &mut ItemStack,
+        item: &mut ItemStack,
         player: &Player,
         location: BlockPos,
         _face: BlockDirection,
@@ -65,11 +44,11 @@ impl ItemBehaviour for ShearsItem {
         let world = player.world();
         let state_id = world.get_block_state_id(&location);
 
-        if handle_growing_plant(player, &location, block, state_id) {
+        if handle_growing_plant(item, player, &location, block, state_id) {
             return BlockActionResult::Success;
         }
 
-        if handle_beehive(player, &location, block, state_id) {
+        if handle_beehive(item, player, &location, block, state_id) {
             return BlockActionResult::Success;
         }
 
@@ -81,48 +60,13 @@ impl ItemBehaviour for ShearsItem {
         BlockActionResult::Pass
     }
 
-    fn use_on_entity(&self, _item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
-        if let Some(sheep) = entity
-            .cast_any()
-            .downcast_ref::<crate::entity::passive::sheep::SheepEntity>()
-            && !sheep.is_sheared()
-        {
-            if let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id)
-                && let Some(server) = player.world().server.upgrade()
-            {
-                let mut event = crate::plugin::api::events::player::player_shear_entity::PlayerShearEntityEvent {
-                    player: player_arc,
-                    entity_id: sheep.mob_entity.living_entity.entity.entity_id,
-                    hand: 0,
-                    cancelled: false,
-                };
-                server.plugin_manager.fire_blocking(&server, &mut event);
-                if event.cancelled {
-                    return;
-                }
-            }
-            sheep.set_sheared(true);
-            let world = player.world();
-            let pos = sheep.mob_entity.living_entity.entity.pos.load();
-            world.play_sound(Sound::EntitySheepShear, SoundCategory::Players, &pos);
-
-            let wool_count = (rand::random::<u8>() % 3 + 1) as u8;
-            let wool_item = get_wool_item_for_color(sheep.get_color());
-            let item_entity = Arc::new(ItemEntity::new(
-                Entity::new(world.clone(), pos, &EntityType::ITEM),
-                ItemStack::new(wool_count, wool_item),
-            ));
-            world.spawn_entity(item_entity);
-            player.damage_held_item(1);
-        }
-    }
-
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
 fn handle_growing_plant(
+    item: &mut ItemStack,
     player: &Player,
     location: &BlockPos,
     block: &Block,
@@ -153,12 +97,19 @@ fn handle_growing_plant(
         SoundCategory::Blocks,
         &location.to_f64(),
     );
-    world.emit_game_event(GameEvent::BlockChange.name(), location.to_centered_f64());
-    player.damage_held_item(1);
+    world.emit_game_event_with_source(
+        GameEvent::BlockChange.name(),
+        location.to_centered_f64(),
+        Some(player.living_entity.entity.entity_id),
+    );
+    if player.gamemode.load() != pumpkin_util::GameMode::Creative {
+        let _ = item.damage_item(1);
+    }
     true
 }
 
 fn handle_beehive(
+    item: &mut ItemStack,
     player: &Player,
     location: &BlockPos,
     block: &Block,
@@ -200,7 +151,11 @@ fn handle_beehive(
     // BeehiveBlock.java:166 plays this at the player's position, not the hive's.
     let player_pos = player.living_entity.entity.pos.load();
     world.play_sound(Sound::BlockBeehiveShear, SoundCategory::Blocks, &player_pos);
-    world.emit_game_event(GameEvent::Shear.name(), location.to_centered_f64());
+    world.emit_game_event_with_source(
+        GameEvent::Shear.name(),
+        location.to_centered_f64(),
+        Some(player.living_entity.entity.entity_id),
+    );
 
     // BeehiveBlock.java useItemOn (~line 175): shearing at max honey only angers nearby bees
     // when the hive isn't sitting in campfire smoke (BeehiveBlock.java:189-197). We don't yet
@@ -220,6 +175,8 @@ fn handle_beehive(
         ));
         world.spawn_entity(item_entity);
     }
-    player.damage_held_item(1);
+    if player.gamemode.load() != pumpkin_util::GameMode::Creative {
+        let _ = item.damage_item(1);
+    }
     true
 }

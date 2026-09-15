@@ -77,7 +77,11 @@ impl ItemBehaviour for AxeItem {
             }
 
             world.set_block_state(&location, result.new_state_id, BlockFlags::NOTIFY_ALL);
-            world.emit_game_event(GameEvent::BlockChange.name(), location.to_centered_f64());
+            world.emit_game_event_with_source(
+                GameEvent::BlockChange.name(),
+                location.to_centered_f64(),
+                Some(player.living_entity.entity.entity_id),
+            );
 
             if player.gamemode.load() != GameMode::Creative {
                 let _ = item.damage_item(i32::from(result.entry.item_damage_per_use));

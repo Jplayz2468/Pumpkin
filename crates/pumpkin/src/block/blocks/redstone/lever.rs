@@ -22,7 +22,7 @@ use crate::{
     world::World,
 };
 
-fn toggle_lever(world: &Arc<World>, block_pos: &BlockPos) {
+fn toggle_lever(world: &Arc<World>, block_pos: &BlockPos, source_entity: Option<i32>) {
     let (block, state) = world.get_block_and_state_id(block_pos);
 
     let mut lever_props = LeverLikeProperties::from_state_id(state);
@@ -42,7 +42,11 @@ fn toggle_lever(world: &Arc<World>, block_pos: &BlockPos) {
     } else {
         GameEvent::BlockDeactivate
     };
-    world.emit_game_event(game_event.name(), block_pos.to_centered_f64());
+    world.emit_game_event_with_source(
+        game_event.name(),
+        block_pos.to_centered_f64(),
+        source_entity,
+    );
 }
 
 fn play_lever_sound(world: &Arc<World>, block_pos: &BlockPos, powered: bool) {
@@ -60,7 +64,11 @@ pub struct LeverBlock;
 
 impl BlockBehaviour for LeverBlock {
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        toggle_lever(args.world, args.position);
+        toggle_lever(
+            args.world,
+            args.position,
+            Some(args.player.living_entity.entity.entity_id),
+        );
         BlockActionResult::Consume
     }
 
@@ -202,4 +210,3 @@ mod tests {
         assert_eq!(strong_power(props, BlockDirection::North), 0);
     }
 }
-

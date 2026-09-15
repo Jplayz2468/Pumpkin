@@ -227,7 +227,7 @@ impl ArmadilloEntity {
         }
     }
 
-    pub fn brush_off_scute(&self, player: &Arc<Player>) -> bool {
+    pub fn brush_off_scute(&self, _player: &Arc<Player>) -> bool {
         if self.is_baby() {
             return false;
         }
@@ -240,7 +240,6 @@ impl ArmadilloEntity {
         ));
         world.spawn_entity(item_entity);
         world.play_sound(Sound::EntityArmadilloBrush, SoundCategory::Neutral, &pos);
-        player.damage_held_item(16);
         true
     }
 
@@ -416,6 +415,9 @@ impl Mob for ArmadilloEntity {
 
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         if item_stack.item == &Item::BRUSH && self.brush_off_scute(player) {
+            if player.gamemode.load() != pumpkin_util::GameMode::Creative {
+                let _ = item_stack.damage_item(16);
+            }
             return true;
         }
         if self.is_scared() {

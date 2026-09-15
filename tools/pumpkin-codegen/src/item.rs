@@ -486,8 +486,28 @@ impl ToTokens for ItemComponents {
             }), });
         }
 
-        if self.blocks_attacks.is_some() {
-            tokens.extend(quote! { (BlocksAttacks, &BlocksAttacksImpl), });
+        if let Some(component) = &self.blocks_attacks {
+            let delay = float_literal(component.block_delay_seconds);
+            let scale = float_literal(component.disable_cooldown_scale);
+            let reductions = component.damage_reductions.iter().map(|r| {
+                let angle = float_literal(r.horizontal_blocking_angle);
+                let types = damage_holder_set_tokens(r.damage_types.as_ref());
+                let base = float_literal(r.base);
+                let factor = float_literal(r.factor);
+                quote! { BlockingDamageReduction { horizontal_blocking_angle: #angle, damage_types: #types, base: #base, factor: #factor } }
+            });
+            let threshold = float_literal(component.item_damage.threshold);
+            let base = float_literal(component.item_damage.base);
+            let factor = float_literal(component.item_damage.factor);
+            let bypass = damage_holder_set_tokens(component.bypassed_by.as_ref());
+            let block_sound = optional_sound_tokens(component.block_sound.as_deref());
+            let disabled_sound = optional_sound_tokens(component.disabled_sound.as_deref());
+            tokens.extend(quote! { (BlocksAttacks, &BlocksAttacksImpl {
+                block_delay_seconds: #delay, disable_cooldown_scale: #scale,
+                damage_reductions: Cow::Borrowed(&[#(#reductions),*]),
+                item_damage: BlockingItemDamage { threshold: #threshold, base: #base, factor: #factor },
+                bypassed_by: #bypass, block_sound: #block_sound, disabled_sound: #disabled_sound,
+            }), });
         }
 
         if self.death_protection.is_some() {
@@ -499,7 +519,8 @@ impl ToTokens for ItemComponents {
                 &weapon.item_damage_per_attack.to_string(),
                 Span::call_site(),
             );
-            tokens.extend(quote! { (Weapon, &WeaponImpl { item_damage_per_attack: #damage }), });
+            let disable = float_literal(weapon.disable_blocking_for_seconds);
+            tokens.extend(quote! { (Weapon, &WeaponImpl { item_damage_per_attack: #damage, disable_blocking_for_seconds: #disable }), });
         }
 
         if let Some(damage_resistant) = &self.damage_resistant {
@@ -1009,7 +1030,9 @@ impl ToTokens for ItemComponents {
                 .id
                 .strip_prefix("minecraft:")
                 .unwrap_or(use_remainder.id.as_str());
-            tokens.extend(quote! { (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed(#item_key) }), });
+            tokens.extend(
+                quote! { (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed(#item_key) }), },
+            );
         }
         if self.writable_book_content.is_some() {
             tokens.extend(
@@ -1152,13 +1175,13 @@ pub struct DeathProtection {
     // TODO
 }
 
-/// Deserialized attack-blocking component (e.g., shield); fields are unimplemented.
+/// Weapon durability cost and the duration for which a blocked melee hit disables blocking.
 #[derive(Deserialize, Clone)]
 pub struct WeaponComponent {
     #[serde(default = "default_item_damage")]
     pub item_damage_per_attack: u32,
-    // TODO: Add disable_blocking_for_seconds parsing when shield-disable mechanic is implemented.
-    // This preserves round-trip fidelity for vanilla items and datapacks.
+    #[serde(default)]
+    pub disable_blocking_for_seconds: f32,
 }
 
 #[derive(Deserialize, Clone)]
@@ -1270,7 +1293,74 @@ fn kinetic_condition_tokens(condition: Option<&KineticConditionComponent>) -> To
 
 #[derive(Deserialize, Clone)]
 pub struct BlocksAttacks {
-    // TODO
+    #[serde(default)]
+    pub block_delay_seconds: f32,
+    #[serde(default = "return_1f32")]
+    pub disable_cooldown_scale: f32,
+    #[serde(default = "default_blocking_reductions")]
+    pub damage_reductions: Vec<BlockingReductionComponent>,
+    #[serde(default)]
+    pub item_damage: BlockingItemDamageComponent,
+    pub bypassed_by: Option<StringOrList>,
+    pub block_sound: Option<String>,
+    pub disabled_sound: Option<String>,
+}
+#[derive(Deserialize, Clone)]
+pub struct BlockingReductionComponent {
+    #[serde(default = "default_blocking_angle")]
+    pub horizontal_blocking_angle: f32,
+    #[serde(rename = "type")]
+    pub damage_types: Option<StringOrList>,
+    pub base: f32,
+    pub factor: f32,
+}
+fn default_blocking_angle() -> f32 {
+    90.0
+}
+fn default_blocking_reductions() -> Vec<BlockingReductionComponent> {
+    vec![BlockingReductionComponent {
+        horizontal_blocking_angle: 90.0,
+        damage_types: None,
+        base: 0.0,
+        factor: 1.0,
+    }]
+}
+#[derive(Deserialize, Clone)]
+pub struct BlockingItemDamageComponent {
+    pub threshold: f32,
+    pub base: f32,
+    pub factor: f32,
+}
+impl Default for BlockingItemDamageComponent {
+    fn default() -> Self {
+        Self {
+            threshold: 1.0,
+            base: 0.0,
+            factor: 1.0,
+        }
+    }
+}
+fn damage_holder_set_tokens(value: Option<&StringOrList>) -> TokenStream {
+    let Some(value) = value else {
+        return quote! { None };
+    };
+    let ids = match value {
+        StringOrList::String(tag) if tag.starts_with('#') => {
+            let tag = tag.trim_start_matches('#');
+            return quote! { Some(IDSet::Tag(Cow::Borrowed(#tag))) };
+        }
+        StringOrList::String(id) => vec![id],
+        StringOrList::List(ids) => ids.iter().collect(),
+    };
+    let ids = ids.iter().map(|id| {
+        format_ident!(
+            "{}",
+            id.strip_prefix("minecraft:")
+                .unwrap_or(id)
+                .to_shouty_snake_case()
+        )
+    });
+    quote! { Some(IDSet::IDs(Cow::Borrowed(&[#(&crate::damage::DamageType::#ids),*]))) }
 }
 
 /// Deserialized damage-resistance component indicating which damage types the item resists.

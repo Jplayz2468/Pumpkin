@@ -31,7 +31,8 @@ use crate::entity::EntityBase;
 use crate::entity::player::Player;
 use crate::world::World;
 use crate::world::loot::fill_chest_inventory;
-use pumpkin_data::BlockState;
+use pumpkin_data::tag::Taggable;
+use pumpkin_data::{BlockState, HorizontalFacingExt};
 
 struct ChestScreenFactory(Arc<dyn Inventory>);
 
@@ -92,8 +93,10 @@ fn placed_chest_impl<E: BlockEntity + 'static>(
     args: &PlacedArgs<'_>,
     create_entity: impl FnOnce(BlockPos) -> E,
 ) {
-    let chest = create_entity(*args.position);
-    args.world.add_block_entity(Arc::new(chest));
+    if args.world.get_block_entity(args.position).is_none() {
+        let chest = create_entity(*args.position);
+        args.world.add_block_entity(Arc::new(chest));
+    }
 
     let chest_props = ChestLikeProperties::from_state_id(args.state_id);
     let connected_towards = match chest_props.r#type {
@@ -308,6 +311,13 @@ fn broken_chest_impl(args: &BrokenArgs<'_>) {
 pub struct ChestBlock;
 
 impl BlockBehaviour for ChestBlock {
+    fn get_state_for_neighbor_update(
+        &self,
+        args: crate::block::GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        chest_neighbor_state(args)
+    }
+
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         on_place_chest_impl(&args)
     }
@@ -384,7 +394,39 @@ impl crate::block::blocks::weathering_copper::WeatheringCopper for CopperChestBl
 
 impl BlockBehaviour for CopperChestBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        on_place_chest_impl(&args)
+        let state = on_place_chest_impl(&args);
+        let props = ChestLikeProperties::from_state_id(state);
+        if props.r#type == ChestType::Single {
+            return state;
+        }
+        let neighbor_pos = args.position.offset(connected_direction(props).to_offset());
+        let neighbor = args.world.get_block(&neighbor_pos);
+        if !chests_can_connect(args.block, neighbor) {
+            return state;
+        }
+        // CopperChestBlock.java:75-94: mismatched wax is removed, then the less
+        // oxidized of the two stages determines both halves through updateShape.
+        let this = unwaxed_copper_chest(args.block);
+        let other = unwaxed_copper_chest(neighbor);
+        let wax_mismatch =
+            args.block.name.starts_with("waxed_") != neighbor.name.starts_with("waxed_");
+        let age =
+            |block| super::weathering_copper::get_weather_state(block).map_or(0, |a| a.ordinal());
+        let target = if age(this) <= age(other) {
+            if wax_mismatch { this } else { args.block }
+        } else if wax_mismatch {
+            other
+        } else {
+            neighbor
+        };
+        props.to_state_id(target)
+    }
+
+    fn get_state_for_neighbor_update(
+        &self,
+        args: crate::block::GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        chest_neighbor_state(args)
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
@@ -449,6 +491,13 @@ impl BlockBehaviour for CopperChestBlock {
 pub struct TrappedChestBlock;
 
 impl BlockBehaviour for TrappedChestBlock {
+    fn get_state_for_neighbor_update(
+        &self,
+        args: crate::block::GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        chest_neighbor_state(args)
+    }
+
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         on_place_chest_impl(&args)
     }
@@ -535,7 +584,7 @@ fn compute_chest_props(
         let (clicked_block, clicked_block_state) =
             world.get_block_and_state_id(&block_pos.offset(face.to_offset()));
 
-        if clicked_block == block {
+        if chests_can_connect(block, clicked_block) {
             let clicked_props = ChestLikeProperties::from_state_id(clicked_block_state);
 
             if clicked_props.r#type != ChestType::Single {
@@ -579,6 +628,54 @@ fn compute_chest_props(
     }
 }
 
+fn unwaxed_copper_chest(block: &Block) -> &Block {
+    Block::from_name(block.name.strip_prefix("waxed_").unwrap_or(block.name)).unwrap_or(block)
+}
+
+fn chests_can_connect(block: &Block, neighbor: &Block) -> bool {
+    block == neighbor
+        || (block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_COPPER_CHESTS)
+            && neighbor.has_tag(&pumpkin_data::tag::Block::MINECRAFT_COPPER_CHESTS))
+}
+
+fn connected_direction(props: ChestLikeProperties) -> HorizontalFacing {
+    if props.r#type == ChestType::Left {
+        props.facing.rotate_clockwise()
+    } else {
+        props.facing.rotate_counter_clockwise()
+    }
+}
+
+/// ChestBlock.updateShape plus CopperChestBlock.updateShape. Copy the neighbor's
+/// copper stage into this half without changing this half's facing/type/water.
+fn chest_neighbor_state(args: crate::block::GetStateForNeighborUpdateArgs<'_>) -> BlockStateId {
+    let mut props = ChestLikeProperties::from_state_id(args.state_id);
+    super::schedule_waterlogged_tick(args.world, args.position, props.waterlogged);
+    let neighbor = Block::from_state_id(args.neighbor_state_id);
+    let mut result_block = args.block;
+    if chests_can_connect(args.block, neighbor) && args.direction.to_horizontal_facing().is_some() {
+        let other = ChestLikeProperties::from_state_id(args.neighbor_state_id);
+        if props.r#type == ChestType::Single
+            && other.r#type != ChestType::Single
+            && props.facing == other.facing
+            && connected_direction(other).to_block_direction() == args.direction.opposite()
+        {
+            props.r#type = other.r#type.opposite();
+        }
+        if args
+            .block
+            .has_tag(&pumpkin_data::tag::Block::MINECRAFT_COPPER_CHESTS)
+            && props.r#type != ChestType::Single
+            && connected_direction(props).to_block_direction() == args.direction
+        {
+            result_block = neighbor;
+        }
+    } else if connected_direction(props).to_block_direction() == args.direction {
+        props.r#type = ChestType::Single;
+    }
+    props.to_state_id(result_block)
+}
+
 fn get_chest_properties_if_can_connect(
     world: &World,
     block: &Block,
@@ -590,7 +687,7 @@ fn get_chest_properties_if_can_connect(
     let (neighbor_block, neighbor_block_state) =
         world.get_block_and_state_id(&block_pos.offset(direction.to_offset()));
 
-    if neighbor_block != block {
+    if !chests_can_connect(block, neighbor_block) {
         return None;
     }
 

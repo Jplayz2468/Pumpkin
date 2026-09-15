@@ -1,3 +1,4 @@
+use super::is_exception_for_connection;
 use crate::block::{
     BlockBehaviour, GetStateForNeighborUpdateArgs, OnPlaceArgs, PathComputationType,
 };
@@ -16,8 +17,8 @@ type IronBarsProperties = pumpkin_data::block_properties::OakFenceLikeProperties
 // `IronBarsBlock` instances with no weathering behaviour (waxing permanently strips
 // `isRandomlyTicking`/`changeOverTime`). Only the *unwaxed* progression
 // (copper_bars/exposed_copper_bars/weathered_copper_bars/oxidized_copper_bars) uses
-// `WeatheringCopperBarsBlock`, which is a separate, still-unregistered family owned
-// elsewhere (see crates/pumpkin/src/block/blocks/weathering_copper.rs).
+// `WeatheringCopperBarsBlock`, registered after this base handler; it delegates
+// connection behavior here and adds weathering (weathering_copper.rs).
 #[pumpkin_block(
     "minecraft:iron_bars",
     "minecraft:waxed_copper_bars",
@@ -40,6 +41,7 @@ impl BlockBehaviour for IronBarsBlock {
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
         let bars_props = IronBarsProperties::from_state_id(args.state_id);
+        super::schedule_waterlogged_tick(args.world, args.position, bars_props.waterlogged);
         compute_bars_state(bars_props, args.world, args.block, args.position)
     }
 
@@ -78,19 +80,4 @@ pub fn compute_bars_state(
     }
 
     bars_props.to_state_id(block)
-}
-
-/// `Block.isExceptionForConnection` (Block.java:251-259): blocks excluded from the generic
-/// "sturdy face" connection rule used by bars, panes, fences and walls even though several
-/// of them (pumpkins, melons, leaves, barriers, closed shulker boxes) have a sturdy face on
-/// every side. Mirrors `is_exception_for_connection` in `glass_panes.rs`, which implements
-/// the same vanilla method for panes.
-fn is_exception_for_connection(block: &Block) -> bool {
-    block.has_tag(&tag::Block::MINECRAFT_LEAVES)
-        || block == &Block::BARRIER
-        || block == &Block::CARVED_PUMPKIN
-        || block == &Block::JACK_O_LANTERN
-        || block == &Block::MELON
-        || block == &Block::PUMPKIN
-        || block.has_tag(&tag::Block::MINECRAFT_SHULKER_BOXES)
 }

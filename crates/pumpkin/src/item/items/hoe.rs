@@ -49,7 +49,11 @@ impl ItemBehaviour for HoeItem {
             }
 
             world.set_block_state(&location, result.new_state_id, BlockFlags::NOTIFY_ALL);
-            world.emit_game_event(GameEvent::BlockChange.name(), location.to_centered_f64());
+            world.emit_game_event_with_source(
+                GameEvent::BlockChange.name(),
+                location.to_centered_f64(),
+                Some(player.living_entity.entity.entity_id),
+            );
 
             if let Some(loot_key) = result.entry.loot
                 && let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(loot_key)

@@ -90,7 +90,7 @@ impl ItemBehaviour for BrushItem {
 
     fn use_on_block(
         &self,
-        _item: &mut ItemStack,
+        item: &mut ItemStack,
         player: &Player,
         location: BlockPos,
         _face: BlockDirection,
@@ -157,6 +157,9 @@ impl ItemBehaviour for BrushItem {
                 Block::GRAVEL.default_state.id
             };
 
+            // Read the saved archaeology item before replacing the block removes
+            // its block entity and with it the structure's loot table/seed.
+            let loot_item = get_archaeology_loot(is_sand, location, &world);
             world.set_block_state(&location, replacement_state_id, BlockFlags::NOTIFY_ALL);
 
             // BrushableBlockEntity#brushingCompleted plays no direct SoundEvent; it fires
@@ -172,7 +175,6 @@ impl ItemBehaviour for BrushItem {
                 i32::from(current_state_id.as_u16()),
             );
 
-            let loot_item = get_archaeology_loot(is_sand, location, &world);
             let spawn_pos = Vector3::new(
                 f64::from(location.0.x) + 0.5,
                 f64::from(location.0.y) + 1.0,
@@ -188,7 +190,9 @@ impl ItemBehaviour for BrushItem {
             // `BrushableBlockEntity#brush` returns true, which happens solely on the
             // final call that completes the block (BrushItem.java:82-92,
             // BrushableBlockEntity.java:60-82) -- not on every intermediate dusted stage.
-            player.damage_held_item(1);
+            if player.gamemode.load() != pumpkin_util::GameMode::Creative {
+                let _ = item.damage_item(1);
+            }
         }
 
         let stack = player.inventory().held_item();
@@ -197,38 +201,6 @@ impl ItemBehaviour for BrushItem {
             .set_active_hand(pumpkin_util::Hand::Right, stack, Self::USE_DURATION);
 
         BlockActionResult::Success
-    }
-
-    fn use_on_entity(&self, _item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
-        let ent = entity.get_entity();
-        if ent.entity_type == &EntityType::ARMADILLO {
-            let world = player.world();
-            world.play_sound(
-                Sound::EntityArmadilloBrush,
-                SoundCategory::Neutral,
-                &ent.pos.load(),
-            );
-
-            let item_entity = Arc::new(ItemEntity::new(
-                Entity::new(world.clone(), ent.pos.load(), &EntityType::ITEM),
-                ItemStack::new(1, &Item::ARMADILLO_SCUTE),
-            ));
-            world.spawn_entity(item_entity);
-
-            player.damage_held_item(16);
-        } else {
-            let world = player.world();
-            world.play_sound(
-                Sound::ItemBrushBrushingGeneric,
-                SoundCategory::Neutral,
-                &ent.pos.load(),
-            );
-        }
-
-        let stack = player.inventory().held_item();
-        player
-            .living_entity
-            .set_active_hand(pumpkin_util::Hand::Right, stack, Self::USE_DURATION);
     }
 
     fn get_use_duration(&self) -> i32 {

@@ -1412,12 +1412,32 @@ impl Player {
                         }
                     }
 
-                    let search_box = BoundingBox::new(
-                        Vector3::new(pos.x - 1.0, pos.y - 0.5, pos.z - 1.0),
-                        Vector3::new(pos.x + 1.0, pos.y + 0.5, pos.z + 1.0),
-                    );
+                    // Player.doSweepAttack uses the primary target's actual bounds.
+                    // A fixed box around its feet misses tall/wide entities.
+                    let search_box = victim_entity.bounding_box.load().expand(1.0, 0.25, 1.0);
+                    let own_team = self.get_team();
                     let victims = world.get_all_at_box(&search_box);
                     for other_victim in victims {
+                        let other_entity = other_victim.get_entity();
+                        let allied = own_team
+                            .as_ref()
+                            .zip(
+                                crate::entity::living::get_entity_team(other_victim.as_ref())
+                                    .as_ref(),
+                            )
+                            .is_some_and(|(own, other)| own.name == other.name);
+                        let marker = other_victim.cast_any()
+                            .downcast_ref::<crate::entity::decoration::armor_stand::ArmorStandEntity>()
+                            .is_some_and(|stand| stand.is_marker());
+                        if other_victim.get_living_entity().is_none()
+                            || allied
+                            || marker
+                            || (other_entity.pos.load() - attacker_entity.pos.load())
+                                .length_squared()
+                                >= 9.0
+                        {
+                            continue;
+                        }
                         if other_victim.get_entity().entity_id != victim_entity.entity_id
                             && other_victim.get_entity().entity_id != attacker_entity.entity_id
                         {

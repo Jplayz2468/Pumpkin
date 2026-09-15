@@ -34,6 +34,16 @@ use pumpkin_macros::pumpkin_block;
 pub struct ChainBlock;
 
 impl BlockBehaviour for ChainBlock {
+    fn get_state_for_neighbor_update(
+        &self,
+        args: crate::block::GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        let props =
+            pumpkin_data::block_properties::IronChainLikeProperties::from_state_id(args.state_id);
+        super::schedule_waterlogged_tick(args.world, args.position, props.waterlogged);
+        args.state_id
+    }
+
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props =
             pumpkin_data::block_properties::IronChainLikeProperties::default(args.block);

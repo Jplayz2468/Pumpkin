@@ -137,12 +137,45 @@ pub mod brushable_block;
 pub mod cartography_table;
 pub mod creaking_heart;
 pub mod decorated_pot;
+pub mod dried_ghast;
 pub mod fletching_table;
 pub mod loom;
 pub mod smithing_table;
-pub mod dried_ghast;
 pub mod sniffer_egg;
 pub mod structure_block;
 pub mod trial_spawner;
 pub mod turtle_egg;
 pub mod vault;
+
+/// SimpleWaterloggedBlock implementations schedule water when their shape is
+/// updated, even when their own block state stays unchanged.
+pub(crate) fn schedule_waterlogged_tick(
+    world: &crate::world::World,
+    pos: &pumpkin_util::math::position::BlockPos,
+    waterlogged: bool,
+) {
+    if waterlogged {
+        let water = &pumpkin_data::fluid::Fluid::WATER;
+        world.schedule_fluid_tick(
+            water,
+            *pos,
+            water.flow_speed as u32,
+            pumpkin_world::tick::TickPriority::Normal,
+        );
+    }
+}
+
+/// Block.java:isExceptionForConnection, shared by panes, bars, fences and walls.
+pub(crate) fn is_exception_for_connection(block: &pumpkin_data::Block) -> bool {
+    use pumpkin_data::{
+        Block,
+        tag::{self, Taggable},
+    };
+    block.has_tag(&tag::Block::MINECRAFT_LEAVES)
+        || block == &Block::BARRIER
+        || block == &Block::CARVED_PUMPKIN
+        || block == &Block::JACK_O_LANTERN
+        || block == &Block::MELON
+        || block == &Block::PUMPKIN
+        || block.has_tag(&tag::Block::MINECRAFT_SHULKER_BOXES)
+}

@@ -182,7 +182,11 @@ impl Mob for GoatEntity {
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
         let item = item_stack.get_item();
         if item == &Item::BUCKET && !self.is_baby() {
-            item_stack.decrement_unless_creative(player.gamemode.load(), 1);
+            crate::item::items::bucket::exchange_bucket_stack(
+                player,
+                item_stack,
+                &Item::MILK_BUCKET,
+            );
             let entity = self.get_entity();
             let world = entity.world.load();
             let sound = if self.is_screaming() {

@@ -209,7 +209,12 @@ impl ItemBehaviour for SpawnEggItem {
         }
     }
 
-    fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
+    fn use_on_entity(
+        &self,
+        item: &mut ItemStack,
+        player: &Player,
+        entity: Arc<dyn EntityBase>,
+    ) -> crate::block::registry::BlockActionResult {
         if let Some(entity_type) = entity_from_egg(item.item.id)
             && entity.get_entity().entity_type.id == entity_type.id
         {
@@ -227,7 +232,9 @@ impl ItemBehaviour for SpawnEggItem {
             apply_entity_variant(item, mob.as_ref());
             world.spawn_entity(mob);
             item.decrement_unless_creative(player.gamemode.load(), 1);
+            return crate::block::registry::BlockActionResult::Success;
         }
+        crate::block::registry::BlockActionResult::Pass
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

@@ -132,8 +132,11 @@ impl SculkShriekerBlock {
         world.set_block_state(pos, props.to_state_id(block), BlockFlags::NOTIFY_LISTENERS);
         world.schedule_block_tick(block, *pos, SHRIEK_TICKS, TickPriority::Normal);
         world.sync_world_event(WorldEvent::ParticlesSculkShriek, *pos, 0);
-        // The shared vibration listener/attributed game-event pipeline is D5.
-        world.emit_game_event("minecraft:shriek", pos.to_centered_f64());
+        world.emit_game_event_with_source(
+            "minecraft:shriek",
+            pos.to_centered_f64(),
+            Some(player.get_entity().entity_id),
+        );
         true
     }
 

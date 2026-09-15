@@ -6,6 +6,7 @@ pub struct DamageType {
     pub exhaustion: f32,
     pub effects: Option<DamageEffects>,
     pub message_id: &'static str,
+    pub resource_name: &'static str,
     pub scaling: DamageScaling,
     pub id: u8,
 }
@@ -32,6 +33,7 @@ pub enum DamageScaling {
 }
 impl DamageType {
     pub const ARROW: DamageType = DamageType {
+        resource_name: "arrow",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -40,6 +42,7 @@ impl DamageType {
         id: 0,
     };
     pub const BAD_RESPAWN_POINT: DamageType = DamageType {
+        resource_name: "bad_respawn_point",
         death_message_type: DeathMessageType::IntentionalGameDesign,
         exhaustion: 0.1f32,
         effects: None,
@@ -48,6 +51,7 @@ impl DamageType {
         id: 1,
     };
     pub const CACTUS: DamageType = DamageType {
+        resource_name: "cactus",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -56,6 +60,7 @@ impl DamageType {
         id: 2,
     };
     pub const CAMPFIRE: DamageType = DamageType {
+        resource_name: "campfire",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: Some(DamageEffects::Burning),
@@ -64,6 +69,7 @@ impl DamageType {
         id: 3,
     };
     pub const CRAMMING: DamageType = DamageType {
+        resource_name: "cramming",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -72,6 +78,7 @@ impl DamageType {
         id: 4,
     };
     pub const DRAGON_BREATH: DamageType = DamageType {
+        resource_name: "dragon_breath",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -80,6 +87,7 @@ impl DamageType {
         id: 5,
     };
     pub const DROWN: DamageType = DamageType {
+        resource_name: "drown",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: Some(DamageEffects::Drowning),
@@ -88,6 +96,7 @@ impl DamageType {
         id: 6,
     };
     pub const DRY_OUT: DamageType = DamageType {
+        resource_name: "dry_out",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -96,6 +105,7 @@ impl DamageType {
         id: 7,
     };
     pub const ENDER_PEARL: DamageType = DamageType {
+        resource_name: "ender_pearl",
         death_message_type: DeathMessageType::FallVariants,
         exhaustion: 0f32,
         effects: None,
@@ -104,6 +114,7 @@ impl DamageType {
         id: 8,
     };
     pub const EXPLOSION: DamageType = DamageType {
+        resource_name: "explosion",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -112,6 +123,7 @@ impl DamageType {
         id: 9,
     };
     pub const FALL: DamageType = DamageType {
+        resource_name: "fall",
         death_message_type: DeathMessageType::FallVariants,
         exhaustion: 0f32,
         effects: None,
@@ -120,6 +132,7 @@ impl DamageType {
         id: 10,
     };
     pub const FALLING_ANVIL: DamageType = DamageType {
+        resource_name: "falling_anvil",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -128,6 +141,7 @@ impl DamageType {
         id: 11,
     };
     pub const FALLING_BLOCK: DamageType = DamageType {
+        resource_name: "falling_block",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -136,6 +150,7 @@ impl DamageType {
         id: 12,
     };
     pub const FALLING_STALACTITE: DamageType = DamageType {
+        resource_name: "falling_stalactite",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -144,6 +159,7 @@ impl DamageType {
         id: 13,
     };
     pub const FIREBALL: DamageType = DamageType {
+        resource_name: "fireball",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: Some(DamageEffects::Burning),
@@ -152,6 +168,7 @@ impl DamageType {
         id: 14,
     };
     pub const FIREWORKS: DamageType = DamageType {
+        resource_name: "fireworks",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -160,6 +177,7 @@ impl DamageType {
         id: 15,
     };
     pub const FLY_INTO_WALL: DamageType = DamageType {
+        resource_name: "fly_into_wall",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -168,6 +186,7 @@ impl DamageType {
         id: 16,
     };
     pub const FREEZE: DamageType = DamageType {
+        resource_name: "freeze",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: Some(DamageEffects::Freezing),
@@ -176,6 +195,7 @@ impl DamageType {
         id: 17,
     };
     pub const GENERIC: DamageType = DamageType {
+        resource_name: "generic",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -184,6 +204,7 @@ impl DamageType {
         id: 18,
     };
     pub const GENERIC_KILL: DamageType = DamageType {
+        resource_name: "generic_kill",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -192,6 +213,7 @@ impl DamageType {
         id: 19,
     };
     pub const HOT_FLOOR: DamageType = DamageType {
+        resource_name: "hot_floor",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: Some(DamageEffects::Burning),
@@ -200,6 +222,7 @@ impl DamageType {
         id: 20,
     };
     pub const IN_FIRE: DamageType = DamageType {
+        resource_name: "in_fire",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: Some(DamageEffects::Burning),
@@ -208,6 +231,7 @@ impl DamageType {
         id: 21,
     };
     pub const IN_WALL: DamageType = DamageType {
+        resource_name: "in_wall",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -216,6 +240,7 @@ impl DamageType {
         id: 22,
     };
     pub const INDIRECT_MAGIC: DamageType = DamageType {
+        resource_name: "indirect_magic",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -224,6 +249,7 @@ impl DamageType {
         id: 23,
     };
     pub const LAVA: DamageType = DamageType {
+        resource_name: "lava",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: Some(DamageEffects::Burning),
@@ -232,6 +258,7 @@ impl DamageType {
         id: 24,
     };
     pub const LIGHTNING_BOLT: DamageType = DamageType {
+        resource_name: "lightning_bolt",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -240,6 +267,7 @@ impl DamageType {
         id: 25,
     };
     pub const MACE_SMASH: DamageType = DamageType {
+        resource_name: "mace_smash",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -248,6 +276,7 @@ impl DamageType {
         id: 26,
     };
     pub const MAGIC: DamageType = DamageType {
+        resource_name: "magic",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -256,6 +285,7 @@ impl DamageType {
         id: 27,
     };
     pub const MOB_ATTACK: DamageType = DamageType {
+        resource_name: "mob_attack",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -264,6 +294,7 @@ impl DamageType {
         id: 28,
     };
     pub const MOB_ATTACK_NO_AGGRO: DamageType = DamageType {
+        resource_name: "mob_attack_no_aggro",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -272,6 +303,7 @@ impl DamageType {
         id: 29,
     };
     pub const MOB_PROJECTILE: DamageType = DamageType {
+        resource_name: "mob_projectile",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -280,6 +312,7 @@ impl DamageType {
         id: 30,
     };
     pub const ON_FIRE: DamageType = DamageType {
+        resource_name: "on_fire",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: Some(DamageEffects::Burning),
@@ -288,6 +321,7 @@ impl DamageType {
         id: 31,
     };
     pub const OUT_OF_WORLD: DamageType = DamageType {
+        resource_name: "out_of_world",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -296,6 +330,7 @@ impl DamageType {
         id: 32,
     };
     pub const OUTSIDE_BORDER: DamageType = DamageType {
+        resource_name: "outside_border",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -304,6 +339,7 @@ impl DamageType {
         id: 33,
     };
     pub const PLAYER_ATTACK: DamageType = DamageType {
+        resource_name: "player_attack",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -312,6 +348,7 @@ impl DamageType {
         id: 34,
     };
     pub const PLAYER_EXPLOSION: DamageType = DamageType {
+        resource_name: "player_explosion",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -320,6 +357,7 @@ impl DamageType {
         id: 35,
     };
     pub const SONIC_BOOM: DamageType = DamageType {
+        resource_name: "sonic_boom",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -328,6 +366,7 @@ impl DamageType {
         id: 36,
     };
     pub const SPEAR: DamageType = DamageType {
+        resource_name: "spear",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -336,6 +375,7 @@ impl DamageType {
         id: 37,
     };
     pub const SPIT: DamageType = DamageType {
+        resource_name: "spit",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -344,6 +384,7 @@ impl DamageType {
         id: 38,
     };
     pub const STALAGMITE: DamageType = DamageType {
+        resource_name: "stalagmite",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -352,6 +393,7 @@ impl DamageType {
         id: 39,
     };
     pub const STARVE: DamageType = DamageType {
+        resource_name: "starve",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -360,6 +402,7 @@ impl DamageType {
         id: 40,
     };
     pub const STING: DamageType = DamageType {
+        resource_name: "sting",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -368,6 +411,7 @@ impl DamageType {
         id: 41,
     };
     pub const SULFUR_CUBE_HOT: DamageType = DamageType {
+        resource_name: "sulfur_cube_hot",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: Some(DamageEffects::Burning),
@@ -376,6 +420,7 @@ impl DamageType {
         id: 42,
     };
     pub const SWEET_BERRY_BUSH: DamageType = DamageType {
+        resource_name: "sweet_berry_bush",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: Some(DamageEffects::Poking),
@@ -384,6 +429,7 @@ impl DamageType {
         id: 43,
     };
     pub const THORNS: DamageType = DamageType {
+        resource_name: "thorns",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: Some(DamageEffects::Thorns),
@@ -392,6 +438,7 @@ impl DamageType {
         id: 44,
     };
     pub const THROWN: DamageType = DamageType {
+        resource_name: "thrown",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -400,6 +447,7 @@ impl DamageType {
         id: 45,
     };
     pub const TRIDENT: DamageType = DamageType {
+        resource_name: "trident",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -408,6 +456,7 @@ impl DamageType {
         id: 46,
     };
     pub const UNATTRIBUTED_FIREBALL: DamageType = DamageType {
+        resource_name: "unattributed_fireball",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: Some(DamageEffects::Burning),
@@ -416,6 +465,7 @@ impl DamageType {
         id: 47,
     };
     pub const WIND_CHARGE: DamageType = DamageType {
+        resource_name: "wind_charge",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -424,6 +474,7 @@ impl DamageType {
         id: 48,
     };
     pub const WITHER: DamageType = DamageType {
+        resource_name: "wither",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0f32,
         effects: None,
@@ -432,6 +483,7 @@ impl DamageType {
         id: 49,
     };
     pub const WITHER_SKULL: DamageType = DamageType {
+        resource_name: "wither_skull",
         death_message_type: DeathMessageType::Default,
         exhaustion: 0.1f32,
         effects: None,
@@ -561,7 +613,7 @@ impl Taggable for DamageType {
     }
     #[inline]
     fn registry_key(&self) -> &str {
-        self.message_id
+        self.resource_name
     }
     #[inline]
     fn registry_id(&self) -> u16 {

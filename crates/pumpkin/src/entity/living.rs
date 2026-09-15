@@ -766,12 +766,16 @@ impl LivingEntity {
     }
 
     pub fn is_blocking(&self) -> bool {
+        self.blocking_item().is_some()
+    }
+
+    fn blocking_item(&self) -> Option<ItemStack> {
         let item_in_use = self
             .item_in_use
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         if let Some(item) = item_in_use.as_ref()
-            && item.get_data_component::<BlocksAttacksImpl>().is_some()
+            && let Some(blocks) = item.get_data_component::<BlocksAttacksImpl>()
         {
             let use_time = self.item_use_time.load(Ordering::Relaxed);
             let required_time = if let Some(dyn_self) = self
@@ -788,11 +792,123 @@ impl LivingEntity {
                 ) {
                 0
             } else {
-                5
+                blocks.block_delay_ticks()
             };
-            return item.get_max_use_time() - use_time >= required_time;
+            if item.get_max_use_time() - use_time >= required_time {
+                return Some(item.clone());
+            }
         }
-        false
+        None
+    }
+
+    /// LivingEntity.applyItemBlocking and BlocksAttacks.hurtBlockingItem.
+    /// Keep the component snapshot even when durability loss breaks the item.
+    fn apply_item_blocking(
+        &self,
+        caller: &dyn EntityBase,
+        damage: f32,
+        damage_type: DamageType,
+        position: Option<Vector3<f64>>,
+        source: Option<&dyn EntityBase>,
+    ) -> (f32, Option<BlocksAttacksImpl>) {
+        let Some(stack) = self.blocking_item().filter(|_| damage > 0.0) else {
+            return (0.0, None);
+        };
+        let Some(blocks) = stack.get_data_component::<BlocksAttacksImpl>().cloned() else {
+            return (0.0, None);
+        };
+        if blocks.bypasses(damage_type)
+            || source.is_some_and(|entity| {
+                entity
+                    .cast_any()
+                    .downcast_ref::<crate::entity::projectile::arrow::ArrowEntity>()
+                    .is_some_and(|arrow| arrow.pierce_level.load(Relaxed) > 0)
+            })
+        {
+            return (0.0, Some(blocks));
+        }
+        let angle = position
+            .or_else(|| source.map(|entity| entity.get_entity().pos.load()))
+            .map_or(f64::from(std::f32::consts::PI), |origin| {
+                let delta = origin - self.entity.pos.load();
+                let direction = Vector3::new(delta.x, 0.0, delta.z).normalize();
+                let view = Vector3::rotation_vector(0.0, f64::from(self.entity.head_yaw.load()));
+                direction.dot(&view).clamp(-1.0, 1.0).acos()
+            });
+        let blocked = blocks.blocked_damage(damage_type, damage, angle);
+        // Vanilla only damages blocking items held by players.
+        if let Some(player) = caller.get_player() {
+            player.increment_stat(StatisticCategory::Used, stack.item.id as i32, 1);
+            let hand = *self
+                .active_hand
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some(hand) = hand {
+                let cost = blocks.item_damage.apply(blocked);
+                let slot = if hand == Hand::Right {
+                    EquipmentSlot::MAIN_HAND
+                } else {
+                    EquipmentSlot::OFF_HAND
+                };
+                if cost > 0
+                    && player.damage_item_in_slot(&slot, cost)
+                    && player.inventory.get_stack_in_hand(hand).is_empty()
+                {
+                    self.clear_active_hand();
+                }
+            }
+        }
+        if blocked > 0.0
+            && !damage_type.has_tag(&tag::DamageType::MINECRAFT_IS_PROJECTILE)
+            && let Some(attacker) = source
+            && let Some(living) = attacker.get_living_entity()
+        {
+            // LivingEntity.blockedByItem default impulse. Specialized mob overrides
+            // (such as the ravager stun) still require separate integration.
+            let delta = self.entity.pos.load() - attacker.get_entity().pos.load();
+            self.entity.apply_knockback(
+                knockback_after_resistance(
+                    0.5,
+                    self.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE),
+                ),
+                delta.x,
+                delta.z,
+            );
+            // Player.blockUsingItem disables only the still-present blocking item.
+            if let Some(player) = caller.get_player()
+                && self.blocking_item().is_some()
+            {
+                let active_hand = *living
+                    .active_hand
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                if active_hand != Some(Hand::Left) {
+                    let weapon = living.held_item(attacker);
+                    let seconds = weapon
+                        .get_data_component::<pumpkin_data::data_component_impl::WeaponImpl>()
+                        .map_or(0.0, |component| component.disable_blocking_for_seconds);
+                    let ticks = blocks.disable_ticks(seconds);
+                    if ticks > 0 {
+                        let group = stack
+                            .get_use_cooldown()
+                            .and_then(|c| c.cooldown_group.clone())
+                            .unwrap_or_else(|| stack.item.registry_key.to_string());
+                        player.start_cooldown(group, ticks);
+                        self.clear_active_hand();
+                        if let Some(sound) = &blocks.disabled_sound {
+                            self.entity.world.load().play_sound_event_fine(
+                                sound,
+                                SoundCategory::Players,
+                                &self.entity.pos.load(),
+                                0.8,
+                                0.8 + rand::random::<f32>() * 0.4,
+                            );
+                        }
+                    }
+                }
+            }
+        }
+        (blocked, Some(blocks))
     }
 
     pub fn heal(&self, additional_health: f32) {
@@ -2310,6 +2426,12 @@ impl LivingEntity {
                 ..Default::default()
             };
 
+            // LivingEntity.die emits before death loot (including experience).
+            world.emit_game_event_with_source(
+                "entity_die",
+                self.entity.pos.load(),
+                Some(self.entity.entity_id),
+            );
             // Drop loot
             self.drop_loot(&params);
 
@@ -3396,92 +3518,10 @@ impl LivingEntity {
             }
         }
 
-        // Check for shield blocking before armor/magic/cooldown
-        if self.is_blocking()
-            && !damage_type.has_tag(&tag::DamageType::MINECRAFT_BYPASSES_SHIELD)
-            && let Some(pos) = position
-        {
-            let player_pos = self.entity.pos.load();
-            // Vanilla uses `calculateViewVector(0.0F, this.getYHeadRot())` - the head
-            // rotation, not the body yaw (LivingEntity.java:1326).
-            let look_vec = Vector3::rotation_vector(0.0, self.entity.head_yaw.load() as f64);
-            let mut source_to_player = (player_pos - pos).normalize();
-            source_to_player.y = 0.0;
-
-            if source_to_player.dot(&look_vec) < 0.0 {
-                world.play_sound(Sound::ItemShieldBlock, SoundCategory::Players, &player_pos);
-
-                if let Some(player) = caller.get_player() {
-                    player.increment_stat(
-                        StatisticCategory::Custom,
-                        CustomStatistic::DamageBlockedByShield as i32,
-                        (amount * 10.0).round() as i32,
-                    );
-                }
-
-                let active_hand = self
-                    .active_hand
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if let Some(hand) = *active_hand {
-                    let slot = if hand == Hand::Left {
-                        EquipmentSlot::MAIN_HAND
-                    } else {
-                        EquipmentSlot::OFF_HAND
-                    };
-
-                    // Mirrors the shield's `BlocksAttacks.item_damage` default
-                    // (Items.java:1648-1669: threshold 3.0, base 1.0, factor 1.0) via
-                    // `ItemDamageFunction.apply` (BlocksAttacks.java:199-201): no
-                    // durability cost below 3 damage blocked, otherwise floor(1 + damage).
-                    // This is hardcoded to the shield's own values rather than read from
-                    // the item's data component - see report, BlocksAttacksImpl does not
-                    // carry these fields yet.
-                    let durability_damage = if amount < 3.0 {
-                        0
-                    } else {
-                        (1.0 + amount).floor() as i32
-                    };
-                    if durability_damage > 0 {
-                        if let Some(player) = caller.get_player() {
-                            let broke = player.damage_item_in_slot(&slot, durability_damage);
-                            let empty = player
-                                .inventory
-                                .get_stack_in_hand(match &slot {
-                                    EquipmentSlot::OffHand(_) => Hand::Left,
-                                    _ => Hand::Right,
-                                })
-                                .is_empty();
-                            if broke && empty {
-                                self.clear_active_hand();
-                            }
-                        } else {
-                            let mut equipment_guard = self
-                                .entity_equipment
-                                .lock()
-                                .unwrap_or_else(std::sync::PoisonError::into_inner);
-                            if let Some(stack) = equipment_guard.equipment.get_mut(&slot)
-                                && stack.damage_item(durability_damage) == DamageResult::Broken
-                            {
-                                world.send_entity_status(
-                                    &self.entity,
-                                    crate::entity::equipment_break_status(&slot),
-                                    None,
-                                );
-                                *stack = ItemStack::EMPTY.clone();
-                                let broken_stack = stack.clone();
-                                drop(equipment_guard);
-
-                                self.send_equipment_changes(&[(slot, broken_stack)]);
-                                self.clear_active_hand();
-                            }
-                        }
-                    }
-                }
-
-                return false;
-            }
-        }
+        let (damage_blocked, blocking_component) =
+            self.apply_item_blocking(caller, amount, damage_type, position, source);
+        amount -= damage_blocked;
+        let blocked = damage_blocked > 0.0;
 
         // Vanilla parity: entities in FREEZE_HURTS_EXTRA_TYPES take 5x freezing damage,
         // applied to the post-blocking damage (LivingEntity.java:1203-1205).
@@ -3620,6 +3660,12 @@ impl LivingEntity {
                     cause,
                 );
             }
+            // LivingEntity.actuallyHurt only emits after a nonzero health loss.
+            world.emit_game_event_with_source(
+                "entity_damage",
+                self.entity.pos.load(),
+                Some(self.entity.entity_id),
+            );
         }
 
         // Vanilla parity: `resolveMobResponsibleForDamage`/`resolvePlayerResponsibleForDamage`
@@ -3666,7 +3712,7 @@ impl LivingEntity {
             };
             let config = &server.advanced_config.pvp;
 
-            if config.hurt_animation {
+            if config.hurt_animation && !blocked {
                 let entity_id = self.entity.entity_id;
                 let hurt_yaw = source.map_or(0.0, |source| {
                     let src = source.get_entity().pos.load();
@@ -3688,13 +3734,28 @@ impl LivingEntity {
                 );
             }
 
-            world.broadcast_damage_event(
-                &self.entity,
-                i32::from(damage_type.id),
-                source.map(|e| e.get_entity().entity_id),
-                cause.map(|e| e.get_entity().entity_id),
-                position,
-            );
+            if blocked {
+                if let Some(sound) = blocking_component
+                    .as_ref()
+                    .and_then(|component| component.block_sound.as_ref())
+                {
+                    world.play_sound_event_fine(
+                        sound,
+                        SoundCategory::Players,
+                        &self.entity.pos.load(),
+                        1.0,
+                        0.8 + rand::random::<f32>() * 0.4,
+                    );
+                }
+            } else {
+                world.broadcast_damage_event(
+                    &self.entity,
+                    i32::from(damage_type.id),
+                    source.map(|e| e.get_entity().entity_id),
+                    cause.map(|e| e.get_entity().entity_id),
+                    position,
+                );
+            }
 
             // Vanilla parity: `dealDefaultKnockback` runs whenever NO_KNOCKBACK isn't set,
             // independent of whether the hit was fatal (LivingEntity.java:1247-1248).
@@ -3740,7 +3801,17 @@ impl LivingEntity {
             );
         }
 
-        true
+        if damage_blocked > 0.0
+            && damage_blocked < 3.4028235E37
+            && let Some(player) = caller.get_player()
+        {
+            player.increment_stat(
+                StatisticCategory::Custom,
+                CustomStatistic::DamageBlockedByShield as i32,
+                (damage_blocked * 10.0).round() as i32,
+            );
+        }
+        !blocked || amount > 0.0
     }
 
     pub fn damage(&self, caller: &dyn EntityBase, amount: f32, damage_type: DamageType) -> bool {
@@ -4546,10 +4617,7 @@ mod tests {
         // realArmor = clamp(20.0 - 20.0/4.0, 4.0, 20.0) = clamp(15.0, 4.0, 20.0) = 15.0
         // fraction = 15.0/25.0 = 0.6 -> damage * 0.4
         let result = CombatRules::get_damage_after_absorb(20.0, 20.0, 8.0, 0);
-        assert!(
-            (result - 8.0).abs() < 1e-3,
-            "expected 8.0, got {result}"
-        );
+        assert!((result - 8.0).abs() < 1e-3, "expected 8.0, got {result}");
     }
 
     /// Pins the `MIN_ARMOR_RATIO` floor (CombatRules.java:13,20): against enough damage,
@@ -4574,10 +4642,7 @@ mod tests {
         // fraction = 0.6; breach 4 -> reduction = min(4*0.15, 1.0) = 0.6
         // modified fraction = clamp(0.6 * (1.0 - 0.6), 0.0, 1.0) = 0.24 -> damage * 0.76
         let result = CombatRules::get_damage_after_absorb(10.0, 20.0, 0.0, 4);
-        assert!(
-            (result - 7.6).abs() < 1e-3,
-            "expected 7.6, got {result}"
-        );
+        assert!((result - 7.6).abs() < 1e-3, "expected 7.6, got {result}");
     }
 
     /// Pins the enchantment-protection cap (CombatRules.java:34-37): total magic armor

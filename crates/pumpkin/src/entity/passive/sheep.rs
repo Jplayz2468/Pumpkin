@@ -148,7 +148,10 @@ impl Mob for SheepEntity {
     fn mob_finalize_spawn(&self, _reason: crate::entity::spawn::SpawnReason) {
         let entity = self.get_entity();
         let world = entity.world.load();
-        self.set_color(variant::random_sheep_color(&world, &entity.block_pos.load()));
+        self.set_color(variant::random_sheep_color(
+            &world,
+            &entity.block_pos.load(),
+        ));
     }
 
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
@@ -183,7 +186,7 @@ impl Mob for SheepEntity {
     }
 
     fn mob_interact(&self, player: &Arc<Player>, item_stack: &mut ItemStack) -> bool {
-        use super::animal::{Animal, get_dye_color_from_item, get_wool_item_for_color};
+        use super::animal::{Animal, get_wool_item_for_color};
         let item = item_stack.get_item();
 
         if item == &Item::SHEARS && !self.is_sheared() && !self.is_baby() {
@@ -205,16 +208,14 @@ impl Mob for SheepEntity {
                 ItemStack::new(count, wool_item),
             ));
             world.spawn_entity(item_entity);
-            player.damage_held_item(1);
-            return true;
-        }
-
-        if let Some(color) = get_dye_color_from_item(item)
-            && !self.is_sheared()
-            && color != self.get_color()
-        {
-            self.set_color(color);
-            item_stack.decrement_unless_creative(player.gamemode.load(), 1);
+            if player.gamemode.load() != pumpkin_util::GameMode::Creative {
+                let _ = item_stack.damage_item(1);
+            }
+            world.emit_game_event_with_source(
+                "shear",
+                pos,
+                Some(player.living_entity.entity.entity_id),
+            );
             return true;
         }
 

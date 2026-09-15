@@ -133,25 +133,38 @@ impl ItemRegistry {
         stack: &mut ItemStack,
         player: &Player,
         entity: Arc<dyn EntityBase>,
-    ) {
+    ) -> crate::block::registry::BlockActionResult {
+        use crate::block::registry::BlockActionResult;
+        // Player.interactOn only falls back to ItemStack.interactLivingEntity
+        // for a nonempty stack and a living target (Player.java:842).
+        if stack.is_empty() || entity.get_living_entity().is_none() {
+            return BlockActionResult::Pass;
+        }
         let cooldown = stack.get_use_cooldown().cloned();
         let cooldown_group = cooldown
             .as_ref()
             .and_then(|c| c.cooldown_group.clone())
             .unwrap_or_else(|| stack.item.registry_key.to_string());
-
         if player.is_on_cooldown(&cooldown_group) {
-            return;
+            return BlockActionResult::Pass;
         }
-
-        let pumpkin_item = self.get_pumpkin_item(stack.item.id);
-        if let Some(pumpkin_item) = pumpkin_item {
-            pumpkin_item.use_on_entity(stack, player, entity);
+        let position = entity.get_entity().pos.load();
+        let result = self
+            .get_pumpkin_item(stack.item.id)
+            .map_or(BlockActionResult::Pass, |item| {
+                item.use_on_entity(stack, player, entity)
+            });
+        if result.consumes_action() {
+            player.world().emit_game_event_with_source(
+                "entity_interact",
+                position,
+                Some(player.living_entity.entity.entity_id),
+            );
+            if let Some(cooldown) = cooldown {
+                player.start_cooldown(cooldown_group, (cooldown.seconds * 20.0) as i32);
+            }
         }
-
-        if let Some(cooldown) = cooldown {
-            player.start_cooldown(cooldown_group, (cooldown.seconds * 20.0) as i32);
-        }
+        result
     }
 
     pub fn can_mine(&self, item: &Item, player: &Player) -> bool {

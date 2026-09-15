@@ -3984,7 +3984,12 @@ impl Item {
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
             (UseEffects, &UseEffectsImpl),
-            (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed("bowl") }),
+            (
+                UseRemainder,
+                &UseRemainderImpl {
+                    item: Cow::Borrowed("bowl"),
+                },
+            ),
         ],
     };
     pub const BELL: Self = Self {
@@ -15324,6 +15329,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 5.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 13 }),
@@ -16141,6 +16147,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 13 }),
@@ -16686,6 +16693,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 13 }),
@@ -16785,6 +16793,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 13 }),
@@ -16864,6 +16873,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 13 }),
@@ -17024,6 +17034,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 13 }),
@@ -23036,6 +23047,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 5.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 10 }),
@@ -23451,6 +23463,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 10 }),
@@ -23848,6 +23861,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 10 }),
@@ -23947,6 +23961,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 10 }),
@@ -24026,6 +24041,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 10 }),
@@ -24186,6 +24202,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 10 }),
@@ -30164,6 +30181,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 5.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 22 }),
@@ -30646,6 +30664,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 22 }),
@@ -30994,6 +31013,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 22 }),
@@ -31093,6 +31113,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 22 }),
@@ -31172,6 +31193,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 22 }),
@@ -31332,6 +31354,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 22 }),
@@ -34021,7 +34044,12 @@ impl Item {
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
             (UseEffects, &UseEffectsImpl),
-            (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed("glass_bottle") }),
+            (
+                UseRemainder,
+                &UseRemainderImpl {
+                    item: Cow::Borrowed("glass_bottle"),
+                },
+            ),
         ],
     };
     pub const HONEYCOMB: Self = Self {
@@ -35065,6 +35093,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 5.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 14 }),
@@ -35677,6 +35706,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 14 }),
@@ -36173,6 +36203,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 14 }),
@@ -36272,6 +36303,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 14 }),
@@ -36351,6 +36383,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 14 }),
@@ -36511,6 +36544,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 14 }),
@@ -41732,6 +41766,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 15 }),
@@ -43947,7 +43982,12 @@ impl Item {
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
             (UseEffects, &UseEffectsImpl),
-            (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed("bucket") }),
+            (
+                UseRemainder,
+                &UseRemainderImpl {
+                    item: Cow::Borrowed("bucket"),
+                },
+            ),
         ],
     };
     pub const MINECART: Self = Self {
@@ -45145,7 +45185,12 @@ impl Item {
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
             (UseEffects, &UseEffectsImpl),
-            (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed("bowl") }),
+            (
+                UseRemainder,
+                &UseRemainderImpl {
+                    item: Cow::Borrowed("bowl"),
+                },
+            ),
         ],
     };
     pub const MUSIC_DISC_11: Self = Self {
@@ -47275,6 +47320,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 5.0f32,
                 },
             ),
             (
@@ -47741,6 +47787,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (
@@ -48190,6 +48237,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (
@@ -48350,6 +48398,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (
@@ -48435,6 +48484,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (
@@ -48601,6 +48651,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (
@@ -57072,7 +57123,12 @@ impl Item {
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
             (UseEffects, &UseEffectsImpl),
-            (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed("glass_bottle") }),
+            (
+                UseRemainder,
+                &UseRemainderImpl {
+                    item: Cow::Borrowed("glass_bottle"),
+                },
+            ),
         ],
     };
     pub const POWDER_SNOW_BUCKET: Self = Self {
@@ -59576,7 +59632,12 @@ impl Item {
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
             (UseEffects, &UseEffectsImpl),
-            (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed("bowl") }),
+            (
+                UseRemainder,
+                &UseRemainderImpl {
+                    item: Cow::Borrowed("bowl"),
+                },
+            ),
         ],
     };
     pub const RAIL: Self = Self {
@@ -63763,7 +63824,27 @@ impl Item {
                     attribute_modifiers: Cow::Borrowed(&[]),
                 },
             ),
-            (BlocksAttacks, &BlocksAttacksImpl),
+            (
+                BlocksAttacks,
+                &BlocksAttacksImpl {
+                    block_delay_seconds: 0.25f32,
+                    disable_cooldown_scale: 1.0f32,
+                    damage_reductions: Cow::Borrowed(&[BlockingDamageReduction {
+                        horizontal_blocking_angle: 90.0f32,
+                        damage_types: None,
+                        base: 0.0f32,
+                        factor: 1.0f32,
+                    }]),
+                    item_damage: BlockingItemDamage {
+                        threshold: 3.0f32,
+                        base: 1.0f32,
+                        factor: 1.0f32,
+                    },
+                    bypassed_by: Some(IDSet::Tag(Cow::Borrowed("minecraft:bypasses_shield"))),
+                    block_sound: Some(IdOr::Id(Sound::ItemShieldBlock)),
+                    disabled_sound: Some(IdOr::Id(Sound::ItemShieldBreak)),
+                },
+            ),
             (
                 Equippable,
                 &EquippableImpl {
@@ -67674,6 +67755,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 5.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 5 }),
@@ -68018,6 +68100,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 5 }),
@@ -68117,6 +68200,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 5 }),
@@ -68265,6 +68349,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 5 }),
@@ -68393,6 +68478,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 5 }),
@@ -68602,6 +68688,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 5 }),
@@ -70918,7 +71005,12 @@ impl Item {
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
             (UseEffects, &UseEffectsImpl),
-            (UseRemainder, &UseRemainderImpl { item: Cow::Borrowed("bowl") }),
+            (
+                UseRemainder,
+                &UseRemainderImpl {
+                    item: Cow::Borrowed("bowl"),
+                },
+            ),
         ],
     };
     pub const SWEET_BERRIES: Self = Self {
@@ -72088,6 +72180,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 1 }),
@@ -80060,6 +80153,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 5.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 15 }),
@@ -80159,6 +80253,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 15 }),
@@ -80258,6 +80353,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 15 }),
@@ -80357,6 +80453,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 2,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 15 }),
@@ -80436,6 +80533,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 15 }),
@@ -80596,6 +80694,7 @@ impl Item {
                 Weapon,
                 &WeaponImpl {
                     item_damage_per_attack: 1,
+                    disable_blocking_for_seconds: 0.0f32,
                 },
             ),
             (Enchantable, &EnchantableImpl { value: 15 }),

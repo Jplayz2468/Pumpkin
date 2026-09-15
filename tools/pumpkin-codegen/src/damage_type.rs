@@ -125,6 +125,7 @@ pub fn build() -> TokenStream {
                 exhaustion: #exhaustion,
                 effects: #effects,
                 message_id: #message_id,
+                resource_name: #resource_name,
                 scaling: #scaling,
                 id: #id_lit,
             };
@@ -140,6 +141,7 @@ pub fn build() -> TokenStream {
             pub exhaustion: f32,
             pub effects: Option<DamageEffects>,
             pub message_id: &'static str,
+            pub resource_name: &'static str,
             pub scaling: DamageScaling,
             pub id: u8,
         }
@@ -195,7 +197,7 @@ pub fn build() -> TokenStream {
             }
             #[inline]
             fn registry_key(&self) -> &str {
-                self.message_id
+                self.resource_name
             }
             #[inline]
             fn registry_id(&self) -> u16 {

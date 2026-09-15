@@ -199,8 +199,8 @@ use pumpkin_data::sound::SoundCategory;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockDirection, BlockId, BlockState};
 use pumpkin_inventory::screen_handler::ScreenHandlerFactory;
-use pumpkin_util::Hand;
 use pumpkin_protocol::java::server::play::SUseItemOn;
+use pumpkin_util::Hand;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -402,6 +402,9 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(AttachedStemBlock);
     manager.register(ChainBlock);
     manager.register(LanternBlock);
+    manager.register(crate::block::blocks::weathering_copper::WeatheringCopperBarsBlock);
+    manager.register(crate::block::blocks::weathering_copper::WeatheringCopperChainBlock);
+    manager.register(crate::block::blocks::weathering_copper::WeatheringLanternBlock);
     manager.register(EndRodBlock);
     manager.register(BarrierBlock);
     manager.register(MangroveRootsBlock);
@@ -847,7 +850,13 @@ impl BlockRegistry {
         let sound_type = pumpkin_data::sound_type::sound_type_for_block(placed_block.id);
         world.play_sound_raw_expect(
             player,
-            sound_type.place_sound as u16,
+            if placed_block == &Block::POWDER_SNOW {
+                // SolidBucketItem.getPlaceSound overrides the sound only; BlockItem
+                // still computes volume and pitch from the placed block's SoundType.
+                pumpkin_data::sound::Sound::ItemBucketEmptyPowderSnow as u16
+            } else {
+                sound_type.place_sound as u16
+            },
             SoundCategory::Blocks,
             &final_block_pos.to_centered_f64(),
             (sound_type.volume + 1.0) / 2.0,
@@ -886,6 +895,12 @@ impl BlockRegistry {
             },
         );
 
+        world.emit_game_event_with_context(
+            "block_place",
+            final_block_pos.to_centered_f64(),
+            Some(player.living_entity.entity.entity_id),
+            Some(new_state),
+        );
         Ok(Some((final_block_pos, new_state)))
     }
     #[allow(clippy::expect_used)]
@@ -1346,28 +1361,34 @@ impl BlockRegistry {
         &self,
         world: &Arc<World>,
         position: &BlockPos,
-        block: &Block,
+        _block: &Block,
         flags: BlockFlags,
     ) {
-        let state_id = world.get_block_state_id(position);
-        for direction in BlockDirection::all() {
+        // Block.updateFromNeighbourShapes: each neighbor transforms the state at
+        // the original position. Writing the transformed state into each neighbor
+        // would replace the surrounding six blocks.
+        let mut state_id = world.get_block_state_id(position);
+        for direction in [
+            BlockDirection::West,
+            BlockDirection::East,
+            BlockDirection::North,
+            BlockDirection::South,
+            BlockDirection::Down,
+            BlockDirection::Up,
+        ] {
             let neighbor_pos = position.offset(direction.to_offset());
-            let neighbor_state_id = world.get_block_state_id(&neighbor_pos);
-            let pumpkin_block = self.get_pumpkin_block(block.id);
-            if let Some(pumpkin_block) = pumpkin_block {
-                let new_state =
-                    pumpkin_block.get_state_for_neighbor_update(GetStateForNeighborUpdateArgs {
-                        world,
-                        block,
-                        state_id,
-                        position,
-                        direction: direction.opposite(),
-                        neighbor_position: &neighbor_pos,
-                        neighbor_state_id,
-                    });
-                world.set_block_state(&neighbor_pos, new_state, flags);
-            }
+            let current_block = Block::from_state_id(state_id);
+            state_id = self.get_state_for_neighbor_update(
+                world,
+                current_block,
+                state_id,
+                position,
+                direction,
+                &neighbor_pos,
+                world.get_block_state_id(&neighbor_pos),
+            );
         }
+        world.set_block_state(position, state_id, flags);
     }
 
     pub fn prepare(

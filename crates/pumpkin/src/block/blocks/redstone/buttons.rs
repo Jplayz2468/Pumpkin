@@ -62,6 +62,7 @@ fn press_button(
     block_pos: &BlockPos,
     block: &Block,
     mut button_props: ButtonLikeProperties,
+    source_entity: Option<i32>,
 ) {
     button_props.powered = true;
     world.set_block_state(
@@ -73,16 +74,17 @@ fn press_button(
     world.schedule_block_tick(block, *block_pos, delay, TickPriority::Normal);
     ButtonBlock::update_neighbors(world, block_pos, button_props);
     world.play_block_sound(get_sound(block, true), SoundCategory::Blocks, *block_pos);
-    world.emit_game_event(
+    world.emit_game_event_with_source(
         GameEvent::BlockActivate.name(),
         block_pos.to_centered_f64(),
+        source_entity,
     );
 }
 
 /// Presses the button, unless it is already pressed. Returns whether it was
 /// pressed, so callers can tell the two cases apart the way vanilla's
 /// `ButtonBlock::useWithoutItem` does.
-fn click_button(world: &Arc<World>, block_pos: &BlockPos) -> bool {
+fn click_button(world: &Arc<World>, block_pos: &BlockPos, source_entity: Option<i32>) -> bool {
     let (block, state) = world.get_block_and_state_id(block_pos);
 
     let button_props = ButtonLikeProperties::from_state_id(state);
@@ -90,7 +92,7 @@ fn click_button(world: &Arc<World>, block_pos: &BlockPos) -> bool {
         return false;
     }
 
-    press_button(world, block_pos, block, button_props);
+    press_button(world, block_pos, block, button_props, source_entity);
     true
 }
 
@@ -99,7 +101,11 @@ pub struct ButtonBlock;
 
 impl BlockBehaviour for ButtonBlock {
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        if click_button(args.world, args.position) {
+        if click_button(
+            args.world,
+            args.position,
+            Some(args.player.living_entity.entity.entity_id),
+        ) {
             BlockActionResult::Success
         } else {
             BlockActionResult::Consume
@@ -116,7 +122,13 @@ impl BlockBehaviour for ButtonBlock {
                 let state = args.world.get_block_state(args.position);
                 let props = ButtonLikeProperties::from_state_id(state.id);
                 if !props.powered {
-                    press_button(args.world, args.position, args.block, props);
+                    press_button(
+                        args.world,
+                        args.position,
+                        args.block,
+                        props,
+                        Some(args.projectile.get_entity().entity_id),
+                    );
                 }
             }
         }
@@ -131,7 +143,13 @@ impl BlockBehaviour for ButtonBlock {
             {
                 let props = ButtonLikeProperties::from_state_id(args.state.id);
                 if !props.powered {
-                    press_button(args.world, args.position, args.block, props);
+                    press_button(
+                        args.world,
+                        args.position,
+                        args.block,
+                        props,
+                        Some(args.entity.get_entity().entity_id),
+                    );
                 }
             }
         }
@@ -143,23 +161,24 @@ impl BlockBehaviour for ButtonBlock {
         if props.powered {
             let should_be_pressed = if can_button_be_activated_by_arrows(args.block) {
                 let aabb = BoundingBox::from_block(args.position);
-                args.world
-                    .get_entities_at_box(&aabb)
-                    .iter()
-                    .any(|e| {
-                        let entity_type = &e.get_entity().entity_type;
-                        *entity_type == &EntityType::ARROW
-                            || *entity_type == &EntityType::SPECTRAL_ARROW
-                            || *entity_type == &EntityType::TRIDENT
-                    })
+                args.world.get_entities_at_box(&aabb).iter().any(|e| {
+                    let entity_type = &e.get_entity().entity_type;
+                    *entity_type == &EntityType::ARROW
+                        || *entity_type == &EntityType::SPECTRAL_ARROW
+                        || *entity_type == &EntityType::TRIDENT
+                })
             } else {
                 false
             };
 
             if should_be_pressed {
                 let delay = get_ticks_to_stay_pressed(args.block);
-                args.world
-                    .schedule_block_tick(args.block, *args.position, delay, TickPriority::Normal);
+                args.world.schedule_block_tick(
+                    args.block,
+                    *args.position,
+                    delay,
+                    TickPriority::Normal,
+                );
             } else {
                 props.powered = false;
                 args.world.set_block_state(
@@ -321,4 +340,3 @@ mod tests {
         assert_eq!(strong_power(props, BlockDirection::North), 0);
     }
 }
-

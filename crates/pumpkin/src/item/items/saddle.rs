@@ -17,7 +17,12 @@ impl ItemMetadata for SaddleItem {
 }
 
 impl ItemBehaviour for SaddleItem {
-    fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
+    fn use_on_entity(
+        &self,
+        item: &mut ItemStack,
+        player: &Player,
+        entity: Arc<dyn EntityBase>,
+    ) -> crate::block::registry::BlockActionResult {
         if let Some(mob) = entity.get_mob()
             && mob.can_be_saddled()
             && !mob.is_saddled()
@@ -33,7 +38,9 @@ impl ItemBehaviour for SaddleItem {
                 .world()
                 .play_sound(sound, SoundCategory::Neutral, &ent.pos.load());
             item.decrement_unless_creative(player.gamemode.load(), 1);
+            return crate::block::registry::BlockActionResult::Success;
         }
+        crate::block::registry::BlockActionResult::Pass
     }
 
     fn as_any(&self) -> &dyn Any {

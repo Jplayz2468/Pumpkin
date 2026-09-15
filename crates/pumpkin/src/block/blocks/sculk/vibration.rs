@@ -11,7 +11,7 @@
 //! it. That is a lookup optimisation, not a behaviour: the set of listeners it reaches is
 //! exactly "those whose radius covers the event". [`dispatch`] computes the same set by
 //! scanning the block entities in range, which is at most a few chunks because the
-//! largest listener radius in the game is 8 blocks. Registering and unregistering
+//! largest block listener radius is 16 blocks. Registering and unregistering
 //! listeners as chunks and block entities come and go is a large amount of bookkeeping
 //! for no observable difference, so it is not reproduced.
 
@@ -27,10 +27,9 @@ use crate::world::World;
 /// `VibrationSystem.NO_VIBRATION_FREQUENCY`: an event no sensor reacts to.
 pub const NO_VIBRATION_FREQUENCY: u8 = 0;
 
-/// The largest `getListenerRadius` any vibration user reports. Both the sculk sensor
-/// (SculkSensorBlockEntity.VibrationUser.LISTENER_RANGE) and the shrieker use 8, and
-/// [`dispatch`] uses this to bound its search.
-pub const MAX_LISTENER_RADIUS: i32 = 8;
+/// CalibratedSculkSensorBlockEntity.VibrationUser.getListenerRadius returns 16;
+/// ordinary sensors and shriekers use 8.
+pub const MAX_LISTENER_RADIUS: i32 = 16;
 
 /// `VibrationSystem.VIBRATION_FREQUENCY_FOR_EVENT` (VibrationSystem.java:54-99).
 ///
@@ -40,19 +39,26 @@ pub const MAX_LISTENER_RADIUS: i32 = 8;
 pub fn vibration_frequency(event: GameEvent) -> u8 {
     match event {
         GameEvent::Step | GameEvent::Swim | GameEvent::Flap => 1,
-        GameEvent::ProjectileLand | GameEvent::HitGround | GameEvent::Splash
+        GameEvent::ProjectileLand
+        | GameEvent::HitGround
+        | GameEvent::Splash
         | GameEvent::Bounce => 2,
-        GameEvent::ItemInteractFinish | GameEvent::ProjectileShoot
-        | GameEvent::InstrumentPlay => 3,
+        GameEvent::ItemInteractFinish | GameEvent::ProjectileShoot | GameEvent::InstrumentPlay => 3,
         GameEvent::EntityAction | GameEvent::ElytraGlide | GameEvent::Unequip => 4,
         GameEvent::EntityDismount | GameEvent::Equip => 5,
         GameEvent::EntityInteract | GameEvent::Shear | GameEvent::EntityMount => 6,
         GameEvent::EntityDamage => 7,
         GameEvent::Drink | GameEvent::Eat => 8,
-        GameEvent::ContainerClose | GameEvent::BlockClose | GameEvent::BlockDeactivate
+        GameEvent::ContainerClose
+        | GameEvent::BlockClose
+        | GameEvent::BlockDeactivate
         | GameEvent::BlockDetach => 9,
-        GameEvent::ContainerOpen | GameEvent::BlockOpen | GameEvent::BlockActivate
-        | GameEvent::BlockAttach | GameEvent::PrimeFuse | GameEvent::NoteBlockPlay => 10,
+        GameEvent::ContainerOpen
+        | GameEvent::BlockOpen
+        | GameEvent::BlockActivate
+        | GameEvent::BlockAttach
+        | GameEvent::PrimeFuse
+        | GameEvent::NoteBlockPlay => 10,
         GameEvent::BlockChange => 11,
         GameEvent::BlockDestroy | GameEvent::FluidPickup => 12,
         GameEvent::BlockPlace | GameEvent::FluidPlace => 13,
@@ -129,6 +135,8 @@ pub struct VibrationInfo {
     pub origin: Vector3<f64>,
     /// Entity id of whatever caused the event, if anything did.
     pub source_entity: Option<i32>,
+    pub source_uuid: Option<uuid::Uuid>,
+    pub projectile_owner_uuid: Option<uuid::Uuid>,
 }
 
 /// `VibrationSystem.Data` plus the `VibrationSelector` it owns.
@@ -142,6 +150,7 @@ pub struct VibrationData {
     travel_time: i32,
     /// The best candidate so far, with the tick it was added on.
     candidate: Option<(VibrationInfo, u64)>,
+    reload_particle: bool,
 }
 
 /// What a block must provide to listen for vibrations. `VibrationSystem.User`.
@@ -158,8 +167,13 @@ pub trait VibrationUser {
     }
 
     /// `canReceiveVibration`: a last check once the event is known to be in range.
-    fn can_receive_vibration(&self, world: &Arc<World>, origin: &BlockPos, event: GameEvent)
-    -> bool;
+    fn can_receive_vibration(
+        &self,
+        world: &Arc<World>,
+        origin: &BlockPos,
+        event: GameEvent,
+        source_entity: Option<i32>,
+    ) -> bool;
 
     /// `onReceiveVibration`: the vibration has arrived. This is where the block acts.
     fn on_receive_vibration(
@@ -177,7 +191,139 @@ pub trait VibrationUser {
     }
 }
 
+impl VibrationInfo {
+    fn new(
+        world: &World,
+        event: GameEvent,
+        distance: f32,
+        origin: Vector3<f64>,
+        source_entity: Option<i32>,
+    ) -> Self {
+        let source = source_entity.and_then(|id| world.get_entity_by_id(id));
+        let source_uuid = source.as_ref().map(|e| e.get_entity().entity_uuid);
+        let projectile_owner_uuid = source
+            .and_then(|e| e.get_owner_id())
+            .and_then(|id| world.get_entity_by_id(id))
+            .map(|e| e.get_entity().entity_uuid);
+        Self {
+            event,
+            distance,
+            origin,
+            source_entity,
+            source_uuid,
+            projectile_owner_uuid,
+        }
+    }
+
+    fn read_nbt(nbt: &pumpkin_nbt::compound::NbtCompound) -> Option<Self> {
+        use pumpkin_nbt::tag::NbtTag;
+        let event = GameEvent::from_name(nbt.get_string("game_event")?)?;
+        let distance = nbt.get_float("distance")?;
+        if !distance.is_finite() || distance < 0.0 {
+            return None;
+        }
+        let coords = nbt.get_list("pos")?;
+        let [NbtTag::Double(x), NbtTag::Double(y), NbtTag::Double(z)] = coords else {
+            return None;
+        };
+        if !x.is_finite() || !y.is_finite() || !z.is_finite() {
+            return None;
+        }
+        Some(Self {
+            event,
+            distance,
+            origin: Vector3::new(*x, *y, *z),
+            source_entity: None,
+            source_uuid: nbt.get_uuid("source"),
+            projectile_owner_uuid: nbt.get_uuid("projectile_owner"),
+        })
+    }
+
+    fn write_nbt(&self) -> pumpkin_nbt::compound::NbtCompound {
+        use pumpkin_nbt::{compound::NbtCompound, tag::NbtTag};
+        let mut nbt = NbtCompound::new();
+        nbt.put_string("game_event", format!("minecraft:{}", self.event.name()));
+        nbt.put_float("distance", self.distance);
+        nbt.put_list(
+            "pos",
+            vec![
+                NbtTag::Double(self.origin.x),
+                NbtTag::Double(self.origin.y),
+                NbtTag::Double(self.origin.z),
+            ],
+        );
+        if let Some(id) = self.source_uuid {
+            nbt.put_uuid("source", id);
+        }
+        if let Some(id) = self.projectile_owner_uuid {
+            nbt.put_uuid("projectile_owner", id);
+        }
+        nbt
+    }
+
+    fn resolve_source(&self, world: &World) -> Option<i32> {
+        let resolve = |uuid| {
+            world
+                .get_entity_by_uuid(uuid)
+                .map(|e| e.get_entity().entity_id)
+                .or_else(|| {
+                    world
+                        .get_player_by_uuid(uuid)
+                        .map(|p| p.living_entity.entity.entity_id)
+                })
+        };
+        self.source_entity
+            .filter(|id| world.get_entity_by_id(*id).is_some())
+            .or_else(|| self.source_uuid.and_then(resolve))
+            .or_else(|| self.projectile_owner_uuid.and_then(resolve))
+    }
+}
+
 impl VibrationData {
+    /// VibrationSystem.Data.CODEC and VibrationSelector.CODEC: retain both a
+    /// travelling vibration and the pending candidate across save/reload.
+    pub fn from_nbt(nbt: &pumpkin_nbt::compound::NbtCompound) -> Self {
+        let Some(listener) = nbt.get_compound("listener") else {
+            return Self::default();
+        };
+        let candidate = listener.get_compound("selector").and_then(|selector| {
+            let tick = selector.get_long("tick")?;
+            if tick < 0 {
+                return None;
+            }
+            Some((
+                VibrationInfo::read_nbt(selector.get_compound("event")?)?,
+                tick as u64,
+            ))
+        });
+        Self {
+            current: listener
+                .get_compound("event")
+                .and_then(VibrationInfo::read_nbt),
+            travel_time: listener.get_int("event_delay").unwrap_or(0).max(0),
+            candidate,
+            reload_particle: true,
+        }
+    }
+
+    pub fn write_nbt(&self, nbt: &mut pumpkin_nbt::compound::NbtCompound) {
+        use pumpkin_nbt::compound::NbtCompound;
+        let mut listener = NbtCompound::new();
+        if let Some(current) = &self.current {
+            listener.put_compound("event", current.write_nbt());
+        }
+        listener.put_int("event_delay", self.travel_time.max(0));
+        let mut selector = NbtCompound::new();
+        if let Some((candidate, time)) = &self.candidate {
+            selector.put_compound("event", candidate.write_nbt());
+            selector.put_long("tick", *time as i64);
+        } else {
+            selector.put_long("tick", -1);
+        }
+        listener.put_compound("selector", selector);
+        nbt.put_compound("listener", listener);
+    }
+
     /// `VibrationSystem.Listener.handleGameEvent` (VibrationSystem.java:211).
     ///
     /// Returns whether the event was accepted as a candidate.
@@ -206,7 +352,7 @@ impl VibrationData {
         );
 
         let origin_block = BlockPos::floored(origin.x, origin.y, origin.z);
-        if !user.can_receive_vibration(world, &origin_block, event) {
+        if !user.can_receive_vibration(world, &origin_block, event, source_entity) {
             return false;
         }
         if is_occluded(world, origin, dest) {
@@ -215,19 +361,14 @@ impl VibrationData {
 
         let distance = (origin.squared_distance_to_vec(&dest)).sqrt() as f32;
         self.add_candidate(
-            VibrationInfo {
-                event,
-                distance,
-                origin,
-                source_entity,
-            },
+            VibrationInfo::new(world, event, distance, origin, source_entity),
             game_time,
         );
         true
     }
 
     /// `VibrationSelector.addCandidate`: a new event replaces the stored one only if it
-    /// is strictly better -- higher frequency wins, and on a tie the closer one does.
+    /// is strictly better -- nearer wins, and on equal distance the higher frequency does.
     fn add_candidate(&mut self, candidate: VibrationInfo, game_time: u64) {
         let replace = match &self.candidate {
             None => true,
@@ -239,9 +380,8 @@ impl VibrationData {
                 } else {
                     let new_frequency = vibration_frequency(candidate.event);
                     let old_frequency = vibration_frequency(current.event);
-                    new_frequency > old_frequency
-                        || (new_frequency == old_frequency
-                            && candidate.distance < current.distance)
+                    candidate.distance < current.distance
+                        || (candidate.distance == current.distance && new_frequency > old_frequency)
                 }
             }
         };
@@ -306,6 +446,28 @@ pub trait VibrationListener: VibrationUser + Send + Sync {
     /// returns `self`.
     fn as_vibration_user(&self) -> &dyn VibrationUser;
 
+    /// SculkSensorBlock.stepOn uses Listener.forceScheduleVibration, which
+    /// bypasses validity and occlusion checks while retaining selector ordering.
+    fn force_vibration(
+        &self,
+        world: &World,
+        event: GameEvent,
+        origin: Vector3<f64>,
+        source_entity: Option<i32>,
+        game_time: u64,
+    ) {
+        let distance = origin
+            .squared_distance_to_vec(&self.listener_pos().to_centered_f64())
+            .sqrt() as f32;
+        self.vibration_data()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .add_candidate(
+                VibrationInfo::new(world, event, distance, origin, source_entity),
+                game_time,
+            );
+    }
+
     /// Offer a game event to this listener. `VibrationSystem.Listener.handleGameEvent`.
     fn handle_vibration(
         &self,
@@ -334,13 +496,74 @@ pub trait VibrationListener: VibrationUser + Send + Sync {
     fn tick_vibration(&self, world: &Arc<World>, game_time: u64) {
         // The lock is released before delivery: `on_receive_vibration` changes block
         // state and emits its own game events, which come back through this listener.
-        let landed = {
+        let (landed, changed) = {
             let mut data = self
                 .vibration_data()
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            data.tick(self.as_vibration_user(), game_time)
+            let mut changed = false;
+            if data.current.is_none() {
+                data.try_select_and_schedule(self.as_vibration_user(), game_time);
+                if let Some(current) = &data.current {
+                    // New vibrations get one initial particle broadcast. Only a
+                    // vibration restored from NBT retries its particle on later ticks.
+                    send_vibration_particle(
+                        world,
+                        current.origin,
+                        self.listener_pos(),
+                        data.travel_time,
+                    );
+                    changed = true;
+                }
+            }
+            if data.reload_particle {
+                if let Some(current) = &data.current {
+                    let initial = self.calculate_travel_time(current.distance);
+                    let alpha = if initial > 0 {
+                        1.0 - f64::from(data.travel_time) / f64::from(initial)
+                    } else {
+                        0.0
+                    };
+                    let origin = current.origin
+                        + (self.listener_pos().to_centered_f64() - current.origin) * alpha;
+                    data.reload_particle = !send_vibration_particle(
+                        world,
+                        origin,
+                        self.listener_pos(),
+                        data.travel_time,
+                    );
+                } else {
+                    data.reload_particle = false;
+                }
+            }
+            let landed = if data.current.is_some() {
+                let was_travelling = data.travel_time > 0;
+                data.travel_time = (data.travel_time - 1).max(0);
+                if data.travel_time == 0 {
+                    if adjacent_chunks_tick(world, self.listener_pos()) {
+                        changed = true;
+                        data.current.take()
+                    } else {
+                        None
+                    }
+                } else {
+                    changed |= was_travelling;
+                    None
+                }
+            } else {
+                None
+            };
+            (landed, changed)
         };
+        if changed {
+            // VibrationUser.onDataChanged -> BlockEntity.setChanged. This marks the
+            // chunk for saving without sending listener internals to the client.
+            world
+                .level
+                .read_chunk_sync(&self.listener_pos().chunk_position(), |chunk| {
+                    chunk.mark_dirty(true)
+                });
+        }
         let Some(landed) = landed else {
             return;
         };
@@ -356,10 +579,66 @@ pub trait VibrationListener: VibrationUser + Send + Sync {
             world,
             &origin,
             landed.event,
-            landed.source_entity,
+            landed.resolve_source(world),
             (f64::from(distance_sq).sqrt()) as f32,
         );
     }
+}
+
+fn adjacent_chunks_tick(world: &World, pos: BlockPos) -> bool {
+    let chunk = pos.chunk_position();
+    let active = world
+        .active_chunks
+        .read()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    for x in chunk.x - 1..=chunk.x + 1 {
+        for z in chunk.y - 1..=chunk.y + 1 {
+            let pos = pumpkin_util::math::vector2::Vector2::new(x, z);
+            if !active.contains(&pos) || !world.level.is_chunk_loaded(&pos) {
+                return false;
+            }
+        }
+    }
+    true
+}
+
+/// VibrationParticleOption.STREAM_CODEC: block position source (registry id 0),
+/// packed destination, then travel ticks. Send only to nearby Java players.
+fn send_vibration_particle(
+    world: &World,
+    origin: Vector3<f64>,
+    destination: BlockPos,
+    ticks: i32,
+) -> bool {
+    use pumpkin_protocol::{VarInt, java::client::play::CParticle, ser::NetworkWriteExt};
+    let mut bytes = Vec::new();
+    if bytes.write_var_int(&VarInt(0)).is_err()
+        || bytes.write_i64_be(destination.as_long()).is_err()
+        || bytes.write_var_int(&VarInt(ticks.max(0))).is_err()
+    {
+        return false;
+    }
+    let packet = CParticle::new(
+        false,
+        false,
+        origin,
+        Vector3::new(0.0, 0.0, 0.0),
+        0.0,
+        1,
+        VarInt(pumpkin_data::particle::Particle::Vibration.to_id() as i32),
+        &bytes,
+    );
+    let recipients = world.get_nearby_players(origin, 32.0);
+    let mut sent = false;
+    for player in &recipients {
+        if let crate::net::ClientPlatform::Java(client) = player.client.as_ref()
+            && let Ok(data) = client.serialize_packet(&packet)
+        {
+            client.try_enqueue_packet(data);
+            sent = true;
+        }
+    }
+    sent
 }
 
 /// `VibrationSystem.User.isValidVibration` (VibrationSystem.java:414).
@@ -395,36 +674,30 @@ fn is_valid_vibration(
         .sneaking
         .load(std::sync::atomic::Ordering::Relaxed);
     if stepping_carefully
-        && event_in_tag(event, &pumpkin_data::tag::GameEvent::MINECRAFT_IGNORE_VIBRATIONS_SNEAKING)
+        && event_in_tag(
+            event,
+            &pumpkin_data::tag::GameEvent::MINECRAFT_IGNORE_VIBRATIONS_SNEAKING,
+        )
     {
         return false;
     }
 
-    // Wool armour (and a warden's own footsteps) dampen vibrations entirely.
+    // Dropped wool items and a warden's own footsteps dampen vibrations.
     !entity_dampens_vibrations(entity.as_ref())
 }
 
-/// `Entity.dampensVibrations`. Only the wool-wearing case and the warden apply.
+/// Entity.java:1555, ItemEntity.java:85 and Warden.java:195. Equipped wool does
+/// not silence living entities; dropped items in #dampens_vibrations are silent.
 fn entity_dampens_vibrations(entity: &dyn crate::entity::EntityBase) -> bool {
-    use pumpkin_data::data_component_impl::EquipmentSlot;
     use pumpkin_data::tag::{Item, Taggable};
-
-    if entity.get_entity().entity_type == &pumpkin_data::entity::EntityType::WARDEN {
-        return true;
-    }
-    let Some(living) = entity.get_living_entity() else {
-        return false;
-    };
-    let equipment = living
-        .entity_equipment
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    equipment
-        .equipment
-        .iter()
-        .any(|(slot, stack)| *slot != EquipmentSlot::MAIN_HAND
-            && *slot != EquipmentSlot::OFF_HAND
-            && stack.item.has_tag(&Item::MINECRAFT_WOOL_CARPETS))
+    entity.get_entity().entity_type == &pumpkin_data::entity::EntityType::WARDEN
+        || entity.get_item_entity().is_some_and(|item| {
+            item.get_item_stack()
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .item
+                .has_tag(&Item::MINECRAFT_DAMPENS_VIBRATIONS)
+        })
 }
 
 /// `VibrationSystem.Listener.isOccluded` (VibrationSystem.java:263).
@@ -467,25 +740,57 @@ fn is_occluded(world: &Arc<World>, origin: Vector3<f64>, dest: Vector3<f64>) -> 
 fn ray_hits_occluding_block(world: &Arc<World>, from: Vector3<f64>, to: Vector3<f64>) -> bool {
     use pumpkin_data::tag::{Block as BlockTag, Taggable};
 
-    let delta = Vector3::new(to.x - from.x, to.y - from.y, to.z - from.z);
-    let length = (delta.x * delta.x + delta.y * delta.y + delta.z * delta.z).sqrt();
-    if length < 1.0E-7 {
-        return false;
+    // BlockGetter.traverseBlocks: traverse every intersected voxel. Sampling a
+    // ray every half block can miss arbitrarily short corner intersections.
+    let start = from + (from - to) * 1.0E-7;
+    let end = to + (to - from) * 1.0E-7;
+    let delta = end - start;
+    let mut pos = BlockPos::floored(start.x, start.y, start.z);
+    let step = [
+        delta.x.signum() as i32,
+        delta.y.signum() as i32,
+        delta.z.signum() as i32,
+    ];
+    let d = [delta.x, delta.y, delta.z];
+    let start_axes = [start.x, start.y, start.z];
+    let mut next = [f64::INFINITY; 3];
+    let mut stride = [f64::INFINITY; 3];
+    for axis in 0..3 {
+        if d[axis] != 0.0 {
+            stride[axis] = 1.0 / d[axis].abs();
+            let fraction = start_axes[axis] - start_axes[axis].floor();
+            next[axis] = stride[axis]
+                * if step[axis] > 0 {
+                    1.0 - fraction
+                } else {
+                    fraction
+                };
+        }
     }
-    // One sample per half block is enough to never skip a unit cube on the way.
-    let steps = (length * 2.0).ceil() as i32;
-    for step in 0..=steps {
-        let t = f64::from(step) / f64::from(steps);
-        let x = from.x + delta.x * t;
-        let y = from.y + delta.y * t;
-        let z = from.z + delta.z * t;
-        let pos = BlockPos::floored(x, y, z);
+    loop {
         if world
             .get_block(&pos)
             .has_tag(&BlockTag::MINECRAFT_OCCLUDES_VIBRATION_SIGNALS)
         {
             return true;
         }
+        // Strict comparisons reproduce vanilla's Z/Y/X tie-breaking.
+        let axis = if next[0] < next[1] {
+            if next[0] < next[2] { 0 } else { 2 }
+        } else if next[1] < next[2] {
+            1
+        } else {
+            2
+        };
+        if next[axis] > 1.0 {
+            break;
+        }
+        match axis {
+            0 => pos.0.x += step[0],
+            1 => pos.0.y += step[1],
+            _ => pos.0.z += step[2],
+        }
+        next[axis] += stride[axis];
     }
     false
 }
@@ -503,7 +808,10 @@ pub fn dispatch(
     // An event no sensor has a frequency for can never produce a vibration, so skip the
     // whole search rather than waking every nearby block entity for it.
     if vibration_frequency(event) == NO_VIBRATION_FREQUENCY
-        && !event_in_tag(event, &pumpkin_data::tag::GameEvent::MINECRAFT_SHRIEKER_CAN_LISTEN)
+        && !event_in_tag(
+            event,
+            &pumpkin_data::tag::GameEvent::MINECRAFT_SHRIEKER_CAN_LISTEN,
+        )
     {
         return;
     }
@@ -617,15 +925,16 @@ mod tests {
         assert_eq!(redstone_strength_for_distance(100.0, 8), 1);
     }
 
-    /// `VibrationSelector.addCandidate`: within one tick the strongest event wins, and
-    /// distance only breaks a tie.
+    /// VibrationSelector.java:46: distance takes priority; frequency breaks a tie.
     #[test]
-    fn the_strongest_candidate_in_a_tick_wins() {
+    fn the_nearest_candidate_in_a_tick_wins() {
         let at = |event, distance| VibrationInfo {
             event,
             distance,
             origin: Vector3::new(0.0, 0.0, 0.0),
             source_entity: None,
+            source_uuid: None,
+            projectile_owner_uuid: None,
         };
 
         let mut data = VibrationData::default();
@@ -633,15 +942,15 @@ mod tests {
         data.add_candidate(at(GameEvent::EntityDie, 7.0), 100); // frequency 15
         assert_eq!(
             data.candidate.as_ref().map(|(c, _)| c.event),
-            Some(GameEvent::EntityDie),
-            "a louder event must win even from further away"
+            Some(GameEvent::Step),
+            "distance takes priority over frequency"
         );
 
-        // A quieter one arriving afterwards must not displace it.
+        // An even nearer candidate replaces it regardless of frequency.
         data.add_candidate(at(GameEvent::Step, 0.5), 100);
         assert_eq!(
             data.candidate.as_ref().map(|(c, _)| c.event),
-            Some(GameEvent::EntityDie)
+            Some(GameEvent::Step)
         );
     }
 
@@ -652,6 +961,8 @@ mod tests {
             distance,
             origin: Vector3::new(0.0, 0.0, 0.0),
             source_entity: None,
+            source_uuid: None,
+            projectile_owner_uuid: None,
         };
         let mut data = VibrationData::default();
         data.add_candidate(at(5.0), 100);
@@ -677,7 +988,13 @@ mod tests {
             fn listener_pos(&self) -> BlockPos {
                 BlockPos::new(0, 0, 0)
             }
-            fn can_receive_vibration(&self, _: &Arc<World>, _: &BlockPos, _: GameEvent) -> bool {
+            fn can_receive_vibration(
+                &self,
+                _: &Arc<World>,
+                _: &BlockPos,
+                _: GameEvent,
+                _: Option<i32>,
+            ) -> bool {
                 true
             }
             fn on_receive_vibration(
@@ -698,6 +1015,8 @@ mod tests {
                 distance: 3.0,
                 origin: Vector3::new(0.0, 0.0, 0.0),
                 source_entity: None,
+                source_uuid: None,
+                projectile_owner_uuid: None,
             },
             100,
         );
