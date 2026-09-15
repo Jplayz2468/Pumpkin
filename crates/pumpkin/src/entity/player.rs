@@ -1284,8 +1284,12 @@ impl Player {
 
         let is_mace_smash = matches!(attack_type, AttackType::MaceSmash);
         if is_mace_smash {
-            let fall_distance = self.living_entity.fall_distance.load();
-            damage += 1.5 * f64::from(fall_distance);
+            let fall_distance = f64::from(self.living_entity.fall_distance.load());
+            // MaceItem.java:111-113: enchantments (e.g. Density) add a per-fall-block
+            // bonus on top of the tiered damage computed by `mace_smash_damage_bonus`.
+            let ench_bonus_per_block =
+                crate::enchantment::EnchantmentHelper::modify_fall_based_damage(&item_stack, 0.0);
+            damage += combat::mace_smash_damage_bonus(fall_distance, ench_bonus_per_block);
         }
 
         if !victim.damage_with_context(

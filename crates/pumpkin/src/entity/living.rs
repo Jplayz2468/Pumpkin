@@ -3242,7 +3242,9 @@ impl LivingEntity {
             && let Some(pos) = position
         {
             let player_pos = self.entity.pos.load();
-            let look_vec = Vector3::rotation_vector(0.0, self.entity.yaw.load() as f64);
+            // Vanilla uses `calculateViewVector(0.0F, this.getYHeadRot())` - the head
+            // rotation, not the body yaw (LivingEntity.java:1326).
+            let look_vec = Vector3::rotation_vector(0.0, self.entity.head_yaw.load() as f64);
             let mut source_to_player = (player_pos - pos).normalize();
             source_to_player.y = 0.0;
 
@@ -3268,38 +3270,51 @@ impl LivingEntity {
                         EquipmentSlot::OFF_HAND
                     };
 
-                    let durability_damage = (amount / 1.0).floor().max(1.0) as i32;
-                    if let Some(player) = caller.get_player() {
-                        let broke = player.damage_item_in_slot(&slot, durability_damage);
-                        let empty = player
-                            .inventory
-                            .get_stack_in_hand(match &slot {
-                                EquipmentSlot::OffHand(_) => Hand::Left,
-                                _ => Hand::Right,
-                            })
-                            .is_empty();
-                        if broke && empty {
-                            self.clear_active_hand();
-                        }
+                    // Mirrors the shield's `BlocksAttacks.item_damage` default
+                    // (Items.java:1648-1669: threshold 3.0, base 1.0, factor 1.0) via
+                    // `ItemDamageFunction.apply` (BlocksAttacks.java:199-201): no
+                    // durability cost below 3 damage blocked, otherwise floor(1 + damage).
+                    // This is hardcoded to the shield's own values rather than read from
+                    // the item's data component - see report, BlocksAttacksImpl does not
+                    // carry these fields yet.
+                    let durability_damage = if amount < 3.0 {
+                        0
                     } else {
-                        let mut equipment_guard = self
-                            .entity_equipment
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner);
-                        if let Some(stack) = equipment_guard.equipment.get_mut(&slot)
-                            && stack.damage_item(durability_damage) == DamageResult::Broken
-                        {
-                            world.send_entity_status(
-                                &self.entity,
-                                crate::entity::equipment_break_status(&slot),
-                                None,
-                            );
-                            *stack = ItemStack::EMPTY.clone();
-                            let broken_stack = stack.clone();
-                            drop(equipment_guard);
+                        (1.0 + amount).floor() as i32
+                    };
+                    if durability_damage > 0 {
+                        if let Some(player) = caller.get_player() {
+                            let broke = player.damage_item_in_slot(&slot, durability_damage);
+                            let empty = player
+                                .inventory
+                                .get_stack_in_hand(match &slot {
+                                    EquipmentSlot::OffHand(_) => Hand::Left,
+                                    _ => Hand::Right,
+                                })
+                                .is_empty();
+                            if broke && empty {
+                                self.clear_active_hand();
+                            }
+                        } else {
+                            let mut equipment_guard = self
+                                .entity_equipment
+                                .lock()
+                                .unwrap_or_else(std::sync::PoisonError::into_inner);
+                            if let Some(stack) = equipment_guard.equipment.get_mut(&slot)
+                                && stack.damage_item(durability_damage) == DamageResult::Broken
+                            {
+                                world.send_entity_status(
+                                    &self.entity,
+                                    crate::entity::equipment_break_status(&slot),
+                                    None,
+                                );
+                                *stack = ItemStack::EMPTY.clone();
+                                let broken_stack = stack.clone();
+                                drop(equipment_guard);
 
-                            self.send_equipment_changes(&[(slot, broken_stack)]);
-                            self.clear_active_hand();
+                                self.send_equipment_changes(&[(slot, broken_stack)]);
+                                self.clear_active_hand();
+                            }
                         }
                     }
                 }
