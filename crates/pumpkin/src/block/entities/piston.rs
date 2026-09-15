@@ -195,8 +195,16 @@ impl PistonBlockEntity {
         )
     }
 
+    /// Vanilla `PistonMovingBlockEntity.finalTick` (`PistonMovingBlockEntity.java:278`).
     pub fn finish(&self, world: &Arc<World>) {
         if self.last_progress.load() < 1.0 {
+            // Vanilla sets `progress` and `progressO` to 1.0 *before* removing the entity
+            // (`PistonMovingBlockEntity.java:280`). The block-entity tick loop iterates a
+            // snapshot taken at the start of the tick, so this entity is still ticked after
+            // it is removed here; without pinning the progress, that tick would restart the
+            // animation and shove entities for a cycle that has already ended.
+            self.current_progress.store(1.0);
+            self.last_progress.store(1.0);
             let pos = self.position;
             world.remove_block_entity(&pos);
             if world.get_block(&pos) == &Block::MOVING_PISTON {
