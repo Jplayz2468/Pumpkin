@@ -9,14 +9,16 @@ use pumpkin_util::math::vector3::Vector3;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
+        active_target_any::ActiveTargetAnyGoal, look_around::RandomLookAroundGoal,
         look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, revenge::RevengeGoal,
         swim::SwimGoal, wander_around::WanderAroundGoal,
     },
-    living::LivingEntity,
     mob::{Mob, MobEntity},
 };
-use crate::world::World;
+
+// Zoglin.java:138 `findNearestValidAttackTarget` excludes only zoglins and creepers from the
+// nearest-living-entity search; everything else (players, hostiles, passives) is fair game.
+const ZOGLIN_TARGET_EXCLUDE: &[&EntityType] = &[&EntityType::ZOGLIN, &EntityType::CREEPER];
 
 pub struct ZoglinEntity {
     pub mob_entity: MobEntity,
@@ -91,16 +93,13 @@ impl ZoglinEntity {
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
             target_selector.add_goal(
                 2,
-                Box::new(ActiveTargetGoal::new(
+                Box::new(ActiveTargetAnyGoal::new(
                     &mob_arc.mob_entity,
-                    &EntityType::PLAYER,
+                    ZOGLIN_TARGET_EXCLUDE,
                     10,
                     true,
                     false,
-                    Some(|target: &LivingEntity, _world: &World| {
-                        target.entity.entity_type != &EntityType::ZOGLIN
-                            && target.entity.entity_type != &EntityType::CREEPER
-                    }),
+                    Some(|_target: &crate::entity::living::LivingEntity, _world: &crate::world::World| true),
                 )),
             );
         };
