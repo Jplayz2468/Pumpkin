@@ -167,6 +167,38 @@ This checkpoint records source changes, not a passing parity result.
   from death-message keys.
 - Archaeology reads saved loot before replacing/removing the brushable block entity.
 
+### Bee lifecycle, container validity, and beacon continuation after `82b10324`
+
+- Replaced the bee's unconditional player targeting and generic wandering with
+  bee-specific attack, retaliation/universal anger, hive entry/search/return,
+  flower validation/search/pollination, crop growth, and wandering goals.
+- Added saved anger target/end time, nectar/search/stay-out timers, stochastic
+  post-sting death, underwater damage, poison and stinger metadata/decay, and
+  special flower feeding. Hive entry stores portable occupant NBT, detaches riding
+  and leash state, inherits flower positions, and emits entry sound/game events.
+- Added opt-in flying navigation through the existing Java navigation state,
+  flight/look control behavior, pollination navigation pause, and bee flap events.
+  Bee movement uses controlled speed, vertical drag and liquid-jump behavior.
+  Tag-based temptation is now available to the shared goal.
+- Extended container identity/range checks to dispenser/dropper/hopper/crafter,
+  all cooking blocks, brewing stands, and lecterns (which also require a book).
+  Spectator ender-chest menus now retain and clear their active chest reference.
+  Player block range now uses its attribute, with transient creative range modifiers.
+- Reconnected the previously unreachable beacon screen factory using its property
+  delegate. Payment is per-menu, restricted to one tagged payment item, drops on
+  close, and follows vanilla shift-click routing. Levels/effects synchronize via
+  three menu properties. Registry IDs and null effect encoding are now distinct;
+  speed (ID zero) works, invalid effects are rejected, and payment is consumed only
+  for a valid selection. Beacon block entities no longer expose a payment inventory.
+- Corrected beacon scan/effect/publish ordering and world-age scheduling; added
+  activation, deactivation, ambient and selection sounds, default construction
+  advancements, dirty-state tracking and dimension-height effect bounds.
+- Source review and standalone rustfmt only; no compilation or tests. This batch
+  does not certify all bee/beacon edge cases or whole-family parity. Shared path
+  collision sampling, per-mob Java RNG fidelity, unloaded hive POI discovery,
+  invulnerable/rejected-hit pollination interruption, custom environment/advancement
+  predicates, block locks/names, and cross-version metadata remain review areas.
+
 ## Original queue: source-edit status
 
 These are implementation statuses, **not verified closures**.
@@ -211,16 +243,16 @@ so they must not be used to reconstruct audit completion.
    coverage with runtime, but the adapters remain separate. Proto-chunk boundaries,
    post-processing/tick scheduling, dynamic shape contexts, and the rest of the
    feature pipeline still require source comparison.
-3. **Bee lifecycle remains incomplete.** Stored occupants can now leave, but the
-   bee's autonomous hive entry, pollination/flight, and neutral anger AI still need
-   their mob-side implementations. Explosion release and table-driven honeycomb
-   harvest are now implemented. Full custom environment attributes, loot context,
-   and random-sequence fidelity remain shared gaps.
+3. **Bee lifecycle has a source implementation**, including entry, pollination,
+   flight and neutral anger. Its remaining shared boundaries are listed above;
+   loaded block entities currently supply hive discovery instead of the full POI
+   manager. Full custom environment attributes, loot context and random-sequence
+   fidelity remain shared gaps.
 4. Finish sculk's upstream game-event coverage. Fishing-hook impact geometry and
    event delivery still need a full port. Player container interaction-range
    rechecks are implemented; non-player users and the broader lifecycle remain open.
-   Movement coverage is for living entities; nonliving movement, flapping, and
-   movement sound/effect ordering need review. Shrieker controller/item attribution
+   Movement coverage is for living entities with bee flapping added; nonliving
+   movement, other species' flapping and movement sound/effect ordering need review. Shrieker controller/item attribution
    has a source port, but underlying mount equipment/control implementations and
    legacy/Bedrock vibration particles still need their broader audit.
 5. Audit every remaining block family against its actual vanilla implementation,

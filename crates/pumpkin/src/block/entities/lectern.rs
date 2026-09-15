@@ -166,6 +166,17 @@ impl LecternBlockEntity {
 }
 
 impl Inventory for LecternBlockEntity {
+    fn can_player_use(
+        &self,
+        player: &dyn pumpkin_inventory::screen_handler::InventoryPlayer,
+    ) -> bool {
+        !self.is_empty() && player.can_use_block_inventory(self.position, self)
+    }
+
+    fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> {
+        Some(self.position)
+    }
+
     fn size(&self) -> usize {
         1
     }

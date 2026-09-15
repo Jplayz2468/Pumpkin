@@ -37,6 +37,8 @@ pub trait Inventory: Send + Sync + Clearable {
         self.viewer_position() == Some(position)
     }
 
+    fn on_spectator_close(&self) {}
+
     fn on_open_by(&self, player: &dyn crate::screen_handler::InventoryPlayer) {
         let position = self.viewer_position();
         self.on_open();

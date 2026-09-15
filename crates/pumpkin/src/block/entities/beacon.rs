@@ -2,12 +2,10 @@ use pumpkin_data::Block;
 use pumpkin_data::data_component_impl::IDSetContent;
 use pumpkin_data::dye_color::DyeColor;
 use pumpkin_data::tag::Taggable;
-use std::any::Any;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
 use std::sync::{Arc, Mutex};
 
 use pumpkin_data::effect::StatusEffect;
-use pumpkin_data::item_stack::ItemStack;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
@@ -15,7 +13,7 @@ use pumpkin_world::chunk::ChunkHeightmapType;
 
 use crate::block::entities::BlockEntity;
 use crate::world::World;
-use pumpkin_inventory::{Clearable, Inventory};
+use pumpkin_inventory::window_property::PropertyDelegate;
 
 /// How many new blocks of the beam column are scanned per tick.
 /// Vanilla: `BeaconBlockEntity.BLOCKS_CHECK_PER_TICK` (`BeaconBlockEntity.java:65`).
@@ -111,7 +109,6 @@ pub struct BeaconBlockEntity {
     pub secondary_effect: AtomicI32,
     pub levels: AtomicI32,
     pub dirty: AtomicBool,
-    pub payment: Arc<Mutex<ItemStack>>,
 
     // Vanilla Parity Fields
     pub custom_name: Mutex<Option<String>>,
@@ -143,7 +140,6 @@ impl BeaconBlockEntity {
             secondary_effect: AtomicI32::new(-1),
             levels: AtomicI32::new(0),
             dirty: AtomicBool::new(false),
-            payment: Arc::new(Mutex::new(ItemStack::EMPTY.clone())),
             custom_name: Mutex::new(None),
             lock_key: Mutex::new(None),
             // Vanilla: `lastCheckY` has no explicit initializer, defaulting to `0`
@@ -158,8 +154,8 @@ impl BeaconBlockEntity {
     pub fn get_data(&self, id: usize) -> i32 {
         match id {
             Self::DATA_LEVELS => self.levels.load(Ordering::Relaxed),
-            Self::DATA_PRIMARY => self.primary_effect.load(Ordering::Relaxed),
-            Self::DATA_SECONDARY => self.secondary_effect.load(Ordering::Relaxed),
+            Self::DATA_PRIMARY => self.primary_effect.load(Ordering::Relaxed) + 1,
+            Self::DATA_SECONDARY => self.secondary_effect.load(Ordering::Relaxed) + 1,
             _ => 0,
         }
     }
@@ -167,56 +163,68 @@ impl BeaconBlockEntity {
     pub fn set_data(&self, id: usize, value: i32) {
         match id {
             Self::DATA_LEVELS => self.levels.store(value, Ordering::Relaxed),
-            Self::DATA_PRIMARY => self.primary_effect.store(value, Ordering::Relaxed),
-            Self::DATA_SECONDARY => self.secondary_effect.store(value, Ordering::Relaxed),
+            Self::DATA_PRIMARY => self
+                .primary_effect
+                .store(Self::filter_effect(value - 1), Ordering::Relaxed),
+            Self::DATA_SECONDARY => self
+                .secondary_effect
+                .store(Self::filter_effect(value - 1), Ordering::Relaxed),
             _ => {}
         }
         self.mark_dirty();
     }
 
-    #[must_use]
-    pub const fn is_valid_primary_effect(effect_id: i32, levels: i32) -> bool {
-        match effect_id {
-            // Speed (1), Haste (3)
-            1 | 3 => levels >= 1,
-            // Resistance (11), Jump Boost (8)
-            11 | 8 => levels >= 2,
-            // Strength (5)
-            5 => levels >= 3,
-            _ => false,
-        }
+    pub fn mark_dirty(&self) {
+        self.dirty.store(true, Ordering::Relaxed);
     }
 
-    #[must_use]
-    pub const fn is_valid_secondary_effect(
-        primary_id: i32,
-        secondary_id: i32,
-        levels: i32,
-    ) -> bool {
-        if secondary_id <= 0 {
-            return true;
+    fn required_levels(effect: Option<i32>) -> i32 {
+        match effect {
+            None => 0,
+            Some(id)
+                if id == StatusEffect::SPEED.id as i32 || id == StatusEffect::HASTE.id as i32 =>
+            {
+                1
+            }
+            Some(id)
+                if id == StatusEffect::RESISTANCE.id as i32
+                    || id == StatusEffect::JUMP_BOOST.id as i32 =>
+            {
+                2
+            }
+            Some(id) if id == StatusEffect::STRENGTH.id as i32 => 3,
+            Some(id) if id == StatusEffect::REGENERATION.id as i32 => 4,
+            _ => i32::MAX,
         }
-        if levels < 4 {
-            return false;
-        }
-        // Regeneration (10) or identical to primary
-        secondary_id == 10 || secondary_id == primary_id
     }
-
-    #[must_use]
+    fn filter_effect(id: i32) -> i32 {
+        if Self::required_levels(Some(id)) == i32::MAX {
+            -1
+        } else {
+            id
+        }
+    }
+    pub fn is_valid_primary_effect(effect_id: i32, levels: i32) -> bool {
+        let required = Self::required_levels(Some(effect_id));
+        required < 4 && required <= levels
+    }
+    pub fn is_valid_secondary_effect(primary_id: i32, secondary_id: i32, levels: i32) -> bool {
+        Self::validate_effects(
+            (primary_id >= 0).then_some(primary_id),
+            (secondary_id >= 0).then_some(secondary_id),
+            levels,
+        )
+    }
     pub fn validate_effects(primary: Option<i32>, secondary: Option<i32>, levels: i32) -> bool {
-        let primary_id = primary.unwrap_or(0);
-        let secondary_id = secondary.unwrap_or(0);
-
-        if primary_id > 0 && !Self::is_valid_primary_effect(primary_id, levels) {
+        if secondary.is_some() && levels < 4 {
             return false;
         }
-
-        if secondary_id > 0 && !Self::is_valid_secondary_effect(primary_id, secondary_id, levels) {
-            return false;
-        }
-
-        true
+        let primary_level = Self::required_levels(primary);
+        let secondary_level = Self::required_levels(secondary);
+        primary_level <= levels
+            && secondary_level <= levels
+            && primary_level < 4
+            && (secondary_level == 0 || secondary_level >= 4 || primary == secondary)
     }
 
     /// The beam sections to render, gated on the beacon actually being powered.
@@ -253,7 +261,7 @@ impl BeaconBlockEntity {
     ///
     /// Ports `BeaconBlockEntity.tick`'s beam-scanning half
     /// (`BeaconBlockEntity.java:120-165`).
-    fn tick_beam(&self, world: &Arc<World>) {
+    fn tick_beam(&self, world: &Arc<World>) -> bool {
         let x = self.position.0.x;
         let y = self.position.0.y;
         let z = self.position.0.z;
@@ -320,16 +328,7 @@ impl BeaconBlockEntity {
             self.last_check_y.fetch_add(1, Ordering::Relaxed);
         }
 
-        // BeaconBlockEntity.java:180-184: publish once the whole column (up to the
-        // world-surface heightmap) has been scanned, then let the next tick restart.
-        if self.last_check_y.load(Ordering::Relaxed) >= last_set_block {
-            self.last_check_y
-                .store(world.dimension.min_y - 1, Ordering::Relaxed);
-            *self
-                .beam_sections
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = checking.clone();
-        }
+        self.last_check_y.load(Ordering::Relaxed) >= last_set_block
     }
 
     pub fn update_base(&self, world: &Arc<World>) -> i32 {
@@ -379,7 +378,7 @@ impl BeaconBlockEntity {
         let primary_id = self.primary_effect.load(Ordering::Relaxed);
         let secondary_id = self.secondary_effect.load(Ordering::Relaxed);
 
-        if primary_id <= 0 {
+        if primary_id < 0 {
             return;
         }
 
@@ -398,7 +397,7 @@ impl BeaconBlockEntity {
         let box_min = [pos.x - range, pos.y - range, pos.z - range];
         let box_max = [
             pos.x + range + 1.0,
-            pos.y + range + 1.0 + 384.0,
+            pos.y + range + 1.0 + world.dimension.height as f64,
             pos.z + range + 1.0,
         ];
         let bounds = BoundingBox::new_array(box_min, box_max);
@@ -441,6 +440,16 @@ impl BeaconBlockEntity {
 }
 
 impl BlockEntity for BeaconBlockEntity {
+    fn to_property_delegate(self: Arc<Self>) -> Option<Arc<dyn PropertyDelegate>> {
+        Some(self)
+    }
+    fn is_dirty(&self) -> bool {
+        self.dirty.load(Ordering::Relaxed)
+    }
+    fn clear_dirty(&self) {
+        self.dirty.store(false, Ordering::Relaxed);
+    }
+
     fn resource_location(&self) -> &'static str {
         Self::ID
     }
@@ -484,7 +493,6 @@ impl BlockEntity for BeaconBlockEntity {
             secondary_effect: AtomicI32::new(secondary),
             levels: AtomicI32::new(levels),
             dirty: AtomicBool::new(false),
-            payment: Arc::new(Mutex::new(ItemStack::EMPTY.clone())),
             custom_name: Mutex::new(custom_name),
             lock_key: Mutex::new(lock_key),
             // See the comment in `new` — `lastCheckY` is not persisted in vanilla either.
@@ -530,40 +538,86 @@ impl BlockEntity for BeaconBlockEntity {
     }
 
     fn tick(&self, world: &Arc<World>) {
-        // BeaconBlockEntity.java:124-165: build/refresh the coloured beam column every
-        // tick — this is what feeds `beam_sections`/`get_beam_sections` and gates the
-        // pyramid check below on the beam actually being unobstructed.
-        self.tick_beam(world);
-
-        // Check properties every 80 ticks matching Java (BeaconBlockEntity.java:167-178).
-        if world.get_time_of_day() % 80 == 0 {
-            let beam_unobstructed = !self
+        use pumpkin_data::{
+            advancement::Advancement,
+            sound::{Sound, SoundCategory},
+        };
+        let completed = self.tick_beam(world);
+        let previous_levels = self.levels.load(Ordering::Relaxed);
+        // The previous completed beam remains in use until after this tick's effects.
+        if world.get_world_age() % 80 == 0 {
+            let unobstructed = !self
                 .beam_sections
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .is_empty();
-
-            // Vanilla only recomputes the pyramid level while a full, unobstructed beam
-            // column has been scanned (`BeaconBlockEntity.java:170-171`) — placing a solid
-            // block in the beam empties `beam_sections` and freezes `levels` at its last
-            // value rather than resetting it, matching vanilla exactly.
-            if beam_unobstructed {
-                let levels = self.update_base(world);
-                self.levels.store(levels, Ordering::Relaxed);
+            if unobstructed {
+                self.levels
+                    .store(self.update_base(world), Ordering::Relaxed);
             }
-
             let levels = self.levels.load(Ordering::Relaxed);
-            // BeaconBlockEntity.java:174: effects also require the beam to be
-            // unobstructed, not just `levels > 0`.
-            if levels > 0 && beam_unobstructed {
+            if levels > 0 && unobstructed {
                 self.apply_effects(world, levels);
+                world.play_sound(
+                    Sound::BlockBeaconAmbient,
+                    SoundCategory::Blocks,
+                    &self.position.to_centered_f64(),
+                );
             }
-            // Not ported: BEACON_AMBIENT/ACTIVATE/DEACTIVATE sounds and the
-            // CONSTRUCT_BEACON advancement trigger (BeaconBlockEntity.java:175-193) — no
-            // sound-playing or advancement-trigger call for beacons exists anywhere else
-            // in Pumpkin yet, so adding one here would be inventing unverified API surface
-            // rather than porting an existing pattern. Out of scope for the beam-colour fix.
         }
+        if completed {
+            self.last_check_y
+                .store(world.dimension.min_y - 1, Ordering::Relaxed);
+            *self
+                .beam_sections
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = self
+                .checking_beam_sections
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            let levels = self.levels.load(Ordering::Relaxed);
+            if previous_levels <= 0 && levels > 0 {
+                world.play_sound(
+                    Sound::BlockBeaconActivate,
+                    SoundCategory::Blocks,
+                    &self.position.to_centered_f64(),
+                );
+                let p = self.position.to_f64();
+                let bounds = BoundingBox::new(
+                    p - pumpkin_util::math::vector3::Vector3::new(10.0, 9.0, 10.0),
+                    p + pumpkin_util::math::vector3::Vector3::new(10.0, 5.0, 10.0),
+                );
+                for player in world.players.load().iter() {
+                    if bounds.intersects(&player.living_entity.entity.bounding_box.load()) {
+                        player.trigger_advancement_criterion(
+                            Advancement::NETHER_CREATE_BEACON,
+                            "beacon",
+                        );
+                        if levels == 4 {
+                            player.trigger_advancement_criterion(
+                                Advancement::NETHER_CREATE_FULL_BEACON,
+                                "beacon",
+                            );
+                        }
+                    }
+                }
+            } else if previous_levels > 0 && levels <= 0 {
+                world.play_sound(
+                    Sound::BlockBeaconDeactivate,
+                    SoundCategory::Blocks,
+                    &self.position.to_centered_f64(),
+                );
+            }
+        }
+    }
+
+    fn on_block_replaced(self: Arc<Self>, world: &Arc<World>, position: &BlockPos) {
+        world.play_sound(
+            pumpkin_data::sound::Sound::BlockBeaconDeactivate,
+            pumpkin_data::sound::SoundCategory::Blocks,
+            &position.to_centered_f64(),
+        );
     }
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
@@ -603,85 +657,15 @@ impl BlockEntity for BeaconBlockEntity {
     }
 }
 
-impl Inventory for BeaconBlockEntity {
-    fn size(&self) -> usize {
-        1
+impl PropertyDelegate for BeaconBlockEntity {
+    fn get_property(&self, index: i32) -> i32 {
+        self.get_data(index as usize)
     }
-
-    fn is_empty(&self) -> bool {
-        self.payment
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .is_empty()
+    fn set_property(&self, index: i32, value: i32) {
+        self.set_data(index as usize, value);
     }
-
-    fn get_stack(&self, slot: usize) -> ItemStack {
-        if slot == 0 {
-            self.payment
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone()
-        } else {
-            ItemStack::EMPTY.clone()
-        }
-    }
-
-    fn remove_stack(&self, slot: usize) -> ItemStack {
-        if slot == 0 {
-            let mut removed = ItemStack::EMPTY.clone();
-            let mut guard = self
-                .payment
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            std::mem::swap(&mut removed, &mut *guard);
-            self.mark_dirty();
-            removed
-        } else {
-            ItemStack::EMPTY.clone()
-        }
-    }
-
-    fn remove_stack_specific(&self, slot: usize, amount: u8) -> ItemStack {
-        if slot == 0 {
-            let mut stack = self
-                .payment
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if stack.is_empty() {
-                return ItemStack::EMPTY.clone();
-            }
-            let res = stack.split(amount);
-            self.mark_dirty();
-            res
-        } else {
-            ItemStack::EMPTY.clone()
-        }
-    }
-
-    fn set_stack(&self, slot: usize, stack: ItemStack) {
-        if slot == 0 {
-            *self
-                .payment
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = stack;
-            self.mark_dirty();
-        }
-    }
-
-    fn mark_dirty(&self) {
-        self.dirty.store(true, Ordering::Relaxed);
-    }
-
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-}
-
-impl Clearable for BeaconBlockEntity {
-    fn clear(&self) {
-        if let Ok(mut payment) = self.payment.try_lock() {
-            *payment = ItemStack::EMPTY.clone();
-        }
+    fn get_properties_size(&self) -> i32 {
+        3
     }
 }
 

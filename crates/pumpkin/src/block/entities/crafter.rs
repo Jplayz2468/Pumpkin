@@ -265,6 +265,10 @@ impl RecipeInputInventory for CrafterBlockEntity {
 }
 
 impl Inventory for CrafterBlockEntity {
+    fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> {
+        Some(self.position)
+    }
+
     fn size(&self) -> usize {
         Self::INVENTORY_SIZE
     }

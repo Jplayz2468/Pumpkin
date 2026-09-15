@@ -56,14 +56,10 @@ impl EnderChestInventory {
     ///
     /// Used to animate the ender chest lid based on viewers.
     pub fn set_tracker(&self, tracker: Arc<ViewerCountTracker>) {
-        let old = self
+        *self
             .tracker
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .replace(tracker);
-        if let Some(old_tracker) = old {
-            old_tracker.close_container();
-        }
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(tracker);
     }
 
     /// Checks if this inventory has a tracker set.
@@ -152,6 +148,13 @@ impl Inventory for EnderChestInventory {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .as_ref()
             .and_then(|tracker| tracker.position)
+    }
+
+    fn on_spectator_close(&self) {
+        self.tracker
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
     }
 
     fn on_open(&self) {

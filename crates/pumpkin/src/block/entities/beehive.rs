@@ -236,6 +236,118 @@ const IGNORED_BEE_TAGS: &[&str] = &[
 ];
 
 impl BeehiveBlockEntity {
+    pub fn is_full(&self) -> bool {
+        self.bees
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .len()
+            >= 3
+    }
+
+    pub fn is_fire_nearby(&self, world: &World) -> bool {
+        BlockPos::iterate(
+            self.position.offset(Vector3::new(-1, -1, -1)),
+            self.position.offset(Vector3::new(1, 1, 1)),
+        )
+        .any(|pos| world.get_block(&pos) == &pumpkin_data::Block::FIRE)
+    }
+
+    pub fn add_occupant(&self, bee: &BeeEntity) -> bool {
+        if self.is_full() {
+            return false;
+        }
+        let entity = bee.get_entity();
+        let world = entity.world.load_full();
+        let vehicle = entity
+            .vehicle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        if let Some(vehicle) = vehicle {
+            vehicle.get_entity().remove_passenger(entity.entity_id);
+        }
+        let passengers = entity
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        for passenger in passengers {
+            entity.remove_passenger(passenger.get_entity().entity_id);
+        }
+        if entity.has_vehicle() || entity.has_passengers() {
+            return false;
+        }
+        let leashed = entity
+            .leashed_to
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_some();
+        if leashed {
+            entity.unleash();
+            if entity
+                .leashed_to
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_some()
+            {
+                return false;
+            }
+            world.drop_stack(
+                &entity.block_pos.load(),
+                ItemStack::new(1, &pumpkin_data::item::Item::LEAD),
+            );
+        }
+        let mut data = NbtCompound::new();
+        bee.write_nbt(&mut data);
+        for key in IGNORED_BEE_TAGS {
+            data.child_tags.remove(*key);
+        }
+        data.put_string("id", "minecraft:bee".to_owned());
+        {
+            let mut occupants = self
+                .bees
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if occupants.len() >= 3 {
+                return false;
+            }
+            occupants.push(BeeOccupant {
+                entity_data: data,
+                ticks_in_hive: 0,
+                min_ticks_in_hive: if bee.has_nectar() { 2400 } else { 600 },
+            });
+        }
+        if let Some(pos) = bee.flower_pos.load() {
+            let mut flower = self
+                .flower_pos
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if flower.is_none()
+                || world
+                    .random
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .next_bool()
+            {
+                *flower = Some(pos);
+            }
+        }
+        world.play_sound(
+            Sound::BlockBeehiveEnter,
+            SoundCategory::Blocks,
+            &self.position.to_f64(),
+        );
+        world.emit_game_event_from_entity(
+            "minecraft:block_change",
+            self.position.to_centered_f64(),
+            Some(bee),
+            Some(world.get_block_state(&self.position).id),
+        );
+        entity.remove();
+        self.mark_dirty(&world);
+        true
+    }
+
     fn mark_dirty(&self, world: &World) {
         world
             .level

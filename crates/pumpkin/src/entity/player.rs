@@ -2627,6 +2627,7 @@ impl Player {
 
     #[expect(clippy::too_many_lines)]
     pub fn tick<'a>(&'a self, server: &'a Server) {
+        self.update_interaction_range_attributes();
         crate::local_safety::check_deep_dark(self);
         self.process_inbound_packets();
         self.warden_spawn_tracker
@@ -4063,10 +4064,54 @@ impl Player {
     }
 
     pub fn block_interaction_range(&self) -> f64 {
-        if self.gamemode.load() == GameMode::Creative {
-            5.0
-        } else {
-            4.5
+        self.living_entity
+            .get_attribute_value(&Attributes::BLOCK_INTERACTION_RANGE)
+    }
+
+    fn update_interaction_range_attributes(&self) {
+        use crate::entity::attributes::{Modifier, ModifierOperation};
+        let creative = self.is_creative();
+        for (attribute, id, amount) in [
+            (
+                &Attributes::BLOCK_INTERACTION_RANGE,
+                "minecraft:creative_mode_block_range",
+                0.5,
+            ),
+            (
+                &Attributes::ENTITY_INTERACTION_RANGE,
+                "minecraft:creative_mode_entity_range",
+                2.0,
+            ),
+        ] {
+            let modifier = Modifier {
+                id: id.to_owned(),
+                amount,
+                operation: ModifierOperation::Add,
+            };
+            let needs_update = {
+                let map = self
+                    .living_entity
+                    .attributes
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                let old = map
+                    .get(&attribute.id)
+                    .and_then(|instance| instance.modifiers.iter().find(|m| m.id == id));
+                if creative {
+                    old != Some(&modifier)
+                } else {
+                    old.is_some()
+                }
+            };
+            if needs_update {
+                self.living_entity.update_attribute(attribute, |instance| {
+                    if creative {
+                        instance.add_or_replace_modifier(modifier);
+                    } else {
+                        instance.remove_modifier(id);
+                    }
+                });
+            }
         }
     }
 
@@ -4707,6 +4752,7 @@ impl Player {
 
         let gamemode = event.new_gamemode;
         self.gamemode.store(gamemode);
+        self.update_interaction_range_attributes();
         // TODO: Fix this when mojang fixes it
         // This is intentional to keep the pure vanilla mojang experience
         // self.previous_gamemode.store(self.previous_gamemode.load());
@@ -6921,6 +6967,7 @@ impl EntityBase for Player {
             .unwrap_or_else(|| self.gamemode.load());
 
         self.gamemode.store(gamemode);
+        self.update_interaction_range_attributes();
 
         self.previous_gamemode.store(
             nbt.get_int("previousPlayerGameType")
@@ -7447,6 +7494,11 @@ impl MessageCache {
 }
 
 impl InventoryPlayer for Player {
+    fn can_use_block_type(&self, position: BlockPos, block: pumpkin_data::BlockId) -> bool {
+        self.world().get_block(&position).id == block
+            && self.can_interact_with_block_at(&position, 4.0)
+    }
+
     fn can_use_block_inventory(&self, position: BlockPos, inventory: &dyn std::any::Any) -> bool {
         if !self.can_interact_with_block_at(&position, 4.0) {
             return false;

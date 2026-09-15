@@ -15,6 +15,7 @@ pub struct TemptGoal {
     goal_control: Controls,
     speed: f64,
     tempt_items: &'static [&'static Item],
+    tempt_tag: Option<&'static pumpkin_data::tag::Tag>,
     target_player: Option<Arc<Player>>,
     cooldown: i32,
 }
@@ -26,13 +27,24 @@ impl TemptGoal {
             goal_control: Controls::MOVE | Controls::LOOK,
             speed,
             tempt_items,
+            tempt_tag: None,
             target_player: None,
             cooldown: 0,
         }
     }
 
+    pub fn with_tag(speed: f64, tag: &'static pumpkin_data::tag::Tag) -> Self {
+        Self {
+            tempt_tag: Some(tag),
+            ..Self::new(speed, &[])
+        }
+    }
+
     fn is_tempt_item(&self, stack: &pumpkin_data::item_stack::ItemStack) -> bool {
-        stack.item_count > 0 && self.tempt_items.iter().any(|i| i.id == stack.item.id)
+        use pumpkin_data::tag::Taggable;
+        stack.item_count > 0
+            && (self.tempt_items.iter().any(|i| i.id == stack.item.id)
+                || self.tempt_tag.is_some_and(|tag| stack.item.has_tag(tag)))
     }
 
     fn is_holding_tempt_item(&self, player: &Player) -> bool {

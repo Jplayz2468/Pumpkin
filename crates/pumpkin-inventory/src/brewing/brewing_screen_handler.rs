@@ -107,6 +107,10 @@ impl BrewingScreenHandler {
 }
 
 impl ScreenHandler for BrewingScreenHandler {
+    fn can_use(&self, player: &dyn InventoryPlayer) -> bool {
+        self.inventory.can_player_use(player)
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -275,6 +275,8 @@ macro_rules! impl_experience_container_for_cooking {
 macro_rules! impl_inventory_for_cooking {
     ($struct_name:ty) => {
         impl pumpkin_inventory::Inventory for $struct_name {
+            fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> { Some(self.position) }
+
             fn available_slots(&self, side: Option<pumpkin_data::BlockDirection>) -> Vec<usize> {
                 match side { Some(pumpkin_data::BlockDirection::Up) => vec![0], Some(pumpkin_data::BlockDirection::Down) => vec![2, 1], Some(_) => vec![1], None => vec![0, 1, 2] }
             }

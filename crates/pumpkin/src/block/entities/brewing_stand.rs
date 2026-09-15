@@ -348,6 +348,10 @@ impl BrewingStandBlockEntity {
 }
 
 impl pumpkin_inventory::Inventory for BrewingStandBlockEntity {
+    fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> {
+        Some(self.position)
+    }
+
     fn size(&self) -> usize {
         Self::INVENTORY_SIZE
     }

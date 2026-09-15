@@ -92,6 +92,8 @@ pub struct LivingEntity {
     pub last_damage_taken: AtomicCell<f32>,
     /// The current health level of the entity.
     pub health: AtomicCell<f32>,
+    pub stinger_count: AtomicI32,
+    remove_stinger_time: AtomicI32,
     /// The current absorption (yellow hearts) on the entity.
     pub absorption: AtomicCell<f32>,
     pub item_use_time: AtomicI32,
@@ -249,6 +251,14 @@ pub(crate) fn get_entity_team(entity: &dyn EntityBase) -> Option<crate::world::s
 }
 
 impl LivingEntity {
+    pub fn set_stinger_count(&self, count: i32) {
+        self.stinger_count.store(count, Relaxed);
+        self.entity.set_synced_data(
+            pumpkin_data::tracked_data::living_entity::DATA_STINGER_COUNT_ID,
+            pumpkin_protocol::codec::var_int::VarInt(count),
+        );
+    }
+
     const USING_ITEM_FLAG: u8 = 1;
     const OFF_HAND_ACTIVE_FLAG: u8 = 2;
     const RANDOM_TELEPORT_ATTEMPTS: usize = 16;
@@ -307,6 +317,8 @@ impl LivingEntity {
                 }
                 std::sync::RwLock::new(m)
             },
+            stinger_count: AtomicI32::new(0),
+            remove_stinger_time: AtomicI32::new(0),
             health: AtomicCell::new(max_health), // Initial health value from attributes
             entity,
             hurt_cooldown: AtomicI32::new(0),
@@ -1618,7 +1630,9 @@ impl LivingEntity {
                 let mut velo = self.entity.velocity.load();
 
                 if self.controlled_speed.load().is_some() {
-                    velo.y = crate::entity::ai::control::fluid_travel::jump_y(velo.y);
+                    velo.y += caller
+                        .get_mob()
+                        .map_or(0.04_f32 as f64, |mob| mob.liquid_jump_strength());
                 } else {
                     velo.y += 0.04;
                 }
@@ -3872,6 +3886,16 @@ impl EntityBase for LivingEntity {
     #[allow(clippy::too_many_lines)]
     fn tick(&self, caller: &dyn EntityBase, server: &Server) {
         self.entity.tick(caller, server);
+        let stingers = self.stinger_count.load(Relaxed);
+        if stingers > 0 {
+            if self.remove_stinger_time.load(Relaxed) <= 0 {
+                self.remove_stinger_time
+                    .store(20 * (30 - stingers), Relaxed);
+            }
+            if self.remove_stinger_time.fetch_sub(1, Relaxed) - 1 <= 0 {
+                self.set_stinger_count(stingers - 1);
+            }
+        }
 
         // LivingEntity.aiStep advances the swing every tick, for every living entity,
         // whether or not it is currently swinging -- that is what ends a swing once it

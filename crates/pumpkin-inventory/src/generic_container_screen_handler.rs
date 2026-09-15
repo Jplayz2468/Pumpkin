@@ -265,6 +265,8 @@ impl ScreenHandler for GenericContainerScreenHandler {
         self.default_on_closed(player);
         if !self.is_spectator && !player.is_spectator() {
             self.inventory.on_close_by(player);
+        } else {
+            self.inventory.on_spectator_close();
         }
     }
 

@@ -506,6 +506,12 @@ impl MobEntity {
             return;
         }
 
+        if let Some(mob) = caller.get_mob()
+            && mob.custom_melee_attack(target).is_some()
+        {
+            return;
+        }
+
         // Mob.java:1390-1394: `getAttributeValue(ATTACK_DAMAGE)` through
         // `EnchantmentHelper.modifyDamage` (Sharpness/Power-style data-driven damage
         // effects; `EnchantmentHelper::modify_damage` is the same data-driven walk used
@@ -903,6 +909,23 @@ pub trait Mob: EntityBase + Send + Sync {
     }
 
     /// Brain navigation runs before the mob-specific Brain, then its controllers.
+    fn liquid_jump_strength(&self) -> f64 {
+        0.04_f32 as f64
+    }
+    fn is_flapping(&self) -> bool {
+        false
+    }
+
+    fn pauses_navigation(&self) -> bool {
+        false
+    }
+    fn ticks_look_control(&self) -> bool {
+        true
+    }
+    fn resets_look_pitch(&self) -> bool {
+        true
+    }
+
     fn uses_brain_navigation(&self) -> bool {
         false
     }
@@ -978,6 +1001,12 @@ pub trait Mob: EntityBase + Send + Sync {
         _source: Option<&dyn EntityBase>,
         _cause: Option<&dyn EntityBase>,
     ) {
+    }
+
+    /// Species with a different doHurtTarget implementation can handle the whole hit.
+    /// Some reports its result; None uses the normal weapon and knockback pipeline.
+    fn custom_melee_attack(&self, _target: &dyn EntityBase) -> Option<bool> {
+        None
     }
 
     fn on_attack(&self, _target: &dyn EntityBase) {}
@@ -1456,8 +1485,7 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
         mob_entity.check_despawn(self);
 
-        if !mob_entity.is_no_ai() && self.uses_brain_navigation() {
-            mob_entity.no_action_time.fetch_add(1, Relaxed);
+        if !mob_entity.is_no_ai() && mob_entity.living_entity.controlled_speed.load().is_some() {
             // LivingEntity.applyInput precedes serverAiStep in Java. Controllers
             // may replace these old inputs later in this same tick.
             let mut input = mob_entity.living_entity.movement_input.load();
@@ -1465,6 +1493,9 @@ impl<T: Mob + Send + 'static> EntityBase for T {
             input.z = f64::from(input.z as f32 * 0.98_f32);
             mob_entity.living_entity.movement_input.store(input);
             mob_entity.living_entity.jumping.store(false, Relaxed);
+        }
+        if !mob_entity.is_no_ai() && self.uses_brain_navigation() {
+            mob_entity.no_action_time.fetch_add(1, Relaxed);
             let mut navigator = {
                 let mut guard = mob_entity
                     .navigator

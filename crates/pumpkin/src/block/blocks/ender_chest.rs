@@ -32,9 +32,7 @@ impl ScreenHandlerFactory for EnderChestScreenFactory {
         player_inventory: &Arc<PlayerInventory>,
         player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
-        if !player.is_spectator()
-            && let Some(tracker) = &self.tracker
-        {
+        if let Some(tracker) = &self.tracker {
             self.inventory.set_tracker(tracker.clone());
         }
         let handler = create_generic_9x3(sync_id, player_inventory, self.inventory.clone(), player);

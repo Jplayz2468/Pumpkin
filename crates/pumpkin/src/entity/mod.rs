@@ -2393,6 +2393,9 @@ impl Entity {
         // collision support was found (e.g. swimming or climbing).
         let pos = supporting.unwrap_or_else(|| self.get_block_with_y_offset(0.2).0);
         let (block, state) = world.get_block_and_state(&pos);
+        if block.is_air() && caller.get_mob().is_some_and(|mob| mob.is_flapping()) {
+            world.emit_game_event_from_entity("flap", self.pos.load(), Some(caller), None);
+        }
         let climbable = block.has_tag(&tag::Block::MINECRAFT_CLIMBABLE)
             || block.id == pumpkin_data::BlockId::POWDER_SNOW;
         let length = if climbable {

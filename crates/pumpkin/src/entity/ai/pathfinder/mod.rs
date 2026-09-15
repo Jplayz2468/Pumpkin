@@ -1688,6 +1688,104 @@ impl FlyingPathNavigation {
 }
 
 impl PathNavigationTrait for FlyingPathNavigation {
+    fn tick_mob(&mut self, mob: &dyn Mob) {
+        if mob.pauses_navigation() {
+            return;
+        }
+        if self.inner.java_tick.is_none() {
+            self.tick(&mob.get_mob_entity().living_entity);
+            return;
+        }
+        let living = &mob.get_mob_entity().living_entity;
+        let entity = &living.entity;
+        if let Some(goal) = self.inner.current_goal.take() {
+            let path = self.create_path(living, goal.destination, 1);
+            self.move_to_path(path, goal.speed, living);
+        }
+        if self.inner.has_delayed_recomputation {
+            self.recompute_path(living);
+        }
+        let position = entity.pos.load();
+        let can_update = (self.can_float()
+            && (entity.is_in_water() || entity.touching_lava.load(Ordering::Relaxed)))
+            || !entity.has_vehicle();
+        let dimension = entity.entity_dimension.load();
+        if !can_update
+            && let Some(path) = self.inner.path.as_mut()
+            && let Some(next) = path.get_next_entity_pos(dimension.width as f32)
+            && position.x.floor() == next.x.floor()
+            && position.y.floor() == next.y.floor()
+            && position.z.floor() == next.z.floor()
+        {
+            path.advance();
+        }
+        let cut = self
+            .inner
+            .path
+            .as_ref()
+            .and_then(Path::get_next_node)
+            .is_some_and(|node| {
+                !matches!(
+                    node.path_type,
+                    PathType::DangerFire | PathType::DangerOther | PathType::WalkableDoor
+                )
+            });
+        let direct = self
+            .inner
+            .path
+            .as_ref()
+            .and_then(|path| {
+                path.get_entity_pos_at_node(dimension.width as f32, path.next_node_index + 1)
+            })
+            .is_some_and(|next| {
+                PathNavigation::can_move_directly(
+                    &entity.world.load(),
+                    position,
+                    next,
+                    dimension.height as f32,
+                    true,
+                )
+            });
+        let mut route = self.inner.path.as_ref().map(|path| navigation_tick::Route {
+            nodes: path
+                .get_nodes()
+                .iter()
+                .map(|n| [n.pos.0.x, n.pos.0.y, n.pos.0.z])
+                .collect(),
+            index: path.next_node_index,
+        });
+        let facts = navigation_tick::Facts {
+            time: entity.world.load().get_world_age(),
+            position: [position.x, position.y, position.z],
+            temporary_position: [position.x, position.y, position.z],
+            width: dimension.width as f32,
+            speed: living.controlled_speed.load().unwrap_or(0.0),
+            can_update,
+            ground: true,
+            cut_corner: cut,
+            direct,
+        };
+        let state = self.inner.java_tick.as_mut().unwrap();
+        let wanted = state.tick(&mut route, &facts);
+        self.inner.is_stuck = state.stuck;
+        self.inner.tick_count = state.tick as u32;
+        if let Some(route) = route {
+            if let Some(path) = self.inner.path.as_mut() {
+                path.next_node_index = route.index;
+            }
+        } else {
+            self.inner.path = None;
+        }
+        self.inner.is_idle.store(self.is_done(), Ordering::Relaxed);
+        if let Some([x, y, z]) = wanted {
+            mob.get_mob_entity()
+                .move_control
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .set_wanted_position(x, y, z, self.inner.speed_modifier);
+        }
+    }
+
     fn set_progress(&mut self, goal: NavigatorGoal) {
         self.inner.set_progress(goal);
     }
@@ -1866,6 +1964,26 @@ impl PathNavigationTrait for FlyingPathNavigation {
     }
 
     fn move_to_path(&mut self, path: Option<Path>, speed: f64, entity: &LivingEntity) -> bool {
+        if self.inner.java_tick.is_some() {
+            let Some(path) = path else {
+                self.inner.path = None;
+                return false;
+            };
+            if !path.same_as(self.inner.path.as_ref()) {
+                self.inner.path = Some(path);
+            }
+            if self.is_done() {
+                return false;
+            }
+            self.inner.trim_path(entity);
+            self.inner.speed_modifier = speed;
+            let pos = entity.entity.pos.load();
+            let state = self.inner.java_tick.as_mut().unwrap();
+            state.last_stuck_check = state.tick;
+            state.last_stuck_position = [pos.x, pos.y, pos.z];
+            self.inner.is_idle.store(false, Ordering::Relaxed);
+            return true;
+        }
         if let Some(new_path) = path {
             self.inner.path = Some(new_path);
             if self.is_done() {
@@ -2825,6 +2943,12 @@ impl Navigator {
     }
 
     #[must_use]
+    pub fn java_flying() -> Self {
+        let mut nav = FlyingPathNavigation::new();
+        nav.inner.java_tick = Some(navigation_tick::NavigationTick::default());
+        Self::new(nav)
+    }
+
     pub fn flying() -> Self {
         Self::new(FlyingPathNavigation::new())
     }

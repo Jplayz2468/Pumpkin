@@ -120,6 +120,10 @@ impl DispenserBlockEntity {
 }
 
 impl Inventory for DispenserBlockEntity {
+    fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> {
+        Some(self.position)
+    }
+
     fn size(&self) -> usize {
         Self::INVENTORY_SIZE
     }
