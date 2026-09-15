@@ -1306,6 +1306,7 @@ impl BlockRegistry {
         if let Some(pumpkin_block) = pumpkin_block {
             pumpkin_block.on_landed_upon(OnLandedUponArgs {
                 world,
+                position: &entity.get_entity().get_pos_with_y_offset(0.2).0,
                 fall_distance,
                 entity,
             });

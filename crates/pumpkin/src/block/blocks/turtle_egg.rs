@@ -154,12 +154,7 @@ impl BlockBehaviour for TurtleEggBlock {
         }
 
         if args.entity.get_entity().entity_type.id != EntityType::ZOMBIE.id {
-            let entity_pos = args.entity.get_entity().pos.load();
-            let pos = BlockPos(Vector3::new(
-                entity_pos.x.floor() as i32,
-                entity_pos.y.floor() as i32,
-                entity_pos.z.floor() as i32,
-            ));
+            let pos = *args.position;
             let (block, state) = args.world.get_block_and_state(&pos);
             if block == &Block::TURTLE_EGG {
                 Self::destroy_egg(args.world, &pos, state.id, block, args.entity, 3);

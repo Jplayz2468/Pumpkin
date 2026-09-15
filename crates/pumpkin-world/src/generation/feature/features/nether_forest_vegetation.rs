@@ -36,7 +36,7 @@ impl NetherForestVegetationFeature {
         }
 
         // Origin must be within (minY + 1, maxY - 1) inclusive.
-        if origin_pos.0.y <= chunk.bottom_y() as i32 || origin_pos.0.y > chunk.top_y() as i32 {
+        if origin_pos.0.y <= chunk.bottom_y() as i32 || origin_pos.0.y + 1 >= chunk.top_y() as i32 {
             return false;
         }
 
@@ -63,7 +63,11 @@ impl NetherForestVegetationFeature {
                 continue;
             }
 
-            chunk.set_block_state(&pos.0, nether_state);
+            chunk.set_block_state_with_flags(
+                &pos.0,
+                nether_state,
+                crate::world::BlockFlags::NOTIFY_LISTENERS,
+            );
             result = true;
         }
 

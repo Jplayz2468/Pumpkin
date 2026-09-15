@@ -10,9 +10,7 @@ pub struct RootedDirtBlock;
 impl BlockBehaviour for RootedDirtBlock {
     fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
         let below = args.position.down();
-        args.world.is_in_height_limit(below.0.y)
-            && args.world.is_loaded(&below)
-            && args.world.get_block_state(&below).is_air()
+        args.world.is_in_height_limit(below.0.y) && args.world.get_block_state(&below).is_air()
     }
 
     fn perform_bonemeal(&self, args: BonemealArgs<'_>) {

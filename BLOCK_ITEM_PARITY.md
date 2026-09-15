@@ -61,6 +61,41 @@ custom configured-feature providers, height-view type limits and chunk boundarie
 remain shared feature-pipeline work. Broader collision, mining/drop ordering and
 protocol paths still require review. No compilation or tests were run.
 
+## Terrain, carpets and landing continuation
+
+- Farmland now rechecks support at scheduled ticks, uses `MAINTAINS_FARMLAND`,
+  changes moisture only when needed and sends client moisture updates. Drying and
+  trampling use the shared collision displacement and attributed BLOCK_CHANGE.
+  Trampling follows the random, living-entity, griefing and size gates before fall
+  damage. Dirt paths accept fence gates and use the same displacement/event path.
+- Landing callbacks now receive their block position; turtle eggs use it. Species
+  fall-damage immunity no longer suppresses block landing effects (damage itself
+  still checks immunity). The wider landing/movement pipeline remains open.
+- Leaf placement reads actual source fluid, and decay drops resources then removes
+  the block without treating natural decay as an attributed block destruction.
+  Snowy block updates use the passed state. Grass/mycelium fluid checks include
+  aquatic plants and full falling fluid rather than only bare source blocks.
+- Grass, nylium and moss bonemeal now invoke configured/placed features with the
+  level random stream. Grass delegates short-grass growth to its block behavior;
+  biome selection includes nested selector features in declaration order. Removed
+  duplicate hand-written nether vegetation and twisting-vine growth.
+- Simple feature placement uses optional providers, handles double plants and pale
+  moss carpets, applies flag 2, and schedules requested ticks. Generated block ticks
+  survive conversion from proto-chunks; live caches retain scheduling order.
+  Nether vegetation uses the source height bounds and flag 2.
+- Pale moss carpet now shares its face support, low/tall side transitions, upper
+  topper creation, base survival and bonemeal rules between live and generated
+  placement. Ordinary wool/moss carpets lose support on shape update rather than
+  after a delayed tick. Rooted dirt uses the source target checks. Netherrack uses
+  cached light dampening (including transparent cubes and waterlogged states),
+  X-fastest neighbor scanning and a Java boolean draw.
+
+Feature buffering still defers callbacks and their random draws; world-generation
+pale moss also lacks a separate level random stream from the feature random stream.
+The proto-chunk fluid accessor, custom provider behavior, dynamic collision shapes,
+full loot evaluation and chunk-edge scheduling remain shared gaps. Formatting and
+`git diff --check` were performed; compilation and tests remain prohibited.
+
 ## Changes in this checkpoint
 
 ### Sculk sensors and shriekers

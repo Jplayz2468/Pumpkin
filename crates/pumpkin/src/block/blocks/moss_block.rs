@@ -1,7 +1,5 @@
 use pumpkin_data::configured_feature::ConfiguredFeature as FeatureKey;
 use pumpkin_data::{Block, BlockId};
-use pumpkin_util::random::{RandomGenerator, xoroshiro128::Xoroshiro};
-use pumpkin_world::generation::feature::configured_features::CONFIGURED_FEATURES;
 
 use crate::block::{BlockBehaviour, BlockMetadata, BonemealArgs};
 use crate::world::generation_cache::WorldGenerationCache;
@@ -51,33 +49,11 @@ impl BlockBehaviour for MossBlock {
         let Some(key) = Self::feature_for(args.block) else {
             return;
         };
-        let Some(feature) = CONFIGURED_FEATURES.get(&key) else {
-            return;
-        };
-        let portal = args.world.level.world_portal.load_full();
-        let Some(portal) = portal.as_ref() else {
-            return;
-        };
-
-        let above = args.position.up();
-        let min_y = args.world.dimension.min_y as i8;
-        let height = args.world.dimension.height as u16;
-        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(rand::random::<u64>()));
-        let mut cache = WorldGenerationCache::new(args.world.clone(), &above);
-
-        // `feature_name` only matters to a biome-placement-modifier check, and
-        // both moss patch configured features place their vegetation feature
-        // with an empty modifier list (configured_features_generated.rs), so it
-        // is never read on this path. Any placeholder value is safe here.
-        feature.generate(
-            &mut cache,
-            &**portal,
-            min_y,
-            height,
+        WorldGenerationCache::place_configured_feature(
+            args.world,
+            key,
             pumpkin_data::placed_feature::PlacedFeature::PaleMossPatch,
-            &mut random,
-            above,
+            args.position.up(),
         );
-        cache.apply();
     }
 }

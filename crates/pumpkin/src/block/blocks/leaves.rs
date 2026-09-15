@@ -55,7 +55,11 @@ impl BlockBehaviour for LeavesBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = OakLeavesLikeProperties::from_state_id(args.block.default_state.id);
         props.persistent = true;
-        props.waterlogged = args.replacing.water_source();
+        let (fluid, state) = crate::world::World::fluid_state_from_block_state(
+            args.world.get_block_state_id(args.position),
+        );
+        props.waterlogged =
+            fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER) && state.is_source;
         props = update_distance(args.world, args.position, props);
         props.to_state_id(args.block)
     }
@@ -74,7 +78,7 @@ impl BlockBehaviour for LeavesBlock {
             );
         }
 
-        let neighbor_block = args.world.get_block(args.neighbor_position);
+        let neighbor_block = args.neighbor_state_id.to_block();
         let distance_from_neighbor =
             get_distance_at(neighbor_block, args.neighbor_state_id).saturating_add(1);
 
@@ -112,8 +116,17 @@ impl BlockBehaviour for LeavesBlock {
                     return;
                 }
             }
+            let params = crate::world::loot::LootContextParameters {
+                block_state: Some(state_id.to_state()),
+                position: Some(args.position.to_centered_f64()),
+                ..Default::default()
+            };
+            crate::block::drop_loot(args.world, args.block, args.position, true, &params);
+            let remaining = crate::world::World::fluid_state_from_block_state(state_id)
+                .1
+                .block_state_id;
             args.world
-                .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
+                .set_block_state(args.position, remaining, BlockFlags::NOTIFY_ALL);
         }
     }
 

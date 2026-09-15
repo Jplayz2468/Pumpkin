@@ -88,6 +88,16 @@ pub trait GenerationCache: HeightLimitView + BlockAccessor {
         let (_, fluid) = self.get_fluid_and_fluid_state(pos);
         self.set_block_state(pos, fluid.block_state_id.to_state());
     }
+    fn schedule_block_tick(&mut self, pos: BlockPos, block: &'static Block, delay: u32) {
+        if let Some(chunk) = self.get_chunk_mut(pos.0.x >> 4, pos.0.z >> 4) {
+            chunk.block_ticks.push(ScheduledTick {
+                delay,
+                priority: TickPriority::Normal,
+                position: pos,
+                value: block,
+            });
+        }
+    }
     fn add_block_entity(&mut self, pos: &Vector3<i32>, nbt: NbtCompound);
     fn top_motion_blocking_block_height_exclusive(&self, x: i32, z: i32) -> i32;
     fn top_motion_blocking_block_no_leaves_height_exclusive(&self, x: i32, z: i32) -> i32;
@@ -161,6 +171,7 @@ pub struct ProtoChunk {
     pub pending_block_entities: Vec<NbtCompound>,
     pending_structure_entities: Vec<NbtCompound>,
     pub fluid_ticks: Vec<ScheduledTick<&'static Fluid>>,
+    pub block_ticks: Vec<ScheduledTick<&'static Block>>,
 }
 
 pub struct TerrainCache {
@@ -270,6 +281,7 @@ impl ProtoChunk {
             pending_block_entities: Vec::new(),
             pending_structure_entities: Vec::new(),
             fluid_ticks: Vec::new(),
+            block_ticks: Vec::new(),
         }
     }
 

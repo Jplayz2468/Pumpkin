@@ -49,6 +49,47 @@ pub enum Feature {
 }
 
 impl PlacedFeature {
+    /// PlacedFeature.getFeatures: this holder first, then the configured
+    /// selector's sub-features in declaration order. Duplicates are retained.
+    pub fn collect_feature_keys(
+        &self,
+        output: &mut Vec<pumpkin_data::configured_feature::ConfiguredFeature>,
+    ) {
+        let configured = match &self.feature {
+            Feature::Named(key) => {
+                output.push(*key);
+                CONFIGURED_FEATURES.get(key)
+            }
+            Feature::Inlined(feature) => Some(feature.as_ref()),
+        };
+        match configured {
+            Some(ConfiguredFeature::RandomSelector(selector)) => {
+                for entry in &selector.features {
+                    if let Some(feature) = entry.feature.get() {
+                        feature.collect_feature_keys(output);
+                    }
+                }
+                if let Some(feature) = selector.default.get() {
+                    feature.collect_feature_keys(output);
+                }
+            }
+            Some(ConfiguredFeature::SimpleRandomSelector(selector)) => {
+                for feature in &selector.features {
+                    feature.collect_feature_keys(output);
+                }
+            }
+            Some(ConfiguredFeature::RandomBooleanSelector(selector)) => {
+                if let Some(feature) = selector.feature_true.get() {
+                    feature.collect_feature_keys(output);
+                }
+                if let Some(feature) = selector.feature_false.get() {
+                    feature.collect_feature_keys(output);
+                }
+            }
+            _ => {}
+        }
+    }
+
     pub fn generate_in_proto_chunk(
         &self,
         chunk: &mut crate::ProtoChunk,

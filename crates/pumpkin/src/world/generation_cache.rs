@@ -27,6 +27,7 @@ use crate::world::World;
 enum PendingBlockChange {
     Set(BlockPos, BlockStateId, BlockFlags),
     Destroy(BlockPos),
+    Schedule(BlockPos, &'static Block, u32),
 }
 
 pub struct WorldGenerationCache {
@@ -49,6 +50,67 @@ impl WorldGenerationCache {
             overlay: FxHashMap::default(),
             block_entities: Vec::new(),
         }
+    }
+
+    pub fn place_configured_feature(
+        world: &Arc<World>,
+        key: pumpkin_data::configured_feature::ConfiguredFeature,
+        placement: pumpkin_data::placed_feature::PlacedFeature,
+        pos: BlockPos,
+    ) -> bool {
+        let Some(feature) =
+            pumpkin_world::generation::feature::configured_features::CONFIGURED_FEATURES.get(&key)
+        else {
+            return false;
+        };
+        let portal = world.level.world_portal.load_full();
+        let Some(portal) = portal.as_ref() else {
+            return false;
+        };
+        let mut cache = Self::new(world.clone(), &pos);
+        let result = cache.generate_with_level_random(|cache, random| {
+            feature.generate(
+                cache,
+                &**portal,
+                world.dimension.min_y as i8,
+                world.dimension.height as u16,
+                placement,
+                random,
+                pos,
+            )
+        });
+        cache.apply();
+        result
+    }
+
+    pub fn place_placed_feature(
+        world: &Arc<World>,
+        key: pumpkin_data::placed_feature::PlacedFeature,
+        pos: BlockPos,
+    ) -> bool {
+        let Some(feature) =
+            pumpkin_world::generation::feature::placed_features::PLACED_FEATURES.get(&key)
+        else {
+            return false;
+        };
+        let portal = world.level.world_portal.load_full();
+        let Some(portal) = portal.as_ref() else {
+            return false;
+        };
+        let mut cache = Self::new(world.clone(), &pos);
+        let result = cache.generate_with_level_random(|cache, random| {
+            feature.generate(
+                cache,
+                &**portal,
+                world.dimension.min_y as i8,
+                world.dimension.height as u16,
+                key,
+                random,
+                pos,
+            )
+        });
+        cache.apply();
+        result
     }
 
     fn read(&self, pos: &BlockPos) -> BlockStateId {
@@ -104,6 +166,14 @@ impl WorldGenerationCache {
                 }
                 PendingBlockChange::Destroy(pos) => {
                     self.world.break_block(&pos, None, BlockFlags::NOTIFY_ALL);
+                }
+                PendingBlockChange::Schedule(pos, block, delay) => {
+                    self.world.schedule_block_tick(
+                        block,
+                        pos,
+                        delay,
+                        pumpkin_world::tick::TickPriority::Normal,
+                    );
                 }
             }
         }
@@ -201,6 +271,11 @@ impl GenerationCache for WorldGenerationCache {
         let (_, fluid) = World::fluid_state_from_block_state(state);
         self.overlay.insert(position, fluid.block_state_id);
         self.pending.push(PendingBlockChange::Destroy(position));
+    }
+
+    fn schedule_block_tick(&mut self, pos: BlockPos, block: &'static Block, delay: u32) {
+        self.pending
+            .push(PendingBlockChange::Schedule(pos, block, delay));
     }
 
     fn add_block_entity(&mut self, pos: &Vector3<i32>, mut nbt: NbtCompound) {

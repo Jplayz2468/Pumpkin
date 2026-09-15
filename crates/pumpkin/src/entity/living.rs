@@ -2210,7 +2210,6 @@ impl LivingEntity {
                 || dont_damage
                 || self.should_prevent_fall_damage()
                 || self.should_prevent_fall_damage_in_area()
-                || self.is_immune_to_fall_damage()
             {
                 return;
             }
@@ -2220,6 +2219,7 @@ impl LivingEntity {
             if let Some(pumpkin_block) = pumpkin_block {
                 pumpkin_block.on_landed_upon(OnLandedUponArgs {
                     world: &world,
+                    position: &self.entity.get_pos_with_y_offset(0.2).0,
                     fall_distance,
                     entity: caller,
                 });

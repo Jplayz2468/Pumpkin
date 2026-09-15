@@ -1,3 +1,5 @@
+pub mod mossy_carpet;
+
 use std::collections::HashMap;
 
 use pumpkin_data::{Block, BlockState, BlockStateId};

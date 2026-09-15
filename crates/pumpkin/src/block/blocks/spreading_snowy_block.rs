@@ -1,8 +1,6 @@
 use std::sync::Arc;
 
-use pumpkin_data::block_properties::{
-    GrassBlockLikeProperties, SnowLikeProperties, WaterLikeProperties,
-};
+use pumpkin_data::block_properties::{GrassBlockLikeProperties, SnowLikeProperties};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockDirection, BlockId, BlockState, BlockStateId};
 use pumpkin_util::math::position::BlockPos;
@@ -37,7 +35,7 @@ impl SnowyBlock {
     #[must_use]
     pub fn get_state_for_neighbor_update(args: &GetStateForNeighborUpdateArgs<'_>) -> BlockStateId {
         if args.direction == BlockDirection::Up {
-            let block_above = args.world.get_block(args.neighbor_position);
+            let block_above = args.neighbor_state_id.to_block();
             let mut props = GrassBlockLikeProperties::from_state_id(args.state_id);
             let should_be_snowy = block_above.has_tag(&tag::Block::MINECRAFT_SNOW);
             if props.snowy == should_be_snowy {
@@ -57,19 +55,17 @@ pub struct SpreadingSnowyBlock;
 impl SpreadingSnowyBlock {
     #[must_use]
     pub fn is_full_fluid(world: &World, pos: &BlockPos) -> bool {
-        let state = world.get_block_state(pos);
-        let block = state.id.to_block();
-        if block == &Block::WATER || block == &Block::LAVA {
-            return WaterLikeProperties::from_state_id(state.id).level == 0;
-        }
-        state.id.is_waterlogged()
+        World::fluid_state_from_block_state(world.get_block_state_id(pos))
+            .1
+            .level
+            == 8
     }
 
     #[must_use]
     pub fn is_water_fluid(world: &World, pos: &BlockPos) -> bool {
-        let state = world.get_block_state(pos);
-        let block = state.id.to_block();
-        block == &Block::WATER || state.id.is_waterlogged()
+        world
+            .get_fluid(pos)
+            .matches_type(&pumpkin_data::fluid::Fluid::WATER)
     }
 
     #[must_use]
@@ -101,9 +97,6 @@ impl SpreadingSnowyBlock {
     #[must_use]
     pub fn can_stay_alive(state: &BlockState, world: &World, pos: &BlockPos) -> bool {
         let above = pos.up();
-        if !world.is_loaded(&above) {
-            return true;
-        }
         let above_state = world.get_block_state(&above);
         let is_full_fluid = Self::is_full_fluid(world, &above);
         Self::can_stay_alive_with_above(state, above_state, is_full_fluid)
@@ -112,9 +105,6 @@ impl SpreadingSnowyBlock {
     #[must_use]
     pub fn can_propagate(state: &BlockState, world: &World, pos: &BlockPos) -> bool {
         let above = pos.up();
-        if !world.is_loaded(&above) {
-            return false;
-        }
         Self::can_stay_alive(state, world, pos) && !Self::is_water_fluid(world, &above)
     }
 
@@ -135,18 +125,11 @@ impl SpreadingSnowyBlock {
                 let dy = random.next_bounded_i32(5) - 3;
                 let dz = random.next_bounded_i32(3) - 1;
                 let test_pos = pos.add(dx, dy, dz);
-                if !world.is_loaded(&test_pos) {
-                    continue;
-                }
                 if world.get_block(&test_pos) == base_block
                     && Self::can_propagate(default_block_state, world, &test_pos)
                 {
                     let above_test = test_pos.up();
-                    let is_snowy = if world.is_loaded(&above_test) {
-                        SnowyBlock::is_snowy_setting(world.get_block_state(&above_test))
-                    } else {
-                        false
-                    };
+                    let is_snowy = SnowyBlock::is_snowy_setting(world.get_block_state(&above_test));
                     let mut props = GrassBlockLikeProperties::from_state_id(default_block_state.id);
                     props.snowy = is_snowy;
                     let new_state_id = props.to_state_id(default_block_state.id.to_block());

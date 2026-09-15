@@ -3,8 +3,8 @@ use pumpkin_data::block_state::BlockStateId;
 use pumpkin_data::tag::Taggable;
 use pumpkin_data::{Block, tag};
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_util::random::RandomImpl;
 use pumpkin_world::world::BlockFlags;
-use rand::random;
 
 #[pumpkin_block("minecraft:netherrack")]
 pub struct NetherrackBlock;
@@ -13,14 +13,13 @@ impl BlockBehaviour for NetherrackBlock {
     fn is_valid_bonemeal_target(&self, args: crate::block::BonemealArgs<'_>) -> bool {
         let above_block = args.world.get_block_state(&args.position.up());
 
-        if above_block.is_full_cube()
-            || above_block.is_liquid()
-            || !args.world.is_loaded(&args.position.up())
-        {
+        // The cached vanilla light dampening handles glass and waterlogged
+        // states, which cannot be inferred from collision fullness and isLiquid.
+        if above_block.opacity != 0 {
             return false;
         }
 
-        for block_pos in BlockPos::iterate_outwards_ref(args.position, 1, 1, 1) {
+        for block_pos in neighbors(*args.position) {
             if args
                 .world
                 .get_block(&block_pos)
@@ -37,7 +36,7 @@ impl BlockBehaviour for NetherrackBlock {
         let mut warped = false;
         let mut crimson = false;
 
-        for block_pos in BlockPos::iterate_outwards_ref(args.position, 1, 1, 1) {
+        for block_pos in neighbors(*args.position) {
             let block = args.world.get_block(&block_pos);
 
             if block.id == Block::WARPED_NYLIUM.id {
@@ -59,7 +58,7 @@ impl BlockBehaviour for NetherrackBlock {
 
         let end_block: BlockStateId = match (warped, crimson) {
             (true, true) => {
-                if random::<bool>() {
+                if crate::block::random::BlockRandom::Shared(&args.world.random).next_bool() {
                     Block::WARPED_NYLIUM.default_state.id
                 } else {
                     Block::CRIMSON_NYLIUM.default_state.id
@@ -73,4 +72,8 @@ impl BlockBehaviour for NetherrackBlock {
         args.world
             .set_block_state(args.position, end_block, BlockFlags::NOTIFY_ALL);
     }
+}
+
+fn neighbors(pos: BlockPos) -> impl Iterator<Item = BlockPos> {
+    (-1..=1).flat_map(move |z| (-1..=1).flat_map(move |y| (-1..=1).map(move |x| pos.add(x, y, z))))
 }
