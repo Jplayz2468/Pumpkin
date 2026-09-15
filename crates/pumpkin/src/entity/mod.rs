@@ -1247,11 +1247,21 @@ impl Entity {
         }
     }
 
+    /// Vanilla: `Entity.getEyeHeight()` (`Entity.java:3481`) returns the cached `this.eyeHeight`
+    /// field, which is refreshed from `this.dimensions.eyeHeight()` (the entity's current,
+    /// per-type/per-pose `EntityDimensions`) every time dimensions are recomputed
+    /// (`Entity.java:3403-3413`, `setPose`/`refreshDimensions`). It is never the player's eye
+    /// height for non-player entities.
+    ///
+    /// `entity_dimension` is Pumpkin's equivalent of that cached field: it is seeded from the
+    /// entity type's own data on spawn and updated by `set_pose` (including the warden's own
+    /// digging/emerging override, `Warden.java:520-522`) whenever the pose changes. `get_eye_pos`
+    /// already reads eye height from it, so mirror that here instead of falling back to
+    /// `get_entity_dimensions`, which is a port of `Avatar.getDefaultDimensions`
+    /// (`Avatar.java:62-64`, formerly `Player`) and only describes the player's own per-pose
+    /// dimensions.
     pub fn get_eye_height(&self) -> f64 {
-        if self.entity_type == &EntityType::WARDEN {
-            return f64::from(self.entity_dimension.load().eye_height);
-        }
-        f64::from(Self::get_entity_dimensions(self.pose.load()).eye_height)
+        f64::from(self.entity_dimension.load().eye_height)
     }
 
     /// Updates the entity's position, block position, and chunk position.
@@ -4540,6 +4550,79 @@ mod tests {
                 *expected,
                 "status mismatch at index {i}"
             );
+        }
+    }
+
+    /// `get_eye_height` now returns `entity_dimension.eye_height` verbatim (matching
+    /// `get_eye_pos`), so its correctness depends on the two producers that feed
+    /// `entity_dimension`: the generated per-type data used at spawn (`Entity::from_uuid`,
+    /// this file ~969-973 / ~1017, trivially copies `EntityType::eye_height` and is declarative,
+    /// not worth pinning on its own) and the pose-dependent overrides applied by `set_pose`
+    /// (this file ~3323-3327). Building a real `Entity` needs an `Arc<World>`, which every other
+    /// test in this crate avoids (no test builds a `World`/`Level`), so this pins the two
+    /// pose-dependent producers directly instead of re-deriving their formulas.
+    ///
+    /// `get_entity_dimensions` is `Avatar.getDefaultDimensions` (`Avatar.java:62-64`, née
+    /// `Player`) ported verbatim, and is still the real per-pose source `set_pose` stores into
+    /// `entity_dimension` for the player and for every mob `set_pose` does not special-case.
+    #[test]
+    fn get_entity_dimensions_eye_height_matches_vanilla_avatar_poses() {
+        let cases: &[(EntityPose, f32)] = &[
+            (EntityPose::Standing, 1.62),
+            (EntityPose::Sleeping, 0.2),
+            (EntityPose::FallFlying, 0.4),
+            (EntityPose::Swimming, 0.4),
+            (EntityPose::SpinAttack, 0.4),
+            (EntityPose::Crouching, 1.27),
+            (EntityPose::Dying, 1.62),
+        ];
+        for (pose, expected_eye_height) in cases {
+            assert_eq!(
+                Entity::get_entity_dimensions(*pose).eye_height,
+                *expected_eye_height
+            );
+        }
+    }
+
+    /// Vanilla: `Warden.getDefaultDimensions` (`Warden.java:520-522`) only overrides the
+    /// warden's own generated dimensions while digging or emerging, clamping to a fixed
+    /// `(width, 1.0)` box whose eye height is `EntityDimensions`'s default formula
+    /// `height * 0.85` (`EntityDimensions.java:11-13`) = `0.85`. Every other pose keeps the
+    /// warden's generated per-type dimensions untouched — this is the "vanilla special case"
+    /// referenced by the old `get_eye_height`, and it lives in `entity_dimension` (via
+    /// `set_pose`), not in `get_eye_height` itself, so nothing needed to be preserved there.
+    #[test]
+    fn warden_dimensions_matches_vanilla_digging_override() {
+        let standing = crate::entity::mob::warden::dimensions(EntityPose::Standing);
+        assert_eq!(standing.width, EntityType::WARDEN.dimension[0]);
+        assert_eq!(standing.height, EntityType::WARDEN.dimension[1]);
+        assert_eq!(standing.eye_height, EntityType::WARDEN.eye_height);
+
+        for pose in [EntityPose::Digging, EntityPose::Emerging] {
+            let dims = crate::entity::mob::warden::dimensions(pose);
+            assert_eq!(dims.width, EntityType::WARDEN.dimension[0]);
+            assert_eq!(dims.height, 1.0);
+            assert_eq!(dims.eye_height, 0.85);
+        }
+    }
+
+    /// The bug: before the fix, `get_eye_height` returned the player-shaped table above for
+    /// every non-warden entity, regardless of species. These generated per-type values (what
+    /// `entity_dimension` — and now `get_eye_height` — actually use, `Entity::from_uuid`
+    /// ~969-973) show how wrong that was: a chicken's real eye height is under half the
+    /// player's, and an enderman's is well over.
+    #[test]
+    fn generated_per_type_eye_heights_diverge_from_the_old_hardcoded_player_value() {
+        let old_hardcoded_standing_eye_height = 1.62_f32;
+        assert_eq!(EntityType::PLAYER.eye_height, old_hardcoded_standing_eye_height);
+
+        for entity_type in [
+            &EntityType::CHICKEN,
+            &EntityType::CREEPER,
+            &EntityType::ENDERMAN,
+            &EntityType::WARDEN,
+        ] {
+            assert_ne!(entity_type.eye_height, old_hardcoded_standing_eye_height);
         }
     }
 }
