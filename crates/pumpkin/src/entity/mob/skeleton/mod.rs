@@ -1,3 +1,4 @@
+use std::sync::atomic::Ordering::Relaxed;
 use std::sync::{Arc, Weak};
 
 use pumpkin_data::data_component_impl::EquipmentSlot;
@@ -10,13 +11,33 @@ use crate::entity::{
     Entity,
     ai::goal::{
         active_target::ActiveTargetGoal, bow_attack::BowAttackGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        melee_attack::MeleeAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
+        flee_sun::FleeSunGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal,
+        restrict_sun::RestrictSunGoal, revenge::RevengeGoal, wander_around::WanderAroundGoal,
     },
+    living::LivingEntity,
     mob::{Mob, MobEntity, equipment::RegionalDifficulty},
 };
 use crate::world::World;
+
+/// `AbstractSkeleton.java:51` `HARD_ATTACK_INTERVAL`, the default
+/// `reassessWeaponGoal` interval used by `Skeleton`/`Stray`/`WitherSkeleton`
+/// (none of which override `getHardAttackInterval`).
+pub const DEFAULT_BOW_ATTACK_INTERVAL: i32 = 20;
+/// `Bogged.java:117-119` / `Parched.java:57-59` both override
+/// `getHardAttackInterval` to `INCREASED_HARD_ATTACK_INTERVAL` (50).
+pub const INCREASED_BOW_ATTACK_INTERVAL: i32 = 50;
+
+/// Vanilla `Turtle.BABY_ON_LAND_SELECTOR` (`Turtle.java:76`):
+/// `(target, level) -> target.isBaby() && !target.isInWater()`.
+///
+/// There is no generic "is baby" query on `LivingEntity` (that lives on the
+/// `AgeableMob` trait, which this predicate closure cannot downcast to), so
+/// this mirrors `AgeableMob::is_baby`'s own check directly: a negative age
+/// ticker is vanilla's universal baby marker (`ageable.rs:38`).
+fn turtle_baby_on_land(living_entity: &LivingEntity, _world: &World) -> bool {
+    living_entity.entity.age.load(Relaxed) < 0 && !living_entity.is_in_water()
+}
 
 pub mod bogged;
 pub mod parched;
@@ -30,7 +51,17 @@ pub struct SkeletonEntityBase {
 }
 
 impl SkeletonEntityBase {
-    pub fn new(entity: Entity) -> Arc<Self> {
+    /// `bow_attack_interval` is `AbstractSkeleton.reassessWeaponGoal`'s
+    /// `minAttackInterval` on Hard difficulty (`AbstractSkeleton.java:138-141`):
+    /// `getHardAttackInterval()`, 20 by default but 50 for `Bogged`/`Parched`.
+    ///
+    /// Vanilla recomputes this every time `reassessWeaponGoal` runs (weapon
+    /// pickup, load, difficulty change) and also lowers it to
+    /// `getAttackInterval()` (40 / 70) off Hard difficulty. `BowAttackGoal`
+    /// only takes a fixed interval at construction and exposes no setter, so
+    /// this only reproduces the Hard-difficulty value; see the skeleton
+    /// family report for the follow-up needed in `bow_attack.rs`.
+    pub fn new(entity: Entity, bow_attack_interval: i32) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
         let mob = Self { mob_entity };
         let mob_arc = Arc::new(mob);
@@ -50,20 +81,61 @@ impl SkeletonEntityBase {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(2, Box::new(BowAttackGoal::new(1.0, 20, 15.0)));
-            goal_selector.add_goal(3, Box::new(MeleeAttackGoal::new(1.2, false)));
-            goal_selector.add_goal(7, Box::new(WanderAroundGoal::water_avoiding(1.0)));
+            // AbstractSkeleton.java:75-87 `registerGoals`. Vanilla has no
+            // FloatGoal/SwimGoal entry here (confirmed by the same absence in
+            // the sibling `Zombie.java:112-117`): skeletons, like zombies,
+            // sink and walk the sea floor rather than float.
+            goal_selector.add_goal(2, Box::new(RestrictSunGoal::default()));
+            goal_selector.add_goal(3, Box::new(FleeSunGoal::new(1.0)));
+            // AbstractSkeleton.java:79 also adds
+            // `new AvoidEntityGoal<>(this, Wolf.class, 6.0F, 1.0, 1.2)` at
+            // priority 3, but no `AvoidEntityGoal` type exists under
+            // `entity/ai/goal/` yet, so it is intentionally left out here.
+            //
+            // AbstractSkeleton.java:132-149 `reassessWeaponGoal` swaps a single
+            // priority-4 slot between the bow and melee goals depending on the
+            // held item, re-running on spawn/equip/load. Nothing in this crate
+            // currently calls back into mob AI on an equipment change, so both
+            // goals are registered permanently at priority 4 instead; they
+            // share MOVE|LOOK controls and `BowAttackGoal::can_start`/
+            // `should_continue` already gate on holding a bow
+            // (`bow_attack.rs`), so only one can ever run at a time and bow
+            // is preferred whenever one is held, matching vanilla's effective
+            // behaviour even though the mechanism differs.
             goal_selector.add_goal(
-                8,
+                4,
+                Box::new(BowAttackGoal::new(1.0, bow_attack_interval, 15.0)),
+            );
+            goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.2, false)));
+            goal_selector.add_goal(5, Box::new(WanderAroundGoal::water_avoiding(1.0)));
+            goal_selector.add_goal(
+                6,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
             );
-            goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            goal_selector.add_goal(6, Box::new(RandomLookAroundGoal::default()));
 
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
             target_selector.add_goal(
                 2,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
+            );
+            target_selector.add_goal(
+                3,
+                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::IRON_GOLEM, true),
+            );
+            // AbstractSkeleton.java:86 / Turtle.BABY_ON_LAND_SELECTOR
+            // (`Turtle.java:76`): reciprocal chance 10, mustSee = true,
+            // mustReach = false, restricted to baby turtles out of water.
+            target_selector.add_goal(
+                3,
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::TURTLE,
+                    10,
+                    true,
+                    false,
+                    Some(turtle_baby_on_land),
+                )),
             );
         };
 
