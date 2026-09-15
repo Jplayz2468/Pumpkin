@@ -5,8 +5,9 @@ use std::sync::{
 };
 
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::world::WorldEvent;
-use pumpkin_data::{Block, BlockId, BlockStateId};
+use pumpkin_data::{BlockId, BlockStateId};
 use pumpkin_util::Difficulty;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
@@ -86,7 +87,13 @@ impl LightningBoltEntity {
     fn power_lightning_rod(&self, world: &Arc<World>) {
         let strike_pos = self.get_strike_position();
         let block = world.get_block(&strike_pos);
-        if block == &Block::LIGHTNING_ROD {
+        // Vanilla checks `stateBelow.getBlock() instanceof LightningRodBlock`
+        // (LightningBolt.java:70), which matches every weathering/waxed variant since
+        // `WeatheringLightningRodBlock` (the unwaxed non-base ids) extends `LightningRodBlock`.
+        // Reuse the generated `minecraft:lightning_rods` block tag, which lists all 8 ids
+        // (base + exposed/weathered/oxidized, unwaxed and waxed), instead of comparing against
+        // a single hardcoded block.
+        if block.has_tag(&tag::Block::MINECRAFT_LIGHTNING_RODS) {
             crate::block::blocks::redstone::lightning_rod::LightningRodBlock::trigger(
                 world,
                 &strike_pos,
