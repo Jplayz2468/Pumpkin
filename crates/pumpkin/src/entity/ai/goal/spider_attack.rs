@@ -1,5 +1,6 @@
 use super::{Controls, Goal};
 use crate::entity::ai::goal::melee_attack::MeleeAttackGoal;
+use crate::entity::EntityBase;
 use crate::entity::mob::Mob;
 use rand::RngExt;
 
