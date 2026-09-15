@@ -67,7 +67,11 @@ fn connects_to(from: &Block, to: &Block, to_state: &BlockState, direction: Block
         return true;
     }
 
-    if to_state.is_side_solid(direction.opposite()) {
+    // Vanilla: FenceBlock.connectsTo (FenceBlock.java:59-64) is
+    // `!isExceptionForConnection(state) && faceSolid || sameFence || gate`. Without the
+    // exception check a fence would connect to pumpkins, melons, leaves, barriers and
+    // shulker boxes just because those happen to have a sturdy face on that side.
+    if !is_exception_for_connection(to) && to_state.is_side_solid(direction.opposite()) {
         return true;
     }
 
@@ -81,4 +85,128 @@ fn connects_to(from: &Block, to: &Block, to_state: &BlockState, direction: Block
     }
 
     *from != Block::NETHER_BRICK_FENCE && to.has_tag(&tag::Block::C_FENCES_WOODEN)
+}
+
+/// `Block.isExceptionForConnection` (Block.java:251-259): these blocks are excluded from
+/// the generic "sturdy face" connection rule used by panes, fences and walls even though
+/// several of them (pumpkins, melons, leaves, barriers, closed shulker boxes) do have a
+/// sturdy face on every side. Mirrors the helper of the same name in
+/// `block/blocks/glass_panes.rs`; see that file's note about a shared helper.
+fn is_exception_for_connection(block: &Block) -> bool {
+    block.has_tag(&tag::Block::MINECRAFT_LEAVES)
+        || block == &Block::BARRIER
+        || block == &Block::CARVED_PUMPKIN
+        || block == &Block::JACK_O_LANTERN
+        || block == &Block::MELON
+        || block == &Block::PUMPKIN
+        || block.has_tag(&tag::Block::MINECRAFT_SHULKER_BOXES)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Wooden fences connect to each other regardless of face sturdiness
+    /// (`isSameFence`, FenceBlock.java:66-68).
+    #[test]
+    fn wooden_fences_connect_to_each_other() {
+        assert!(connects_to(
+            &Block::OAK_FENCE,
+            &Block::SPRUCE_FENCE,
+            Block::SPRUCE_FENCE.default_state,
+            BlockDirection::North,
+        ));
+        assert!(connects_to(
+            &Block::OAK_FENCE,
+            &Block::OAK_FENCE,
+            Block::OAK_FENCE.default_state,
+            BlockDirection::North,
+        ));
+    }
+
+    /// Nether brick fence is not a wooden fence, but two of them still connect to each
+    /// other (`isSameFence`: both `is(WOODEN_FENCES)` are `false`, so they're equal).
+    #[test]
+    fn nether_brick_fence_connects_to_itself_but_not_wooden_fences() {
+        assert!(connects_to(
+            &Block::NETHER_BRICK_FENCE,
+            &Block::NETHER_BRICK_FENCE,
+            Block::NETHER_BRICK_FENCE.default_state,
+            BlockDirection::North,
+        ));
+        assert!(!connects_to(
+            &Block::NETHER_BRICK_FENCE,
+            &Block::OAK_FENCE,
+            Block::OAK_FENCE.default_state,
+            BlockDirection::North,
+        ));
+    }
+
+    /// A plain solid block (stone) has a sturdy face and is not in the exception list,
+    /// so `faceSolid` alone is enough to connect (FenceBlock.java:63).
+    #[test]
+    fn fence_connects_to_a_solid_block() {
+        assert!(connects_to(
+            &Block::OAK_FENCE,
+            &Block::STONE,
+            Block::STONE.default_state,
+            BlockDirection::North,
+        ));
+    }
+
+    /// Fence gates facing perpendicular to the fence connect to it even though a gate
+    /// does not pass the sturdy-face check (FenceBlock.java:62, FenceGateBlock.connectsToDirection).
+    #[test]
+    fn fence_connects_to_perpendicular_fence_gate() {
+        let mut gate_props = FenceGateProperties::default(&Block::OAK_FENCE_GATE);
+        gate_props.facing = HorizontalFacing::East;
+        let state_id = gate_props.to_state_id(&Block::OAK_FENCE_GATE);
+        let gate_state = BlockState::from_id(state_id);
+
+        assert!(connects_to(
+            &Block::OAK_FENCE,
+            &Block::OAK_FENCE_GATE,
+            gate_state,
+            BlockDirection::North,
+        ));
+    }
+
+    /// Air is neither solid nor a fence/gate, so it doesn't connect.
+    #[test]
+    fn fence_does_not_connect_to_air() {
+        assert!(!connects_to(
+            &Block::OAK_FENCE,
+            &Block::AIR,
+            Block::AIR.default_state,
+            BlockDirection::North,
+        ));
+    }
+
+    /// `Block.isExceptionForConnection` (Block.java:251-259) explicitly excludes leaves,
+    /// pumpkins, melons, barriers and shulker boxes even though several of them have a
+    /// sturdy face on every side. This is the bug this change fixes: previously a fence
+    /// would connect to all of these because it only checked `is_side_solid`.
+    #[test]
+    fn fence_does_not_connect_to_exception_blocks_despite_sturdy_faces() {
+        for exception in [
+            &Block::OAK_LEAVES,
+            &Block::PUMPKIN,
+            &Block::CARVED_PUMPKIN,
+            &Block::JACK_O_LANTERN,
+            &Block::MELON,
+            &Block::BARRIER,
+            &Block::SHULKER_BOX,
+        ] {
+            assert!(
+                !connects_to(
+                    &Block::OAK_FENCE,
+                    exception,
+                    exception.default_state,
+                    BlockDirection::North,
+                ),
+                "fence should not connect to {}",
+                exception.name
+            );
+        }
+    }
 }

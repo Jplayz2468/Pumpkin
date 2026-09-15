@@ -116,8 +116,17 @@ pub fn compute_wall_state(
         && wall_props.east != EastWall::None
         && wall_props.west != WestWall::None;
 
+    // Vanilla: WallBlock.shouldRaisePost (WallBlock.java:210-231). After the corner check
+    // above (`hasCorner`, ported as `!(cross || connected_north_south || connected_east_west)`),
+    // vanilla checks `hasHighWall`: two opposite TALL sides already reach full height, so no
+    // center post is needed regardless of what's above.
+    let has_high_wall = (wall_props.north == NorthWall::Tall && wall_props.south == SouthWall::Tall)
+        || (wall_props.east == EastWall::Tall && wall_props.west == WestWall::Tall);
+
     wall_props.up = if !(cross || connected_north_south || connected_east_west) {
         true
+    } else if has_high_wall {
+        false
     } else if block_above.has_tag(&tag::Block::MINECRAFT_WALLS) {
         let other_props = WallProperties::from_state_id(block_above_state.id);
         other_props.up
@@ -131,6 +140,10 @@ pub fn compute_wall_state(
                 HorizontalFacing::South | HorizontalFacing::North => connected_north_south,
             }
         }
+    } else if block_above.has_tag(&tag::Block::MINECRAFT_WALL_POST_OVERRIDE) {
+        // Vanilla: `topNeighbour.is(BlockTags.WALL_POST_OVERRIDE)` (WallBlock.java:230),
+        // e.g. torches and signs force a raised post regardless of their shape.
+        true
     } else {
         false
     };
@@ -143,12 +156,23 @@ fn is_connected(
     other_block: &Block,
     other_block_state: &BlockState,
 ) -> bool {
-    let mut connected = other_block == block
-        || (other_block_state.is_solid() && other_block_state.is_full_cube())
+    // Vanilla: WallBlock.connectsTo (WallBlock.java:105-109) is
+    // `state.is(BlockTags.WALLS) || !isExceptionForConnection(state) && faceSolid ||
+    // block instanceof IronBarsBlock || connectedFenceGate`. The exception check only
+    // gates the `faceSolid` branch: without it a wall would connect to pumpkins, melons,
+    // leaves, barriers and shulker boxes just because those happen to be full/sturdy-faced.
+    // `other_block == &Block::IRON_BARS || other_block.has_tag(C_GLASS_PANES)` stands in for
+    // `instanceof IronBarsBlock`, since every vanilla pane (colored or not) is literally an
+    // `IronBarsBlock` instance (see the note in `glass_panes.rs`), and is intentionally left
+    // outside the exception check, matching vanilla.
+    let face_solid = (other_block_state.is_solid() && other_block_state.is_full_cube())
         || other_block_state.is_side_solid(BlockDirection::from_cardinal_direction(
             direction.opposite(),
-        ))
+        ));
+
+    let mut connected = other_block == block
         || other_block.has_tag(&tag::Block::MINECRAFT_WALLS)
+        || (!is_exception_for_connection(other_block) && face_solid)
         || other_block == &Block::IRON_BARS
         || other_block.has_tag(&tag::Block::C_GLASS_PANES);
 
@@ -162,6 +186,21 @@ fn is_connected(
         }
     }
     connected
+}
+
+/// `Block.isExceptionForConnection` (Block.java:251-259): these blocks are excluded from
+/// the generic "sturdy face" connection rule used by panes, fences and walls even though
+/// several of them (pumpkins, melons, leaves, barriers, closed shulker boxes) do have a
+/// sturdy face on every side. Mirrors the helper of the same name in
+/// `block/blocks/glass_panes.rs`; see that file's note about a shared helper.
+fn is_exception_for_connection(block: &Block) -> bool {
+    block.has_tag(&tag::Block::MINECRAFT_LEAVES)
+        || block == &Block::BARRIER
+        || block == &Block::CARVED_PUMPKIN
+        || block == &Block::JACK_O_LANTERN
+        || block == &Block::MELON
+        || block == &Block::PUMPKIN
+        || block.has_tag(&tag::Block::MINECRAFT_SHULKER_BOXES)
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -207,6 +246,89 @@ impl From<WallShape> for WestWall {
             WallShape::None => Self::None,
             WallShape::Low => Self::Low,
             WallShape::Tall => Self::Tall,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Two walls of any type connect to each other via the `minecraft:walls` tag
+    /// (`state.is(BlockTags.WALLS)`, WallBlock.java:108), and iron bars via
+    /// `instanceof IronBarsBlock`.
+    #[test]
+    fn walls_connect_to_each_other_and_to_iron_bars() {
+        assert!(is_connected(
+            &Block::COBBLESTONE_WALL,
+            HorizontalFacing::North,
+            &Block::COBBLESTONE_WALL,
+            Block::COBBLESTONE_WALL.default_state,
+        ));
+        assert!(is_connected(
+            &Block::COBBLESTONE_WALL,
+            HorizontalFacing::North,
+            &Block::IRON_BARS,
+            Block::IRON_BARS.default_state,
+        ));
+        // Every vanilla glass pane is literally an `IronBarsBlock` instance
+        // (`Blocks.GLASS_PANE = register(..., IronBarsBlock::new, ...)`).
+        assert!(is_connected(
+            &Block::COBBLESTONE_WALL,
+            HorizontalFacing::North,
+            &Block::GLASS_PANE,
+            Block::GLASS_PANE.default_state,
+        ));
+    }
+
+    /// A plain solid block (stone) has a sturdy face and is not in the exception list,
+    /// so `faceSolid` alone is enough to connect (WallBlock.java:108).
+    #[test]
+    fn wall_connects_to_a_solid_block() {
+        assert!(is_connected(
+            &Block::COBBLESTONE_WALL,
+            HorizontalFacing::North,
+            &Block::STONE,
+            Block::STONE.default_state,
+        ));
+    }
+
+    /// Air is neither solid nor tagged/typed as anything a wall connects to.
+    #[test]
+    fn wall_does_not_connect_to_air() {
+        assert!(!is_connected(
+            &Block::COBBLESTONE_WALL,
+            HorizontalFacing::North,
+            &Block::AIR,
+            Block::AIR.default_state,
+        ));
+    }
+
+    /// `Block.isExceptionForConnection` (Block.java:251-259) explicitly excludes leaves,
+    /// pumpkins, melons, barriers and shulker boxes even though several of them have a
+    /// sturdy face on every side. This is the bug this change fixes: previously a wall
+    /// would connect to all of these because it only checked full-cube/face-sturdy state.
+    #[test]
+    fn wall_does_not_connect_to_exception_blocks_despite_sturdy_faces() {
+        for exception in [
+            &Block::OAK_LEAVES,
+            &Block::PUMPKIN,
+            &Block::CARVED_PUMPKIN,
+            &Block::JACK_O_LANTERN,
+            &Block::MELON,
+            &Block::BARRIER,
+            &Block::SHULKER_BOX,
+        ] {
+            assert!(
+                !is_connected(
+                    &Block::COBBLESTONE_WALL,
+                    HorizontalFacing::North,
+                    exception,
+                    exception.default_state,
+                ),
+                "wall should not connect to {}",
+                exception.name
+            );
         }
     }
 }
