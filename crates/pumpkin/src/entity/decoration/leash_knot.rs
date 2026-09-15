@@ -71,8 +71,10 @@ impl LeashKnotEntity {
         let knot = Arc::new(Self::new(entity, pos));
         world.spawn_entity(knot.clone() as Arc<dyn EntityBase>);
 
-        world.play_sound(Sound::ItemLeadTied, SoundCategory::Neutral, &raw_pos);
-
+        // Vanilla: LeashFenceKnotEntity.createKnot (LeashFenceKnotEntity.java:145-149) does not
+        // play a sound. Only playPlacementSound() does, and only the caller invokes it, and only
+        // on a successful attach (LeashFenceKnotEntity.java:111, called from lead.rs). Playing it
+        // here as well double-plays the tie sound on every new knot.
         knot
     }
 
@@ -162,23 +164,43 @@ impl EntityBase for LeashKnotEntity {
             }
         }
 
+        // Vanilla: LeashFenceKnotEntity.interact (LeashFenceKnotEntity.java:87-94) only attaches a
+        // leashed mob to the knot when Leashable.canHaveALeashAttachedTo (Leashable.java:55-61)
+        // passes, which rejects the attach when leashDistanceTo the knot exceeds
+        // leashSnapDistance() (Leashable.java:59,181-183, 12 blocks). Mirror the same snap-distance
+        // filter used for the direct player-lead case in mob::mod::mob_interact
+        // (crates/pumpkin/src/entity/mob/mod.rs:666-668).
         if let Some(self_knot) = Self::get_knot(&world, self.pos) {
+            let knot_pos = self_knot.entity.pos.load();
             for mob in player_leashed_mobs {
-                mob.leash_to(self_knot.clone() as Arc<dyn EntityBase>);
-                attached_mob = true;
+                let diff = mob.pos.load() - knot_pos;
+                if diff.length_squared() <= Entity::LEASH_SNAP_DISTANCE * Entity::LEASH_SNAP_DISTANCE
+                {
+                    mob.leash_to(self_knot.clone() as Arc<dyn EntityBase>);
+                    attached_mob = true;
+                }
             }
         }
 
+        // Vanilla: the reverse case (dropping the knot's leashed mobs onto the player) is also
+        // gated on !player.isSecondaryUseActive() (LeashFenceKnotEntity.java:97), i.e. a sneaking
+        // player right-clicking a knot they have no leashed mob to attach never picks up its mobs.
         let mut any_dropped = false;
-        if !attached_mob {
+        if !attached_mob && !player.get_entity().is_sneaking() {
+            let player_pos = player.get_entity().pos.load();
             for entity_base in &entities {
                 let ent = entity_base.get_entity();
                 if let Ok(guard) = ent.leashed_to.try_lock()
                     && let Some(holder) = guard.as_ref()
                     && holder.get_entity().entity_id == knot_id
                 {
-                    ent.leash_to(player.clone() as Arc<dyn EntityBase>);
-                    any_dropped = true;
+                    let diff = ent.pos.load() - player_pos;
+                    if diff.length_squared()
+                        <= Entity::LEASH_SNAP_DISTANCE * Entity::LEASH_SNAP_DISTANCE
+                    {
+                        ent.leash_to(player.clone() as Arc<dyn EntityBase>);
+                        any_dropped = true;
+                    }
                 }
             }
         }
