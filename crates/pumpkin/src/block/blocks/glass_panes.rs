@@ -82,7 +82,10 @@ fn is_connected(
         || (!is_exception_for_connection(other_block)
             && other_block_state.is_side_solid(towards.opposite()))
         || other_block.has_tag(&tag::Block::C_GLASS_PANES)
-        || other_block == &Block::IRON_BARS
+        // `instanceof IronBarsBlock` (IronBarsBlock.java:102) also covers every copper-bars
+        // weathering stage, waxed or not (Blocks.java:2340-2346) -- `minecraft:bars` is the
+        // tag equivalent of that instanceof check, not just the plain `minecraft:iron_bars` id.
+        || other_block.has_tag(&tag::Block::MINECRAFT_BARS)
         || other_block.has_tag(&tag::Block::MINECRAFT_WALLS)
 }
 

@@ -10,7 +10,21 @@ use pumpkin_util::math::position::BlockPos;
 
 type IronBarsProperties = pumpkin_data::block_properties::OakFenceLikeProperties;
 
-#[pumpkin_block("minecraft:iron_bars")]
+// Vanilla: Blocks.java:2340-2346 registers COPPER_BARS via
+// `WeatheringCopperCollection.registerBlocks`, whose `waxedBlockFactory` is
+// `(s, p) -> new IronBarsBlock(p)` (Blocks.java:2343) -- the waxed variants are plain
+// `IronBarsBlock` instances with no weathering behaviour (waxing permanently strips
+// `isRandomlyTicking`/`changeOverTime`). Only the *unwaxed* progression
+// (copper_bars/exposed_copper_bars/weathered_copper_bars/oxidized_copper_bars) uses
+// `WeatheringCopperBarsBlock`, which is a separate, still-unregistered family owned
+// elsewhere (see crates/pumpkin/src/block/blocks/weathering_copper.rs).
+#[pumpkin_block(
+    "minecraft:iron_bars",
+    "minecraft:waxed_copper_bars",
+    "minecraft:waxed_exposed_copper_bars",
+    "minecraft:waxed_weathered_copper_bars",
+    "minecraft:waxed_oxidized_copper_bars"
+)]
 pub struct IronBarsBlock;
 
 impl BlockBehaviour for IronBarsBlock {
@@ -44,8 +58,14 @@ pub fn compute_bars_state(
         let other_block_pos = block_pos.offset(direction.to_offset());
         let (other_block, other_block_state) = world.get_block_and_state(&other_block_pos);
 
-        let connected = other_block == block
-            || other_block_state.is_side_solid(direction.opposite().to_block_direction())
+        // Vanilla `IronBarsBlock.attachsTo` (IronBarsBlock.java:101-103):
+        // `!isExceptionForConnection(state) && faceSolid || instanceof IronBarsBlock || WALLS tag`.
+        // `minecraft:bars` (== `c:bars`) covers every block that `instanceof IronBarsBlock` in
+        // vanilla: plain iron bars, all four unwaxed weathering stages, and all four waxed
+        // stages (Blocks.java:2340-2346 registers the waxed variants as plain `IronBarsBlock`).
+        let connected = other_block.has_tag(&tag::Block::MINECRAFT_BARS)
+            || (!is_exception_for_connection(other_block)
+                && other_block_state.is_side_solid(direction.opposite().to_block_direction()))
             || other_block.has_tag(&tag::Block::C_GLASS_PANES)
             || other_block.has_tag(&tag::Block::MINECRAFT_WALLS);
 
@@ -58,4 +78,19 @@ pub fn compute_bars_state(
     }
 
     bars_props.to_state_id(block)
+}
+
+/// `Block.isExceptionForConnection` (Block.java:251-259): blocks excluded from the generic
+/// "sturdy face" connection rule used by bars, panes, fences and walls even though several
+/// of them (pumpkins, melons, leaves, barriers, closed shulker boxes) have a sturdy face on
+/// every side. Mirrors `is_exception_for_connection` in `glass_panes.rs`, which implements
+/// the same vanilla method for panes.
+fn is_exception_for_connection(block: &Block) -> bool {
+    block.has_tag(&tag::Block::MINECRAFT_LEAVES)
+        || block == &Block::BARRIER
+        || block == &Block::CARVED_PUMPKIN
+        || block == &Block::JACK_O_LANTERN
+        || block == &Block::MELON
+        || block == &Block::PUMPKIN
+        || block.has_tag(&tag::Block::MINECRAFT_SHULKER_BOXES)
 }
