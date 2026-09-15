@@ -248,7 +248,7 @@ mod tests {
         let below = BlockPos::new(0, 0, 0);
         let accessor_supported = FakeAccessor { solid_pos: below };
         assert!(
-            AmethystBlock.can_place_at(CanPlaceAtArgs {
+            BlockBehaviour::can_place_at(&AmethystBlock, CanPlaceAtArgs {
                 server: None,
                 world: None,
                 block_accessor: &accessor_supported,
@@ -267,7 +267,7 @@ mod tests {
         let above = BlockPos::new(0, 2, 0);
         let accessor_unsupported = FakeAccessor { solid_pos: above };
         assert!(
-            !AmethystBlock.can_place_at(CanPlaceAtArgs {
+            !BlockBehaviour::can_place_at(&AmethystBlock, CanPlaceAtArgs {
                 server: None,
                 world: None,
                 block_accessor: &accessor_unsupported,

@@ -43,7 +43,7 @@ impl BlockMetadata for SkullBlock {
 /// `StandingAndWallBlockItem`/`PlayerHeadItem` pairings in `Items.java` (e.g. lines
 /// 1519-1558): every skull item places the standing block when looking down at the top
 /// of a block, and the wall block when placed against the side of one.
-fn wall_variant(block: &'static Block) -> Option<&'static Block> {
+fn wall_variant(block: &Block) -> Option<&'static Block> {
     if block == &Block::SKELETON_SKULL {
         Some(&Block::SKELETON_WALL_SKULL)
     } else if block == &Block::WITHER_SKELETON_SKULL {
