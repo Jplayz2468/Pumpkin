@@ -107,6 +107,7 @@ pub mod infested_rotated_pillar;
 pub mod mud;
 pub mod netherrack;
 pub mod nylium;
+pub mod potent_sulfur;
 pub mod powder_snow;
 pub mod rooted_dirt;
 pub mod snow;
