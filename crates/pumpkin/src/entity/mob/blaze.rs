@@ -9,7 +9,8 @@ use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
         active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, swim::SwimGoal, wander_around::WanderAroundGoal,
+        look_at_entity::LookAtEntityGoal, move_towards_restriction::MoveTowardsRestrictionGoal,
+        revenge::RevengeGoal, wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
 };
@@ -43,8 +44,9 @@ impl BlazeEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-
+            // Blaze.java:44-52 (registerGoals): no FloatGoal/SwimGoal is registered for
+            // Blaze (only Mob.registerGoals(), which is empty, precedes it -- Mob.java:162-163),
+            // so a `SwimGoal` here would be an extra goal relative to vanilla. Removed.
             goal_selector.add_goal(
                 4,
                 Box::new(
@@ -54,13 +56,31 @@ impl BlazeEntity {
                 ),
             );
 
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            // Blaze.java:46: `MoveTowardsRestrictionGoal(this, 1.0)` at priority 5 -- was
+            // entirely missing here.
+            goal_selector.add_goal(5, Box::new(MoveTowardsRestrictionGoal::new(1.0)));
+            // Blaze.java:47: `WaterAvoidingRandomStrollGoal(this, 1.0, 0.0F)` at priority 7,
+            // not 5 -- was previously registered at the wrong priority using the
+            // non-water-avoiding variant. `water_avoiding` doesn't expose the vanilla
+            // `probability` parameter (Blaze passes 0.0F instead of the 0.001F default,
+            // i.e. it should *always* prefer the water-avoiding candidate); no site in this
+            // codebase currently threads that parameter through, so this is a known,
+            // reported deviation rather than a silent one.
+            goal_selector.add_goal(7, Box::new(WanderAroundGoal::water_avoiding(1.0)));
             goal_selector.add_goal(
                 8,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
             );
             goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
 
+            // Blaze.java:50: `HurtByTargetGoal(this).setAlertOthers()` at priority 1 -- was
+            // entirely missing here. `setAlertOthers()` (alerting nearby Blazes) has no
+            // equivalent on `RevengeGoal` in this codebase and isn't implemented per-mob for
+            // Blaze either (unlike e.g. `ZombifiedPiglinEntity`'s bespoke alert timer), so
+            // that half of vanilla's behaviour is still missing -- flagged, not silently
+            // dropped.
+            target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
+            // Blaze.java:51: `NearestAttackableTargetGoal<>(this, Player.class, true)`.
             target_selector.add_goal(
                 2,
                 ActiveTargetGoal::with_default(&mob_arc.entity, &EntityType::PLAYER, true),

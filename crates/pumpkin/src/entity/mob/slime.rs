@@ -16,6 +16,7 @@ use crate::entity::{
     Entity, EntityBase,
     ai::control::{Control, MoveControlTrait},
     ai::goal::{Goal, active_target::ActiveTargetGoal},
+    living::LivingEntity,
     mob::{Mob, MobEntity},
 };
 use crate::world::World;
@@ -71,14 +72,31 @@ impl SlimeEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // AbstractCubeMob.java:61-63 (registerGoals): float(1), randomDirection(4),
+            // keepOnJumping(5). Slime.java:38 (addBehaviourGoals) inserts the attack goal at 2.
             goal_selector.add_goal(1, Box::new(SlimeFloatGoal::new(mob_arc.clone())));
             goal_selector.add_goal(2, Box::new(SlimeAttackGoal::new(mob_arc.clone())));
-            goal_selector.add_goal(3, Box::new(SlimeRandomDirectionGoal::new(mob_arc.clone())));
+            goal_selector.add_goal(4, Box::new(SlimeRandomDirectionGoal::new(mob_arc.clone())));
             goal_selector.add_goal(5, Box::new(SlimeKeepOnJumpingGoal::new(mob_arc.clone())));
 
+            // Slime.java:43-45 (addTargetingGoals): player target is restricted to
+            // |targetY - selfY| <= 4.0, which `with_default` cannot express.
+            let target_weak = Arc::downgrade(&mob_arc);
             target_selector.add_goal(
                 1,
-                ActiveTargetGoal::with_default(&mob_arc.entity, &EntityType::PLAYER, true),
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.entity,
+                    &EntityType::PLAYER,
+                    10,
+                    true,
+                    false,
+                    Some(move |target: &LivingEntity, _world: &World| {
+                        target_weak.upgrade().is_none_or(|slime| {
+                            let my_y = slime.entity.living_entity.entity.pos.load().y;
+                            (target.entity.pos.load().y - my_y).abs() <= 4.0
+                        })
+                    }),
+                )),
             );
             target_selector.add_goal(
                 3,
@@ -426,6 +444,14 @@ impl MoveControlTrait for SlimeMoveControl {
 
         let on_ground = entity.on_ground.load(Ordering::Relaxed);
 
+        // AbstractCubeMob.java:462,479 (CubeMobMoveControl#tick): `setSpeed` sets both the
+        // Entity `speed` field and `zza`, and `Mob#setSpeed` scales the requested modifier by
+        // the movement-speed attribute (Mob.java:440-443) rather than using the raw modifier.
+        // Pumpkin's generic `MoveControl`'s `Jumping` arm does the same (move_control.rs), so
+        // mirror it here instead of writing the unscaled 1.0/1.2 modifier straight into
+        // `movement_input.z`.
+        let movement_speed = living_entity.get_attribute_value(&Attributes::MOVEMENT_SPEED);
+
         if on_ground {
             if speed_modifier > 0.0 {
                 let current_delay = slime.jump_delay.load(Ordering::Relaxed);
@@ -447,7 +473,7 @@ impl MoveControlTrait for SlimeMoveControl {
                             slime.get_sound_pitch(),
                         );
                     }
-                    movement_input.z = speed_modifier;
+                    movement_input.z = speed_modifier * movement_speed;
                 } else {
                     slime.jump_delay.store(current_delay - 1, Ordering::Relaxed);
                     living_entity.jumping.store(false, Ordering::SeqCst);
@@ -458,7 +484,7 @@ impl MoveControlTrait for SlimeMoveControl {
         } else {
             // In air: move forward but don't "jump" again
             if speed_modifier > 0.0 {
-                movement_input.z = speed_modifier;
+                movement_input.z = speed_modifier * movement_speed;
             }
             living_entity.jumping.store(false, Ordering::SeqCst);
         }
