@@ -5,8 +5,7 @@ use pumpkin_data::{
     block_properties::{BlockProperties, OakSaplingLikeProperties},
 };
 use pumpkin_macros::pumpkin_block_from_tag;
-use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
-use pumpkin_util::random::{RandomGenerator, xoroshiro128::Xoroshiro};
+use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::blocks::plant::PlantBlockBase;
@@ -48,7 +47,11 @@ impl SaplingBlock {
             let mut props = OakSaplingLikeProperties::from_state_id(state_id);
             if props.stage == 0 {
                 props.stage = 1;
-                world.set_block_state(pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+                world.set_block_state(
+                    pos,
+                    props.to_state_id(block),
+                    BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
+                );
                 return;
             }
         }
@@ -64,8 +67,7 @@ impl SaplingBlock {
         let Some(grower) = TreeGrower::for_block(block) else {
             return;
         };
-        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(rand::random::<u64>()));
-        grower.grow_tree(world, pos, block, state_id, &mut random);
+        grower.grow_tree(world, pos, block, state_id);
     }
 }
 
@@ -96,21 +98,12 @@ impl BlockBehaviour for SaplingBlock {
     }
 
     fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
-        let Some(grower) = TreeGrower::for_block(args.block) else {
-            return false;
-        };
-        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(rand::random::<u64>()));
-        grower.can_grow(args.world, args.position, args.block, &mut random)
-            && args
-                .world
-                .is_in_build_limit(
-                    args.position
-                        .offset(Vector3::new(0, grower.min_height(), 0)),
-                )
+        let height = TreeGrower::for_block(args.block).map_or(0, TreeGrower::min_height);
+        args.world.is_in_height_limit(args.position.0.y + height)
     }
 
-    fn is_bonemeal_success(&self, _args: BonemealArgs<'_>) -> bool {
-        rand::random::<f32>() < 0.45
+    fn is_bonemeal_success(&self, args: BonemealArgs<'_>) -> bool {
+        args.world.rand_f32() < 0.45
     }
 
     fn perform_bonemeal(&self, args: BonemealArgs<'_>) {

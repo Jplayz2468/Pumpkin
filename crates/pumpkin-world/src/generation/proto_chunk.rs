@@ -73,6 +73,21 @@ pub trait GenerationCache: HeightLimitView + BlockAccessor {
     fn get_block_state(&self, pos: &Vector3<i32>) -> BlockStateId;
     fn get_fluid_and_fluid_state(&self, position: &Vector3<i32>) -> (Fluid, FluidState);
     fn set_block_state(&mut self, pos: &Vector3<i32>, block_state: &BlockState);
+    /// Live feature adapters retain update flags; proto-chunks only store states.
+    fn set_block_state_with_flags(
+        &mut self,
+        pos: &Vector3<i32>,
+        state: &BlockState,
+        _flags: crate::world::BlockFlags,
+    ) {
+        self.set_block_state(pos, state);
+    }
+    /// Feature-driven destruction drops items in live levels. During generation
+    /// there are no entities to receive drops, but the contained fluid remains.
+    fn destroy_block(&mut self, pos: &Vector3<i32>) {
+        let (_, fluid) = self.get_fluid_and_fluid_state(pos);
+        self.set_block_state(pos, fluid.block_state_id.to_state());
+    }
     fn add_block_entity(&mut self, pos: &Vector3<i32>, nbt: NbtCompound);
     fn top_motion_blocking_block_height_exclusive(&self, x: i32, z: i32) -> i32;
     fn top_motion_blocking_block_no_leaves_height_exclusive(&self, x: i32, z: i32) -> i32;

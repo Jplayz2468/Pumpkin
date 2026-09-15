@@ -1,11 +1,16 @@
 use std::sync::Arc;
 
-use pumpkin_data::block_properties::BrownMushroomBlockLikeProperties;
+use crate::world::generation_cache::WorldGenerationCache;
 use pumpkin_data::tag::Taggable;
 use pumpkin_data::{Block, BlockId, BlockState, BlockStateId, tag};
+use pumpkin_data::{
+    configured_feature::ConfiguredFeature as FeatureKey, placed_feature::PlacedFeature,
+};
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_world::generation::feature::configured_features::{
+    CONFIGURED_FEATURES, ConfiguredFeature,
+};
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
-use rand::RngExt;
 
 use crate::block::{
     BlockBehaviour, BlockMetadata, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
@@ -20,14 +25,6 @@ impl BlockMetadata for MushroomPlantBlock {
     fn ids() -> Box<[BlockId]> {
         [BlockId::BROWN_MUSHROOM, BlockId::RED_MUSHROOM].into()
     }
-}
-
-fn mushroom_tree_height(rng: &mut impl rand::Rng) -> i32 {
-    let mut height = rng.random_range(0..3) + 4;
-    if rng.random_range(0..12) == 0 {
-        height *= 2;
-    }
-    height
 }
 
 impl MushroomPlantBlock {
@@ -69,155 +66,44 @@ impl MushroomPlantBlock {
             return false;
         }
 
-        let tree_height = mushroom_tree_height(&mut rand::rng());
-
-        let min_y = world.get_bottom_y();
-        let max_y = world.get_top_y();
-        if pos.0.y < min_y + 1 || pos.0.y + tree_height + 1 > max_y {
-            return false;
-        }
-
-        let below_block = world.get_block(&pos.down());
-        let can_place_on = if block == &Block::BROWN_MUSHROOM {
-            below_block.has_tag(&tag::Block::MINECRAFT_HUGE_BROWN_MUSHROOM_CAN_PLACE_ON)
+        let key = if block == &Block::BROWN_MUSHROOM {
+            FeatureKey::HugeBrownMushroom
         } else {
-            below_block.has_tag(&tag::Block::MINECRAFT_HUGE_RED_MUSHROOM_CAN_PLACE_ON)
+            FeatureKey::HugeRedMushroom
         };
-        if !can_place_on {
+        let Some(feature) = CONFIGURED_FEATURES.get(&key) else {
             return false;
-        }
-
-        for dy in 0..=tree_height {
-            let radius = if block == &Block::BROWN_MUSHROOM {
-                if dy <= 3 { 0 } else { 3 }
-            } else if (dy < tree_height && dy >= tree_height - 3) || dy == tree_height {
-                2
-            } else {
-                0
-            };
-            for dx in -radius..=radius {
-                for dz in -radius..=radius {
-                    let check_pos = pos.add(dx, dy, dz);
-                    // The mushroom itself is only replaced with air after this check.
-                    if check_pos == *pos {
-                        continue;
-                    }
-                    if !world.is_loaded(&check_pos) {
-                        return false;
-                    }
-                    let check_state = world.get_block_state(&check_pos);
-                    let check_block = world.get_block(&check_pos);
-                    if !check_state.is_air() && !check_block.has_tag(&tag::Block::MINECRAFT_LEAVES)
-                    {
-                        return false;
-                    }
-                }
-            }
-        }
-
+        };
+        let original = world.get_block_state_id(pos);
+        // Vanilla removes the small mushroom before trying the feature and restores
+        // it on failure, including the corresponding neighbor notifications.
         world.set_block_state(pos, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
-
-        if block == &Block::BROWN_MUSHROOM {
-            place_huge_brown_mushroom(world, pos, tree_height);
-        } else if block == &Block::RED_MUSHROOM {
-            place_huge_red_mushroom(world, pos, tree_height);
+        let mut cache = WorldGenerationCache::new(world.clone(), pos);
+        let generated = cache.generate_with_level_random(|cache, random| match feature {
+            ConfiguredFeature::HugeBrownMushroom(feature) => feature.generate(
+                cache,
+                world.dimension.min_y as i8,
+                world.dimension.height as u16,
+                PlacedFeature::BrownMushroomNormal,
+                random,
+                *pos,
+            ),
+            ConfiguredFeature::HugeRedMushroom(feature) => feature.generate(
+                cache,
+                world.dimension.min_y as i8,
+                world.dimension.height as u16,
+                PlacedFeature::RedMushroomNormal,
+                random,
+                *pos,
+            ),
+            _ => false,
+        });
+        if generated {
+            cache.apply();
+        } else {
+            world.set_block_state(pos, original, BlockFlags::NOTIFY_ALL);
         }
-
-        true
-    }
-}
-
-fn place_mushroom_block(world: &Arc<World>, pos: &BlockPos, state_id: BlockStateId) {
-    let block = world.get_block(pos);
-    let state = world.get_block_state(pos);
-    if state.is_air() || block.has_tag(&tag::Block::MINECRAFT_REPLACEABLE_BY_MUSHROOMS) {
-        world.set_block_state(pos, state_id, BlockFlags::NOTIFY_ALL);
-    }
-}
-
-fn place_huge_brown_mushroom(world: &Arc<World>, pos: &BlockPos, tree_height: i32) {
-    let radius = 3;
-    let cap_y = pos.0.y + tree_height;
-    for j in -radius..=radius {
-        for k in -radius..=radius {
-            let on_x_edge = j == -radius || j == radius;
-            let on_z_edge = k == -radius || k == radius;
-
-            if on_x_edge && on_z_edge {
-                continue;
-            }
-
-            let props = BrownMushroomBlockLikeProperties {
-                up: true,
-                down: false,
-                west: j == -radius || (on_z_edge && j == 1 - radius),
-                east: j == radius || (on_z_edge && j == radius - 1),
-                north: k == -radius || (on_x_edge && k == 1 - radius),
-                south: k == radius || (on_x_edge && k == radius - 1),
-            };
-            let state_id = props.to_state_id(&Block::BROWN_MUSHROOM_BLOCK);
-            let cap_pos = BlockPos::new(pos.0.x + j, cap_y, pos.0.z + k);
-            place_mushroom_block(world, &cap_pos, state_id);
-        }
-    }
-
-    let stem_props = BrownMushroomBlockLikeProperties {
-        up: false,
-        down: false,
-        north: true,
-        east: true,
-        south: true,
-        west: true,
-    };
-    let stem_state = stem_props.to_state_id(&Block::MUSHROOM_STEM);
-    for i in 0..tree_height {
-        let stem_pos = BlockPos::new(pos.0.x, pos.0.y + i, pos.0.z);
-        place_mushroom_block(world, &stem_pos, stem_state);
-    }
-}
-
-fn place_huge_red_mushroom(world: &Arc<World>, pos: &BlockPos, tree_height: i32) {
-    let radius = 2;
-    for i in (tree_height - 3)..=tree_height {
-        let j = if i < tree_height { radius } else { radius - 1 };
-        let k = radius - 2;
-
-        for l in -j..=j {
-            for m in -j..=j {
-                let on_x_edge = l == -j || l == j;
-                let on_z_edge = m == -j || m == j;
-
-                if i < tree_height && on_x_edge == on_z_edge {
-                    continue;
-                }
-
-                let props = BrownMushroomBlockLikeProperties {
-                    up: i >= tree_height - 1,
-                    down: false,
-                    west: l < -k,
-                    east: l > k,
-                    north: m < -k,
-                    south: m > k,
-                };
-                let state_id = props.to_state_id(&Block::RED_MUSHROOM_BLOCK);
-                let cap_pos = BlockPos::new(pos.0.x + l, pos.0.y + i, pos.0.z + m);
-                place_mushroom_block(world, &cap_pos, state_id);
-            }
-        }
-    }
-
-    let stem_props = BrownMushroomBlockLikeProperties {
-        up: false,
-        down: false,
-        north: true,
-        east: true,
-        south: true,
-        west: true,
-    };
-    let stem_state = stem_props.to_state_id(&Block::MUSHROOM_STEM);
-    for i in 0..tree_height {
-        let stem_pos = BlockPos::new(pos.0.x, pos.0.y + i, pos.0.z);
-        place_mushroom_block(world, &stem_pos, stem_state);
+        generated
     }
 }
 
@@ -246,11 +132,11 @@ impl BlockBehaviour for MushroomPlantBlock {
         let state_id = world.get_block_state_id(&pos);
 
         let mut max = 5;
-        for dx in -4..=4 {
+        for dz in -4..=4 {
             for dy in -1..=1 {
-                for dz in -4..=4 {
+                for dx in -4..=4 {
                     let check_pos = pos.add(dx, dy, dz);
-                    if world.is_loaded(&check_pos) && world.get_block(&check_pos) == this_block {
+                    if world.get_block(&check_pos) == this_block {
                         max -= 1;
                         if max <= 0 {
                             return;
@@ -268,8 +154,7 @@ impl BlockBehaviour for MushroomPlantBlock {
         );
 
         for _ in 0..4 {
-            if world.is_loaded(&offset)
-                && world.get_block_state(&offset).is_air()
+            if world.get_block_state(&offset).is_air()
                 && Self::can_survive(world.as_ref(), Some(world.as_ref()), &offset)
             {
                 current_pos = offset;
@@ -281,8 +166,7 @@ impl BlockBehaviour for MushroomPlantBlock {
             );
         }
 
-        if world.is_loaded(&offset)
-            && world.get_block_state(&offset).is_air()
+        if world.get_block_state(&offset).is_air()
             && Self::can_survive(world.as_ref(), Some(world.as_ref()), &offset)
         {
             world.set_block_state(&offset, state_id, BlockFlags::NOTIFY_LISTENERS);
@@ -300,8 +184,8 @@ impl BlockBehaviour for MushroomPlantBlock {
             .is_in_height_limit(args.position.0.y + min_height)
     }
 
-    fn is_bonemeal_success(&self, _args: BonemealArgs<'_>) -> bool {
-        rand::rng().random::<f32>() < 0.4
+    fn is_bonemeal_success(&self, args: BonemealArgs<'_>) -> bool {
+        args.world.rand_f32() < 0.4
     }
 
     fn perform_bonemeal(&self, args: BonemealArgs<'_>) {

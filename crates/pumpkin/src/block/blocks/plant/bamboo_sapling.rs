@@ -8,8 +8,7 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
 
 use crate::block::{
-    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnNeighborUpdateArgs,
-    blocks::plant::PlantBlockBase,
+    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, blocks::plant::PlantBlockBase,
 };
 
 #[pumpkin_block("minecraft:bamboo_sapling")]
@@ -18,9 +17,7 @@ pub struct BambooSaplingBlock;
 impl BlockBehaviour for BambooSaplingBlock {
     fn is_valid_bonemeal_target(&self, args: crate::block::BonemealArgs<'_>) -> bool {
         let above = args.position.up();
-        args.world.is_in_height_limit(above.0.y)
-            && args.world.is_loaded(&above)
-            && args.world.get_block_state(&above).is_air()
+        args.world.is_in_height_limit(above.0.y) && args.world.get_block_state(&above).is_air()
     }
 
     fn perform_bonemeal(&self, args: crate::block::BonemealArgs<'_>) {
@@ -33,20 +30,6 @@ impl BlockBehaviour for BambooSaplingBlock {
         <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
     }
 
-    fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        {
-            if args.block == &Block::BAMBOO_SAPLING
-                && args.world.get_block(&args.position.up()) == &Block::BAMBOO
-            {
-                args.world.set_block_state(
-                    args.position,
-                    Block::BAMBOO.default_state.id,
-                    BlockFlags::NOTIFY_NEIGHBORS,
-                );
-            }
-        }
-    }
-
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
@@ -55,7 +38,7 @@ impl BlockBehaviour for BambooSaplingBlock {
             return Block::AIR.default_state.id;
         }
         if args.direction == BlockDirection::Up
-            && args.world.get_block(args.neighbor_position) == &Block::BAMBOO
+            && args.neighbor_state_id.to_block() == &Block::BAMBOO
         {
             return Block::BAMBOO.default_state.id;
         }

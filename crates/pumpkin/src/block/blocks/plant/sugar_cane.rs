@@ -31,20 +31,23 @@ impl BlockBehaviour for SugarCaneBlock {
             let state_id = args.world.get_block_state(args.position).id;
             let age = CactusLikeProperties::from_state_id(state_id).age;
             if age == 15 {
-                args.world
-                    .set_block_state(&args.position.up(), state_id, BlockFlags::NOTIFY_ALL);
+                args.world.set_block_state(
+                    &args.position.up(),
+                    args.block.default_state.id,
+                    BlockFlags::NOTIFY_ALL,
+                );
                 let props = CactusLikeProperties { age: 0 };
                 args.world.set_block_state(
                     args.position,
                     props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_LISTENERS,
+                    BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
                 );
             } else {
                 let props = CactusLikeProperties { age: age + 1 };
                 args.world.set_block_state(
                     args.position,
                     props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_LISTENERS,
+                    BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
                 );
             }
         }
@@ -75,10 +78,11 @@ fn can_place_at(block_accessor: &dyn BlockAccessor, block_pos: &BlockPos) -> boo
 
     if block_below.has_tag(&tag::Block::MINECRAFT_SUPPORTS_SUGAR_CANE) {
         for direction in HorizontalFacing::all() {
-            let block = block_accessor.get_block(&block_pos.down().offset(direction.to_offset()));
-            // TODO: use fluid
-            if block.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_SUGAR_CANE_ADJACENTLY)
-                && block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_SUGAR_CANE_ADJACENTLY)
+            let adjacent = block_pos.down().offset(direction.to_offset());
+            let (block, state) = block_accessor.get_block_and_state(&adjacent);
+            let (fluid, _) = crate::world::World::fluid_state_from_block_state(state.id);
+            if fluid.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_SUGAR_CANE_ADJACENTLY)
+                || block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_SUGAR_CANE_ADJACENTLY)
             {
                 return true;
             }

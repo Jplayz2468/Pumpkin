@@ -13,6 +13,7 @@ use crate::{math::java_string_hash, population_seed_fn};
 /// It maintains compatibility with Minecraft's original random number generator used in
 /// versions prior to 1.13. This is essential for world generation compatibility with
 /// older worlds and for certain features that still rely on the legacy algorithm.
+#[derive(Clone)]
 pub struct LegacyRand {
     /// The current 48-bit seed value (stored in lower 48 bits).
     seed: u64,

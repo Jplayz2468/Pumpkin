@@ -5,7 +5,6 @@ use pumpkin_data::{
 };
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::random::{RandomGenerator, xoroshiro128::Xoroshiro};
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
 
 use crate::block::blocks::plant::tree_grower::TreeGrower;
@@ -61,28 +60,25 @@ impl MangrovePropaguleBlock {
         pos: &BlockPos,
         block: &Block,
         mut props: MangrovePropaguleLikeProperties,
+        bone_meal: bool,
     ) {
         if props.stage == 0 {
             props.stage = 1;
-            world.set_block_state(pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+            world.set_block_state(
+                pos,
+                props.to_state_id(block),
+                BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
+            );
         } else {
             use crate::plugin::api::events::world::structure_grow::{StructureGrowEvent, TreeType};
-            let mut event = StructureGrowEvent::new(*pos, TreeType::Mangrove, false);
+            let mut event = StructureGrowEvent::new(*pos, TreeType::Mangrove, bone_meal);
             if let Some(server) = world.server.upgrade() {
                 server.plugin_manager.fire_blocking(&server, &mut event);
                 if event.cancelled {
                     return;
                 }
             }
-            let mut random =
-                RandomGenerator::Xoroshiro(Xoroshiro::from_seed(rand::random::<u64>()));
-            TreeGrower::MANGROVE.grow_tree(
-                world,
-                pos,
-                block,
-                props.to_state_id(block),
-                &mut random,
-            );
+            TreeGrower::MANGROVE.grow_tree(world, pos, block, props.to_state_id(block));
         }
     }
 }
@@ -98,7 +94,10 @@ impl BlockBehaviour for MangrovePropaguleBlock {
         props.hanging = false;
         props.age = MAX_AGE;
         props.stage = 0;
-        props.waterlogged = args.replacing.water_source();
+        let (fluid, state) =
+            World::fluid_state_from_block_state(args.world.get_block_state_id(args.position));
+        props.waterlogged =
+            fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER) && state.is_source;
         props.to_state_id(args.block)
     }
 
@@ -107,6 +106,14 @@ impl BlockBehaviour for MangrovePropaguleBlock {
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
         let props = MangrovePropaguleLikeProperties::from_state_id(args.state_id);
+        if props.waterlogged {
+            args.world.schedule_fluid_tick(
+                &pumpkin_data::fluid::Fluid::WATER,
+                *args.position,
+                pumpkin_data::fluid::Fluid::WATER.flow_speed as u32,
+                pumpkin_world::tick::TickPriority::Normal,
+            );
+        }
         if !Self::can_survive(args.world, args.position, &props) {
             return Block::AIR.default_state.id;
         }
@@ -118,14 +125,14 @@ impl BlockBehaviour for MangrovePropaguleBlock {
         let mut props = MangrovePropaguleLikeProperties::from_state_id(state_id);
         if !props.hanging {
             if args.rand_bounded_i32(7) == 0 {
-                Self::advance_tree(args.world, args.position, args.block, props);
+                Self::advance_tree(args.world, args.position, args.block, props, false);
             }
         } else if props.age < MAX_AGE {
             props.age += 1;
             args.world.set_block_state(
                 args.position,
                 props.to_state_id(args.block),
-                BlockFlags::NOTIFY_ALL,
+                BlockFlags::NOTIFY_LISTENERS,
             );
         }
     }
@@ -140,7 +147,7 @@ impl BlockBehaviour for MangrovePropaguleBlock {
         if props.hanging {
             props.age < MAX_AGE
         } else {
-            rand::random::<f32>() < 0.45
+            args.world.rand_f32() < 0.45
         }
     }
 
@@ -152,10 +159,10 @@ impl BlockBehaviour for MangrovePropaguleBlock {
                 args.world.set_block_state(
                     args.position,
                     props.to_state_id(args.block),
-                    BlockFlags::NOTIFY_ALL,
+                    BlockFlags::NOTIFY_LISTENERS,
                 );
             } else {
-                Self::advance_tree(args.world, args.position, args.block, props);
+                Self::advance_tree(args.world, args.position, args.block, props, true);
             }
         }
     }

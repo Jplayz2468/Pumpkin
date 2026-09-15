@@ -2,13 +2,12 @@ use std::sync::Arc;
 use std::sync::atomic::Ordering;
 
 use crate::block::blocks::plant::PlantBlockBase;
-use crate::block::blocks::plant::big_dripleaf_stem::{
-    BigDripleafStemLikeProperties, handle_big_dripleaf_breaking,
-};
+use crate::block::blocks::plant::big_dripleaf_stem::BigDripleafStemLikeProperties;
 use crate::block::blocks::redstone::block_receives_redstone_power;
 use crate::block::{
-    BlockBehaviour, BonemealArgs, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    OnEntityStepArgs, OnNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs, PlacedArgs,
+    BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
+    OnEntityCollisionArgs, OnNeighborUpdateArgs, OnPlaceArgs, OnProjectileHitArgs,
+    OnScheduledTickArgs,
 };
 use crate::entity::EntityBase;
 use crate::entity::ai::pathfinder::node::Coordinate;
@@ -17,18 +16,16 @@ use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{BigDripleafLikeProperties, HorizontalFacing, Tilt};
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::Taggable;
-use pumpkin_data::{Block, tag};
+use pumpkin_data::{Block, BlockDirection, tag};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
-use rand::RngExt;
 
 #[pumpkin_block("minecraft:big_dripleaf")]
 pub struct BigDripleafBlock;
 
 impl BlockBehaviour for BigDripleafBlock {
-    fn on_entity_step(&self, args: OnEntityStepArgs<'_>) {
+    fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
         {
             let props = BigDripleafLikeProperties::from_state_id(args.state.id);
             if props.tilt == Tilt::None
@@ -49,6 +46,10 @@ impl BlockBehaviour for BigDripleafBlock {
         let state = args.world.get_block_state(args.position);
         let props = BigDripleafLikeProperties::from_state_id(state.id);
 
+        if block_receives_redstone_power(args.world, args.position) {
+            reset_tilt(state.id, args.world, args.position);
+            return;
+        }
         if props.tilt == Tilt::Unstable {
             set_tilt_and_schedule_tick(
                 state.id,
@@ -69,7 +70,16 @@ impl BlockBehaviour for BigDripleafBlock {
             reset_tilt(state.id, args.world, args.position);
         }
     }
-    //TODO: onProjectileHit
+    fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
+        set_tilt_and_schedule_tick(
+            args.state.id,
+            args.world,
+            args.position,
+            Tilt::Full,
+            Some(Sound::BlockBigDripleafTiltDown),
+        );
+    }
+
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
         <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
     }
@@ -78,6 +88,8 @@ impl BlockBehaviour for BigDripleafBlock {
             args.world.get_block_and_state_id(&args.position.down());
         let facing = if support_block == &Block::BIG_DRIPLEAF {
             get_dripleaf_facing_dir(support_block_state_id)
+        } else if support_block == &Block::BIG_DRIPLEAF_STEM {
+            BigDripleafStemLikeProperties::from_state_id(support_block_state_id).facing
         } else {
             args.player
                 .living_entity
@@ -88,7 +100,7 @@ impl BlockBehaviour for BigDripleafBlock {
         let mut dripleaf_props = BigDripleafLikeProperties::default(args.block);
 
         dripleaf_props.facing = facing;
-        dripleaf_props.waterlogged = args.replacing.water_source();
+        dripleaf_props.waterlogged = source_water_at(args.world, args.position);
 
         dripleaf_props.to_state_id(args.block)
     }
@@ -97,13 +109,26 @@ impl BlockBehaviour for BigDripleafBlock {
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        <Self as PlantBlockBase>::get_state_for_neighbor_update(
-            self,
-            args.world,
-            args.position,
-            args.state_id,
-        )
+        if args.direction == BlockDirection::Down
+            && !<Self as PlantBlockBase>::can_place_at(self, args.world, args.position)
+        {
+            return Block::AIR.default_state.id;
+        }
+        let props = BigDripleafLikeProperties::from_state_id(args.state_id);
+        if props.waterlogged {
+            schedule_water(args.world, args.position);
+        }
+        if args.direction == BlockDirection::Up
+            && args.neighbor_state_id.to_block() == &Block::BIG_DRIPLEAF
+        {
+            let mut stem = BigDripleafStemLikeProperties::default(&Block::BIG_DRIPLEAF_STEM);
+            stem.facing = props.facing;
+            stem.waterlogged = props.waterlogged;
+            return stem.to_state_id(&Block::BIG_DRIPLEAF_STEM);
+        }
+        args.state_id
     }
+
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
         {
             if block_receives_redstone_power(args.world, args.position) {
@@ -111,31 +136,6 @@ impl BlockBehaviour for BigDripleafBlock {
                 reset_tilt(state_id, args.world, args.position);
             }
         }
-    }
-
-    /// if leaf is placed on top of another leaf, turn the lower one into a stem.
-    fn placed(&self, args: PlacedArgs<'_>) {
-        {
-            let support_pos = args.position.down();
-            let (support_block, support_state_id) = args.world.get_block_and_state_id(&support_pos);
-            if support_block == &Block::BIG_DRIPLEAF {
-                let old_dripleaf_props = BigDripleafLikeProperties::from_state_id(support_state_id);
-                let mut dripleaf_stem_props =
-                    BigDripleafStemLikeProperties::default(&Block::BIG_DRIPLEAF_STEM);
-
-                dripleaf_stem_props.facing = old_dripleaf_props.facing;
-                dripleaf_stem_props.waterlogged = old_dripleaf_props.waterlogged;
-                args.world.set_block_state(
-                    &support_pos,
-                    dripleaf_stem_props.to_state_id(&Block::BIG_DRIPLEAF_STEM),
-                    BlockFlags::empty(),
-                );
-            }
-        }
-    }
-
-    fn broken(&self, args: BrokenArgs<'_>) {
-        handle_big_dripleaf_breaking(args.world, args.position);
     }
 
     // BigDripleafBlock.java:170 isValidBonemealTarget: canGrowInto(pos.above()).
@@ -186,18 +186,21 @@ fn reset_tilt(state_id: BlockStateId, world: &Arc<World>, pos: &BlockPos) {
 
 fn set_tilt(state_id: BlockStateId, world: &Arc<World>, pos: &BlockPos, new_tilt: Tilt) {
     let mut props = BigDripleafLikeProperties::from_state_id(state_id);
+    let previous = props.tilt;
     props.tilt = new_tilt;
     world.set_block_state(
         pos,
         props.to_state_id(&Block::BIG_DRIPLEAF),
-        BlockFlags::NOTIFY_ALL,
+        BlockFlags::NOTIFY_LISTENERS,
     );
+    if new_tilt != Tilt::Unstable && new_tilt != previous {
+        world.emit_game_event_from_entity("block_change", pos.to_centered_f64(), None, None);
+    }
 }
 
 fn play_tilt_sound(world: &Arc<World>, pos: &BlockPos, tilt_sound: Sound) {
-    let pitch = rand::rng().random_range(0.8f32..1.2f32);
-    let v = pos.as_vector3();
-    let position = Vector3::new(v.x as f64, v.y as f64, v.z as f64);
+    let pitch = 0.8_f32 + world.rand_f32() * (1.2_f32 - 0.8_f32);
+    let position = pos.to_centered_f64();
     world.play_sound_fine(tilt_sound, SoundCategory::Blocks, &position, 1f32, pitch);
 }
 fn can_entity_tilt<T: EntityBase + ?Sized>(pos: &BlockPos, entity: &T) -> bool {
@@ -209,28 +212,10 @@ fn get_dripleaf_facing_dir(state_id: BlockStateId) -> HorizontalFacing {
     dripleaf_props.facing
 }
 
-fn is_dripleaf_waterlogged(state_id: BlockStateId) -> bool {
-    let dripleaf_props = BigDripleafLikeProperties::from_state_id(state_id);
-    dripleaf_props.waterlogged
-}
 impl PlantBlockBase for BigDripleafBlock {
     fn can_plant_on_top(&self, block_accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
         let support_block = block_accessor.get_block(pos);
         can_plant_dripleaf_on_top(support_block)
-    }
-    fn get_state_for_neighbor_update(
-        &self,
-        block_accessor: &dyn BlockAccessor,
-        block_pos: &BlockPos,
-        block_state: BlockStateId,
-    ) -> BlockStateId {
-        if !<Self as PlantBlockBase>::can_place_at(self, block_accessor, block_pos) {
-            if is_dripleaf_waterlogged(block_state) {
-                return Block::WATER.default_state.id;
-            }
-            return Block::AIR.default_state.id;
-        }
-        block_state
     }
 }
 #[must_use]
@@ -247,7 +232,7 @@ pub fn can_plant_dripleaf_on_top(support_block: &Block) -> bool {
 pub fn can_grow_into(world: &Arc<World>, pos: &BlockPos) -> bool {
     world.is_in_build_limit(*pos) && {
         let block = world.get_block(pos);
-        block == &Block::AIR || block == &Block::WATER || block == &Block::SMALL_DRIPLEAF
+        block.is_air() || block == &Block::WATER || block == &Block::SMALL_DRIPLEAF
     }
 }
 
@@ -278,11 +263,26 @@ pub fn grow_dripleaf_from_head(
 
     let mut leaf_props = BigDripleafLikeProperties::default(&Block::BIG_DRIPLEAF);
     leaf_props.facing = facing;
-    leaf_props.waterlogged = world.get_block(&above_pos) == &Block::WATER;
+    leaf_props.waterlogged = source_water_at(world.as_ref(), &above_pos);
     world.set_block_state(
         &above_pos,
         leaf_props.to_state_id(&Block::BIG_DRIPLEAF),
         BlockFlags::NOTIFY_ALL,
     );
     true
+}
+
+pub(super) fn source_water_at(accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
+    let (fluid, state) = World::fluid_state_from_block_state(accessor.get_block_state_id(pos));
+    fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER) && state.is_source
+}
+
+pub(super) fn schedule_water(world: &World, pos: &BlockPos) {
+    use pumpkin_data::fluid::Fluid;
+    world.schedule_fluid_tick(
+        &Fluid::WATER,
+        *pos,
+        Fluid::WATER.flow_speed as u32,
+        pumpkin_world::tick::TickPriority::Normal,
+    );
 }

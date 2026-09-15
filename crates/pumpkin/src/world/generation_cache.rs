@@ -24,10 +24,15 @@ use rustc_hash::FxHashMap;
 use crate::block::entities::block_entity_from_nbt;
 use crate::world::World;
 
+enum PendingBlockChange {
+    Set(BlockPos, BlockStateId, BlockFlags),
+    Destroy(BlockPos),
+}
+
 pub struct WorldGenerationCache {
     world: Arc<World>,
     center: ProtoChunk,
-    pending: Vec<(BlockPos, BlockStateId)>,
+    pending: Vec<PendingBlockChange>,
     overlay: FxHashMap<BlockPos, BlockStateId>,
     block_entities: Vec<NbtCompound>,
 }
@@ -69,10 +74,38 @@ impl WorldGenerationCache {
             })
     }
 
+    /// Run the cached feature against the level's existing Java random stream.
+    /// This closure may only write to the cache; apply it after this method returns
+    /// so neighbor callbacks can draw from the same random source without deadlock.
+    pub fn generate_with_level_random<T>(
+        &mut self,
+        generate: impl FnOnce(&mut Self, &mut pumpkin_util::random::RandomGenerator) -> T,
+    ) -> T {
+        use pumpkin_util::random::RandomGenerator;
+        let world = self.world.clone();
+        let mut source = world
+            .random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut random = RandomGenerator::Legacy(source.clone());
+        let result = generate(self, &mut random);
+        let RandomGenerator::Legacy(updated) = random else {
+            unreachable!("a configured feature must preserve its random source");
+        };
+        *source = updated;
+        result
+    }
+
     pub fn apply(self) {
-        for (pos, state_id) in self.pending {
-            self.world
-                .set_block_state(&pos, state_id, BlockFlags::NOTIFY_ALL);
+        for change in self.pending {
+            match change {
+                PendingBlockChange::Set(pos, state_id, flags) => {
+                    self.world.set_block_state(&pos, state_id, flags);
+                }
+                PendingBlockChange::Destroy(pos) => {
+                    self.world.break_block(&pos, None, BlockFlags::NOTIFY_ALL);
+                }
+            }
         }
         for nbt in self.block_entities {
             if let Some(block_entity) = block_entity_from_nbt(&nbt) {
@@ -136,14 +169,38 @@ impl GenerationCache for WorldGenerationCache {
     }
 
     fn get_fluid_and_fluid_state(&self, position: &Vector3<i32>) -> (Fluid, FluidState) {
-        let (fluid, state) = self.world.get_fluid_and_fluid_state(&BlockPos(*position));
+        let (fluid, state) = World::fluid_state_from_block_state(self.read(&BlockPos(*position)));
         (fluid.clone(), state)
     }
 
     fn set_block_state(&mut self, pos: &Vector3<i32>, block_state: &BlockState) {
+        self.set_block_state_with_flags(pos, block_state, BlockFlags::NOTIFY_ALL);
+    }
+
+    fn set_block_state_with_flags(
+        &mut self,
+        pos: &Vector3<i32>,
+        state: &BlockState,
+        flags: BlockFlags,
+    ) {
         let position = BlockPos(*pos);
-        self.overlay.insert(position, block_state.id);
-        self.pending.push((position, block_state.id));
+        if !self.world.is_in_height_limit(pos.y) {
+            return;
+        }
+        self.overlay.insert(position, state.id);
+        self.pending
+            .push(PendingBlockChange::Set(position, state.id, flags));
+    }
+
+    fn destroy_block(&mut self, pos: &Vector3<i32>) {
+        let position = BlockPos(*pos);
+        let state = self.read(&position);
+        if state.to_state().is_air() {
+            return;
+        }
+        let (_, fluid) = World::fluid_state_from_block_state(state);
+        self.overlay.insert(position, fluid.block_state_id);
+        self.pending.push(PendingBlockChange::Destroy(position));
     }
 
     fn add_block_entity(&mut self, pos: &Vector3<i32>, mut nbt: NbtCompound) {

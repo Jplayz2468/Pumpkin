@@ -106,6 +106,13 @@ fn spreadable_neighbor(
     })
 }
 
+fn is_upper_half(state: BlockStateId) -> bool {
+    state
+        .to_block()
+        .properties(state)
+        .is_some_and(|props| props.to_props().contains(&("half", "upper")))
+}
+
 fn double_plant_survives(
     accessor: &dyn BlockAccessor,
     block: &Block,
@@ -113,14 +120,11 @@ fn double_plant_survives(
     pos: &BlockPos,
     lower_survives: bool,
 ) -> bool {
-    use pumpkin_data::block_properties::{DoubleBlockHalf, TallSeagrassLikeProperties};
-    if TallSeagrassLikeProperties::from_state_id(state).half == DoubleBlockHalf::Lower {
+    if !is_upper_half(state) {
         lower_survives
     } else {
-        let (below, below_state) = accessor.get_block_and_state(&pos.down());
-        below == block
-            && TallSeagrassLikeProperties::from_state_id(below_state.id).half
-                == DoubleBlockHalf::Lower
+        let (below, state) = accessor.get_block_and_state(&pos.down());
+        below == block && !is_upper_half(state.id)
     }
 }
 
@@ -128,22 +132,18 @@ fn double_plant_neighbor_state(
     args: &crate::block::GetStateForNeighborUpdateArgs<'_>,
     lower_survives: bool,
 ) -> BlockStateId {
-    use pumpkin_data::{
-        BlockDirection,
-        block_properties::{DoubleBlockHalf, TallSeagrassLikeProperties},
-    };
-    let half = TallSeagrassLikeProperties::from_state_id(args.state_id).half;
-    let other_direction = if half == DoubleBlockHalf::Lower {
-        BlockDirection::Up
-    } else {
+    use pumpkin_data::BlockDirection;
+    let upper = is_upper_half(args.state_id);
+    let other_direction = if upper {
         BlockDirection::Down
+    } else {
+        BlockDirection::Up
     };
-    if args.direction == other_direction {
-        if args.neighbor_state_id.to_block() != args.block
-            || TallSeagrassLikeProperties::from_state_id(args.neighbor_state_id).half == half
-        {
-            return Block::AIR.default_state.id;
-        }
+    if args.direction == other_direction
+        && (args.neighbor_state_id.to_block() != args.block
+            || is_upper_half(args.neighbor_state_id) == upper)
+    {
+        return Block::AIR.default_state.id;
     }
     if double_plant_survives(
         args.world,

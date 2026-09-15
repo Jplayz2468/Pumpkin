@@ -46,7 +46,7 @@ impl HugeBrownMushroomFeature {
         let tree_height = mushroom_tree_height(random);
 
         let min_y = i32::from(min_y);
-        let max_y = min_y + i32::from(height);
+        let max_y = min_y + i32::from(height) - 1;
         if pos.0.y < min_y + 1 || pos.0.y + tree_height + 1 > max_y {
             return false;
         }

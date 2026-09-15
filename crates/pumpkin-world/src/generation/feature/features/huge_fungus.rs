@@ -48,7 +48,11 @@ impl HugeFungusFeature {
         }
 
         let is_huge = !self.planted && random.next_f32() < 0.06;
-        chunk.set_block_state(&pos.0, Block::AIR.default_state);
+        chunk.set_block_state_with_flags(
+            &pos.0,
+            Block::AIR.default_state,
+            crate::world::BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
+        );
         self.place_stem(chunk, block_registry, random, pos, total_height, is_huge);
         self.place_hat(chunk, block_registry, random, pos, total_height, is_huge);
         true
@@ -61,10 +65,9 @@ impl HugeFungusFeature {
         pos: BlockPos,
         check_non_replaceable_plants: bool,
     ) -> bool {
-        if chunk.is_air(&pos.0)
-            || GenerationCache::get_block_state(chunk, &pos.0)
-                .to_state()
-                .is_air()
+        if GenerationCache::get_block_state(chunk, &pos.0)
+            .to_state()
+            .replaceable()
         {
             true
         } else if check_non_replaceable_plants {
@@ -94,6 +97,9 @@ impl HugeFungusFeature {
                     let block_pos = pos.add(dx, dy, dz);
                     if self.is_replaceable(chunk, block_registry, block_pos, true) {
                         if self.planted {
+                            if !chunk.is_air(&block_pos.down().0) {
+                                chunk.destroy_block(&block_pos.0);
+                            }
                             chunk.set_block_state(&block_pos.0, self.stem_state);
                         } else if corner_of_huge_stem {
                             if random.next_f32() < 0.1 {
@@ -122,13 +128,15 @@ impl HugeFungusFeature {
         let hat_start_y = total_height - hat_height;
 
         for dy in hat_start_y..=total_height {
-            let mut radius = if hat_height > 8 && dy < hat_start_y + 4 {
-                3
-            } else if dy < total_height - random.next_bounded_i32(3) {
+            // The random draw happens even when the wide lower hat overrides it.
+            let mut radius = if dy < total_height - random.next_bounded_i32(3) {
                 2
             } else {
                 1
             };
+            if hat_height > 8 && dy < hat_start_y + 4 {
+                radius = 3;
+            }
             if is_huge {
                 radius += 1;
             }
@@ -143,6 +151,9 @@ impl HugeFungusFeature {
                     let block_pos = pos.add(dx, dy, dz);
 
                     if self.is_replaceable(chunk, block_registry, block_pos, false) {
+                        if self.planted && !chunk.is_air(&block_pos.down().0) {
+                            chunk.destroy_block(&block_pos.0);
+                        }
                         if is_hat_bottom {
                             if !inside {
                                 self.place_hat_drop_block(chunk, random, block_pos, place_vines);

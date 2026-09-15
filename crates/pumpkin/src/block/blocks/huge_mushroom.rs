@@ -39,7 +39,7 @@ impl BlockBehaviour for HugeMushroomBlock {
         // face. A non-matching neighbour falls back to the default Block behaviour, which
         // does not restore the face -- so once hidden, a face stays hidden even if the
         // matching neighbour is later removed (this is vanilla's actual, if odd, behaviour).
-        let neighbor_block = args.world.get_block(args.neighbor_position);
+        let neighbor_block = args.neighbor_state_id.to_block();
         if neighbor_block != args.block {
             return args.state_id;
         }

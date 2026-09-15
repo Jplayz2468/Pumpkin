@@ -16,8 +16,8 @@ use pumpkin_world::{
 use super::chorus_plant;
 use crate::{
     block::{
-        BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnScheduledTickArgs,
-        RandomTickArgs,
+        BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnProjectileHitArgs,
+        OnScheduledTickArgs, RandomTickArgs,
     },
     world::World,
 };
@@ -26,9 +26,9 @@ pub const DEAD_AGE: u8 = 5;
 
 const HORIZONTAL_DIRECTIONS: [BlockDirection; 4] = [
     BlockDirection::North,
+    BlockDirection::East,
     BlockDirection::South,
     BlockDirection::West,
-    BlockDirection::East,
 ];
 
 #[pumpkin_block("minecraft:chorus_flower")]
@@ -53,7 +53,19 @@ impl BlockBehaviour for ChorusFlowerBlock {
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
         if !can_survive(args.world.as_ref(), args.position) {
             args.world
-                .break_block(args.position, None, BlockFlags::empty());
+                .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
+        }
+    }
+
+    fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
+        if crate::entity::projectile::may_interact(args.projectile, args.world, args.position)
+            && crate::entity::projectile::may_break(args.projectile, args.world)
+        {
+            args.world.break_block_from_entity(
+                args.position,
+                args.projectile,
+                BlockFlags::NOTIFY_ALL,
+            );
         }
     }
 
@@ -107,7 +119,7 @@ impl BlockBehaviour for ChorusFlowerBlock {
                     args.world.set_block_state(
                         args.position,
                         plant_state_id,
-                        BlockFlags::NOTIFY_ALL,
+                        BlockFlags::NOTIFY_LISTENERS,
                     );
                     place_grown_flower(args.world, &above, current_age);
                 } else if current_age < 4 {
@@ -145,7 +157,7 @@ impl BlockBehaviour for ChorusFlowerBlock {
                         args.world.set_block_state(
                             args.position,
                             plant_state_id,
-                            BlockFlags::NOTIFY_ALL,
+                            BlockFlags::NOTIFY_LISTENERS,
                         );
                     } else {
                         place_dead_flower(args.world, args.position);
@@ -164,7 +176,7 @@ pub fn place_grown_flower(world: &Arc<World>, pos: &BlockPos, age: u8) {
     world.set_block_state(
         pos,
         props.to_state_id(&Block::CHORUS_FLOWER),
-        BlockFlags::NOTIFY_ALL,
+        BlockFlags::NOTIFY_LISTENERS,
     );
     world.sync_world_event(WorldEvent::SoundChorusGrow, *pos, 0);
 }
@@ -175,7 +187,7 @@ pub fn place_dead_flower(world: &Arc<World>, pos: &BlockPos) {
     world.set_block_state(
         pos,
         props.to_state_id(&Block::CHORUS_FLOWER),
-        BlockFlags::NOTIFY_ALL,
+        BlockFlags::NOTIFY_LISTENERS,
     );
     world.sync_world_event(WorldEvent::SoundChorusDeath, *pos, 0);
 }

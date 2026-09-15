@@ -40,7 +40,7 @@ impl BlockBehaviour for ChorusPlantBlock {
         }
 
         // Update the single face connection for the direction that changed.
-        let neighbor_block = args.world.get_block(args.neighbor_position);
+        let neighbor_block = args.neighbor_state_id.to_block();
         let connect = neighbor_block == &Block::CHORUS_PLANT
             || neighbor_block == &Block::CHORUS_FLOWER
             || (args.direction == BlockDirection::Down
@@ -63,7 +63,7 @@ impl BlockBehaviour for ChorusPlantBlock {
         // to connected chorus blocks, which schedule their own ticks.
         if !can_survive(args.world.as_ref(), args.position) {
             args.world
-                .break_block(args.position, None, BlockFlags::empty());
+                .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
         }
     }
 

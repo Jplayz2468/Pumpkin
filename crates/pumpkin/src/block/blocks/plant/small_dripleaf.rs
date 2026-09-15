@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use crate::block::blocks::plant::PlantBlockBase;
-use crate::block::blocks::plant::big_dripleaf::can_grow_into;
+use super::{double_plant_neighbor_state, double_plant_survives};
+use crate::block::blocks::plant::big_dripleaf::{can_grow_into, schedule_water, source_water_at};
 use crate::block::blocks::plant::big_dripleaf_stem::BigDripleafStemLikeProperties;
 use crate::block::{
     BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
-    PlacedArgs,
+    PlayerPlacedArgs,
 };
 use crate::world::World;
 use pumpkin_data::BlockStateId;
@@ -17,14 +17,30 @@ use pumpkin_data::{Block, tag};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
-use rand::RngExt;
 
 #[pumpkin_block("minecraft:small_dripleaf")]
 pub struct SmallDripleafBlock;
 
 impl BlockBehaviour for SmallDripleafBlock {
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
+        if !double_plant_survives(
+            args.block_accessor,
+            args.block,
+            args.state.id,
+            args.position,
+            lower_survives(args.block_accessor, args.position),
+        ) {
+            return false;
+        }
+        if args.use_item_on.is_some() {
+            let above = args.position.up();
+            let (block, state) = args.block_accessor.get_block_and_state(&above);
+            return !args
+                .world
+                .is_some_and(|world| !world.is_in_height_limit(above.0.y))
+                && crate::block::registry::can_replace_with_other_block(block, state);
+        }
+        true
     }
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let facing = args
@@ -36,7 +52,7 @@ impl BlockBehaviour for SmallDripleafBlock {
         let mut small_dripleaf_props = SmallDripleafLikeProperties::default(args.block);
 
         small_dripleaf_props.facing = facing;
-        small_dripleaf_props.waterlogged = args.replacing.water_source();
+        small_dripleaf_props.waterlogged = water_at(args.world, args.position);
         small_dripleaf_props.half = DoubleBlockHalf::Lower;
 
         small_dripleaf_props.to_state_id(args.block)
@@ -46,14 +62,12 @@ impl BlockBehaviour for SmallDripleafBlock {
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        <Self as PlantBlockBase>::get_state_for_neighbor_update(
-            self,
-            args.world,
-            args.position,
-            args.state_id,
-        )
+        if SmallDripleafLikeProperties::from_state_id(args.state_id).waterlogged {
+            schedule_water(args.world, args.position);
+        }
+        double_plant_neighbor_state(&args, lower_survives(args.world, args.position))
     }
-    fn placed(&self, args: PlacedArgs<'_>) {
+    fn player_placed(&self, args: PlayerPlacedArgs<'_>) {
         {
             let lower_small_dripleaf_props =
                 SmallDripleafLikeProperties::from_state_id(args.state_id);
@@ -64,15 +78,15 @@ impl BlockBehaviour for SmallDripleafBlock {
             let mut upper_small_dripleaf_props =
                 SmallDripleafLikeProperties::default(&Block::SMALL_DRIPLEAF);
 
-            let upper_block = args.world.get_block(&args.position.up());
             upper_small_dripleaf_props.facing = lower_small_dripleaf_props.facing;
-            upper_small_dripleaf_props.waterlogged = upper_block == &Block::WATER;
+            upper_small_dripleaf_props.waterlogged =
+                water_at(args.world.as_ref(), &args.position.up());
             upper_small_dripleaf_props.half = DoubleBlockHalf::Upper;
 
             args.world.set_block_state(
                 &args.position.up(),
                 upper_small_dripleaf_props.to_state_id(&Block::SMALL_DRIPLEAF),
-                BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_BLOCK_ADDED_CALLBACK,
+                BlockFlags::NOTIFY_ALL,
             );
         }
     }
@@ -88,21 +102,22 @@ impl BlockBehaviour for SmallDripleafBlock {
     }
 }
 
-fn perform_small_dripleaf_bonemeal(world: &Arc<World>, position: &BlockPos, state_id: BlockStateId) {
+fn perform_small_dripleaf_bonemeal(
+    world: &Arc<World>,
+    position: &BlockPos,
+    state_id: BlockStateId,
+) {
     let props = SmallDripleafLikeProperties::from_state_id(state_id);
     if props.half == DoubleBlockHalf::Lower {
         let above_pos = position.up();
         // level.getFluidState(above).createLegacyBlock(): water stays water, anything
         // else collapses to air.
-        let cleared_state_id = if world.get_block(&above_pos) == &Block::WATER {
-            Block::WATER.default_state.id
-        } else {
-            Block::AIR.default_state.id
-        };
+        let (_, fluid) = World::fluid_state_from_block_state(world.get_block_state_id(&above_pos));
+        let cleared_state_id = fluid.block_state_id;
         world.set_block_state(
             &above_pos,
             cleared_state_id,
-            BlockFlags::MOVED | BlockFlags::NOTIFY_LISTENERS,
+            BlockFlags::SKIP_SHAPE_UPDATES | BlockFlags::NOTIFY_LISTENERS,
         );
         place_dripleaf_with_random_height(world, position, props.facing);
     } else {
@@ -118,7 +133,7 @@ fn place_dripleaf_with_random_height(
     stem_bottom_pos: &BlockPos,
     facing: HorizontalFacing,
 ) {
-    let desired_height = rand::rng().random_range(2..=5);
+    let desired_height = world.rand_bounded_i32(4) + 2;
     let mut pos = *stem_bottom_pos;
     let mut height = 0;
     while height < desired_height && can_grow_into(world, &pos) {
@@ -131,7 +146,7 @@ fn place_dripleaf_with_random_height(
     while cursor.0.y < leaf_y {
         let mut stem_props = BigDripleafStemLikeProperties::default(&Block::BIG_DRIPLEAF_STEM);
         stem_props.facing = facing;
-        stem_props.waterlogged = world.get_block(&cursor) == &Block::WATER;
+        stem_props.waterlogged = source_water_at(world.as_ref(), &cursor);
         world.set_block_state(
             &cursor,
             stem_props.to_state_id(&Block::BIG_DRIPLEAF_STEM),
@@ -142,67 +157,21 @@ fn place_dripleaf_with_random_height(
 
     let mut leaf_props = BigDripleafLikeProperties::default(&Block::BIG_DRIPLEAF);
     leaf_props.facing = facing;
-    leaf_props.waterlogged = world.get_block(&cursor) == &Block::WATER;
+    leaf_props.waterlogged = source_water_at(world.as_ref(), &cursor);
     world.set_block_state(
         &cursor,
         leaf_props.to_state_id(&Block::BIG_DRIPLEAF),
         BlockFlags::NOTIFY_ALL,
     );
 }
-fn is_small_dripleaf_waterlogged(state_id: BlockStateId) -> bool {
-    let dripleaf_props = SmallDripleafLikeProperties::from_state_id(state_id);
-    dripleaf_props.waterlogged
+fn lower_survives(accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
+    let support = accessor.get_block(&pos.down());
+    support.has_tag(&tag::Block::MINECRAFT_SUPPORTS_SMALL_DRIPLEAF)
+        || (source_water_at(accessor, pos)
+            && support.has_tag(&tag::Block::MINECRAFT_SUPPORTS_VEGETATION))
 }
-impl PlantBlockBase for SmallDripleafBlock {
-    fn can_plant_on_top(&self, block_accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
-        let support_block = block_accessor.get_block(pos);
-
-        if support_block == &Block::SMALL_DRIPLEAF {
-            return true;
-        }
-        let upper_block = block_accessor.get_block(&pos.up_height(2));
-        if upper_block != &Block::AIR
-            && upper_block != &Block::WATER
-            && upper_block != &Block::SMALL_DRIPLEAF
-        {
-            return false;
-        }
-        let (replacing_block, replacing_block_state) =
-            block_accessor.get_block_and_state(&pos.up());
-        if replacing_block == &Block::SMALL_DRIPLEAF && replacing_block_state.is_waterlogged() {
-            //in case of neighbor update check
-            supports_small_dripleaf(support_block, true)
-        } else {
-            supports_small_dripleaf(support_block, replacing_block == &Block::WATER)
-        }
-    }
-
-    fn get_state_for_neighbor_update(
-        &self,
-        block_accessor: &dyn BlockAccessor,
-        block_pos: &BlockPos,
-        block_state: BlockStateId,
-    ) -> BlockStateId {
-        if !<Self as PlantBlockBase>::can_place_at(self, block_accessor, block_pos) {
-            if is_small_dripleaf_waterlogged(block_state) {
-                return Block::WATER.default_state.id;
-            }
-            return Block::AIR.default_state.id;
-        }
-        let upper_block = block_accessor.get_block(&block_pos.up());
-        let below_blow = block_accessor.get_block(&block_pos.down());
-        if upper_block != &Block::SMALL_DRIPLEAF && below_blow != &Block::SMALL_DRIPLEAF {
-            if is_small_dripleaf_waterlogged(block_state) {
-                return Block::WATER.default_state.id;
-            }
-            return Block::AIR.default_state.id;
-        }
-        block_state
-    }
-}
-fn supports_small_dripleaf(support_block: &Block, underwater: bool) -> bool {
-    if support_block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_SMALL_DRIPLEAF) {
-        return true;
-    }
-    underwater && support_block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_BIG_DRIPLEAF)
+fn water_at(accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
+    World::fluid_state_from_block_state(accessor.get_block_state_id(pos))
+        .0
+        .matches_type(&pumpkin_data::fluid::Fluid::WATER)
 }

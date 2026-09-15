@@ -51,6 +51,37 @@ pub fn is_projectile(entity_type: &EntityType) -> bool {
         || *entity_type == EntityType::LLAMA_SPIT
 }
 
+/// Projectile.mayInteract: player owners respect spawn protection; other
+/// owners use mobGriefing. An absent or no-longer-loaded owner is unrestricted.
+pub fn may_interact(
+    projectile: &dyn EntityBase,
+    world: &crate::world::World,
+    pos: &BlockPos,
+) -> bool {
+    let owner = projectile
+        .get_owner_id()
+        .and_then(|id| world.get_entity_by_id(id));
+    owner.is_none_or(|owner| {
+        owner.get_player().map_or_else(
+            || world.level_info.load().game_rules.mob_griefing,
+            |player| !world.is_in_spawn_protection(player, pos),
+        )
+    })
+}
+
+pub fn may_break(projectile: &dyn EntityBase, world: &crate::world::World) -> bool {
+    use pumpkin_data::tag::Taggable;
+    projectile
+        .get_entity()
+        .entity_type
+        .has_tag(&pumpkin_data::tag::EntityType::MINECRAFT_IMPACT_PROJECTILES)
+        && world
+            .level_info
+            .load()
+            .game_rules
+            .projectiles_can_break_blocks
+}
+
 /// Projectile.tick emits this once, including projectiles loaded before their
 /// first tick. The flag is persisted as vanilla's HasBeenShot field.
 pub fn emit_shoot_event(projectile: &dyn EntityBase) {

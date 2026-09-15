@@ -18,6 +18,49 @@ This checkpoint records source changes, not a passing parity result.
   Do not commit to the hosting repository's `main` or merge the four unfinished
   `agent/mob/*` branches.
 
+## Latest continuation: remaining vegetation and feature growth
+
+- Bamboo now uses the source height count, leaf transitions, thickness, stop ages,
+  light checks, fluid placement rules and passed neighbor state. Hanging moss uses
+  the correct ceiling face support and breaking notifications.
+- Sugar cane accepts adjacent tagged water **or** ice, resets each new segment to
+  age zero and uses the age-update flags. Lily pads distinguish source water from
+  flowing water, inspect the fluid above and handle all boat variants. Sea pickles
+  use top-face support, source-water placement, Java random draws and the standard
+  bonemeal item path rather than a duplicate click handler.
+- Big dripleaves handle entity collision, projectile tilting, redstone resets,
+  vibration-producing tilt changes and the correct sounds/update flags. Invalid
+  stems collapse after one tick without creating a new leaf. Small dripleaves use
+  exact half matching, player placement, support tags and fluid-preserving growth.
+- Chorus growth uses Java horizontal order and client-only growth updates; broken
+  chorus cascades notify neighbors. Projectile destruction uses impact-projectile
+  tags, the projectile-breaking game rule, owner mob-griefing and player spawn
+  protection. Huge mushroom faces use the supplied neighbor state.
+- Saplings, propagules and azaleas have source bonemeal height/fluid checks and
+  level-random success rolls. Tree selection uses the source float draws, including
+  secondary mega-tree ordering. Failed mega growth restores the clicked sapling
+  state to all four positions; single growth retains the original fluid. Removal
+  and restoration use Java 260's mapped flags.
+- Cached tree/fungus/mushroom generation now advances the existing level Legacy
+  random stream rather than seeding an unrelated Xoroshiro generator. The lock is
+  released before applying live updates. Cache fluid reads include pending states;
+  writes reject out-of-height positions and preserve explicit flags and destruction
+  operations, including drops from planted fungus replacement.
+- Nether fungus now supports bonemeal growth on the matching nylium with the
+  planted configured feature; support tags depend on the fungus being placed.
+  Fungus generation uses replaceable states and the source hat-radius draw order.
+- Mushroom growth shares the existing configured feature implementation, removes
+  the small mushroom before generation and restores it on failure. Mushroom spread
+  follows X-fastest traversal without extra loaded-position gates. Huge mushroom
+  height bounds and the source's red-mushroom trunk-only clearance check are fixed.
+
+These changes are source ports, not completed parity evidence. The feature adapter
+still buffers mutations: neighbor callbacks, drops and their random draws are not
+interleaved with feature generation as in vanilla. Tree shape/post-processing,
+custom configured-feature providers, height-view type limits and chunk boundaries
+remain shared feature-pipeline work. Broader collision, mining/drop ordering and
+protocol paths still require review. No compilation or tests were run.
+
 ## Changes in this checkpoint
 
 ### Sculk sensors and shriekers

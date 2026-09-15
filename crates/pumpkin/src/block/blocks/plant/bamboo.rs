@@ -28,7 +28,6 @@ impl BlockBehaviour for BambooBlock {
         above + below + 1 < 16
             && props.stage == 0
             && args.world.is_in_height_limit(top.up().0.y)
-            && args.world.is_loaded(&top.up())
             && args.world.get_block_state(&top.up()).is_air()
     }
 
@@ -66,18 +65,18 @@ impl BlockBehaviour for BambooBlock {
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
         <Self as PlantBlockBase>::can_place_at(self, args.block_accessor, args.position)
+            && (args.use_item_on.is_none()
+                || World::fluid_state_from_block_state(
+                    args.block_accessor.get_block_state_id(args.position),
+                )
+                .1
+                .is_empty)
     }
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
         if !<Self as PlantBlockBase>::can_place_at(self, args.world.as_ref(), args.position) {
             args.world
                 .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
-        } else if args.world.get_block(&args.position.down()) == &Block::BAMBOO_SAPLING {
-            args.world.set_block_state(
-                &args.position.down(),
-                Block::BAMBOO.default_state.id,
-                BlockFlags::empty(),
-            );
         }
     }
 
@@ -89,7 +88,7 @@ impl BlockBehaviour for BambooBlock {
             args.world
                 .schedule_block_tick(args.block, *args.position, 1, TickPriority::Normal);
         }
-        let neighbor_block = args.world.get_block(args.neighbor_position);
+        let neighbor_block = args.neighbor_state_id.to_block();
         if args.direction == BlockDirection::Up && neighbor_block == &Block::BAMBOO {
             let neighbor_props = BambooLikeProperties::from_state_id(args.neighbor_state_id);
             let mut props = BambooLikeProperties::from_state_id(args.state_id);
@@ -105,8 +104,14 @@ impl BlockBehaviour for BambooBlock {
     }
 
     fn random_tick(&self, mut args: RandomTickArgs<'_>) {
-        if args.rand_bounded_i32(3) == 0 {
-            update_leaves_and_grow(args.world, args.position, &mut args.random);
+        let props =
+            BambooLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
+        if props.stage == 0
+            && args.rand_bounded_i32(3) == 0
+            && args.world.get_block_state(&args.position.up()).is_air()
+            && args.world.get_raw_brightness(&args.position.up(), 0) >= 9
+        {
+            update_leaves_and_grow(args.world, args.position, args.random);
         }
     }
 
@@ -137,14 +142,18 @@ fn update_leaves_and_grow(
         return;
     }
 
-    let bamboo_count = count_bamboo_below(world, position);
+    let bamboo_count = count_bamboo_below(world, position) + 1;
     if bamboo_count >= 16 {
         return;
     }
     let (block_below, state_id_below) = world.get_block_and_state_id(&below_pos);
     let (block_two_below, state_id_two_below) = world.get_block_and_state_id(&two_below_pos);
 
-    let mut props_below = BambooLikeProperties::from_state_id(state_id_below);
+    let mut props_below = if block_below == &Block::BAMBOO {
+        BambooLikeProperties::from_state_id(state_id_below)
+    } else {
+        BambooLikeProperties::default(&Block::BAMBOO)
+    };
 
     if bamboo_count >= 1 {
         let below_is_bamboo = block_below == &Block::BAMBOO;
@@ -175,7 +184,7 @@ fn update_leaves_and_grow(
         }
     }
 
-    props.age = u8::from(!(props.age != 1 && block_two_below == &Block::BAMBOO));
+    props.age = u8::from(props.age == 1 || block_two_below == &Block::BAMBOO);
 
     props.stage =
         u8::from(!((bamboo_count < 11 || random.next_f32() >= 0.25) && bamboo_count != 15));

@@ -23,7 +23,7 @@ impl HugeRedMushroomFeature {
         let tree_height = super::huge_brown_mushroom::mushroom_tree_height(random);
 
         let min_y = i32::from(min_y);
-        let max_y = min_y + i32::from(height);
+        let max_y = min_y + i32::from(height) - 1;
         if pos.0.y < min_y + 1 || pos.0.y + tree_height + 1 > max_y {
             return false;
         }
@@ -34,11 +34,10 @@ impl HugeRedMushroomFeature {
         }
 
         for dy in 0..=tree_height {
-            let radius = if (dy < tree_height && dy >= tree_height - 3) || dy == tree_height {
-                Self::FOLIAGE_RADIUS
-            } else {
-                0
-            };
+            // AbstractHugeMushroomFeature passes (-1, -1, radius, dy) to
+            // getTreeRadiusForHeight. For red mushrooms every tested dy >= 0
+            // therefore checks only the trunk column.
+            let radius = 0;
             for dx in -radius..=radius {
                 for dz in -radius..=radius {
                     let check_pos = BlockPos::new(pos.0.x + dx, pos.0.y + dy, pos.0.z + dz);

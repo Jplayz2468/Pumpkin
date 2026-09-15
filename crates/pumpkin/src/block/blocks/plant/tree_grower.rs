@@ -3,10 +3,7 @@ use std::sync::Arc;
 use pumpkin_data::{
     Block, BlockStateId, configured_feature::ConfiguredFeature as FeatureKey, tag, tag::Taggable,
 };
-use pumpkin_util::{
-    math::{position::BlockPos, vector3::Vector3},
-    random::{RandomGenerator, RandomImpl},
-};
+use pumpkin_util::math::{position::BlockPos, vector3::Vector3};
 use pumpkin_world::{
     generation::feature::configured_features::{CONFIGURED_FEATURES, ConfiguredFeature},
     world::BlockFlags,
@@ -21,75 +18,83 @@ struct TwoByTwoSaplingPos {
 }
 
 pub struct TreeGrower {
-    trees: &'static [(FeatureKey, i32)],
-    mega_trees: &'static [(FeatureKey, i32)],
-    flower_trees: &'static [(FeatureKey, i32)],
+    trees: &'static [FeatureKey],
+    mega_trees: &'static [FeatureKey],
+    flower_trees: &'static [FeatureKey],
     shortest: Option<FeatureKey>,
+    secondary_chance: f32,
 }
 
 impl TreeGrower {
     pub const OAK: Self = Self {
-        trees: &[(FeatureKey::Oak, 9), (FeatureKey::FancyOak, 1)],
+        trees: &[FeatureKey::Oak, FeatureKey::FancyOak],
         mega_trees: &[],
-        flower_trees: &[
-            (FeatureKey::OakBees005, 9),
-            (FeatureKey::FancyOakBees005, 1),
-        ],
+        flower_trees: &[FeatureKey::OakBees005, FeatureKey::FancyOakBees005],
         shortest: Some(FeatureKey::Oak),
+        secondary_chance: 0.1,
     };
     pub const SPRUCE: Self = Self {
-        trees: &[(FeatureKey::Spruce, 1)],
-        mega_trees: &[(FeatureKey::MegaSpruce, 1), (FeatureKey::MegaPine, 1)],
+        trees: &[FeatureKey::Spruce],
+        mega_trees: &[FeatureKey::MegaSpruce, FeatureKey::MegaPine],
         flower_trees: &[],
         shortest: Some(FeatureKey::Spruce),
+        secondary_chance: 0.5,
     };
     pub const MANGROVE: Self = Self {
-        trees: &[(FeatureKey::Mangrove, 15), (FeatureKey::TallMangrove, 85)],
+        trees: &[FeatureKey::Mangrove, FeatureKey::TallMangrove],
         mega_trees: &[],
         flower_trees: &[],
         shortest: Some(FeatureKey::Mangrove),
+        secondary_chance: 0.85,
     };
     pub const AZALEA: Self = Self {
-        trees: &[(FeatureKey::AzaleaTree, 1)],
+        trees: &[FeatureKey::AzaleaTree],
         mega_trees: &[],
         flower_trees: &[],
         shortest: Some(FeatureKey::AzaleaTree),
+        secondary_chance: 0.0,
     };
     pub const BIRCH: Self = Self {
-        trees: &[(FeatureKey::Birch, 1)],
+        trees: &[FeatureKey::Birch],
         mega_trees: &[],
-        flower_trees: &[(FeatureKey::BirchBees005, 1)],
+        flower_trees: &[FeatureKey::BirchBees005],
         shortest: Some(FeatureKey::Birch),
+        secondary_chance: 0.0,
     };
     pub const JUNGLE: Self = Self {
-        trees: &[(FeatureKey::JungleTreeNoVine, 1)],
-        mega_trees: &[(FeatureKey::MegaJungleTree, 1)],
+        trees: &[FeatureKey::JungleTreeNoVine],
+        mega_trees: &[FeatureKey::MegaJungleTree],
         flower_trees: &[],
         shortest: Some(FeatureKey::JungleTreeNoVine),
+        secondary_chance: 0.0,
     };
     pub const ACACIA: Self = Self {
-        trees: &[(FeatureKey::Acacia, 1)],
+        trees: &[FeatureKey::Acacia],
         mega_trees: &[],
         flower_trees: &[],
         shortest: Some(FeatureKey::Acacia),
+        secondary_chance: 0.0,
     };
     pub const CHERRY: Self = Self {
-        trees: &[(FeatureKey::Cherry, 1)],
+        trees: &[FeatureKey::Cherry],
         mega_trees: &[],
-        flower_trees: &[(FeatureKey::CherryBees005, 1)],
+        flower_trees: &[FeatureKey::CherryBees005],
         shortest: Some(FeatureKey::Cherry),
+        secondary_chance: 0.0,
     };
     pub const DARK_OAK: Self = Self {
         trees: &[],
-        mega_trees: &[(FeatureKey::DarkOak, 1)],
+        mega_trees: &[FeatureKey::DarkOak],
         flower_trees: &[],
         shortest: None,
+        secondary_chance: 0.0,
     };
     pub const PALE_OAK: Self = Self {
         trees: &[],
-        mega_trees: &[(FeatureKey::PaleOakBonemeal, 1)],
+        mega_trees: &[FeatureKey::PaleOakBonemeal],
         flower_trees: &[],
         shortest: None,
+        secondary_chance: 0.0,
     };
 
     #[must_use]
@@ -109,25 +114,35 @@ impl TreeGrower {
         }
     }
 
-    fn pick(list: &[(FeatureKey, i32)], random: &mut RandomGenerator) -> Option<FeatureKey> {
-        let total: i32 = list.iter().map(|(_, weight)| *weight).sum();
-        if total <= 0 {
-            return None;
-        }
-        let mut roll = random.next_bounded_i32(total);
-        for (key, weight) in list {
-            roll -= weight;
-            if roll < 0 {
+    fn pick_tree(&self, world: &World, has_flowers: bool) -> Option<FeatureKey> {
+        // Vanilla always draws here, including growers with no secondary tree.
+        if world.rand_f32() < self.secondary_chance {
+            if has_flowers && let Some(key) = self.flower_trees.get(1) {
+                return Some(*key);
+            }
+            if let Some(key) = self.trees.get(1) {
                 return Some(*key);
             }
         }
-        None
+        if has_flowers && let Some(key) = self.flower_trees.first() {
+            return Some(*key);
+        }
+        self.trees.first().copied()
+    }
+
+    fn pick_mega(&self, world: &World) -> Option<FeatureKey> {
+        if let Some(key) = self.mega_trees.get(1)
+            && world.rand_f32() < self.secondary_chance
+        {
+            return Some(*key);
+        }
+        self.mega_trees.first().copied()
     }
 
     fn has_flowers(world: &World, pos: &BlockPos) -> bool {
-        for x in -2..=2 {
+        for z in -2..=2 {
             for y in -1..=1 {
-                for z in -2..=2 {
+                for x in -2..=2 {
                     let block = world.get_block(&pos.offset(Vector3::new(x, y, z)));
                     if block.has_tag(&tag::Block::MINECRAFT_FLOWERS) {
                         return true;
@@ -177,23 +192,22 @@ impl TreeGrower {
             world.set_block_state(
                 pos,
                 Block::AIR.default_state.id,
-                BlockFlags::NOTIFY_LISTENERS,
+                BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
             );
         }
     }
 
     fn reset_saplings(world: &Arc<World>, saplings: &[(BlockPos, BlockStateId)]) {
         for (pos, state_id) in saplings {
-            world.set_block_state(pos, *state_id, BlockFlags::NOTIFY_LISTENERS);
+            world.set_block_state(
+                pos,
+                *state_id,
+                BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
+            );
         }
     }
 
-    fn place(
-        world: &Arc<World>,
-        key: FeatureKey,
-        pos: BlockPos,
-        random: &mut RandomGenerator,
-    ) -> bool {
+    fn place(world: &Arc<World>, key: FeatureKey, pos: BlockPos) -> bool {
         let Some(ConfiguredFeature::Tree(tree)) = CONFIGURED_FEATURES.get(&key) else {
             return false;
         };
@@ -202,7 +216,9 @@ impl TreeGrower {
             return false;
         };
         let mut cache = WorldGenerationCache::new(world.clone(), &pos);
-        if !tree.generate(&**portal, &mut cache, random, pos) {
+        if !cache.generate_with_level_random(|cache, random| {
+            tree.generate(&**portal, cache, random, pos)
+        }) {
             return false;
         }
         cache.apply();
@@ -221,64 +237,49 @@ impl TreeGrower {
             .unwrap_or(0)
     }
 
-    #[must_use]
-    pub fn can_grow(
-        &self,
-        world: &World,
-        pos: &BlockPos,
-        block: &Block,
-        random: &mut RandomGenerator,
-    ) -> bool {
-        let has_flowers = Self::has_flowers(world, pos);
-        let list = if has_flowers && !self.flower_trees.is_empty() {
-            self.flower_trees
-        } else {
-            self.trees
-        };
-        let single = Self::pick(list, random);
-        let mega = Self::pick(self.mega_trees, random);
-        if single.is_none() && mega.is_some() {
-            Self::find_two_by_two(world, block, pos).is_some()
-        } else {
-            true
-        }
-    }
-
     pub fn grow_tree(
         &self,
         world: &Arc<World>,
         pos: &BlockPos,
         block: &Block,
         state_id: BlockStateId,
-        random: &mut RandomGenerator,
     ) -> bool {
-        if let Some(mega) = Self::pick(self.mega_trees, random)
+        if let Some(mega) = self.pick_mega(world)
+            && CONFIGURED_FEATURES.contains_key(&mega)
             && let Some(two_by_two) = Self::find_two_by_two(world, block, pos)
         {
             Self::remove_saplings(world, &two_by_two.saplings);
             let origin = pos.offset(Vector3::new(two_by_two.offset_x, 0, two_by_two.offset_z));
-            if Self::place(world, mega, origin, random) {
+            if Self::place(world, mega, origin) {
                 return true;
             }
-            Self::reset_saplings(world, &two_by_two.saplings);
+            // Failed mega growth restores the clicked sapling state in all four cells.
+            let restore: Vec<_> = two_by_two
+                .saplings
+                .iter()
+                .map(|(pos, _)| (*pos, state_id))
+                .collect();
+            Self::reset_saplings(world, &restore);
             return false;
         }
 
-        let has_flowers = Self::has_flowers(world, pos);
-        let list = if has_flowers && !self.flower_trees.is_empty() {
-            self.flower_trees
-        } else {
-            self.trees
-        };
-        let Some(key) = Self::pick(list, random) else {
+        let Some(key) = self.pick_tree(world, Self::has_flowers(world, pos)) else {
             return false;
         };
-        let sapling = [(*pos, state_id)];
-        Self::remove_saplings(world, &sapling);
-        if Self::place(world, key, *pos, random) {
+        if !CONFIGURED_FEATURES.contains_key(&key) {
+            return false;
+        }
+        let empty = World::fluid_state_from_block_state(state_id)
+            .1
+            .block_state_id;
+        world.set_block_state(pos, empty, BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK);
+        if Self::place(world, key, *pos) {
+            if world.get_block_state_id(pos) == empty {
+                world.queue_block_updates(&[(*pos, empty)]);
+            }
             return true;
         }
-        Self::reset_saplings(world, &sapling);
+        Self::reset_saplings(world, &[(*pos, state_id)]);
         false
     }
 }

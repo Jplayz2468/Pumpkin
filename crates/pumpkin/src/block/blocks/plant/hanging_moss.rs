@@ -22,6 +22,11 @@ impl HangingMossBlock {
         let above_pos = pos.up();
         let (above_block, above_state) = world.get_block_and_state(&above_pos);
         above_state.is_side_solid(BlockDirection::Down)
+            || above_state.collision_face_covers(
+                above_pos,
+                BlockDirection::Down,
+                [0.0, 1.0, 0.0, 1.0],
+            )
             || above_block == &Block::PALE_HANGING_MOSS
     }
 
@@ -63,7 +68,7 @@ impl BlockBehaviour for HangingMossBlock {
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
         if !Self::can_stay_at_position(args.world.as_ref(), args.position) {
             args.world
-                .break_block(args.position, None, BlockFlags::empty());
+                .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
         }
     }
 

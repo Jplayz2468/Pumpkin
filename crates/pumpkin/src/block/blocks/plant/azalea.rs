@@ -35,12 +35,19 @@ impl BlockBehaviour for AzaleaBlock {
         )
     }
 
-    fn is_valid_bonemeal_target(&self, _args: BonemealArgs<'_>) -> bool {
-        true
+    fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
+        let height = super::tree_grower::TreeGrower::AZALEA.min_height();
+        args.world
+            .is_in_height_limit(args.position.0.y + height + 2)
+            && crate::world::World::fluid_state_from_block_state(
+                args.world.get_block_state_id(&args.position.up()),
+            )
+            .0
+            .is_empty()
     }
 
-    fn is_bonemeal_success(&self, _args: BonemealArgs<'_>) -> bool {
-        rand::random::<f32>() < 0.45
+    fn is_bonemeal_success(&self, args: BonemealArgs<'_>) -> bool {
+        args.world.rand_f32() < 0.45
     }
 
     fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
@@ -60,7 +67,6 @@ impl PlantBlockBase for AzaleaBlock {
     fn can_plant_on_top(&self, block_accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
         let block_below = block_accessor.get_block(pos);
         block_below.has_tag(&tag::Block::MINECRAFT_SUPPORTS_AZALEA)
-            || block_below.has_tag(&tag::Block::MINECRAFT_SUPPORTS_VEGETATION)
     }
 
     fn can_place_at(&self, block_accessor: &dyn BlockAccessor, block_pos: &BlockPos) -> bool {

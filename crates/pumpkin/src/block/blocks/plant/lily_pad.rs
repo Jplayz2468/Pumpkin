@@ -13,18 +13,13 @@ pub struct LilyPadBlock;
 
 impl BlockBehaviour for LilyPadBlock {
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
+        if args
+            .entity
+            .cast_any()
+            .is::<crate::entity::vehicle::boat::BoatEntity>()
         {
-            // Proberbly not the best solution, but works
-            if args
-                .entity
-                .get_entity()
-                .entity_type
-                .resource_name
-                .ends_with("_boat")
-            {
-                args.world
-                    .break_block(args.position, None, BlockFlags::empty());
-            }
+            args.world
+                .break_block_from_entity(args.position, args.entity, BlockFlags::NOTIFY_ALL);
         }
     }
 
@@ -47,11 +42,19 @@ impl BlockBehaviour for LilyPadBlock {
 
 impl PlantBlockBase for LilyPadBlock {
     fn can_plant_on_top(&self, block_accessor: &dyn BlockAccessor, pos: &BlockPos) -> bool {
-        // TODO: get and use fluids not blocks
-        let block = block_accessor.get_block(pos);
-        let above_fluid = block_accessor.get_block(&pos.up());
-        (block.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_LILY_PAD)
+        let (block, state) = block_accessor.get_block_and_state(pos);
+        let (fluid, fluid_state) = crate::world::World::fluid_state_from_block_state(state.id);
+        let fluid =
+            if fluid_state.is_source && fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER) {
+                &pumpkin_data::fluid::Fluid::WATER
+            } else {
+                fluid
+            };
+        let (_, above_fluid) = crate::world::World::fluid_state_from_block_state(
+            block_accessor.get_block_state_id(&pos.up()),
+        );
+        (fluid.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_LILY_PAD)
             || block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_LILY_PAD))
-            && above_fluid.is_air()
+            && above_fluid.is_empty
     }
 }
