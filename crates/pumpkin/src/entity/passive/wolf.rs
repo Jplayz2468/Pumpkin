@@ -17,11 +17,13 @@ use crate::entity::{
     ai::goal::{
         active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal, beg::BegGoal,
         breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_owner::FollowOwnerGoal,
-        follow_parent::FollowParentGoal, look_around::RandomLookAroundGoal,
+        leap_at_target::LeapAtTargetGoal, look_around::RandomLookAroundGoal,
         look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal,
         owner_hurt_by_target::OwnerHurtByTargetGoal, owner_hurt_target::OwnerHurtTargetGoal,
-        revenge::RevengeGoal, swim::SwimGoal, wander_around::WanderAroundGoal,
+        revenge::RevengeGoal, sit_when_ordered_to::SitWhenOrderedToGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
     },
+    living::LivingEntity,
     mob::{Mob, MobEntity},
     passive::{
         animal::Animal,
@@ -29,6 +31,14 @@ use crate::entity::{
     },
     player::Player,
 };
+use crate::world::World;
+
+/// Vanilla `Turtle.BABY_ON_LAND_SELECTOR` (`Turtle.java:76`): `target.isBaby() &&
+/// !target.isInWater()`. Mirrors the identical helper in
+/// `entity/mob/skeleton/mod.rs::turtle_baby_on_land`.
+fn turtle_baby_on_land(living_entity: &LivingEntity, _world: &World) -> bool {
+    living_entity.entity.age.load(Ordering::Relaxed) < 0 && !living_entity.is_in_water()
+}
 
 pub struct WolfEntity {
     pub mob_entity: MobEntity,
@@ -61,28 +71,34 @@ impl WolfEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            // Goal selector (matching Vanilla registerGoals):
-            // 1: SwimGoal (FloatGoal)
+            // Goal selector (matching Vanilla Wolf.registerGoals, Wolf.java:128-140):
+            // 1: FloatGoal
             goal_selector.add_goal(1, Box::new(SwimGoal::default()));
-            // 1: EscapeDangerGoal (TamableAnimalPanicGoal)
+            // 1: TamableAnimalPanicGoal(1.5, PANIC_ENVIRONMENTAL_CAUSES)
+            // NOTE: vanilla's TamableAnimalPanicGoal also tries to teleport to the owner
+            // every tick while panicking (TamableAnimal.java:308-315); EscapeDangerGoal is a
+            // shared file and does not implement that extra behavior.
             goal_selector.add_goal(1, EscapeDangerGoal::new(1.5));
-            // 3: Avoid Llama
+            // 2: SitWhenOrderedToGoal
+            goal_selector.add_goal(2, Box::new(SitWhenOrderedToGoal::new()));
+            // 3: WolfAvoidEntityGoal<Llama>(24.0, 1.5, 1.5)
             goal_selector.add_goal(
                 3,
                 Box::new(AvoidEntityGoal::new(&EntityType::LLAMA, 24.0, 1.5, 1.5)),
             );
-            // 5: MeleeAttackGoal
+            // 4: LeapAtTargetGoal(0.4)
+            goal_selector.add_goal(4, Box::new(LeapAtTargetGoal::new(0.4)));
+            // 5: MeleeAttackGoal(1.0, true)
             goal_selector.add_goal(5, Box::new(MeleeAttackGoal::new(1.0, true)));
-            // 6: FollowOwnerGoal
+            // 6: FollowOwnerGoal(1.0, 10.0, 2.0)
             goal_selector.add_goal(6, FollowOwnerGoal::new(1.0, 10.0, 2.0));
-            // 7: BreedGoal
+            // 7: BreedGoal(1.0)
             goal_selector.add_goal(7, BreedGoal::new(1.0));
-            // 8: FollowParentGoal & WanderAroundGoal
-            goal_selector.add_goal(8, Box::new(FollowParentGoal::new(1.1)));
-            goal_selector.add_goal(8, Box::new(WanderAroundGoal::new(1.0)));
-            // 9: BegGoal
+            // 8: WaterAvoidingRandomStrollGoal(1.0) -- vanilla has no FollowParentGoal here
+            goal_selector.add_goal(8, Box::new(WanderAroundGoal::water_avoiding(1.0)));
+            // 9: BegGoal(8.0)
             goal_selector.add_goal(9, BegGoal::new(8.0));
-            // 10: LookAtPlayer & RandomLookAround
+            // 10: LookAtPlayerGoal(8.0) & RandomLookAroundGoal
             goal_selector.add_goal(
                 10,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
@@ -97,19 +113,27 @@ impl WolfEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            // Target selector (matching Vanilla registerGoals):
+            // Target selector (matching Vanilla Wolf.registerGoals, Wolf.java:141-148):
             // 1: OwnerHurtByTargetGoal
             target_selector.add_goal(1, OwnerHurtByTargetGoal::new());
             // 2: OwnerHurtTargetGoal
             target_selector.add_goal(2, OwnerHurtTargetGoal::new());
-            // 3: HurtByTargetGoal (RevengeGoal)
+            // 3: HurtByTargetGoal(this).setAlertOthers()
+            // NOTE: RevengeGoal (shared file) does not implement group/pack alerting yet
+            // (see its own "TODO: group revenge" comment); this only covers the base
+            // hurt-by-target behavior.
             target_selector.add_goal(3, Box::new(RevengeGoal::new(true)));
-            // 4: NearestAttackableTarget (Player)
+            // 4: NearestAttackableTargetGoal<Player>(10, true, false, this::isAngryAt)
+            // NOTE: Wolf's universal-anger system (isAngryAt / persistent anger timer /
+            // ResetUniversalAngerTargetGoal) has no equivalent machinery anywhere in this
+            // codebase (checked: no anger/UniversalAnger types outside enderman/piglin
+            // teleport goals). Without it this always targets the nearest player instead of
+            // only an angered one. Missing machinery -- left as-is, flagged here.
             target_selector.add_goal(
                 4,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
             );
-            // 5: NonTameRandomTarget (Sheep, Rabbit, Fox)
+            // 5: NonTameRandomTargetGoal<Animal>(false, PREY_SELECTOR == Sheep|Rabbit|Fox)
             target_selector.add_goal(
                 5,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::SHEEP, false),
@@ -122,11 +146,39 @@ impl WolfEntity {
                 5,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::FOX, false),
             );
-            // 7: NearestAttackableTarget (Skeleton)
+            // 6: NonTameRandomTargetGoal<Turtle>(false, BABY_ON_LAND_SELECTOR)
+            // BABY_ON_LAND_SELECTOR == target.isBaby() && !target.isInWater() (Turtle.java:76)
+            target_selector.add_goal(
+                6,
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::TURTLE,
+                    10,
+                    false,
+                    false,
+                    Some(turtle_baby_on_land),
+                )),
+            );
+            // 7: NearestAttackableTargetGoal<AbstractSkeleton>(false) -- Skeleton, Stray,
+            // WitherSkeleton all extend AbstractSkeleton in vanilla.
             target_selector.add_goal(
                 7,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::SKELETON, false),
             );
+            target_selector.add_goal(
+                7,
+                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::STRAY, false),
+            );
+            target_selector.add_goal(
+                7,
+                ActiveTargetGoal::with_default(
+                    &mob_arc.mob_entity,
+                    &EntityType::WITHER_SKELETON,
+                    false,
+                ),
+            );
+            // 8: ResetUniversalAngerTargetGoal(this, true) -- part of the same missing
+            // universal-anger system noted at priority 4. Not added.
         };
 
         mob_arc
