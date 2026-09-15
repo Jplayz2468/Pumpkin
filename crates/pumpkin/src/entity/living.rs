@@ -50,7 +50,10 @@ use pumpkin_data::game_rules::{GameRule, GameRuleValue};
 use pumpkin_data::item_stack::{DamageResult, ItemStack};
 use pumpkin_data::sound::SoundCategory;
 use pumpkin_data::{Block, Enchantment};
-use pumpkin_data::{damage::DamageType, sound::Sound};
+use pumpkin_data::{
+    damage::{DamageScaling, DamageType},
+    sound::Sound,
+};
 use pumpkin_inventory::entity_equipment::EntityEquipment;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
@@ -2120,6 +2123,11 @@ impl LivingEntity {
         damage_type: DamageType,
         source: Option<&dyn EntityBase>,
         cause: Option<&dyn EntityBase>,
+        // Vanilla parity: `makeSound(deathSound)` (and `playSecondaryHurtSound`) inside
+        // `hurtServer`'s death branch only fires `if (tookFullDamage)` -- a killing blow
+        // absorbed via the invulnerability-window difference rule plays no death sound
+        // (LivingEntity.java:1252-1257). Everything else in `die()` still runs regardless.
+        took_full_damage: bool,
     ) {
         let world = self.entity.world.load();
         let Some(dyn_self) = world.get_entity_by_id(self.entity.entity_id) else {
@@ -2139,14 +2147,15 @@ impl LivingEntity {
 
             self.update_death_stats(&*dyn_self, killer);
 
-            // Plays the death sound
-            world.play_sound_fine(
-                self.death_sound(&*dyn_self),
-                SoundCategory::Players,
-                &self.entity.pos.load(),
-                1.0,
-                self.get_pitch(),
-            );
+            if took_full_damage {
+                world.play_sound_fine(
+                    self.death_sound(&*dyn_self),
+                    SoundCategory::Players,
+                    &self.entity.pos.load(),
+                    1.0,
+                    self.get_pitch(),
+                );
+            }
             world.send_entity_status(&self.entity, EntityStatus::Death, Some(ActorEventID::Death));
             let looting_level;
             let tool = if let Some(cause_ent) = cause {
@@ -2957,11 +2966,19 @@ impl LivingEntity {
         &self,
         damage: f32,
         damage_type: &DamageType,
+        caller: &dyn EntityBase,
         attacker: Option<&dyn EntityBase>,
     ) -> f32 {
         if damage_type.has_tag(&tag::DamageType::MINECRAFT_BYPASSES_ARMOR) {
             return damage;
         }
+
+        // Vanilla parity: armor durability is damaged with the pre-reduction `damage`
+        // before the reduced amount is computed (LivingEntity.java:1906-1911). The base
+        // `hurtArmor` is a no-op (LivingEntity.java:1886) -- only `Player` overrides it
+        // (Player.java:738, all 4 armor slots via `doHurtEquipment`); regular `Mob`s do not
+        // override it either, so this hook is a genuine no-op for them, matching vanilla.
+        caller.hurt_armor(*damage_type, damage);
 
         let mut armor = 0.0f32;
         let mut toughness = 0.0f32;
@@ -3111,6 +3128,47 @@ impl LivingEntity {
         damage
     }
 
+    /// Vanilla parity: the `invulnerableTime`/`lastHurt` rule from `LivingEntity.hurtServer`
+    /// (LivingEntity.java:1216-1231):
+    /// ```java
+    /// if (this.invulnerableTime > 10.0F && !source.is(DamageTypeTags.BYPASSES_COOLDOWN)) {
+    ///     if (damage <= this.lastHurt) return false;
+    ///     this.actuallyHurt(level, source, damage - this.lastHurt);
+    ///     this.lastHurt = damage;
+    ///     tookFullDamage = false;
+    /// } else {
+    ///     this.lastHurt = damage;
+    ///     this.invulnerableTime = 20;
+    ///     this.actuallyHurt(level, source, damage);
+    /// }
+    /// ```
+    /// `amount` is the raw incoming damage (after blocking/freeze scaling, before armor and
+    /// magic absorb -- those run per-hit on whichever amount this returns, not on `amount`
+    /// itself, since the armor formula is not linear in the damage it's given). `last_hurt`
+    /// is the entity's stored `lastHurt`. `cooldown_active` is
+    /// `invulnerableTime > 10 && !BYPASSES_COOLDOWN`, computed by the caller.
+    ///
+    /// Returns `None` when the hit must be rejected outright (a smaller-or-equal hit landing
+    /// inside the invulnerability window -- vanilla's early `return false`). Otherwise
+    /// returns `Some((raw_hit_amount, took_full_damage))`: the raw amount to run through
+    /// armor/magic absorb next, and whether this was a full hit rather than the
+    /// invulnerability-window difference.
+    fn resolve_hurt_cooldown(
+        amount: f32,
+        last_hurt: f32,
+        cooldown_active: bool,
+    ) -> Option<(f32, bool)> {
+        if cooldown_active {
+            if amount <= last_hurt {
+                None
+            } else {
+                Some((amount - last_hurt, false))
+            }
+        } else {
+            Some((amount, true))
+        }
+    }
+
     #[allow(clippy::too_many_lines)]
     pub fn damage_with_context(
         &self,
@@ -3132,8 +3190,38 @@ impl LivingEntity {
             return false; // Dying or dead
         }
 
+        // Vanilla parity: `LivingEntity.hurtServer` clamps negative damage to zero rather
+        // than rejecting the hit outright (LivingEntity.java:1194-1196).
         if amount < 0.0 {
-            return false;
+            amount = 0.0;
+        }
+
+        // Vanilla parity: `Player.hurtServer` scales incoming damage by world difficulty
+        // before anything else runs (Player.java:694-708); only players are scaled, mobs
+        // never are. `DamageSource.scalesWithDifficulty` (DamageSource.java:92-98) keys off
+        // the damage type's `scaling()`: `WHEN_CAUSED_BY_LIVING_NON_PLAYER` only scales when
+        // the credited attacker (vanilla's `DamageSource.getEntity()`, i.e. `cause` here) is
+        // a non-player `LivingEntity`.
+        if caller.get_player().is_some() {
+            let scales = match damage_type.scaling {
+                DamageScaling::Never => false,
+                DamageScaling::WhenCausedByLivingNonPlayer => cause
+                    .is_some_and(|c| c.get_living_entity().is_some() && c.get_player().is_none()),
+                DamageScaling::Always => true,
+            };
+            if scales {
+                match self.entity.world.load().level_info.load().difficulty {
+                    pumpkin_util::Difficulty::Peaceful => amount = 0.0,
+                    pumpkin_util::Difficulty::Easy => amount = (amount / 2.0 + 1.0).min(amount),
+                    pumpkin_util::Difficulty::Normal => {}
+                    pumpkin_util::Difficulty::Hard => amount = amount * 3.0 / 2.0,
+                }
+            }
+            // Vanilla parity: `Player.hurtServer` returns false for zero damage
+            // unconditionally, not only when scaling produced it (Player.java:708).
+            if amount == 0.0 {
+                return false;
+            }
         }
 
         let mut damage_event =
@@ -3218,22 +3306,11 @@ impl LivingEntity {
                 return false;
             }
 
-            // Check for fire resistance effect
-            if self.has_effect(&StatusEffect::FIRE_RESISTANCE)
-                && !damage_type.has_tag(&tag::DamageType::MINECRAFT_BYPASSES_EFFECTS)
-            {
+            // Vanilla parity: fire-resistance immunity is unconditional here -- it does not
+            // check BYPASSES_EFFECTS (LivingEntity.java:1185).
+            if self.has_effect(&StatusEffect::FIRE_RESISTANCE) {
                 return false;
             }
-        }
-
-        // Vanilla parity: entities in FREEZE_HURTS_EXTRA_TYPES take 5x freezing damage.
-        if damage_type == DamageType::FREEZE
-            && self
-                .entity
-                .entity_type
-                .has_tag(&tag::EntityType::MINECRAFT_FREEZE_HURTS_EXTRA_TYPES)
-        {
-            amount *= 5.0;
         }
 
         // Check for shield blocking before armor/magic/cooldown
@@ -3323,100 +3400,74 @@ impl LivingEntity {
             }
         }
 
-        // Vanilla parity: 1. Armor absorb
-        let damage_after_armor =
-            self.get_damage_after_armor_absorb(amount, &damage_type, cause.or(source));
+        // Vanilla parity: entities in FREEZE_HURTS_EXTRA_TYPES take 5x freezing damage,
+        // applied to the post-blocking damage (LivingEntity.java:1203-1205).
+        if damage_type == DamageType::FREEZE
+            && self
+                .entity
+                .entity_type
+                .has_tag(&tag::EntityType::MINECRAFT_FREEZE_HURTS_EXTRA_TYPES)
+        {
+            amount *= 5.0;
+        }
 
+        // These damage types bypass the hurt cooldown and death protection
+        // (DamageTypeTags.BYPASSES_COOLDOWN, LivingEntity.java:1217). No
+        // MINECRAFT_BYPASSES_COOLDOWN tag constant is generated because vanilla's own
+        // "bypasses_cooldown" tag data currently has no members beyond generic_kill and
+        // out_of_world, so those two are enumerated directly instead of a tag lookup.
+        let bypasses_cooldown_protection =
+            damage_type == DamageType::GENERIC_KILL || damage_type == DamageType::OUT_OF_WORLD;
+
+        // Vanilla parity: `LivingEntity.hurtServer` invulnerableTime/lastHurt rule
+        // (LivingEntity.java:1216-1231). `hurt_cooldown` mirrors `invulnerableTime` and
+        // `last_damage_taken` mirrors `lastHurt`; both track the RAW damage (after
+        // blocking/freeze scaling but before armor/magic absorb). Armor and magic absorb
+        // are computed per-hit inside `actuallyHurt`, not once up front -- so a second hit
+        // landing inside the invulnerability window is reduced by armor as the DIFFERENCE
+        // `amount - lastHurt`, not as `absorb(amount) - absorb(lastHurt)`. Applying absorb
+        // once to the full amount and diffing afterwards (the previous implementation)
+        // gives a different, wrong number because the armor formula is not linear in
+        // `damage` (CombatRules.java:20 divides by `damage / toughness`).
+        let last_hurt = self.last_damage_taken.load();
+        let cooldown_active =
+            self.hurt_cooldown.load(Relaxed) > 10 && !bypasses_cooldown_protection;
+        let Some((raw_hit_amount, took_full_damage)) =
+            Self::resolve_hurt_cooldown(amount, last_hurt, cooldown_active)
+        else {
+            return false;
+        };
+        self.last_damage_taken.store(amount);
+        if took_full_damage {
+            self.hurt_cooldown.store(20, Relaxed);
+        }
+
+        // Vanilla parity: `actuallyHurt` (LivingEntity.java:1960-1979) -- armor absorb,
+        // then magic absorb, then absorption hearts, then health, applied to whichever
+        // raw amount was selected above (full hit or invulnerability-window difference).
+        let damage_after_armor = self.get_damage_after_armor_absorb(
+            raw_hit_amount,
+            &damage_type,
+            caller,
+            // Vanilla parity: `CombatRules.getDamageAfterAbsorb`'s weapon-item (Breach
+            // enchantment) lookup reads `DamageSource.getWeaponItem()`, which resolves via
+            // the DIRECT entity, not the credited cause (DamageSource.java:67-69) --
+            // `source` here is Pumpkin's direct-entity equivalent.
+            source,
+        );
         let effective_amount = self.get_damage_after_magic_absorb(
             damage_after_armor,
             &damage_type,
             caller,
-            cause.or(source),
+            // Vanilla parity: the Resistance-absorbed-damage stat attributes to
+            // `DamageSource.getEntity()` (the credited cause), not the direct entity
+            // (LivingEntity.java:1932-1934).
+            cause,
         );
 
-        // These damage types bypass the hurt cooldown and death protection
-        let bypasses_cooldown_protection =
-            damage_type == DamageType::GENERIC_KILL || damage_type == DamageType::OUT_OF_WORLD;
-
-        // Apply hurt cooldown logic
-        let last_damage = self.last_damage_taken.load();
-        let (damage_amount, play_sound) =
-            if self.hurt_cooldown.load(Relaxed) > 10 && !bypasses_cooldown_protection {
-                if effective_amount <= last_damage {
-                    return false;
-                }
-                (effective_amount - last_damage, false)
-            } else {
-                self.hurt_cooldown.store(20, Relaxed);
-                (effective_amount, self.health.load() > effective_amount)
-            };
-
-        // Finalize state
-        self.last_damage_taken.store(amount);
-        let damage_amount = damage_amount.max(0.0);
-
-        let Some(server) = world.server.upgrade() else {
-            return false;
-        };
-        let config = &server.advanced_config.pvp;
-
-        if config.hurt_animation {
-            let entity_id = self.entity.entity_id;
-            let hurt_yaw = source.map_or(0.0, |source| {
-                let src = source.get_entity().pos.load();
-                let tgt = self.entity.pos.load();
-                (src.z - tgt.z).atan2(src.x - tgt.x).to_degrees() as f32 - self.entity.yaw.load()
-            });
-            let hurt_event = SActorEvent {
-                target_runtime_id: VarULong(entity_id as u64),
-                event_id: ActorEventID::Hurt,
-                data: VarInt(0),
-                fire_at_position: None,
-            };
-            let hurt_animation = CHurtAnimation::new(entity_id.into(), hurt_yaw);
-            world.send_to_tracking_players_and_self_editioned(
-                &self.entity,
-                &hurt_animation,
-                &hurt_event,
-            );
-        }
-
-        world.broadcast_damage_event(
-            &self.entity,
-            i32::from(damage_type.id),
-            source.map(|e| e.get_entity().entity_id),
-            cause.map(|e| e.get_entity().entity_id),
-            position,
-        );
-
-        if play_sound {
-            world.play_sound_fine(
-                self.hurt_sound(caller),
-                SoundCategory::Players,
-                &self.entity.pos.load(),
-                1.0,
-                self.get_pitch(),
-            );
-
-            if let Some(source) = source {
-                let source_pos = source.get_entity().pos.load();
-                let target_pos = self.entity.pos.load();
-                let dx = source_pos.x - target_pos.x;
-                let dz = source_pos.z - target_pos.z;
-                let resistance = self.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE);
-                self.entity.apply_knockback(
-                    knockback_after_resistance(f64::from(0.4_f32), resistance),
-                    dx,
-                    dz,
-                );
-            }
-        }
-
-        // Vanilla parity: actuallyHurt
-        let original_damage = damage_amount;
         let current_abs = self.absorption.load();
-        let dmg_to_health = (original_damage - current_abs).max(0.0);
-        let absorbed_damage = original_damage - dmg_to_health;
+        let dmg_to_health = (effective_amount - current_abs).max(0.0);
+        let absorbed_damage = effective_amount - dmg_to_health;
 
         if absorbed_damage > 0.0 {
             let new_abs = (current_abs - absorbed_damage).max(0.0);
@@ -3437,19 +3488,14 @@ impl LivingEntity {
                     (absorbed_damage * 10.0).round() as i32,
                 );
             }
-
-            if let Some(attacker) = cause.or(source) {
-                self.last_attacker_id
-                    .store(attacker.get_entity().entity_id, Relaxed);
-                self.last_attacked_time
-                    .store(self.entity.tick_count.load(Relaxed), Relaxed);
-            }
         }
 
-        let max_h = self.get_max_health();
-        let new_health = (self.health.load() - dmg_to_health).clamp(0.0, max_h);
+        // Vanilla parity: `actuallyHurt` only touches health/combat-tracker when the
+        // post-absorption damage is non-zero (LivingEntity.java:1972-1977).
+        if dmg_to_health != 0.0 {
+            let max_h = self.get_max_health();
+            let new_health = (self.health.load() - dmg_to_health).clamp(0.0, max_h);
 
-        if dmg_to_health > 0.0 {
             if let Some(player) = caller.get_player() {
                 if damage_type.exhaustion > 0.0 {
                     player.add_exhaustion(damage_type.exhaustion);
@@ -3471,28 +3517,10 @@ impl LivingEntity {
                 );
             }
 
-            if let Some(attacker) = cause.or(source) {
-                let attacker_id = attacker.get_entity().entity_id;
-                self.last_attacker_id.store(attacker_id, Relaxed);
-                self.last_attacked_time
-                    .store(self.entity.tick_count.load(Relaxed), Relaxed);
-
-                let current_tick = world.level_info.load().day_time;
-                if attacker.get_player().is_some() {
-                    self.last_hurt_by_player_id.store(attacker_id, Relaxed);
-                    self.last_hurt_by_player_time.store(current_tick, Relaxed);
-                } else if attacker.get_living_entity().is_some() {
-                    self.last_hurt_by_mob_id.store(attacker_id, Relaxed);
-                    self.last_hurt_by_mob_time.store(current_tick, Relaxed);
-                }
-            }
-        }
-
-        if dmg_to_health > 0.0 || absorbed_damage > 0.0 {
             let current_tick = world.level_info.load().day_time;
             let fall_location = FallLocation::get_current_fall_location(self, &world);
             let fall_distance = self.fall_distance.load();
-
+            let is_alive = self.health.load() > 0.0 && !self.dead.load(Relaxed);
             {
                 let mut tracker = self
                     .combat_tracker
@@ -3500,18 +3528,114 @@ impl LivingEntity {
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 tracker.record_damage(
                     current_tick,
-                    self.health.load() > 0.0 && !self.dead.load(Relaxed),
+                    is_alive,
                     fall_distance,
                     fall_location,
                     damage_type,
-                    effective_amount,
+                    dmg_to_health,
                     source,
                     cause,
                 );
             }
         }
 
-        if new_health <= 0.0 {
+        // Vanilla parity: `resolveMobResponsibleForDamage`/`resolvePlayerResponsibleForDamage`
+        // (LivingEntity.java:1233-1234, defined at 1354-1376) run unconditionally after
+        // `actuallyHurt`, regardless of `tookFullDamage`, and are independent of each other
+        // -- a player attacker sets BOTH `lastHurtByMob` and `lastHurtByPlayer`. Both key off
+        // `DamageSource.getEntity()` (the credited `cause`), not the direct entity.
+        //
+        // Known gap: `resolvePlayerResponsibleForDamage`'s tamed-wolf-owner-credit branch
+        // (LivingEntity.java:1366-1372, crediting a wolf's owner when the wolf lands the
+        // hit) is not ported -- `LivingEntity` here has no visibility into `Wolf`'s
+        // tame/owner state. Only the direct-player branch is implemented.
+        if let Some(attacker) = cause {
+            let attacker_id = attacker.get_entity().entity_id;
+            self.last_attacker_id.store(attacker_id, Relaxed);
+            self.last_attacked_time
+                .store(self.entity.tick_count.load(Relaxed), Relaxed);
+
+            let current_tick = world.level_info.load().day_time;
+            if attacker.get_living_entity().is_some()
+                && !damage_type.has_tag(&tag::DamageType::MINECRAFT_NO_ANGER)
+                && !(damage_type == DamageType::WIND_CHARGE
+                    && self
+                        .entity
+                        .entity_type
+                        .has_tag(&tag::EntityType::MINECRAFT_NO_ANGER_FROM_WIND_CHARGE))
+            {
+                self.last_hurt_by_mob_id.store(attacker_id, Relaxed);
+                self.last_hurt_by_mob_time.store(current_tick, Relaxed);
+            }
+
+            if attacker.get_player().is_some() {
+                self.last_hurt_by_player_id.store(attacker_id, Relaxed);
+                self.last_hurt_by_player_time.store(current_tick, Relaxed);
+            }
+        }
+
+        // Vanilla parity: broadcast/markHurt/knockback only happen when the hit was not
+        // reduced to the invulnerability-window difference (`tookFullDamage`,
+        // LivingEntity.java:1235-1250).
+        if took_full_damage {
+            let Some(server) = world.server.upgrade() else {
+                return false;
+            };
+            let config = &server.advanced_config.pvp;
+
+            if config.hurt_animation {
+                let entity_id = self.entity.entity_id;
+                let hurt_yaw = source.map_or(0.0, |source| {
+                    let src = source.get_entity().pos.load();
+                    let tgt = self.entity.pos.load();
+                    (src.z - tgt.z).atan2(src.x - tgt.x).to_degrees() as f32
+                        - self.entity.yaw.load()
+                });
+                let hurt_event = SActorEvent {
+                    target_runtime_id: VarULong(entity_id as u64),
+                    event_id: ActorEventID::Hurt,
+                    data: VarInt(0),
+                    fire_at_position: None,
+                };
+                let hurt_animation = CHurtAnimation::new(entity_id.into(), hurt_yaw);
+                world.send_to_tracking_players_and_self_editioned(
+                    &self.entity,
+                    &hurt_animation,
+                    &hurt_event,
+                );
+            }
+
+            world.broadcast_damage_event(
+                &self.entity,
+                i32::from(damage_type.id),
+                source.map(|e| e.get_entity().entity_id),
+                cause.map(|e| e.get_entity().entity_id),
+                position,
+            );
+
+            // Vanilla parity: `dealDefaultKnockback` runs whenever NO_KNOCKBACK isn't set,
+            // independent of whether the hit was fatal (LivingEntity.java:1247-1248).
+            if !damage_type.has_tag(&tag::DamageType::MINECRAFT_NO_KNOCKBACK)
+                && let Some(source) = source
+            {
+                let source_pos = source.get_entity().pos.load();
+                let target_pos = self.entity.pos.load();
+                let dx = source_pos.x - target_pos.x;
+                let dz = source_pos.z - target_pos.z;
+                let resistance = self.get_attribute_value(&Attributes::KNOCKBACK_RESISTANCE);
+                self.entity.apply_knockback(
+                    knockback_after_resistance(f64::from(0.4_f32), resistance),
+                    dx,
+                    dz,
+                );
+            }
+        }
+
+        // Vanilla parity: death-or-hurt-sound decision runs after health has been applied
+        // above, using the entity's real post-hit state (LivingEntity.java:1252-1264).
+        let is_dead = self.health.load() <= 0.0 || self.dead.load(Relaxed);
+
+        if is_dead {
             let mut death_event =
                 crate::plugin::api::events::entity::entity_death::EntityDeathEvent::new(
                     self.entity.entity_id,
@@ -3522,7 +3646,15 @@ impl LivingEntity {
                     .plugin_manager
                     .fire_blocking(&server, &mut death_event);
             }
-            self.on_death(damage_type, source, cause);
+            self.on_death(damage_type, source, cause, took_full_damage);
+        } else if took_full_damage {
+            world.play_sound_fine(
+                self.hurt_sound(caller),
+                SoundCategory::Players,
+                &self.entity.pos.load(),
+                1.0,
+                self.get_pitch(),
+            );
         }
 
         true
@@ -4313,5 +4445,110 @@ mod tests {
             .unwrap();
 
         assert_eq!(bytes, [10, 17, 1, 28, 0xff, 0xcd, 0x5c, 0xab]);
+    }
+
+    // ── damage pipeline: armor formula, protection cap, lastHurt rule ────────────
+
+    /// Pins `CombatRules.getDamageAfterAbsorb` (CombatRules.java:16-32): armor toughness
+    /// changes the `damage / toughness` term, which in turn changes `realArmor` before it's
+    /// divided by `ARMOR_PROTECTION_DIVIDER` (25.0).
+    #[test]
+    fn armor_formula_toughness_matches_vanilla_combat_rules() {
+        // toughness = 2.0 + 8.0/4.0 = 4.0
+        // realArmor = clamp(20.0 - 20.0/4.0, 4.0, 20.0) = clamp(15.0, 4.0, 20.0) = 15.0
+        // fraction = 15.0/25.0 = 0.6 -> damage * 0.4
+        let result = CombatRules::get_damage_after_absorb(20.0, 20.0, 8.0, 0);
+        assert!(
+            (result - 8.0).abs() < 1e-3,
+            "expected 8.0, got {result}"
+        );
+    }
+
+    /// Pins the `MIN_ARMOR_RATIO` floor (CombatRules.java:13,20): against enough damage,
+    /// `realArmor` bottoms out at `totalArmor * 0.2` instead of going negative.
+    #[test]
+    fn armor_formula_floors_at_min_armor_ratio_against_heavy_damage() {
+        // toughness = 2.0; realArmor = clamp(20.0 - 1000.0/2.0, 4.0, 20.0) = 4.0 (floor)
+        // fraction = 4.0/25.0 = 0.16 -> damage * 0.84
+        let result = CombatRules::get_damage_after_absorb(1000.0, 20.0, 0.0, 0);
+        assert!(
+            (result - 840.0).abs() < 1e-1,
+            "expected 840.0, got {result}"
+        );
+    }
+
+    /// Pins the Breach enchantment's armor-effectiveness reduction
+    /// (CombatRules.java:22-27 in vanilla via `EnchantmentHelper.modifyArmorEffectiveness`;
+    /// mirrored here as `min(level * 0.15, 1.0)` off the armor fraction).
+    #[test]
+    fn armor_formula_breach_reduces_armor_fraction() {
+        // Pre-breach: toughness = 2.0; realArmor = clamp(20.0 - 10.0/2.0, 4.0, 20.0) = 15.0
+        // fraction = 0.6; breach 4 -> reduction = min(4*0.15, 1.0) = 0.6
+        // modified fraction = clamp(0.6 * (1.0 - 0.6), 0.0, 1.0) = 0.24 -> damage * 0.76
+        let result = CombatRules::get_damage_after_absorb(10.0, 20.0, 0.0, 4);
+        assert!(
+            (result - 7.6).abs() < 1e-3,
+            "expected 7.6, got {result}"
+        );
+    }
+
+    /// Pins the enchantment-protection cap (CombatRules.java:34-37): total magic armor
+    /// above 20 (e.g. several protection enchantments stacked across 4 armor pieces) is
+    /// clamped to 20 before being divided by `ARMOR_PROTECTION_DIVIDER` (25.0), not applied
+    /// in full.
+    #[test]
+    fn magic_absorb_protection_cap_clamps_total_at_twenty() {
+        // realArmor = clamp(25.0, 0.0, 20.0) = 20.0 -> fraction = 20.0/25.0 = 0.8
+        let capped = CombatRules::get_damage_after_magic_absorb(20.0, 25.0);
+        assert!(
+            (capped - 4.0).abs() < 1e-3,
+            "expected 4.0 (cap applied), got {capped}"
+        );
+
+        // Uncapped equivalent would give a different (wrong) answer if the cap were
+        // missing: 20.0 * (1.0 - 25.0/25.0) = 0.0. The capped result must differ from this.
+        assert!((capped - 0.0).abs() > 1e-3);
+    }
+
+    /// Pins the lower clamp of `getDamageAfterMagicAbsorb` (CombatRules.java:35): negative
+    /// magic armor does not amplify damage past the original amount.
+    #[test]
+    fn magic_absorb_clamps_negative_armor_to_zero() {
+        let result = CombatRules::get_damage_after_magic_absorb(20.0, -5.0);
+        assert!((result - 20.0).abs() < 1e-3, "expected 20.0, got {result}");
+    }
+
+    /// Pins `LivingEntity.hurtServer`'s `lastHurt` rule (LivingEntity.java:1216-1231) via
+    /// the real `LivingEntity::resolve_hurt_cooldown` helper that `damage_with_context`
+    /// calls. Outside the invulnerability window (`cooldown_active == false`), every hit is
+    /// a full hit regardless of any previous `lastHurt`.
+    #[test]
+    fn resolve_hurt_cooldown_outside_window_is_always_a_full_hit() {
+        assert_eq!(
+            LivingEntity::resolve_hurt_cooldown(10.0, 999.0, false),
+            Some((10.0, true))
+        );
+    }
+
+    /// A new hit that is smaller than or equal to `lastHurt` while still inside the
+    /// invulnerability window is rejected outright (`damage <= this.lastHurt` ->
+    /// `return false`, LivingEntity.java:1218-1220) -- it must not silently apply zero
+    /// damage or clamp, it must reject the hit entirely.
+    #[test]
+    fn resolve_hurt_cooldown_rejects_smaller_or_equal_hits_inside_window() {
+        assert_eq!(LivingEntity::resolve_hurt_cooldown(5.0, 5.0, true), None);
+        assert_eq!(LivingEntity::resolve_hurt_cooldown(3.0, 5.0, true), None);
+    }
+
+    /// The critical multi-hit-exchange case: a LARGER hit landing inside the invulnerability
+    /// window applies only the DIFFERENCE `amount - lastHurt`, not the full new amount and
+    /// not zero (LivingEntity.java:1222-1224). Getting this wrong changes every multi-hit
+    /// exchange's numbers.
+    #[test]
+    fn resolve_hurt_cooldown_applies_only_the_difference_for_a_larger_hit() {
+        assert_eq!(
+            LivingEntity::resolve_hurt_cooldown(8.0, 5.0, true),
+            Some((3.0, false))
+        );
     }
 }
