@@ -7,8 +7,8 @@ use crate::block::blocks::plant::big_dripleaf_stem::{
 };
 use crate::block::blocks::redstone::block_receives_redstone_power;
 use crate::block::{
-    BlockBehaviour, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnEntityStepArgs,
-    OnNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs, PlacedArgs,
+    BlockBehaviour, BonemealArgs, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
+    OnEntityStepArgs, OnNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs, PlacedArgs,
 };
 use crate::entity::EntityBase;
 use crate::entity::ai::pathfinder::node::Coordinate;
@@ -137,6 +137,18 @@ impl BlockBehaviour for BigDripleafBlock {
     fn broken(&self, args: BrokenArgs<'_>) {
         handle_big_dripleaf_breaking(args.world, args.position);
     }
+
+    // BigDripleafBlock.java:170 isValidBonemealTarget: canGrowInto(pos.above()).
+    fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
+        can_grow_into(args.world, &args.position.up())
+    }
+
+    // BigDripleafBlock.java:180 performBonemeal: the current leaf becomes a stem and
+    // a new leaf is placed above it.
+    fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
+        let props = BigDripleafLikeProperties::from_state_id(args.state_id);
+        grow_dripleaf_from_head(args.world, args.position, props);
+    }
 }
 fn set_tilt_and_schedule_tick(
     state_id: BlockStateId,
@@ -228,4 +240,49 @@ pub fn can_plant_dripleaf_on_top(support_block: &Block) -> bool {
     }
 
     support_block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_BIG_DRIPLEAF)
+}
+
+// BigDripleafBlock.java:110-121 canReplace / canGrowInto / canPlaceAt.
+#[must_use]
+pub fn can_grow_into(world: &Arc<World>, pos: &BlockPos) -> bool {
+    world.is_in_build_limit(*pos) && {
+        let block = world.get_block(pos);
+        block == &Block::AIR || block == &Block::WATER || block == &Block::SMALL_DRIPLEAF
+    }
+}
+
+/// BigDripleafBlock.java:180 performBonemeal, shared with `BigDripleafStemBlock` (which
+/// resolves the connected head first) and `SmallDripleafBlock.placeWithRandomHeight`'s
+/// first segment. Converts the block at `head_pos` into a stem and places a new leaf
+/// above it, using `head_props` (facing/waterlogged) for the stem and the fluid
+/// actually present above for the new leaf.
+pub fn grow_dripleaf_from_head(
+    world: &Arc<World>,
+    head_pos: &BlockPos,
+    head_props: BigDripleafLikeProperties,
+) -> bool {
+    let above_pos = head_pos.up();
+    if !can_grow_into(world, &above_pos) {
+        return false;
+    }
+    let facing = head_props.facing;
+
+    let mut stem_props = BigDripleafStemLikeProperties::default(&Block::BIG_DRIPLEAF_STEM);
+    stem_props.facing = facing;
+    stem_props.waterlogged = head_props.waterlogged;
+    world.set_block_state(
+        head_pos,
+        stem_props.to_state_id(&Block::BIG_DRIPLEAF_STEM),
+        BlockFlags::NOTIFY_ALL,
+    );
+
+    let mut leaf_props = BigDripleafLikeProperties::default(&Block::BIG_DRIPLEAF);
+    leaf_props.facing = facing;
+    leaf_props.waterlogged = world.get_block(&above_pos) == &Block::WATER;
+    world.set_block_state(
+        &above_pos,
+        leaf_props.to_state_id(&Block::BIG_DRIPLEAF),
+        BlockFlags::NOTIFY_ALL,
+    );
+    true
 }

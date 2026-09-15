@@ -1,14 +1,23 @@
+use std::sync::Arc;
+
 use crate::block::blocks::plant::PlantBlockBase;
+use crate::block::blocks::plant::big_dripleaf::can_grow_into;
+use crate::block::blocks::plant::big_dripleaf_stem::BigDripleafStemLikeProperties;
 use crate::block::{
-    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs, PlacedArgs,
+    BlockBehaviour, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
+    PlacedArgs,
 };
+use crate::world::World;
 use pumpkin_data::BlockStateId;
-use pumpkin_data::block_properties::{DoubleBlockHalf, SmallDripleafLikeProperties};
+use pumpkin_data::block_properties::{
+    BigDripleafLikeProperties, DoubleBlockHalf, HorizontalFacing, SmallDripleafLikeProperties,
+};
 use pumpkin_data::tag::Taggable;
 use pumpkin_data::{Block, tag};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::{BlockAccessor, BlockFlags};
+use rand::RngExt;
 
 #[pumpkin_block("minecraft:small_dripleaf")]
 pub struct SmallDripleafBlock;
@@ -67,6 +76,78 @@ impl BlockBehaviour for SmallDripleafBlock {
             );
         }
     }
+
+    // SmallDripleafBlock.java:117 isValidBonemealTarget: always true.
+    fn is_valid_bonemeal_target(&self, _args: BonemealArgs<'_>) -> bool {
+        true
+    }
+
+    // SmallDripleafBlock.java:127 performBonemeal.
+    fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
+        perform_small_dripleaf_bonemeal(args.world, args.position, args.state_id);
+    }
+}
+
+fn perform_small_dripleaf_bonemeal(world: &Arc<World>, position: &BlockPos, state_id: BlockStateId) {
+    let props = SmallDripleafLikeProperties::from_state_id(state_id);
+    if props.half == DoubleBlockHalf::Lower {
+        let above_pos = position.up();
+        // level.getFluidState(above).createLegacyBlock(): water stays water, anything
+        // else collapses to air.
+        let cleared_state_id = if world.get_block(&above_pos) == &Block::WATER {
+            Block::WATER.default_state.id
+        } else {
+            Block::AIR.default_state.id
+        };
+        world.set_block_state(
+            &above_pos,
+            cleared_state_id,
+            BlockFlags::MOVED | BlockFlags::NOTIFY_LISTENERS,
+        );
+        place_dripleaf_with_random_height(world, position, props.facing);
+    } else {
+        let below_pos = position.down();
+        let below_state_id = world.get_block_state_id(&below_pos);
+        perform_small_dripleaf_bonemeal(world, &below_pos, below_state_id);
+    }
+}
+
+// BigDripleafBlock.java:89 placeWithRandomHeight.
+fn place_dripleaf_with_random_height(
+    world: &Arc<World>,
+    stem_bottom_pos: &BlockPos,
+    facing: HorizontalFacing,
+) {
+    let desired_height = rand::rng().random_range(2..=5);
+    let mut pos = *stem_bottom_pos;
+    let mut height = 0;
+    while height < desired_height && can_grow_into(world, &pos) {
+        height += 1;
+        pos = pos.up();
+    }
+
+    let leaf_y = stem_bottom_pos.0.y + height - 1;
+    let mut cursor = *stem_bottom_pos;
+    while cursor.0.y < leaf_y {
+        let mut stem_props = BigDripleafStemLikeProperties::default(&Block::BIG_DRIPLEAF_STEM);
+        stem_props.facing = facing;
+        stem_props.waterlogged = world.get_block(&cursor) == &Block::WATER;
+        world.set_block_state(
+            &cursor,
+            stem_props.to_state_id(&Block::BIG_DRIPLEAF_STEM),
+            BlockFlags::NOTIFY_ALL,
+        );
+        cursor = cursor.up();
+    }
+
+    let mut leaf_props = BigDripleafLikeProperties::default(&Block::BIG_DRIPLEAF);
+    leaf_props.facing = facing;
+    leaf_props.waterlogged = world.get_block(&cursor) == &Block::WATER;
+    world.set_block_state(
+        &cursor,
+        leaf_props.to_state_id(&Block::BIG_DRIPLEAF),
+        BlockFlags::NOTIFY_ALL,
+    );
 }
 fn is_small_dripleaf_waterlogged(state_id: BlockStateId) -> bool {
     let dripleaf_props = SmallDripleafLikeProperties::from_state_id(state_id);

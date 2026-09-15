@@ -1,10 +1,13 @@
+use std::sync::Arc;
+
 use crate::block::blocks::plant::PlantBlockBase;
 use crate::block::{
-    BlockBehaviour, BlockMetadata, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    PlacedArgs,
+    BlockBehaviour, BlockMetadata, BonemealArgs, BrokenArgs, CanPlaceAtArgs,
+    GetStateForNeighborUpdateArgs, PlacedArgs,
 };
+use crate::world::World;
 use pumpkin_data::BlockStateId;
-use pumpkin_data::block_properties::WaterLikeProperties;
+use pumpkin_data::block_properties::{KelpLikeProperties, WaterLikeProperties};
 use pumpkin_data::tag::Taggable;
 use pumpkin_data::{Block, BlockId, tag};
 use pumpkin_util::math::position::BlockPos;
@@ -63,6 +66,73 @@ impl BlockBehaviour for KelpBlock {
             }
         }
     }
+
+    // GrowingPlantHeadBlock.java:114 isValidBonemealTarget, delegated for the body
+    // (KELP_PLANT) by GrowingPlantBodyBlock.java:68 which first walks up to the head.
+    fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
+        let Some(head_pos) = kelp_head_pos(args.world, args.block, args.position) else {
+            return false;
+        };
+        let growth_pos = head_pos.up();
+        kelp_can_grow_into(args.world.get_block(&growth_pos))
+            && args.world.is_in_build_limit(growth_pos)
+    }
+
+    // GrowingPlantHeadBlock.java:125 performBonemeal (getBlocksToGrowWhenBonemealed = 1
+    // for kelp, see KelpBlock.java:61). The body delegates to the head's growth logic
+    // (GrowingPlantBodyBlock.java:84).
+    fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
+        let Some(head_pos) = kelp_head_pos(args.world, args.block, args.position) else {
+            return;
+        };
+        let head_state_id = args.world.get_block_state_id(&head_pos);
+        let props = KelpLikeProperties::from_state_id(head_state_id);
+        let next_age = (props.age + 1).min(25);
+        let forward_pos = head_pos.up();
+        if kelp_can_grow_into(args.world.get_block(&forward_pos))
+            && args.world.is_in_build_limit(forward_pos)
+        {
+            let mut new_props = props;
+            new_props.age = next_age;
+            args.world.set_block_state(
+                &forward_pos,
+                new_props.to_state_id(&Block::KELP),
+                BlockFlags::NOTIFY_ALL,
+            );
+        }
+    }
+}
+
+// KelpBlock.java:36 canGrowInto: only grows into water.
+fn kelp_can_grow_into(block: &Block) -> bool {
+    block == &Block::WATER
+}
+
+/// Resolves the KELP head position for either the head (KELP) or body (KELP_PLANT)
+/// block, mirroring `GrowingPlantBodyBlock.getHeadPos` / `BlockUtil.getTopConnectedBlock`
+/// (growth direction UP for kelp).
+fn kelp_head_pos(world: &Arc<World>, block: &Block, position: &BlockPos) -> Option<BlockPos> {
+    if block == &Block::KELP {
+        return Some(*position);
+    }
+    if block != &Block::KELP_PLANT {
+        return None;
+    }
+    let max_steps = world.dimension.height + 8;
+    let mut current = *position;
+    for _ in 0..max_steps {
+        current = current.up();
+        let found = world.get_block(&current);
+        if found == &Block::KELP_PLANT {
+            continue;
+        }
+        return if found == &Block::KELP {
+            Some(current)
+        } else {
+            None
+        };
+    }
+    None
 }
 
 impl PlantBlockBase for KelpBlock {
