@@ -1,4 +1,6 @@
+use pumpkin_data::Block;
 use pumpkin_data::data_component_impl::IDSetContent;
+use pumpkin_data::dye_color::DyeColor;
 use pumpkin_data::tag::Taggable;
 use std::any::Any;
 use std::sync::atomic::{AtomicBool, AtomicI32, Ordering};
@@ -9,10 +11,99 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_world::chunk::ChunkHeightmapType;
 
 use crate::block::entities::BlockEntity;
 use crate::world::World;
 use pumpkin_inventory::{Clearable, Inventory};
+
+/// How many new blocks of the beam column are scanned per tick.
+/// Vanilla: `BeaconBlockEntity.BLOCKS_CHECK_PER_TICK` (`BeaconBlockEntity.java:65`).
+const BLOCKS_CHECK_PER_TICK: i32 = 10;
+
+/// A single coloured segment of the beacon beam.
+/// Vanilla: `BeaconBeamOwner.Section` (`BeaconBeamOwner.java`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BeaconBeamSection {
+    /// Opaque ARGB colour (alpha is always `0xFF`).
+    pub color: u32,
+    pub height: i32,
+}
+
+impl BeaconBeamSection {
+    #[must_use]
+    pub const fn new(color: u32) -> Self {
+        Self { color, height: 1 }
+    }
+
+    pub fn increase_height(&mut self) {
+        self.height += 1;
+    }
+}
+
+/// Component-wise average of two opaque ARGB colours (integer/floor division per channel).
+///
+/// Vanilla: `ARGB.average` (`ARGB.java:227-229`), used by `BeaconBlockEntity.tick`
+/// (`BeaconBlockEntity.java:150`) to *blend* a beam segment's colour with the next,
+/// differently-coloured beam block above it, rather than replacing it outright.
+#[must_use]
+pub const fn average_argb(lhs: u32, rhs: u32) -> u32 {
+    let alpha = ((lhs >> 24) + (rhs >> 24)) / 2;
+    let red = (((lhs >> 16) & 0xFF) + ((rhs >> 16) & 0xFF)) / 2;
+    let green = (((lhs >> 8) & 0xFF) + ((rhs >> 8) & 0xFF)) / 2;
+    let blue = ((lhs & 0xFF) + (rhs & 0xFF)) / 2;
+    (alpha << 24) | (red << 16) | (green << 8) | blue
+}
+
+/// Maps a stained-glass(-pane) name prefix (e.g. `"light_blue"`) to its `DyeColor`.
+/// Mirrors the `DyeColor` naming vanilla uses for `StainedGlassBlock`/`StainedGlassPaneBlock`
+/// registration (`StainedGlassBlock.java:19`, `StainedGlassPaneBlock.java:19`).
+fn dye_color_from_prefix(prefix: &str) -> Option<DyeColor> {
+    Some(match prefix {
+        "white" => DyeColor::White,
+        "orange" => DyeColor::Orange,
+        "magenta" => DyeColor::Magenta,
+        "light_blue" => DyeColor::LightBlue,
+        "yellow" => DyeColor::Yellow,
+        "lime" => DyeColor::Lime,
+        "pink" => DyeColor::Pink,
+        "gray" => DyeColor::Gray,
+        "light_gray" => DyeColor::LightGray,
+        "cyan" => DyeColor::Cyan,
+        "purple" => DyeColor::Purple,
+        "blue" => DyeColor::Blue,
+        "brown" => DyeColor::Brown,
+        "green" => DyeColor::Green,
+        "red" => DyeColor::Red,
+        "black" => DyeColor::Black,
+        _ => return None,
+    })
+}
+
+/// The beam colour of a block, if it is a beacon-beam block.
+///
+/// Vanilla: `instanceof BeaconBeamBlock` (`BeaconBlockEntity.java:141`). The blocks
+/// implementing `BeaconBeamBlock` (`BeaconBeamBlock.java`) are the beacon itself (always
+/// white, `BeaconBlock.java:33-34`), stained glass (`StainedGlassBlock.java:19,25`) and
+/// stained glass panes (`StainedGlassPaneBlock.java:19,28`). Plain glass and tinted glass
+/// do **not** implement it, so they behave like any other transparent block: they extend
+/// the current segment instead of starting a new coloured one.
+fn beacon_beam_block_color(block: &'static Block) -> Option<u32> {
+    let dye_color = if block == &Block::BEACON {
+        DyeColor::White
+    } else if let Some(prefix) = block.name.strip_suffix("_stained_glass_pane") {
+        dye_color_from_prefix(prefix)?
+    } else if let Some(prefix) = block.name.strip_suffix("_stained_glass") {
+        dye_color_from_prefix(prefix)?
+    } else {
+        return None;
+    };
+
+    // Vanilla forces the stored value opaque in the `DyeColor` constructor via
+    // `ARGB.opaque` (`DyeColor.java:78`); `texture_diffuse_color()` here returns the raw,
+    // non-opaque 24-bit RGB constant, so the alpha byte is applied here instead.
+    Some(dye_color.texture_diffuse_color() | 0xFF00_0000)
+}
 
 pub struct BeaconBlockEntity {
     pub position: BlockPos,
@@ -26,6 +117,13 @@ pub struct BeaconBlockEntity {
     pub custom_name: Mutex<Option<String>>,
     pub lock_key: Mutex<Option<String>>,
     pub last_check_y: AtomicI32,
+
+    /// The beam's colour segments as of the most recently *completed* column scan.
+    /// Vanilla: `BeaconBlockEntity.beamSections` (`BeaconBlockEntity.java:70`).
+    pub beam_sections: Mutex<Vec<BeaconBeamSection>>,
+    /// The beam segments currently being (re)built, `BLOCKS_CHECK_PER_TICK` blocks per tick.
+    /// Vanilla: `BeaconBlockEntity.checkingBeamSections` (`BeaconBlockEntity.java:71`).
+    pub checking_beam_sections: Mutex<Vec<BeaconBeamSection>>,
 }
 
 impl BeaconBlockEntity {
@@ -48,7 +146,11 @@ impl BeaconBlockEntity {
             payment: Arc::new(Mutex::new(ItemStack::EMPTY.clone())),
             custom_name: Mutex::new(None),
             lock_key: Mutex::new(None),
-            last_check_y: AtomicI32::new(position.0.y - 1),
+            // Vanilla: `lastCheckY` has no explicit initializer, defaulting to `0`
+            // (`BeaconBlockEntity.java:73`); it is never persisted to NBT.
+            last_check_y: AtomicI32::new(0),
+            beam_sections: Mutex::new(Vec::new()),
+            checking_beam_sections: Mutex::new(Vec::new()),
         }
     }
 
@@ -115,6 +217,119 @@ impl BeaconBlockEntity {
         }
 
         true
+    }
+
+    /// The beam sections to render, gated on the beacon actually being powered.
+    ///
+    /// Vanilla: `BeaconBlockEntity.getBeamSections` (`BeaconBlockEntity.java:296-299`)
+    /// returns an empty beam once `levels` is `0`, even though `beam_sections` itself may
+    /// still hold the last-scanned segments.
+    ///
+    /// Note this is **not** sent to the client over the network. Vanilla's block-entity
+    /// sync (`saveAdditional`/`loadAdditional`/`getUpdateTag`, `BeaconBlockEntity.java:305-333`)
+    /// only ever writes `primary_effect`/`secondary_effect`/`Levels`/`CustomName`/`Lock` —
+    /// no beam colour or section data. The vanilla client instead re-runs this exact
+    /// column scan itself, against its own (already block-synced) copy of the world,
+    /// because `BeaconBlockEntity::tick` runs identically on both logical sides
+    /// (`BeaconBlockEntity.java:124-193` has no `level.isClientSide()` guard around the
+    /// scanning loop). So as long as the glass blocks above the beacon and `Levels` are
+    /// synced normally, the vanilla client renders the correct mixed colour beam without
+    /// Pumpkin needing to put any beam/colour data on the wire.
+    #[must_use]
+    pub fn get_beam_sections(&self) -> Vec<BeaconBeamSection> {
+        if self.levels.load(Ordering::Relaxed) == 0 {
+            Vec::new()
+        } else {
+            self.beam_sections
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone()
+        }
+    }
+
+    /// Scans up to `BLOCKS_CHECK_PER_TICK` new blocks of the column above the beacon each
+    /// tick, building `checking_beam_sections`; once a full pass reaches the world-surface
+    /// heightmap, publishes the result into `beam_sections` and starts over.
+    ///
+    /// Ports `BeaconBlockEntity.tick`'s beam-scanning half
+    /// (`BeaconBlockEntity.java:120-165`).
+    fn tick_beam(&self, world: &Arc<World>) {
+        let x = self.position.0.x;
+        let y = self.position.0.y;
+        let z = self.position.0.z;
+
+        let mut checking = self
+            .checking_beam_sections
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+        let last_check_y = self.last_check_y.load(Ordering::Relaxed);
+        let mut check_pos = if last_check_y < y {
+            // BeaconBlockEntity.java:127-131: (re)start the scan from the beacon block
+            // itself, which is white (`BeaconBlock.java:33-34`).
+            checking.clear();
+            self.last_check_y.store(y - 1, Ordering::Relaxed);
+            BlockPos::new(x, y, z)
+        } else {
+            BlockPos::new(x, last_check_y + 1, z)
+        };
+
+        let last_set_block = world.get_heightmap_height(ChunkHeightmapType::WorldSurface, x, z);
+
+        for _ in 0..BLOCKS_CHECK_PER_TICK {
+            if check_pos.0.y > last_set_block {
+                break;
+            }
+
+            let state = world.get_block_state(&check_pos);
+            let block = world.get_block(&check_pos);
+
+            if let Some(color) = beacon_beam_block_color(block) {
+                // BeaconBlockEntity.java:142-152: the first two beam-coloured blocks
+                // (typically the beacon itself, then the first glass block) always start
+                // their own section rather than merging — only the third-and-later blocks
+                // can trigger a colour *mix* against the running last section.
+                if checking.len() <= 1 {
+                    checking.push(BeaconBeamSection::new(color));
+                } else if let Some(last) = checking.last_mut() {
+                    if color == last.color {
+                        last.increase_height();
+                    } else {
+                        // BeaconBlockEntity.java:150 — mix, don't replace.
+                        let mixed_color = average_argb(last.color, color);
+                        checking.push(BeaconBeamSection::new(mixed_color));
+                    }
+                }
+            } else {
+                // BeaconBlockEntity.java:154-161: any other block only extends the beam if
+                // it doesn't (fully) dampen light — bedrock is special-cased so bedrock
+                // roofs/floors never block the beam.
+                let blocked =
+                    checking.is_empty() || (state.opacity >= 15 && block != &Block::BEDROCK);
+                if blocked {
+                    checking.clear();
+                    self.last_check_y.store(last_set_block, Ordering::Relaxed);
+                    break;
+                }
+                if let Some(last) = checking.last_mut() {
+                    last.increase_height();
+                }
+            }
+
+            check_pos = BlockPos::new(x, check_pos.0.y + 1, z);
+            self.last_check_y.fetch_add(1, Ordering::Relaxed);
+        }
+
+        // BeaconBlockEntity.java:180-184: publish once the whole column (up to the
+        // world-surface heightmap) has been scanned, then let the next tick restart.
+        if self.last_check_y.load(Ordering::Relaxed) >= last_set_block {
+            self.last_check_y
+                .store(world.dimension.min_y - 1, Ordering::Relaxed);
+            *self
+                .beam_sections
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = checking.clone();
+        }
     }
 
     pub fn update_base(&self, world: &Arc<World>) -> i32 {
@@ -272,7 +487,10 @@ impl BlockEntity for BeaconBlockEntity {
             payment: Arc::new(Mutex::new(ItemStack::EMPTY.clone())),
             custom_name: Mutex::new(custom_name),
             lock_key: Mutex::new(lock_key),
-            last_check_y: AtomicI32::new(position.0.y - 1),
+            // See the comment in `new` — `lastCheckY` is not persisted in vanilla either.
+            last_check_y: AtomicI32::new(0),
+            beam_sections: Mutex::new(Vec::new()),
+            checking_beam_sections: Mutex::new(Vec::new()),
         }
     }
 
@@ -312,14 +530,39 @@ impl BlockEntity for BeaconBlockEntity {
     }
 
     fn tick(&self, world: &Arc<World>) {
-        // Check properties every 80 ticks matching Java
-        if world.get_time_of_day() % 80 == 0 {
-            let levels = self.update_base(world);
-            self.levels.store(levels, Ordering::Relaxed);
+        // BeaconBlockEntity.java:124-165: build/refresh the coloured beam column every
+        // tick — this is what feeds `beam_sections`/`get_beam_sections` and gates the
+        // pyramid check below on the beam actually being unobstructed.
+        self.tick_beam(world);
 
-            if levels > 0 {
+        // Check properties every 80 ticks matching Java (BeaconBlockEntity.java:167-178).
+        if world.get_time_of_day() % 80 == 0 {
+            let beam_unobstructed = !self
+                .beam_sections
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .is_empty();
+
+            // Vanilla only recomputes the pyramid level while a full, unobstructed beam
+            // column has been scanned (`BeaconBlockEntity.java:170-171`) — placing a solid
+            // block in the beam empties `beam_sections` and freezes `levels` at its last
+            // value rather than resetting it, matching vanilla exactly.
+            if beam_unobstructed {
+                let levels = self.update_base(world);
+                self.levels.store(levels, Ordering::Relaxed);
+            }
+
+            let levels = self.levels.load(Ordering::Relaxed);
+            // BeaconBlockEntity.java:174: effects also require the beam to be
+            // unobstructed, not just `levels > 0`.
+            if levels > 0 && beam_unobstructed {
                 self.apply_effects(world, levels);
             }
+            // Not ported: BEACON_AMBIENT/ACTIVATE/DEACTIVATE sounds and the
+            // CONSTRUCT_BEACON advancement trigger (BeaconBlockEntity.java:175-193) — no
+            // sound-playing or advancement-trigger call for beacons exists anywhere else
+            // in Pumpkin yet, so adding one here would be inventing unverified API surface
+            // rather than porting an existing pattern. Out of scope for the beam-colour fix.
         }
     }
 
@@ -439,5 +682,60 @@ impl Clearable for BeaconBlockEntity {
         if let Ok(mut payment) = self.payment.try_lock() {
             *payment = ItemStack::EMPTY.clone();
         }
+    }
+}
+
+#[cfg(test)]
+mod beam_color_tests {
+    use pumpkin_data::Block;
+
+    use super::{average_argb, beacon_beam_block_color};
+
+    /// Pins `ARGB.average` (`ARGB.java:227-229`), the exact mixing rule
+    /// `BeaconBlockEntity.tick` applies at `BeaconBlockEntity.java:150` when the beam
+    /// crosses into a differently-coloured beam block. The expected values below are
+    /// worked out by hand from vanilla's own opaque `DyeColor.textureDiffuseColor`
+    /// constants (`DyeColor.java`: WHITE=16383998, RED=11546150, LIGHT_BLUE=3847130,
+    /// each OR'd with alpha `0xFF000000` per `ARGB.opaque`, `DyeColor.java:78`) — this
+    /// test does not reimplement the averaging formula itself, only calls it.
+    #[test]
+    fn average_argb_matches_vanilla_argb_average() {
+        let white = 0xFFF9_FFFEu32; // opaque(16383998)
+        let red = 0xFFB0_2E26u32; // opaque(11546150)
+        let light_blue = 0xFF3A_B3DAu32; // opaque(3847130)
+
+        // (0xFF+0xFF)/2=0xFF, (0xF9+0xB0)/2=0xD4, (0xFF+0x2E)/2=0x96, (0xFE+0x26)/2=0x92
+        assert_eq!(average_argb(white, red), 0xFFD4_9692);
+        // Averaging is symmetric.
+        assert_eq!(average_argb(red, white), 0xFFD4_9692);
+        // Chained mix, as happens when a third differently-coloured segment follows:
+        // average(average(white, red), light_blue).
+        assert_eq!(average_argb(0xFFD4_9692, light_blue), 0xFF87_A4B6);
+        // Alpha stays fully opaque through repeated averaging (255+255)/2 == 255.
+        assert_eq!(average_argb(white, red) >> 24, 0xFF);
+    }
+
+    /// Pins which blocks vanilla's beam scan treats as `BeaconBeamBlock`s, and what
+    /// colour each contributes (`BeaconBlockEntity.java:141`, `BeaconBeamBlock.java`,
+    /// `BeaconBlock.java:33-34`, `StainedGlassBlock.java:19,25`,
+    /// `StainedGlassPaneBlock.java:19,28`). Tinted glass and plain stone must NOT be
+    /// treated as coloured beam blocks.
+    #[test]
+    fn beacon_beam_block_color_matches_vanilla_beacon_beam_block() {
+        assert_eq!(
+            beacon_beam_block_color(&Block::BEACON),
+            Some(0xFFF9_FFFE) // opaque(DyeColor.WHITE.textureDiffuseColor)
+        );
+        assert_eq!(
+            beacon_beam_block_color(&Block::RED_STAINED_GLASS),
+            Some(0xFFB0_2E26) // opaque(DyeColor.RED.textureDiffuseColor)
+        );
+        assert_eq!(
+            beacon_beam_block_color(&Block::LIGHT_BLUE_STAINED_GLASS_PANE),
+            Some(0xFF3A_B3DA) // opaque(DyeColor.LIGHT_BLUE.textureDiffuseColor)
+        );
+        assert_eq!(beacon_beam_block_color(&Block::TINTED_GLASS), None);
+        assert_eq!(beacon_beam_block_color(&Block::GLASS), None);
+        assert_eq!(beacon_beam_block_color(&Block::STONE), None);
     }
 }
