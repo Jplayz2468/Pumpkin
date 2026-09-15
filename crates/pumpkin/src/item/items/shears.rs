@@ -1,10 +1,7 @@
 use std::any::Any;
-use std::sync::Arc;
 
 use crate::block::registry::BlockActionResult;
-use crate::entity::Entity;
 use crate::entity::EntityBase;
-use crate::entity::item::ItemEntity;
 use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::server::Server;
@@ -12,7 +9,6 @@ use pumpkin_data::block_properties::BeeNestLikeProperties;
 use pumpkin_data::block_properties::BlockProperties;
 use pumpkin_data::block_properties::CaveVinesLikeProperties;
 use pumpkin_data::block_properties::KelpLikeProperties;
-use pumpkin_data::entity::EntityType;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
@@ -124,7 +120,28 @@ fn handle_beehive(
         return false;
     }
 
-    let mut drops = vec![ItemStack::new(3, &Item::HONEYCOMB)];
+    let world = player.world();
+    use pumpkin_util::random::RandomImpl;
+    let seed = world
+        .random
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .next_i64();
+    let params = crate::world::loot::LootContextParameters {
+        block_state: Some(state_id.to_state()),
+        tool: Some(item.clone()),
+        this_entity: Some(player.living_entity.entity.entity_type),
+        position: Some(location.to_centered_f64()),
+        world_time: world.level_info.load().day_time as u64,
+        is_raining: Some(world.is_raining()),
+        is_thundering: Some(world.is_thundering()),
+        ..Default::default()
+    };
+    let mut drops = crate::world::loot::generate_loot_with_context(
+        &pumpkin_data::loot_table::HARVEST_BEEHIVE,
+        seed,
+        &params,
+    );
     if let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id)
         && let Some(server) = player.world().server.upgrade()
     {
@@ -142,14 +159,8 @@ fn handle_beehive(
         drops = event.harvested_items;
     }
 
-    let world = player.world();
-    let drop_pos = location.to_centered_f64();
-    for item in drops {
-        let item_entity = Arc::new(ItemEntity::new(
-            Entity::new(world.clone(), drop_pos, &EntityType::ITEM),
-            item,
-        ));
-        world.spawn_entity(item_entity);
+    for stack in drops {
+        world.drop_stack(location, stack);
     }
     if player.gamemode.load() != pumpkin_util::GameMode::Creative {
         let _ = item.damage_item(1);

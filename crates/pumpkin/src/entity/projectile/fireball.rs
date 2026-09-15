@@ -252,6 +252,13 @@ impl EntityBase for FireballEntity {
 
         let hit_pos = hit.hit_pos();
         let power = self.get_explosion_power();
-        world.explode(hit_pos, power, crate::world::ExplosionInteraction::Mob);
+        world.explode_with_source(
+            hit_pos,
+            power,
+            crate::world::ExplosionInteraction::Mob,
+            None,
+            false,
+            Some(self),
+        );
     }
 }

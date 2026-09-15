@@ -4404,9 +4404,35 @@ impl World {
         damage_calculator: Option<Arc<dyn ExplosionDamageCalculator>>,
         caused_by_player: bool,
     ) {
+        self.explode_with_source(
+            position,
+            power,
+            interaction,
+            damage_calculator,
+            caused_by_player,
+            None,
+        );
+    }
+
+    pub fn explode_with_source(
+        self: &Arc<Self>,
+        position: Vector3<f64>,
+        power: f32,
+        interaction: ExplosionInteraction,
+        damage_calculator: Option<Arc<dyn ExplosionDamageCalculator>>,
+        caused_by_player: bool,
+        source: Option<&dyn EntityBase>,
+    ) {
         let block_interaction = self.get_block_interaction(interaction);
-        let mut explosion = Explosion::new(power, position, block_interaction);
-        if caused_by_player {
+        let mut explosion = Explosion::new(power, position, block_interaction).with_source(source);
+        let player_source = source.is_some_and(|source| {
+            source.get_player().is_some()
+                || (crate::entity::projectile::is_projectile(source.get_entity().entity_type)
+                    && source
+                        .get_owner_id()
+                        .is_some_and(|owner| self.get_player_by_id(owner).is_some()))
+        });
+        if caused_by_player || player_source {
             explosion = explosion.caused_by_player();
         }
         if let Some(calc) = damage_calculator {
@@ -4415,9 +4441,16 @@ impl World {
         self.run_explosion(&explosion, position, power);
     }
 
-    pub fn explode_tnt_minecart(self: &Arc<Self>, position: Vector3<f64>, power: f32) {
+    pub fn explode_tnt_minecart(
+        self: &Arc<Self>,
+        position: Vector3<f64>,
+        power: f32,
+        source: &dyn EntityBase,
+    ) {
         let block_interaction = self.get_block_interaction(ExplosionInteraction::Tnt);
-        let explosion = Explosion::new(power, position, block_interaction).preserving_rails();
+        let explosion = Explosion::new(power, position, block_interaction)
+            .with_source(Some(source))
+            .preserving_rails();
         self.run_explosion(&explosion, position, power);
     }
 
@@ -4452,9 +4485,18 @@ impl World {
         }
     }
 
-    fn run_explosion(self: &Arc<Self>, explosion: &Explosion, position: Vector3<f64>, power: f32) {
+    fn run_explosion(
+        self: &Arc<Self>,
+        explosion: &Explosion<'_>,
+        position: Vector3<f64>,
+        power: f32,
+    ) {
         let mut event = crate::plugin::api::events::entity::entity_explode::EntityExplodeEvent::new(
-            0, position, power,
+            explosion
+                .source
+                .map_or(0, |source| source.get_entity().entity_id),
+            position,
+            power,
         );
         if let Some(server) = self.server.upgrade() {
             server.plugin_manager.fire_blocking(&server, &mut event);
@@ -4463,7 +4505,7 @@ impl World {
             return;
         }
 
-        self.emit_game_event("explode", position);
+        self.emit_game_event_from_entity("explode", position, explosion.source, None);
         let block_count = explosion.explode(self);
         let particle = if power < 2.0 {
             Particle::Explosion

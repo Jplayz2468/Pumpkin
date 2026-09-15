@@ -19,12 +19,13 @@ impl MobEffect for WindChargedMobEffect {
         // gustStrength = 3.0 + random * 2.0
         let gust_strength = 3.0 + rand::random::<f32>() * 2.0;
 
-        world.explode_with_calculator(
+        world.explode_with_source(
             center,
             gust_strength,
             ExplosionInteraction::Trigger,
             Some(BREEZE_WIND_CHARGE_EXPLOSION_DAMAGE_CALCULATOR.clone()),
             false,
+            Some(&living.entity),
         );
 
         world.play_sound(

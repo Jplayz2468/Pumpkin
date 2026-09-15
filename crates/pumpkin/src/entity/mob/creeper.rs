@@ -122,10 +122,13 @@ impl CreeperEntity {
             .store(true, Ordering::Relaxed);
         let world = entity.world.load();
         let pos = entity.pos.load();
-        world.explode(
+        world.explode_with_source(
             pos,
             radius * multiplier,
             crate::world::ExplosionInteraction::Mob,
+            None,
+            false,
+            Some(self),
         );
         // TODO: spawn area effect cloud with potion effects
         entity.remove();
@@ -169,10 +172,11 @@ impl Mob for CreeperEntity {
         lightning: &crate::entity::lightning::LightningBoltEntity,
     ) {
         self.charged.store(true, Ordering::Relaxed);
-        self.mob_entity
-            .living_entity
-            .entity
-            .set_synced_data_compat(pumpkin_data::tracked_data::creeper::CHARGED,pumpkin_data::tracked_data::creeper::DATA_IS_POWERED, true);
+        self.mob_entity.living_entity.entity.set_synced_data_compat(
+            pumpkin_data::tracked_data::creeper::CHARGED,
+            pumpkin_data::tracked_data::creeper::DATA_IS_POWERED,
+            true,
+        );
         self.mob_entity
             .living_entity
             .on_lightning_strike(caller, lightning);
@@ -253,7 +257,11 @@ impl CreeperEntity {
     pub fn set_charged(&self, charged: bool) {
         self.charged.store(charged, Ordering::Relaxed);
         let entity = &self.mob_entity.living_entity.entity;
-        entity.set_synced_data_compat(pumpkin_data::tracked_data::creeper::CHARGED,pumpkin_data::tracked_data::creeper::DATA_IS_POWERED, charged);
+        entity.set_synced_data_compat(
+            pumpkin_data::tracked_data::creeper::CHARGED,
+            pumpkin_data::tracked_data::creeper::DATA_IS_POWERED,
+            charged,
+        );
     }
 
     pub fn is_ignited(&self) -> bool {

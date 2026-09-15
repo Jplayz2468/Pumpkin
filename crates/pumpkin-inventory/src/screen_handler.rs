@@ -119,6 +119,14 @@ impl ScreenProperty {
 ///
 /// Implementors are typically player entities that can open containers.
 pub trait InventoryPlayer: Send + Sync {
+    fn can_use_block_inventory(
+        &self,
+        _position: pumpkin_util::math::position::BlockPos,
+        _inventory: &dyn std::any::Any,
+    ) -> bool {
+        true
+    }
+
     fn on_container_viewers_changed(&self, _position: pumpkin_util::math::position::BlockPos) {}
 
     fn as_any(&self) -> &dyn std::any::Any;

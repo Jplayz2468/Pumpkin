@@ -95,6 +95,36 @@ This checkpoint records source changes, not a passing parity result.
 - Added connected copper-chest scrape/wax-off particles and block-change events
   before transformation, plus the transformed-state context on the primary event.
 
+### Explosion, container, and attribution follow-up after `0b249314`
+
+- Explosion objects now retain the actual direct source through block hooks,
+  loot context, plugin events, and vibration events, including sources already
+  removed from the world. Updated TNT, TNT minecarts, creepers, withers/skulls,
+  fireballs, end crystals, and wind-charge call sites.
+- Explosion loot is evaluated before clearing the block entity, preserving
+  shulker contents and allowing hive occupants to escape. Hives release for the
+  five vanilla direct-source classes and anger nearby bees after explosion hits.
+- Shears use the generated HARVEST_BEEHIVE loot table with tool/state/entity-type,
+  origin, weather and time context, retain the harvest plugin event, and use normal
+  block drop positioning. The shared loot engine still lacks full entity/block-NBT
+  contexts and vanilla random-sequence support.
+- Chest/barrel/ender-chest counts recheck every five ticks using the largest opener
+  interaction range plus four. Both double-chest halves are recognized, busy
+  inventory locks postpone the recheck, and stale closes cannot wrap the count.
+  Shulker boxes retain their separate counter behavior. Tracked generic container screens
+  now close when the original block entity disappears or the player leaves its
+  interaction range; both halves of double chests must remain valid. Non-player
+  users, spectator ender-chest tracking, and custom interaction-range attributes
+  remain open.
+- Shrieker attribution now checks actual player-controller eligibility before
+  projectile/item owners. Boats, saddled mounts, steering items, and happy-ghast
+  harness/still state are distinguished from arbitrary passengers.
+- Dropped items preserve their thrower UUID in NBT. Player inventory drop hooks
+  now honor the ownership flag; vibration projectile-owner fallback is restricted
+  to projectiles. Item pickup restrictions/target-owner handling remain part of
+  the broader item audit.
+- No compilation or tests were run; source formatting and diff checks only.
+
 ### Other blocks
 
 - Hay placement now uses the clicked face's axis.
@@ -183,17 +213,16 @@ so they must not be used to reconstruct audit completion.
    feature pipeline still require source comparison.
 3. **Bee lifecycle remains incomplete.** Stored occupants can now leave, but the
    bee's autonomous hive entry, pollination/flight, and neutral anger AI still need
-   their mob-side implementations. Explosion-triggered hive release needs the real
-   explosion source/context; shared explosion handling currently lacks it. Honeycomb
-   harvest still constructs its drops directly instead of using HARVEST_BEEHIVE's
-   complete loot context. Full custom environment attributes remain a shared gap.
+   their mob-side implementations. Explosion release and table-driven honeycomb
+   harvest are now implemented. Full custom environment attributes, loot context,
+   and random-sequence fidelity remain shared gaps.
 4. Finish sculk's upstream game-event coverage. Fishing-hook impact geometry and
-   event delivery still need a full port. Container interaction-range rechecks,
-   non-player container users, and the broader container lifecycle remain open.
+   event delivery still need a full port. Player container interaction-range
+   rechecks are implemented; non-player users and the broader lifecycle remain open.
    Movement coverage is for living entities; nonliving movement, flapping, and
-   movement sound/effect ordering need review. Shrieker attribution still needs
-   controlling-passenger and dropped-item-owner behavior. Legacy/Bedrock vibration
-   particle handling has not been audited.
+   movement sound/effect ordering need review. Shrieker controller/item attribution
+   has a source port, but underlying mount equipment/control implementations and
+   legacy/Bedrock vibration particles still need their broader audit.
 5. Audit every remaining block family against its actual vanilla implementation,
    including data-driven drops. A registration or a source edit is not enough
    evidence to mark a family 1:1.

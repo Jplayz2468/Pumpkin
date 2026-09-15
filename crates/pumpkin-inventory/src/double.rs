@@ -81,6 +81,15 @@ impl Inventory for DoubleInventory {
         }
     }
 
+    fn can_player_use(&self, player: &dyn crate::screen_handler::InventoryPlayer) -> bool {
+        self.first.can_player_use(player) && self.second.can_player_use(player)
+    }
+
+    fn contains_viewer_position(&self, position: pumpkin_util::math::position::BlockPos) -> bool {
+        self.first.contains_viewer_position(position)
+            || self.second.contains_viewer_position(position)
+    }
+
     fn on_open_by(&self, player: &dyn crate::screen_handler::InventoryPlayer) {
         self.first.on_open_by(player);
         self.second.on_open_by(player);

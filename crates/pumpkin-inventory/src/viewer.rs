@@ -1,10 +1,12 @@
-use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::atomic::{AtomicI64, AtomicU16, AtomicU64, Ordering};
 
 #[derive(Debug)]
 pub struct ViewerCountTracker {
     pub position: Option<pumpkin_util::math::position::BlockPos>,
     pub old: AtomicU16,
     pub current: AtomicU16,
+    pub next_recheck: AtomicI64,
+    pub max_interaction_range: AtomicU64,
 }
 
 impl Default for ViewerCountTracker {
@@ -20,6 +22,8 @@ impl ViewerCountTracker {
             position: None,
             old: AtomicU16::new(0),
             current: AtomicU16::new(0),
+            next_recheck: AtomicI64::new(-1),
+            max_interaction_range: AtomicU64::new(0),
         }
     }
 
@@ -29,6 +33,8 @@ impl ViewerCountTracker {
             position: Some(position),
             old: AtomicU16::new(0),
             current: AtomicU16::new(0),
+            next_recheck: AtomicI64::new(-1),
+            max_interaction_range: AtomicU64::new(0),
         }
     }
 
@@ -37,7 +43,12 @@ impl ViewerCountTracker {
     }
 
     pub fn close_container(&self) {
-        self.current.fetch_sub(1, Ordering::Relaxed);
+        // A scheduled recheck can already have removed a stale viewer.
+        let _ = self
+            .current
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |count| {
+                Some(count.saturating_sub(1))
+            });
     }
 
     /// Returns the current number of players viewing this container

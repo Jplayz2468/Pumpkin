@@ -213,6 +213,9 @@ impl VibrationInfo {
         let source_entity = source.map(|entity| entity.get_entity().entity_id);
         let source_uuid = source.as_ref().map(|e| e.get_entity().entity_uuid);
         let projectile_owner_uuid = source
+            .filter(|entity| {
+                crate::entity::projectile::is_projectile(entity.get_entity().entity_type)
+            })
             .and_then(|e| e.get_owner_id())
             .and_then(|id| world.get_entity_by_id(id))
             .map(|e| e.get_entity().entity_uuid);

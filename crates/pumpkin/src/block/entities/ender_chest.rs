@@ -59,6 +59,10 @@ impl BlockEntity for EnderChestBlockEntity {
 }
 
 impl ViewerCountListener for EnderChestBlockEntity {
+    fn rechecks_viewers(&self) -> bool {
+        true
+    }
+
     fn on_container_open(&self, world: &Arc<World>, _position: &BlockPos) {
         self.play_sound(world, Sound::BlockEnderChestOpen);
     }

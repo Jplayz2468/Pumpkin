@@ -28,6 +28,15 @@ pub trait Inventory: Send + Sync + Clearable {
         None
     }
 
+    fn can_player_use(&self, player: &dyn crate::screen_handler::InventoryPlayer) -> bool {
+        self.viewer_position()
+            .is_none_or(|position| player.can_use_block_inventory(position, self.as_any()))
+    }
+
+    fn contains_viewer_position(&self, position: pumpkin_util::math::position::BlockPos) -> bool {
+        self.viewer_position() == Some(position)
+    }
+
     fn on_open_by(&self, player: &dyn crate::screen_handler::InventoryPlayer) {
         let position = self.viewer_position();
         self.on_open();

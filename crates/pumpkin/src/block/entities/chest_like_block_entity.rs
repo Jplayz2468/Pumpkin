@@ -263,6 +263,10 @@ macro_rules! impl_clearable_for_chest {
 macro_rules! impl_viewer_count_listener_for_chest {
     ($struct_name:ty) => {
         impl $crate::block::viewer::ViewerCountListener for $struct_name {
+            fn rechecks_viewers(&self) -> bool {
+                true
+            }
+
             fn on_container_open(
                 &self,
                 world: &Arc<$crate::world::World>,

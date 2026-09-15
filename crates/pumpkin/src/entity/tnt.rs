@@ -69,12 +69,13 @@ impl EntityBase for TNTEntity {
             let pos = self.entity.pos.load();
             let power = self.power;
             if world.level_info.load().game_rules.tnt_explodes {
-                world.explode_with_calculator(
+                world.explode_with_source(
                     pos,
                     power,
                     crate::world::ExplosionInteraction::Tnt,
                     None,
                     self.primed_by_player,
+                    Some(self),
                 );
             }
         } else {

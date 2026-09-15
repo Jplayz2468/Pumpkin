@@ -22,7 +22,6 @@ use crossbeam::channel::Receiver;
 use crossbeam::queue::SegQueue;
 use pumpkin_data::dimension::Dimension;
 use pumpkin_inventory::Inventory;
-use pumpkin_inventory::merchant::merchant_screen_handler::MerchantScreenHandler;
 use pumpkin_inventory::player::ender_chest_inventory::EnderChestInventory;
 use pumpkin_protocol::RawPacket;
 use pumpkin_protocol::bedrock::client::play_status::CPlayStatus;
@@ -2674,10 +2673,7 @@ impl Player {
             drop(current_screen_handler_guard);
             let is_invalid = current_screen_handler
                 .try_lock()
-                .is_ok_and(|screen_handler| {
-                    screen_handler.as_any().is::<MerchantScreenHandler>()
-                        && !screen_handler.can_use(self)
-                });
+                .is_ok_and(|screen_handler| !screen_handler.can_use(self));
 
             if is_invalid {
                 if let Some(p) = self.world().get_player_by_uuid(self.gameprofile.id) {
@@ -4889,15 +4885,21 @@ impl Player {
     }
 
     pub fn drop_item(&self, item_stack: ItemStack) {
-        self.increment_stat(
-            statistics::StatisticCategory::Dropped,
-            item_stack.item.id as i32,
-            item_stack.item_count as i32,
-        );
-        self.increment_custom_stat(
-            statistics::CustomStatistic::Drop,
-            item_stack.item_count as i32,
-        );
+        self.drop_item_with_ownership(item_stack, true);
+    }
+
+    fn drop_item_with_ownership(&self, item_stack: ItemStack, retain_ownership: bool) {
+        if item_stack.is_empty() {
+            return;
+        }
+        if retain_ownership {
+            self.increment_stat(
+                statistics::StatisticCategory::Dropped,
+                item_stack.item.id as i32,
+                item_stack.item_count as i32,
+            );
+            self.increment_custom_stat(statistics::CustomStatistic::Drop, 1);
+        }
         let item_pos = self.living_entity.entity.pos.load()
             + Vector3::new(0.0, self.living_entity.entity.get_eye_height() - 0.3, 0.0);
         let entity = Entity::new(self.world(), item_pos, &EntityType::ITEM);
@@ -4922,6 +4924,9 @@ impl Player {
         let item_entity = Arc::new(ItemEntity::new_with_velocity(
             entity, item_stack, velocity, 40,
         ));
+        if retain_ownership {
+            item_entity.set_thrower(&self.living_entity.entity);
+        }
         self.world().spawn_entity(item_entity);
     }
 
@@ -7442,6 +7447,20 @@ impl MessageCache {
 }
 
 impl InventoryPlayer for Player {
+    fn can_use_block_inventory(&self, position: BlockPos, inventory: &dyn std::any::Any) -> bool {
+        if !self.can_interact_with_block_at(&position, 4.0) {
+            return false;
+        }
+        let Some(block_entity) = self.world().get_block_entity(&position) else {
+            return false;
+        };
+        if let Some(ender_inventory) = inventory.downcast_ref::<pumpkin_inventory::player::ender_chest_inventory::EnderChestInventory>() {
+            return block_entity.as_any().downcast_ref::<crate::block::entities::ender_chest::EnderChestBlockEntity>()
+                .is_some_and(|chest| ender_inventory.is_tracker(&chest.get_tracker()));
+        }
+        std::ptr::addr_eq(inventory, block_entity.as_any())
+    }
+
     fn on_container_viewers_changed(&self, position: BlockPos) {
         let world = self.world();
         if let Some(entity) = world.get_block_entity(&position) {
@@ -7453,8 +7472,8 @@ impl InventoryPlayer for Player {
         self
     }
 
-    fn drop_item(&self, item: ItemStack, _retain_ownership: bool) {
-        self.drop_item(item);
+    fn drop_item(&self, item: ItemStack, retain_ownership: bool) {
+        self.drop_item_with_ownership(item, retain_ownership);
     }
 
     fn has_infinite_materials(&self) -> bool {

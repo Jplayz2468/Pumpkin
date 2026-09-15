@@ -38,6 +38,7 @@ pub struct ItemEntity {
     never_despawn: AtomicBool,
     never_pickup: AtomicBool,
     merge_reserved: AtomicBool,
+    thrower: crossbeam::atomic::AtomicCell<Option<uuid::Uuid>>,
 }
 
 struct ItemMergeReservation<'a> {
@@ -106,6 +107,7 @@ impl ItemEntity {
             never_despawn: AtomicBool::new(false),
             never_pickup: AtomicBool::new(false),
             merge_reserved: AtomicBool::new(false),
+            thrower: crossbeam::atomic::AtomicCell::new(None),
         }
     }
 
@@ -134,6 +136,7 @@ impl ItemEntity {
             never_despawn: AtomicBool::new(false),
             never_pickup: AtomicBool::new(false),
             merge_reserved: AtomicBool::new(false),
+            thrower: crossbeam::atomic::AtomicCell::new(None),
         }
     }
 
@@ -149,7 +152,12 @@ impl ItemEntity {
             never_despawn: AtomicBool::new(false),
             never_pickup: AtomicBool::new(false),
             merge_reserved: AtomicBool::new(false),
+            thrower: crossbeam::atomic::AtomicCell::new(None),
         }
+    }
+
+    pub fn set_thrower(&self, entity: &Entity) {
+        self.thrower.store(Some(entity.entity_uuid));
     }
 
     pub const fn get_item_stack(&self) -> &Mutex<ItemStack> {
@@ -533,6 +541,19 @@ impl ItemEntity {
 }
 
 impl EntityBase for ItemEntity {
+    fn get_owner_id(&self) -> Option<i32> {
+        let id = self.thrower.load()?;
+        let world = self.entity.world.load();
+        world
+            .get_player_by_uuid(id)
+            .map(|player| player.living_entity.entity.entity_id)
+            .or_else(|| {
+                world
+                    .get_entity_by_uuid(id)
+                    .map(|entity| entity.get_entity().entity_id)
+            })
+    }
+
     fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         let entity = &self.entity;
         self.decrement_pickup_delay();
@@ -687,6 +708,10 @@ impl EntityBase for ItemEntity {
     }
 
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
+        if let Some(thrower) = self.thrower.load() {
+            nbt.put_uuid("Thrower", thrower);
+        }
+
         let item = self
             .item_stack
             .lock()
@@ -704,6 +729,8 @@ impl EntityBase for ItemEntity {
     }
 
     fn read_custom_nbt(&self, nbt: &NbtCompound) {
+        self.thrower.store(nbt.get_uuid("Thrower"));
+
         // Restore the item stack from the "Item" compound
         if let Some(item_compound) = nbt.get_compound("Item")
             && let Some(stack) = ItemStack::read_item_stack(item_compound)

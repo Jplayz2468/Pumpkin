@@ -151,41 +151,119 @@ impl VibrationUser for SculkShriekerBlockEntity {
     }
 }
 
-/// SculkShriekerBlockEntity.tryGetPlayer: direct players, controlling riders,
-/// and the owner of projectiles can trigger a shriek.
+/// SculkShriekerBlockEntity.tryGetPlayer: controller attribution precedes owners.
 fn triggering_player(
     world: &World,
     source: Option<i32>,
 ) -> Option<Arc<crate::entity::player::Player>> {
     let source = source?;
-    if let Some(player) = world
-        .players
-        .load()
-        .iter()
-        .find(|p| p.living_entity.entity.entity_id == source)
-        .cloned()
-    {
+    if let Some(player) = world.get_player_by_id(source) {
         return Some(player);
     }
     let entity = world.get_entity_by_id(source)?;
-    if let Some(owner) = entity.get_owner_id() {
-        return world
-            .players
-            .load()
-            .iter()
-            .find(|p| p.living_entity.entity.entity_id == owner)
-            .cloned();
+    if let Some(player) = controlling_player(world, entity.as_ref()) {
+        return Some(player);
     }
-    let passengers = entity
+    if crate::entity::projectile::is_projectile(entity.get_entity().entity_type)
+        || entity.get_item_entity().is_some()
+    {
+        return entity
+            .get_owner_id()
+            .and_then(|owner| world.get_player_by_id(owner));
+    }
+    None
+}
+
+/// Only the first rider of a steerable mount is a controlling player. A player
+/// merely riding an arbitrary entity (including a minecart) does not qualify.
+fn controlling_player(
+    world: &World,
+    entity: &dyn crate::entity::EntityBase,
+) -> Option<Arc<crate::entity::player::Player>> {
+    use crate::entity::passive;
+    use pumpkin_data::{data_component_impl::EquipmentSlot, item::Item};
+    use std::sync::atomic::Ordering;
+    let rider_id = entity
         .get_entity()
         .passengers
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    let rider = passengers.first()?.get_entity().entity_id;
-    world
-        .players
-        .load()
-        .iter()
-        .find(|p| p.living_entity.entity.entity_id == rider)
-        .cloned()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .first()?
+        .get_entity()
+        .entity_id;
+    let rider = world.get_player_by_id(rider_id)?;
+    let kind = entity.get_entity().entity_type.resource_name;
+    let saddled = entity.get_mob().is_some_and(|mob| mob.is_saddled())
+        || entity
+            .cast_any()
+            .downcast_ref::<passive::horse::HorseEntity>()
+            .is_some_and(|mob| mob.is_saddled())
+        || entity
+            .cast_any()
+            .downcast_ref::<passive::donkey::DonkeyEntity>()
+            .is_some_and(|mob| mob.is_saddled())
+        || entity
+            .cast_any()
+            .downcast_ref::<passive::mule::MuleEntity>()
+            .is_some_and(|mob| mob.is_saddled())
+        || entity
+            .cast_any()
+            .downcast_ref::<passive::skeleton_horse::SkeletonHorseEntity>()
+            .is_some_and(|mob| mob.is_saddled())
+        || entity
+            .cast_any()
+            .downcast_ref::<passive::zombie_horse::ZombieHorseEntity>()
+            .is_some_and(|mob| mob.is_saddled())
+        || entity
+            .cast_any()
+            .downcast_ref::<passive::camel::CamelEntity>()
+            .is_some_and(|mob| mob.is_saddled());
+    let controls = if kind.ends_with("_boat") || kind.ends_with("_raft") {
+        true
+    } else if matches!(kind, "pig" | "strider") {
+        let steering_item = if kind == "pig" {
+            &Item::CARROT_ON_A_STICK
+        } else {
+            &Item::WARPED_FUNGUS_ON_A_STICK
+        };
+        let inventory = rider.inventory();
+        saddled
+            && (inventory.held_item().item == steering_item
+                || inventory
+                    .get_slot(
+                        pumpkin_inventory::player::player_inventory::PlayerInventory::OFF_HAND_SLOT,
+                    )
+                    .item
+                    == steering_item)
+    } else if matches!(
+        kind,
+        "horse"
+            | "donkey"
+            | "mule"
+            | "skeleton_horse"
+            | "zombie_horse"
+            | "camel"
+            | "camel_husk"
+            | "nautilus"
+            | "zombie_nautilus"
+    ) {
+        saddled
+    } else if let Some(ghast) = entity
+        .cast_any()
+        .downcast_ref::<passive::happy_ghast::HappyGhastEntity>()
+    {
+        !ghast.stays_still.load(Ordering::Relaxed)
+            && ghast.server_still_timeout.load(Ordering::Relaxed) <= 0
+            && !ghast
+                .mob_entity
+                .living_entity
+                .entity_equipment
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .get(&EquipmentSlot::BODY)
+                .is_empty()
+    } else {
+        false
+    };
+    controls.then_some(rider)
 }

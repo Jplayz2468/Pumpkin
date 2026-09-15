@@ -95,6 +95,29 @@ impl BlockBehaviour for BeehiveBlock {
         BlockActionResult::Success
     }
 
+    fn prepare_explosion_drops(&self, args: crate::block::ExplodeArgs<'_>) {
+        use pumpkin_data::entity::EntityType;
+        // BeehiveBlock.getDrops releases occupants for these direct sources only.
+        if args.source.is_some_and(|source| {
+            let kind = source.get_entity().entity_type;
+            [
+                EntityType::TNT,
+                EntityType::CREEPER,
+                EntityType::WITHER_SKULL,
+                EntityType::WITHER,
+                EntityType::TNT_MINECART,
+            ]
+            .contains(kind)
+        }) {
+            release_bees(args.world, args.position, args.state, None);
+        }
+    }
+
+    fn explode(&self, args: crate::block::ExplodeArgs<'_>) {
+        // This also runs for TRIGGER_BLOCK, matching onExplosionHit's super call.
+        anger_nearby_bees(args.world, args.position);
+    }
+
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
         {
             let state_id = args.world.get_block_state_id(args.position);

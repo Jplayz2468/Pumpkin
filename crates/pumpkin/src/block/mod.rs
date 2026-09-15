@@ -110,6 +110,9 @@ pub trait BlockBehaviour: Send + Sync {
         true
     }
 
+    /// Called before explosion drops are evaluated, while the block entity is available.
+    fn prepare_explosion_drops(&self, _args: ExplodeArgs<'_>) {}
+
     fn explode(&self, _args: ExplodeArgs<'_>) {}
 
     /// Handles the block event, which is an event specific to a block with an integer ID and data.
@@ -288,6 +291,8 @@ pub struct OnEntityStepArgs<'a> {
 }
 
 pub struct ExplodeArgs<'a> {
+    pub source: Option<&'a dyn EntityBase>,
+    pub state: &'a BlockState,
     pub world: &'a Arc<World>,
     pub block: &'a Block,
     pub position: &'a BlockPos,

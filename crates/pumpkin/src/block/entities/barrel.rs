@@ -112,6 +112,10 @@ impl BlockEntity for BarrelBlockEntity {
 }
 
 impl ViewerCountListener for BarrelBlockEntity {
+    fn rechecks_viewers(&self) -> bool {
+        true
+    }
+
     fn on_container_open(&self, world: &Arc<World>, _position: &BlockPos) {
         self.play_sound(world, Sound::BlockBarrelOpen);
         self.set_open(world, true);
