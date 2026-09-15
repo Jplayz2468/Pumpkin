@@ -61,60 +61,59 @@ impl BowItem {
     pub const ARROW_SPEED_MULTIPLIER: f32 = 3.0;
 
     /// Called when the player releases the bow
+    ///
+    /// Matches vanilla `BowItem.releaseUsing` (BowItem.java:26-58): resolve the nocked
+    /// projectile first, gate on draw power, then draw ammo through
+    /// `ProjectileWeaponItem.draw`/`useAmmo` (ProjectileWeaponItem.java:105-144) rather than
+    /// hand-rolling arrow selection -- that's what marks a "free" arrow (creative or an
+    /// ammo-cost-zeroing effect like Infinity) `IntangibleProjectile`, which is what
+    /// `ProjectileWeaponItem::create_projectile` uses to decide pickup eligibility.
     pub fn release_bow(player: &Player, weapon: &ItemStack) {
         // Get the used ticks
         let use_ticks = player.living_entity.item_use_time.load(Ordering::Relaxed);
         let use_ticks = Self::USE_DURATION - use_ticks;
 
-        // Check minimum draw time
-        if use_ticks < 3 {
+        // BowItem.java:28-31: `player.getProjectile(itemStack)` -- offhand, then inventory,
+        // else (creative) a conjured arrow.
+        let arrow_slot = player.find_arrow();
+        let gamemode = player.gamemode.load();
+        let is_creative = gamemode == GameMode::Creative;
+
+        if arrow_slot.is_none() && !is_creative {
             return;
         }
 
-        // Check arrows again
-        let arrow_slot = player.find_arrow();
-        let gamemode = player.gamemode.load();
-
-        if arrow_slot.is_none() && gamemode != GameMode::Creative {
+        // BowItem.java:33-37: `pow < 0.1` aborts entirely (no draw, no sound, no damage).
+        let power = Self::get_power_for_time(use_ticks);
+        if power < 0.1 {
             return;
         }
 
         let projectile = arrow_slot.map_or_else(
             || ItemStack::new(1, &Item::ARROW),
-            |slot| {
-                let stack = player.inventory.get_slot(slot);
-                stack.copy_with_count(1)
-            },
+            |slot| player.inventory.get_slot(slot),
         );
-        let infinite_projectile = projectile.item.id == Item::ARROW.id;
 
-        // Calculate power and fire
-        let power = Self::get_power_for_time(use_ticks);
-
-        // Check for Infinity enchantment
-        let has_infinity = weapon
-            .get_data_component::<pumpkin_data::data_component_impl::EnchantmentsImpl>()
-            .is_some_and(|enchantments| {
-                enchantments
-                    .enchantment
-                    .iter()
-                    .any(|(e, _)| **e == pumpkin_data::Enchantment::INFINITY)
-            });
+        // BowItem.java:39 / ProjectileWeaponItem.java:105-122.
+        let drawn = ProjectileWeaponItem::draw(weapon, &projectile, is_creative);
+        if drawn.is_empty() {
+            // BowItem.java:40-53: vanilla still plays the release sound/stat here even when
+            // `draw` produced nothing to fire (ammo cost exceeding the stack count). That's
+            // an exotic edge case we don't replicate.
+            return;
+        }
 
         let is_crit = (power - 1.0).abs() < f32::EPSILON;
-        Self::shoot(
-            player,
-            weapon,
-            std::slice::from_ref(&projectile),
-            power,
-            1.0,
-            is_crit,
-        );
+        Self::shoot(player, weapon, &drawn, power, 1.0, is_crit);
 
-        // Consume arrow (if not creative and no Infinity)
+        // Only remove the arrow from the inventory when it wasn't drawn "for free" --
+        // mirrors `useAmmo` only calling `projectile.split(ammoToUse)` when `ammoToUse > 0`.
         if let Some(slot) = arrow_slot
-            && gamemode != GameMode::Creative
-            && !(has_infinity && infinite_projectile)
+            && !is_creative
+            && !drawn.iter().all(|item| {
+                item.get_data_component::<pumpkin_data::data_component_impl::IntangibleProjectileImpl>()
+                    .is_some()
+            })
         {
             player.consume_arrow(slot);
         }
@@ -220,5 +219,26 @@ impl BowItem {
     /// Fire an arrow from the bow
     pub fn fire_arrow(player: &Player, power: f32, projectile: &ItemStack) {
         Self::fire_arrow_with_crit(player, power, projectile, power >= 1.0);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Pins `BowItem::get_power_for_time` against `BowItem.getPowerForTime`
+    /// (BowItem.java:74-82): `pow = timeHeld/20; pow = (pow*pow + pow*2)/3;` clamped to 1.0.
+    #[test]
+    fn power_for_time_matches_vanilla_curve() {
+        // Below the release threshold (releaseUsing rejects pow < 0.1): 2 ticks -> 0.07.
+        assert!((BowItem::get_power_for_time(2) - 0.070_0).abs() < 1e-4);
+        // 3 ticks is the first tick that clears the 0.1 release threshold.
+        assert!((BowItem::get_power_for_time(3) - 0.107_5).abs() < 1e-4);
+        // Full draw (MAX_DRAW_DURATION = 20 ticks) reaches exactly 1.0.
+        assert!((BowItem::get_power_for_time(20) - 1.0).abs() < f32::EPSILON);
+        // Holding past full draw stays clamped at 1.0.
+        assert!((BowItem::get_power_for_time(100) - 1.0).abs() < f32::EPSILON);
+        // A zero-length draw yields zero power.
+        assert_eq!(BowItem::get_power_for_time(0), 0.0);
     }
 }
