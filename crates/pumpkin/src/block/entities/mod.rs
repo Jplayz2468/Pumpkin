@@ -74,6 +74,17 @@ pub trait BlockEntity: Any + Send + Sync {
     where
         Self: Sized;
     fn tick(&self, _world: &Arc<World>) {}
+
+    /// This block entity as a vibration listener, if it is one.
+    ///
+    /// Sculk sensors and shriekers return themselves; everything else returns `None`.
+    /// `crate::block::blocks::sculk::vibration::dispatch` uses this to find the listeners
+    /// near a game event, in place of vanilla's per-chunk-section listener registry.
+    fn as_vibration_listener(
+        &self,
+    ) -> Option<&dyn crate::block::blocks::sculk::vibration::VibrationListener> {
+        None
+    }
     fn resource_location(&self) -> &'static str;
     fn get_position(&self) -> BlockPos;
 
