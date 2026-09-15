@@ -57,6 +57,21 @@ pub trait ItemBehaviour: Send + Sync {
         BlockActionResult::Pass
     }
 
+    #[expect(clippy::too_many_arguments)]
+    fn use_on_block_in_hand(
+        &self,
+        item: &mut ItemStack,
+        player: &Player,
+        _hand: pumpkin_util::Hand,
+        location: BlockPos,
+        face: BlockDirection,
+        cursor_pos: Vector3<f32>,
+        block: &Block,
+        server: &Server,
+    ) -> BlockActionResult {
+        self.use_on_block(item, player, location, face, cursor_pos, block, server)
+    }
+
     fn use_on_entity(
         &self,
         _item: &mut ItemStack,

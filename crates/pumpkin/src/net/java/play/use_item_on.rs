@@ -169,9 +169,9 @@ impl JavaClient {
 
         let before = item.clone();
 
-        let item_result = server
-            .item_registry
-            .use_on_block(&mut item, player, position, face, cursor_pos, block, server);
+        let item_result = server.item_registry.use_on_block_in_hand(
+            &mut item, player, hand, position, face, cursor_pos, block, server,
+        );
 
         if should_try_block_placement(&item_result) {
             // Check if the item is a block, because not every item can be placed :D

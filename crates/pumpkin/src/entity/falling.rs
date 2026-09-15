@@ -17,22 +17,29 @@ use crate::{
 pub struct FallingEntity {
     entity: Entity,
     block_state_id: BlockStateId,
+    cancel_drop: bool,
 }
 
 impl FallingEntity {
-    pub const fn new(entity: Entity, block_state_id: BlockStateId) -> Self {
+    pub fn new(entity: Entity, block_state_id: BlockStateId) -> Self {
         Self {
             entity,
             block_state_id,
+            cancel_drop: matches!(
+                block_state_id.to_block().id,
+                pumpkin_data::BlockId::SUSPICIOUS_SAND | pumpkin_data::BlockId::SUSPICIOUS_GRAVEL
+            ),
         }
     }
 
     /// Replaced the current Block and Spawns a new Falling one (synchronous)
     pub fn replace_spawn(world: &Arc<World>, position: BlockPos, block_state: BlockStateId) {
-        // Replace the original block, TODO: use fluid state
+        // Falling blocks leave their original fluid behind.
         world.set_block_state(
             &position,
-            Block::AIR.default_state.id,
+            World::fluid_state_from_block_state(block_state)
+                .1
+                .block_state_id,
             BlockFlags::NOTIFY_ALL,
         );
 
@@ -60,6 +67,21 @@ impl EntityBase for FallingEntity {
             entity.velocity.store(velo.multiply(0.7, -0.5, 0.7));
             let world = entity.world.load();
             let landing_pos = self.entity.block_pos.load();
+            if world.get_block(&landing_pos) == &Block::MOVING_PISTON {
+                return;
+            }
+            if self.cancel_drop {
+                self.entity.remove();
+                let bounds = entity.bounding_box.load();
+                let center = (bounds.min + bounds.max) * 0.5;
+                world.sync_world_event(
+                    pumpkin_data::world::WorldEvent::ParticlesDestroyBlock,
+                    BlockPos::floored(center.x, center.y, center.z),
+                    i32::from(self.block_state_id.as_u16()),
+                );
+                world.emit_game_event_from_entity("block_destroy", center, Some(self), None);
+                return;
+            }
             let mut state_id = self.block_state_id;
             let block = Block::from_state_id(state_id);
             if block.has_tag(&tag::Block::MINECRAFT_CONCRETE_POWDERS)

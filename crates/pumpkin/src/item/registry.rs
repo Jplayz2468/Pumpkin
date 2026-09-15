@@ -106,6 +106,30 @@ impl ItemRegistry {
         block: &Block,
         server: &Server,
     ) -> BlockActionResult {
+        self.use_on_block_in_hand(
+            stack,
+            player,
+            pumpkin_util::Hand::Right,
+            location,
+            face,
+            cursor_pos,
+            block,
+            server,
+        )
+    }
+
+    #[expect(clippy::too_many_arguments)]
+    pub fn use_on_block_in_hand(
+        &self,
+        stack: &mut ItemStack,
+        player: &Player,
+        hand: pumpkin_util::Hand,
+        location: BlockPos,
+        face: BlockDirection,
+        cursor_pos: Vector3<f32>,
+        block: &Block,
+        server: &Server,
+    ) -> BlockActionResult {
         let cooldown = stack.get_use_cooldown().cloned();
         let cooldown_group = cooldown
             .as_ref()
@@ -118,7 +142,9 @@ impl ItemRegistry {
 
         let pumpkin_item = self.get_pumpkin_item(stack.item.id);
         let result = pumpkin_item.map_or(BlockActionResult::Pass, |pumpkin_item| {
-            pumpkin_item.use_on_block(stack, player, location, face, cursor_pos, block, server)
+            pumpkin_item.use_on_block_in_hand(
+                stack, player, hand, location, face, cursor_pos, block, server,
+            )
         });
 
         if let Some(cooldown) = cooldown {

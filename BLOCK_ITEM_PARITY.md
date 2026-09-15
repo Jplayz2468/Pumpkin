@@ -18,6 +18,31 @@ This checkpoint records source changes, not a passing parity result.
   Do not commit to the hosting repository's `main` or merge the four unfinished
   `agent/mob/*` branches.
 
+## Latest continuation: archaeology blocks and continuous brushing
+
+- Suspicious sand/gravel now schedule two-tick block updates on placement, state
+  changes and neighbor shapes, reset brush progress after 40 idle ticks by two
+  strokes every four ticks, and fall without restoring the suspicious block or
+  dropping its contents. Falling destruction emits the source particles/event.
+- Brushing uses ten successful strokes, a ten-tick cooldown, dust stages 0/1/2/3
+  at counts 0/1/3/6, first-hit direction and the stored loot table/seed. Missing
+  loot stays empty; the fabricated default archaeology loot was removed. Loot
+  receives the tool, player type, origin and luck supported by the current engine.
+  Completion drops from the brushed face with zero velocity, emits event 3008,
+  then replaces the block. Partial progress is not persisted in NBT.
+- The brush now starts continuous use on a block and strokes at ticks 5,15,...,
+  checks the current view ray and intervening pickable entities, stops on a miss
+  or changed held item, and damages the active hand only on completion. Java's
+  item-on-block dispatch now carries the actual hand through a default-compatible
+  trait method; Bedrock retains its main-hand wrapper. BlockBrushEvent remains.
+- Falling-block creation retains the displaced fluid. Client brush animation
+  supplies dust visuals while server random draws are consumed for the same
+  visible built-in block families.
+- Still open: loot-engine functions/random sequence fidelity and advancement
+  triggers, ray hitbox margins/root-vehicle exclusions, nonplayer brush users,
+  general falling-block landing/drop/damage/persistence behavior and Bedrock
+  animation equivalence. Source review/rustfmt/diff check only, no build or tests.
+
 ## Latest continuation: eggs, coral, fire and state callbacks
 
 - Sniffer eggs schedule every hatch stage, use the hatch-boost tag, sounds/events
