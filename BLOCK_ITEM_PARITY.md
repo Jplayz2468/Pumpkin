@@ -610,3 +610,25 @@ so they must not be used to reconstruct audit completion.
   Dynamic support shapes, custom rail subclasses/tags, world neighbor scheduling,
   minecart movement and protocol behavior remain broader pending work. No builds
   or tests were run; review was against the local 26.2 source plus formatting.
+
+## Continued source port: dried ghast and jukebox lifecycle
+
+- Dried ghasts now spawn the baby at the bottom center, inspect actual source water
+  on placement, use setPlacedBy for placement sounds, and attribute hydration
+  events to the old block state. Bucket waterlogging supplies the distinct wet
+  placement sound without replaying it for an already waterlogged block.
+- Jukebox playback resumes from saved elapsed ticks, includes the twenty-tick
+  ending grace period, emits periodic play events/note particles, and updates
+  neighbors on start/stop. Hopper insertion/removal uses the same synchronous
+  state and playback callbacks as player interaction; stack size and destination
+  restrictions follow the single-item container. Record ejection uses world RNG
+  and the source offset, including replacement/explosion removal.
+- Added weak world binding and removal hooks for block entities; World::load now
+  creates the owning Arc itself. Normal removal and chunk unload emit the jukebox
+  stop event. Hooks run after releasing live entity map guards. Player placement
+  now carries the held stack and applies components before setPlacedBy, including
+  jukebox RecordItem and saved playback data. Preserved plugin playback methods.
+- This remains source/format review only: no compilation, tests, or gameplay.
+  Dynamic jukebox song registries, generic typed block-entity item-data application,
+  source sound RNG, fluid-flow waterlogging, factory spawn reasons and the wider
+  unaudited block/item pipeline remain open.

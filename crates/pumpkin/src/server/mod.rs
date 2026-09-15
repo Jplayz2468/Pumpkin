@@ -395,13 +395,13 @@ impl Server {
             );
             let config = Arc::new(server.advanced_config.world.clone());
             let level = into_level(dim.clone(), &config, world_path.clone(), seed);
-            let world = Arc::new(World::load(
+            let world = World::load(
                 level.clone(),
                 server.level_info.clone(),
                 dim.clone(),
                 block_registry.clone(),
                 Arc::downgrade(&server),
-            ));
+            );
             let portal: Arc<dyn WorldPortalExt> = Arc::new(WorldPortal(world.clone()));
             level.world_portal.store(Arc::new(Some(portal)));
             worlds_vec.push(world);
@@ -484,8 +484,7 @@ impl Server {
 
         let level =
             pumpkin_world::dimension::into_level(dimension.clone(), &config, world_path, seed);
-        let world: World = World::load(level.clone(), l_info, dimension, registry, weak);
-        let world = Arc::new(world);
+        let world = World::load(level.clone(), l_info, dimension, registry, weak);
         let portal: Arc<dyn WorldPortalExt> = Arc::new(WorldPortal(world.clone()));
         level.world_portal.store(Arc::new(Some(portal)));
         self.worlds.rcu(|worlds| {

@@ -433,6 +433,7 @@ pub struct PlayerPlacedArgs<'a> {
     pub position: &'a BlockPos,
     pub direction: BlockDirection,
     pub player: &'a Player,
+    pub item_stack: &'a pumpkin_data::item_stack::ItemStack,
 }
 
 pub struct OnLandedUponArgs<'a> {

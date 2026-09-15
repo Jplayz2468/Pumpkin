@@ -256,6 +256,8 @@ impl PumpkinError for GetBlockError {
 /// - Stores and tracks active `Player` entities within the world.
 /// - Provides a central hub for interacting with the world's entities and environment.
 pub struct World {
+    /// Weak ownership lets block-entity inventories perform synchronous world callbacks.
+    self_reference: Weak<World>,
     /// Java-compatible Level random stream. Spawn finalization uses this owner;
     /// remaining world RNG consumers are migrated separately.
     pub random: std::sync::Mutex<pumpkin_util::random::legacy_rand::LegacyRand>,
@@ -381,7 +383,7 @@ impl World {
         dimension: Dimension,
         block_registry: Arc<BlockRegistry>,
         server: Weak<Server>,
-    ) -> Self {
+    ) -> Arc<Self> {
         // TODO
         let generation_settings = NoiseSettings::from_dimension(&dimension);
 
@@ -406,7 +408,8 @@ impl World {
             NbtCompound::new()
         };
 
-        Self {
+        Arc::new_cyclic(|self_reference| Self {
+            self_reference: self_reference.clone(),
             random: std::sync::Mutex::new(
                 pumpkin_util::random::legacy_rand::LegacyRand::from_seed(get_seed()),
             ),
@@ -448,7 +451,7 @@ impl World {
             custom_block_entity_data: DashMap::new(),
             entity_tracker: entity_tracker::EntityTracker::new(),
             neighbor_updater: neighbor_updater::CollectingNeighborUpdater::default(),
-        }
+        })
     }
 
     pub fn update_active_chunks(&self) {
@@ -5633,7 +5636,11 @@ impl World {
 
         for chunk_pos in &chunks_set {
             self.save_block_entities(*chunk_pos);
-            self.block_entities.remove(chunk_pos);
+            if let Some((_, entities)) = self.block_entities.remove(chunk_pos) {
+                for entity in entities.into_values() {
+                    entity.set_removed();
+                }
+            }
         }
     }
 
@@ -6982,6 +6989,7 @@ impl World {
                 .insert(*block_pos, custom_data.clone());
         }
         let entity = block_entity_from_nbt(&nbt)?;
+        entity.set_world(self.self_reference.clone());
         self.block_entities
             .entry(chunk_pos)
             .or_default()
@@ -7048,6 +7056,7 @@ impl World {
     }
 
     pub fn add_block_entity(&self, block_entity: Arc<dyn BlockEntity>) {
+        block_entity.set_world(self.self_reference.clone());
         let block_pos = block_entity.get_position();
         let chunk_pos = block_pos.chunk_position();
         let block_entity_nbt = block_entity.chunk_data_nbt();
@@ -7104,12 +7113,15 @@ impl World {
 
     pub fn remove_block_entity(&self, block_pos: &BlockPos) {
         let chunk_pos = block_pos.chunk_position();
-        let removed =
-            self.block_entities
-                .get_mut(&chunk_pos)
-                .is_some_and(|mut chunk_block_entities| {
-                    chunk_block_entities.remove(block_pos).is_some()
-                });
+        let removed_entity = self
+            .block_entities
+            .get_mut(&chunk_pos)
+            .and_then(|mut entities| entities.remove(block_pos));
+        let removed = removed_entity.is_some();
+        // Release the chunk map guard before callbacks can access block entities.
+        if let Some(entity) = removed_entity {
+            entity.set_removed();
+        }
         self.custom_block_entity_data.remove(block_pos);
         if removed {
             // Drop the chunk's map once its last block entity is gone.

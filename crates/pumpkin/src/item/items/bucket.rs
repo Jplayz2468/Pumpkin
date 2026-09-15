@@ -264,6 +264,29 @@ fn try_place_powder_snow(world: &Arc<World>, pos: BlockPos, direction: BlockDire
     true
 }
 
+/// SimpleWaterloggedBlock.placeLiquid, including DriedGhastBlock's placement sound.
+fn place_water_in_container(
+    world: &Arc<World>,
+    pos: BlockPos,
+    block: &Block,
+    state: pumpkin_data::BlockStateId,
+) {
+    if block.is_waterlogged(state) {
+        return;
+    }
+    if let Some(wet) = block.set_waterlogged(state, true) {
+        world.set_block_state(&pos, wet, BlockFlags::NOTIFY_ALL);
+        world.schedule_fluid_tick(&Fluid::WATER, pos, 5, TickPriority::Normal);
+        if block == &Block::DRIED_GHAST {
+            world.play_sound(
+                Sound::BlockDriedGhastPlaceInWater,
+                SoundCategory::Blocks,
+                &pos.to_centered_f64(),
+            );
+        }
+    }
+}
+
 pub(crate) fn try_place_filled_bucket(
     world: &Arc<World>,
     item: &Item,
@@ -276,9 +299,7 @@ pub(crate) fn try_place_filled_bucket(
     }
 
     if item.id != Item::LAVA_BUCKET.id && block.is_waterloggable() {
-        let state_id = block.set_waterlogged(state.id, true).unwrap_or(state.id);
-        world.set_block_state(&pos, state_id, BlockFlags::NOTIFY_ALL);
-        world.schedule_fluid_tick(&Fluid::WATER, pos, 5, TickPriority::Normal);
+        place_water_in_container(world, pos, block, state.id);
         return true;
     }
 
@@ -289,9 +310,7 @@ pub(crate) fn try_place_filled_bucket(
         if item.id == Item::LAVA_BUCKET.id {
             return false;
         }
-        let state_id = block.set_waterlogged(state.id, true).unwrap_or(state.id);
-        world.set_block_state(&target_pos, state_id, BlockFlags::NOTIFY_ALL);
-        world.schedule_fluid_tick(&Fluid::WATER, target_pos, 5, TickPriority::Normal);
+        place_water_in_container(world, target_pos, block, state.id);
         return true;
     }
 

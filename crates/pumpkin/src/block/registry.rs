@@ -881,6 +881,16 @@ impl BlockRegistry {
             i32::from(BlockState::to_be_network_id(new_state)),
         );
 
+        let placed_stack = Hand::from_packet_id(use_item_on.hand.0)
+            .ok()
+            .map(|hand| player.inventory().get_stack_in_hand(hand))
+            .unwrap_or_else(|| pumpkin_data::item_stack::ItemStack::EMPTY.clone());
+        // BlockItem applies block-entity components before setPlacedBy.
+        if !placed_stack.is_empty()
+            && let Some(block_entity) = world.get_block_entity(&final_block_pos)
+        {
+            block_entity.apply_components_from_item_stack(&placed_stack);
+        }
         self.player_placed(
             &world,
             placed_block,
@@ -888,19 +898,8 @@ impl BlockRegistry {
             &final_block_pos,
             face,
             player,
+            &placed_stack,
         );
-
-        // Java `BlockItem.updateBlockEntityComponents`: the stack that was
-        // placed hands its components to the fresh block entity, which is how a
-        // shulker box carries its contents back into the world.
-        if let Ok(hand) = Hand::from_packet_id(use_item_on.hand.0)
-            && let Some(block_entity) = world.get_block_entity(&final_block_pos)
-        {
-            let stack = player.inventory().get_stack_in_hand(hand);
-            if !stack.is_empty() {
-                block_entity.apply_components_from_item_stack(&stack);
-            }
-        }
 
         player.trigger_advancement(
             crate::entity::player::advancement::trigger::AdvancementTrigger::PlacedBlock {
@@ -1243,6 +1242,7 @@ impl BlockRegistry {
         position: &BlockPos,
         direction: BlockDirection,
         player: &Player,
+        item_stack: &pumpkin_data::item_stack::ItemStack,
     ) {
         let pumpkin_block = self.get_pumpkin_block(block.id);
         if let Some(pumpkin_block) = pumpkin_block {
@@ -1253,6 +1253,7 @@ impl BlockRegistry {
                 position,
                 direction,
                 player,
+                item_stack,
             });
         }
     }

@@ -90,6 +90,12 @@ pub trait BlockEntity: Any + Send + Sync {
     fn resource_location(&self) -> &'static str;
     fn get_position(&self) -> BlockPos;
 
+    /// Bind before exposing an entity to inventory automation or world ticks.
+    fn set_world(&self, _world: std::sync::Weak<World>) {}
+
+    /// Called after removal from the live entity map, including chunk unload.
+    fn set_removed(&self) {}
+
     /// Atomically takes the pending loot-table key and seed from this block entity.
     ///
     /// Returns `Some((key, seed))` if a deferred loot table was set, clearing it in the

@@ -11,12 +11,14 @@ use uuid::Uuid;
 
 use crate::block::{
     BlockBehaviour, GetStateForNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs,
-    PathComputationType, PlacedArgs, RandomTickArgs,
+    PathComputationType, PlayerPlacedArgs, RandomTickArgs,
 };
 use crate::entity::EntityBase;
 use crate::entity::ageable::AgeableMob;
 use crate::entity::mob::Mob;
 use crate::entity::r#type::from_type;
+use crate::world::World;
+use pumpkin_util::math::vector3::Vector3;
 
 /// `DriedGhastBlock.MAX_HYDRATION_LEVEL` (`DriedGhastBlock.java:40`).
 const MAX_HYDRATION_LEVEL: u8 = 3;
@@ -81,8 +83,13 @@ impl DriedGhastBlock {
             BlockFlags::NOTIFY_ALL,
         );
 
-        let spawn_at = args.position.to_f64(); // Vec3.atBottomCenterOf(position)
-        let baby = from_type(&EntityType::HAPPY_GHAST, spawn_at, args.world, Uuid::new_v4());
+        let spawn_at = args.position.to_f64().add(&Vector3::new(0.5, 0.0, 0.5));
+        let baby = from_type(
+            &EntityType::HAPPY_GHAST,
+            spawn_at,
+            args.world,
+            Uuid::new_v4(),
+        );
         if let Some(ageable) = baby.get_mob().and_then(Mob::as_ageable) {
             ageable.set_baby(true);
         }
@@ -93,8 +100,11 @@ impl DriedGhastBlock {
         entity.pitch.store(0.0);
 
         args.world.spawn_entity(baby);
-        args.world
-            .play_sound(Sound::EntityGhastlingSpawn, SoundCategory::Blocks, &spawn_at);
+        args.world.play_sound(
+            Sound::EntityGhastlingSpawn,
+            SoundCategory::Blocks,
+            &spawn_at,
+        );
     }
 }
 
@@ -102,7 +112,9 @@ impl BlockBehaviour for DriedGhastBlock {
     /// `DriedGhastBlock.getStateForPlacement` (`DriedGhastBlock.java:169-173`).
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = DriedGhastLikeProperties::default(args.block);
-        props.waterlogged = args.replacing.water_source();
+        let (fluid, fluid_state) =
+            World::fluid_state_from_block_state(args.world.get_block_state_id(args.position));
+        props.waterlogged = fluid_state.is_source && fluid.matches_type(&Fluid::WATER);
         props.facing = args
             .player
             .living_entity
@@ -112,18 +124,19 @@ impl BlockBehaviour for DriedGhastBlock {
         props.to_state_id(args.block)
     }
 
-    /// `DriedGhastBlock.setPlacedBy` (`DriedGhastBlock.java:196-201`); Pumpkin has no direct
-    /// `setPlacedBy` hook, so this plays the placement sound from `placed` (`onBlockAdded`),
-    /// which fires for every placement just like `setPlacedBy` does.
-    fn placed(&self, args: PlacedArgs<'_>) {
+    /// Vanilla's placement sound belongs to setPlacedBy, not onPlace.
+    fn player_placed(&self, args: PlayerPlacedArgs<'_>) {
         let props = DriedGhastLikeProperties::from_state_id(args.state_id);
         let sound = if props.waterlogged {
             Sound::BlockDriedGhastPlaceInWater
         } else {
             Sound::BlockDriedGhastPlace
         };
-        args.world
-            .play_sound(sound, SoundCategory::Blocks, &args.position.to_centered_f64());
+        args.world.play_sound(
+            sound,
+            SoundCategory::Blocks,
+            &args.position.to_centered_f64(),
+        );
     }
 
     /// `DriedGhastBlock.updateShape` (`DriedGhastBlock.java:61-77`): only the waterlogged
@@ -146,9 +159,12 @@ impl BlockBehaviour for DriedGhastBlock {
 
     /// `DriedGhastBlock.randomTick` (`DriedGhastBlock.java:162-166`).
     fn random_tick(&self, args: RandomTickArgs<'_>) {
-        let props = DriedGhastLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
+        let props =
+            DriedGhastLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
         if (props.waterlogged || props.hydration > 0)
-            && !args.world.is_block_tick_scheduled(args.position, args.block)
+            && !args
+                .world
+                .is_block_tick_scheduled(args.position, args.block)
         {
             args.world.schedule_block_tick(
                 args.block,
@@ -174,9 +190,11 @@ impl BlockBehaviour for DriedGhastBlock {
                     new_props.to_state_id(args.block),
                     BlockFlags::NOTIFY_LISTENERS,
                 );
-                args.world.emit_game_event(
+                args.world.emit_game_event_from_entity(
                     GameEvent::BlockChange.name(),
                     args.position.to_centered_f64(),
+                    None,
+                    Some(state_id),
                 );
             }
             HydrationStep::Hydrate(new_hydration) => {
@@ -192,9 +210,11 @@ impl BlockBehaviour for DriedGhastBlock {
                     new_props.to_state_id(args.block),
                     BlockFlags::NOTIFY_LISTENERS,
                 );
-                args.world.emit_game_event(
+                args.world.emit_game_event_from_entity(
                     GameEvent::BlockChange.name(),
                     args.position.to_centered_f64(),
+                    None,
+                    Some(state_id),
                 );
             }
             HydrationStep::SpawnGhastling => {
@@ -255,9 +275,21 @@ mod dried_ghast_tests {
 
     #[test]
     fn facing_to_y_rot_matches_vanilla_direction_get_y_rot() {
-        assert_eq!(DriedGhastBlock::facing_to_y_rot(HorizontalFacing::South), 0.0);
-        assert_eq!(DriedGhastBlock::facing_to_y_rot(HorizontalFacing::West), 90.0);
-        assert_eq!(DriedGhastBlock::facing_to_y_rot(HorizontalFacing::North), 180.0);
-        assert_eq!(DriedGhastBlock::facing_to_y_rot(HorizontalFacing::East), -90.0);
+        assert_eq!(
+            DriedGhastBlock::facing_to_y_rot(HorizontalFacing::South),
+            0.0
+        );
+        assert_eq!(
+            DriedGhastBlock::facing_to_y_rot(HorizontalFacing::West),
+            90.0
+        );
+        assert_eq!(
+            DriedGhastBlock::facing_to_y_rot(HorizontalFacing::North),
+            180.0
+        );
+        assert_eq!(
+            DriedGhastBlock::facing_to_y_rot(HorizontalFacing::East),
+            -90.0
+        );
     }
 }
