@@ -17,8 +17,9 @@ use crate::entity::{
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        tempt::TemptGoal, wander_around::WanderAroundGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        melee_attack::MeleeAttackGoal, revenge::RevengeGoal, swim::SwimGoal, tempt::TemptGoal,
+        wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
     passive::animal::Animal,
@@ -142,17 +143,59 @@ impl PandaEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // Goal selector (matching vanilla Panda.registerGoals, Panda.java:264-280).
+            // 0: FloatGoal
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, EscapeDangerGoal::new(2.0));
+            // 2: PandaPanicGoal(2.0)
+            goal_selector.add_goal(2, EscapeDangerGoal::new(2.0));
+            // 2: PandaBreedGoal(1.0)
+            // NOTE: vanilla also requires `getUnhappyCounter() == 0`; not gated here (no
+            // change to BreedGoal itself), so a panda mid-"unhappy" reaction can still
+            // start breeding, which vanilla forbids.
             goal_selector.add_goal(2, BreedGoal::new(1.0));
-            goal_selector.add_goal(3, Box::new(TemptGoal::new(1.2, TEMPT_ITEMS)));
-            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.25)));
-            goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(1.0)));
+            // 3: PandaAttackGoal(1.2, true) -- a plain MeleeAttackGoal in vanilla.
+            // NOTE: vanilla gates this on `canPerformAction()` (`!isOnBack && !isScared &&
+            // !isEating && !isRolling && !isSitting`); not gated here, so a sitting/rolling/
+            // on-back panda can still melee-attack, which vanilla forbids.
+            goal_selector.add_goal(3, Box::new(MeleeAttackGoal::new(1.2, true)));
+            // 4: TemptGoal(1.0, PANDA_FOOD tag, false)
+            goal_selector.add_goal(4, Box::new(TemptGoal::new(1.0, TEMPT_ITEMS)));
+            // 6: PandaAvoidGoal<Player>(8.0, 2.0, 2.0) and PandaAvoidGoal<Monster>(4.0, 2.0,
+            // 2.0) -- NOT PORTED. Both are gated on `isWorried() && canPerformAction()`
+            // (personality-state checks this codebase's PandaEntity doesn't expose yet), and
+            // the Monster variant needs "avoid any entity of category Monster", which
+            // `AvoidEntityGoal` can't express (it only matches a single fixed EntityType).
+            // Missing machinery -- see report.
+            // 7: PandaSitGoal -- NOT PORTED. Bamboo-eating/sit state machine; skipped.
+            // 8: PandaLieOnBackGoal -- NOT PORTED. Skipped.
+            // 8: PandaSneezeGoal -- NOT PORTED. Skipped.
+            // 9: PandaLookAtPlayerGoal(6.0)
             goal_selector.add_goal(
-                7,
+                9,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
             );
-            goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            // 10: RandomLookAroundGoal
+            goal_selector.add_goal(10, Box::new(RandomLookAroundGoal::default()));
+            // 12: PandaRollGoal -- NOT PORTED. Playful-gene random roll; skipped.
+            // 13: FollowParentGoal(1.25)
+            goal_selector.add_goal(13, Box::new(FollowParentGoal::new(1.25)));
+            // 14: WaterAvoidingRandomStrollGoal(1.0)
+            goal_selector.add_goal(14, Box::new(WanderAroundGoal::water_avoiding(1.0)));
+        };
+
+        {
+            let mut target_selector = mob_arc
+                .mob_entity
+                .target_selector
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+            // Target selector (Panda.java:281): 1: PandaHurtByTargetGoal(this).setAlertOthers()
+            // NOTE: vanilla's `alertOther` override only alerts other Pandas that are already
+            // `isAggressive()`, and `canContinueToUse` drops the target the instant the panda
+            // eats bamboo or bites; neither is ported -- this is a plain RevengeGoal, same
+            // simplification as Wolf's "TODO: group revenge".
+            target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
         };
 
         mob_arc

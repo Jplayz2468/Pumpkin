@@ -17,12 +17,13 @@ use uuid::Uuid;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal, breed::BreedGoal,
-        escape_danger::EscapeDangerGoal, follow_owner::FollowOwnerGoal,
-        follow_parent::FollowParentGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, swim::SwimGoal, tempt::TemptGoal,
+        active_target::ActiveTargetGoal, breed::BreedGoal, escape_danger::EscapeDangerGoal,
+        follow_owner::FollowOwnerGoal, leap_at_target::LeapAtTargetGoal,
+        look_at_entity::LookAtEntityGoal, ocelot_attack::OcelotAttackGoal,
+        sit_when_ordered_to::SitWhenOrderedToGoal, swim::SwimGoal, tempt::TemptGoal,
         wander_around::WanderAroundGoal,
     },
+    living::LivingEntity,
     mob::{Mob, MobEntity},
     passive::{
         animal::Animal,
@@ -30,8 +31,16 @@ use crate::entity::{
     },
     player::Player,
 };
+use crate::world::World;
 
 const TEMPT_ITEMS: &[&Item] = &[&Item::COD, &Item::SALMON];
+
+/// Vanilla `Turtle.BABY_ON_LAND_SELECTOR` (`Turtle.java:76`): `target.isBaby() &&
+/// !target.isInWater()`. Duplicated locally per-mob (see `wolf.rs`'s copy of the same
+/// helper); not shared because it lives outside `entity/ai/goal/`.
+fn turtle_baby_on_land(living_entity: &LivingEntity, _world: &World) -> bool {
+    living_entity.entity.age.load(Ordering::Relaxed) < 0 && !living_entity.is_in_water()
+}
 
 fn get_dye_color_from_item(item: &Item) -> Option<u8> {
     let key = item.registry_key;
@@ -109,32 +118,39 @@ impl CatEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            // Goal 1: SwimGoal (FloatGoal)
+            // Goal selector (matching vanilla Cat.registerGoals, Cat.java:105-122):
+            // 1: FloatGoal
             goal_selector.add_goal(1, Box::new(SwimGoal::default()));
-            // Goal 1: TamableAnimalPanicGoal (EscapeDangerGoal)
+            // 1: TamableAnimalPanicGoal(1.5)
             goal_selector.add_goal(1, EscapeDangerGoal::new(1.5));
-            // Goal 4: CatTemptGoal
+            // 2: SitWhenOrderedToGoal
+            goal_selector.add_goal(2, Box::new(SitWhenOrderedToGoal::new()));
+            // 3: CatRelaxOnOwnerGoal -- NOT PORTED. Needs "owner is lying in a bed and cat is
+            // tamed" tracking (bed-sleep state + owner lookup) that has no equivalent
+            // machinery here yet. Missing.
+            // 4: CatTemptGoal(0.6, CAT_FOOD tag, true)
             goal_selector.add_goal(4, Box::new(TemptGoal::new(0.6, TEMPT_ITEMS)));
-            // Goal 4: CatAvoidEntityGoal (when untamed)
-            goal_selector.add_goal(
-                4,
-                Box::new(AvoidEntityGoal::new(&EntityType::PLAYER, 16.0, 0.8, 1.33)),
-            );
-            // Goal 5: BreedGoal
-            goal_selector.add_goal(5, BreedGoal::new(0.8));
-            // Goal 6: FollowOwnerGoal
+            // 5: CatLieOnBedGoal(1.1, 8) -- NOT PORTED. Needs bed-block search + navigate-to
+            // machinery; skipped, see report.
+            // 6: FollowOwnerGoal(1.0, 10.0, 5.0)
             goal_selector.add_goal(6, FollowOwnerGoal::new(1.0, 10.0, 5.0));
-            // Goal 9: FollowParentGoal
-            goal_selector.add_goal(9, Box::new(FollowParentGoal::new(0.8)));
-            // Goal 11: WanderAroundGoal
-            goal_selector.add_goal(11, Box::new(WanderAroundGoal::new(0.8)));
-            // Goal 12: LookAtPlayerGoal
+            // 7: CatSitOnBlockGoal(0.8) -- NOT PORTED. Needs chest/furnace-block search +
+            // navigate-to machinery; skipped, see report.
+            // 8: LeapAtTargetGoal(0.3)
+            goal_selector.add_goal(8, Box::new(LeapAtTargetGoal::new(0.3)));
+            // 9: OcelotAttackGoal
+            goal_selector.add_goal(9, Box::new(OcelotAttackGoal::new()));
+            // 10: BreedGoal(0.8)
+            goal_selector.add_goal(10, BreedGoal::new(0.8));
+            // 11: WaterAvoidingRandomStrollGoal(0.8, 1.0000001E-5F)
+            // NOTE: the low target-reroll probability param isn't exposed by
+            // `WanderAroundGoal::water_avoiding`; only the speed is ported.
+            goal_selector.add_goal(11, Box::new(WanderAroundGoal::water_avoiding(0.8)));
+            // 12: LookAtPlayerGoal(10.0) -- vanilla Cat has no RandomLookAroundGoal.
             goal_selector.add_goal(
                 12,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 10.0),
             );
-            // Goal 12: RandomLookAroundGoal
-            goal_selector.add_goal(12, Box::new(RandomLookAroundGoal::default()));
         };
 
         {
@@ -144,14 +160,23 @@ impl CatEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            // Target Goal 1: NonTameRandomTargetGoal for Rabbit and Turtle
+            // Target selector (Cat.java:120-121):
+            // 1: NonTameRandomTargetGoal<Rabbit>(false, null)
             target_selector.add_goal(
                 1,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::RABBIT, false),
             );
+            // 1: NonTameRandomTargetGoal<Turtle>(false, BABY_ON_LAND_SELECTOR)
             target_selector.add_goal(
                 1,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::TURTLE, false),
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::TURTLE,
+                    10,
+                    false,
+                    false,
+                    Some(turtle_baby_on_land),
+                )),
             );
         };
 

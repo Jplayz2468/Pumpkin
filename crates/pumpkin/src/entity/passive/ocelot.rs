@@ -15,17 +15,25 @@ use rand::RngExt;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal, breed::BreedGoal,
-        escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
+        active_target::ActiveTargetGoal, breed::BreedGoal, leap_at_target::LeapAtTargetGoal,
+        look_at_entity::LookAtEntityGoal, ocelot_attack::OcelotAttackGoal, swim::SwimGoal,
         tempt::TemptGoal, wander_around::WanderAroundGoal,
     },
+    living::LivingEntity,
     mob::{Mob, MobEntity},
     passive::animal::Animal,
     player::Player,
 };
+use crate::world::World;
 
 const TEMPT_ITEMS: &[&Item] = &[&Item::COD, &Item::SALMON];
+
+/// Vanilla `Turtle.BABY_ON_LAND_SELECTOR` (`Turtle.java:76`). Duplicated locally per-mob
+/// (see `wolf.rs`'s copy of the same helper); not shared because it lives outside
+/// `entity/ai/goal/`.
+fn turtle_baby_on_land(living_entity: &LivingEntity, _world: &World) -> bool {
+    living_entity.entity.age.load(Ordering::Relaxed) < 0 && !living_entity.is_in_water()
+}
 
 /// Represents an Ocelot, a shy passive mob found in jungles.
 ///
@@ -57,30 +65,29 @@ impl OcelotEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            // Goal 1: FloatGoal (SwimGoal)
+            // Goal selector (matching vanilla Ocelot.registerGoals, Ocelot.java:103-111).
+            // NOTE: unlike Wolf/Cat, vanilla Ocelot has no panic/escape-danger goal at all,
+            // and no player-avoidance goal (that behavior was removed from Ocelot when Cat
+            // was split out in 1.14) -- both are intentionally absent here.
+            // 1: FloatGoal
             goal_selector.add_goal(1, Box::new(SwimGoal::default()));
-            // Goal 1: PanicGoal (EscapeDangerGoal)
-            goal_selector.add_goal(1, EscapeDangerGoal::new(1.5));
-            // Goal 3: OcelotTemptGoal
+            // 3: OcelotTemptGoal(0.6, OCELOT_FOOD tag, true)
             goal_selector.add_goal(3, Box::new(TemptGoal::new(0.6, TEMPT_ITEMS)));
-            // Goal 4: OcelotAvoidEntityGoal (when not trusting)
-            goal_selector.add_goal(
-                4,
-                Box::new(AvoidEntityGoal::new(&EntityType::PLAYER, 16.0, 0.8, 1.33)),
-            );
-            // Goal 9: BreedGoal
+            // 7: LeapAtTargetGoal(0.3)
+            goal_selector.add_goal(7, Box::new(LeapAtTargetGoal::new(0.3)));
+            // 8: OcelotAttackGoal
+            goal_selector.add_goal(8, Box::new(OcelotAttackGoal::new()));
+            // 9: BreedGoal(0.8)
             goal_selector.add_goal(9, BreedGoal::new(0.8));
-            // Goal 9: FollowParentGoal
-            goal_selector.add_goal(9, Box::new(FollowParentGoal::new(0.8)));
-            // Goal 10: WaterAvoidingRandomStrollGoal (WanderAroundGoal)
-            goal_selector.add_goal(10, Box::new(WanderAroundGoal::new(0.8)));
-            // Goal 11: LookAtPlayerGoal
+            // 10: WaterAvoidingRandomStrollGoal(0.8, 1.0000001E-5F)
+            // NOTE: the low target-reroll probability param isn't exposed by
+            // `WanderAroundGoal::water_avoiding`; only the speed is ported.
+            goal_selector.add_goal(10, Box::new(WanderAroundGoal::water_avoiding(0.8)));
+            // 11: LookAtPlayerGoal(10.0) -- vanilla Ocelot has no RandomLookAroundGoal.
             goal_selector.add_goal(
                 11,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 10.0),
             );
-            // Goal 11: RandomLookAroundGoal
-            goal_selector.add_goal(11, Box::new(RandomLookAroundGoal::default()));
         };
 
         {
@@ -90,14 +97,23 @@ impl OcelotEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            // Target Goal 1: NearestAttackableTargetGoal for Chicken and Turtle
+            // Target selector (Ocelot.java:112-113):
+            // 1: NearestAttackableTargetGoal<Chicken>(false)
             target_selector.add_goal(
                 1,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::CHICKEN, false),
             );
+            // 1: NearestAttackableTargetGoal<Turtle>(10, false, false, BABY_ON_LAND_SELECTOR)
             target_selector.add_goal(
                 1,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::TURTLE, false),
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::TURTLE,
+                    10,
+                    false,
+                    false,
+                    Some(turtle_baby_on_land),
+                )),
             );
         };
 

@@ -15,9 +15,10 @@ use crate::entity::{
     Entity, EntityBase,
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
-        breed::BreedGoal, escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        tempt::TemptGoal, wander_around::WanderAroundGoal,
+        avoid_entity::AvoidEntityGoal, breed::BreedGoal, escape_danger::EscapeDangerGoal,
+        follow_parent::FollowParentGoal, leap_at_target::LeapAtTargetGoal,
+        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
     passive::animal::Animal,
@@ -97,17 +98,53 @@ impl FoxEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // Goal selector (matching vanilla Fox.registerGoals, Fox.java:180-204).
+            // Priorities 0-1 and 5-6, 9 and 13 are custom Fox subclasses with no equivalent
+            // machinery here (FoxFloatGoal/ClimbOnTopOfPowderSnowGoal, FaceplantGoal,
+            // StalkPreyGoal, FoxPounceGoal/SeekShelterGoal, FoxStrollThroughVillageGoal,
+            // PerchAndSearchGoal) -- NOT PORTED, see report. SwimGoal below is the plain
+            // float behavior FoxFloatGoal builds on, so it stays as a partial substitute for
+            // priority 0.
+            // 0: FoxFloatGoal (approximated by plain FloatGoal/SwimGoal)
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, EscapeDangerGoal::new(1.5));
-            goal_selector.add_goal(2, BreedGoal::new(1.0));
-            goal_selector.add_goal(3, Box::new(TemptGoal::new(1.2, FOX_FOOD)));
-            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.1)));
-            goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(1.0)));
+            // 2: FoxPanicGoal(2.2)
+            goal_selector.add_goal(2, EscapeDangerGoal::new(2.2));
+            // 3: FoxBreedGoal(1.0)
+            goal_selector.add_goal(3, BreedGoal::new(1.0));
+            // 4: AvoidEntityGoal<Wolf>(8.0, 1.6, 1.4)
+            // NOTE: vanilla's predicate also requires `!this.isDefending()`; not ported
+            // (defending-state gate not wired into AvoidEntityGoal). The untamed-only check
+            // (`!((Wolf)entity).isTame()`) is also not expressible -- AvoidEntityGoal only
+            // matches by EntityType, so this flees ALL wolves, tame or not.
             goal_selector.add_goal(
-                7,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
+                4,
+                Box::new(AvoidEntityGoal::new(&EntityType::WOLF, 8.0, 1.6, 1.4)),
             );
-            goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
+            // 4: AvoidEntityGoal<PolarBear>(8.0, 1.6, 1.4)
+            // NOTE: vanilla's `!this.isDefending()` gate not ported, same as above.
+            goal_selector.add_goal(
+                4,
+                Box::new(AvoidEntityGoal::new(&EntityType::POLAR_BEAR, 8.0, 1.6, 1.4)),
+            );
+            // 4: AvoidEntityGoal<Player>(16.0, 1.6, 1.4, AVOID_PLAYERS && !trusts && !defending)
+            // NOT PORTED: needs the fox trust registry (`trusts(entity)`) and the
+            // AVOID_PLAYERS sneak-check predicate, neither of which exist here. Skipping
+            // this one (rather than fleeing all players unconditionally, which would be
+            // wrong far more often than right) since foxes are meant to tolerate most
+            // players at range.
+            // 7: FoxMeleeAttackGoal(1.2, true) -- a plain MeleeAttackGoal in vanilla.
+            goal_selector.add_goal(7, Box::new(MeleeAttackGoal::new(1.2, true)));
+            // 8: FoxFollowParentGoal(1.25)
+            goal_selector.add_goal(8, Box::new(FollowParentGoal::new(1.25)));
+            // 10: LeapAtTargetGoal(0.4)
+            goal_selector.add_goal(10, Box::new(LeapAtTargetGoal::new(0.4)));
+            // 11: WaterAvoidingRandomStrollGoal(1.0)
+            goal_selector.add_goal(11, Box::new(WanderAroundGoal::water_avoiding(1.0)));
+            // 12: FoxLookAtPlayerGoal(24.0) -- vanilla Fox has no RandomLookAroundGoal.
+            goal_selector.add_goal(
+                12,
+                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 24.0),
+            );
         };
 
         mob_arc

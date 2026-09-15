@@ -32,6 +32,7 @@ pub mod ocelot_attack;
 pub mod offer_flower;
 pub mod open_door;
 pub mod owner_hurt_by_target;
+pub mod polar_bear_attack_players;
 pub mod owner_hurt_target;
 pub mod pathfind_to_raid;
 pub mod pick_up_block;
