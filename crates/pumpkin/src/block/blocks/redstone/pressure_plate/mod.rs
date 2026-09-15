@@ -4,7 +4,10 @@ use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{Block, BlockDirection, BlockState, BlockStateId};
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos};
-use pumpkin_world::{tick::TickPriority, world::BlockFlags};
+use pumpkin_world::{
+    tick::TickPriority,
+    world::{BlockAccessor, BlockFlags},
+};
 
 use crate::{
     block::{OnEntityCollisionArgs, OnStateReplacedArgs},
@@ -69,14 +72,23 @@ pub(crate) trait PressurePlate {
     fn on_entity_collision_pp(&self, args: OnEntityCollisionArgs<'_>) {
         let output = self.get_redstone_output(args.block, args.state.id);
         if output == 0 {
-            self.update_plate_state(args.world, args.position, args.block, args.state, output);
+            self.update_plate_state(
+                args.world,
+                args.position,
+                args.block,
+                args.state,
+                output,
+                Some(args.entity),
+            );
         }
     }
 
     fn on_state_replaced_pp(&self, args: OnStateReplacedArgs<'_>) {
         if !args.moved && self.get_redstone_output(args.block, args.old_state_id) > 0 {
-            args.world.update_neighbors(args.position, None);
-            args.world.update_neighbors(&args.position.down(), None);
+            args.world
+                .update_neighbors_at(args.position, args.block, None);
+            args.world
+                .update_neighbors_at(&args.position.down(), args.block, None);
         }
     }
 
@@ -87,9 +99,10 @@ pub(crate) trait PressurePlate {
         block: &Block,
         state: &BlockState,
         output: u8,
+        source: Option<&dyn crate::entity::EntityBase>,
     ) {
         let calc_output = self.calculate_redstone_output(world, block, pos);
-        let has_output = calc_output > 0;
+        let mut has_output = calc_output > 0;
         let was_pressed = output > 0;
         if calc_output != output {
             let next_output = if let Some(server) = world.server.upgrade() {
@@ -109,18 +122,29 @@ pub(crate) trait PressurePlate {
                 calc_output
             };
             let state = self.set_redstone_output(block, state, next_output);
+            has_output = self.get_redstone_output(block, state) > 0;
             world.set_block_state(pos, state, BlockFlags::NOTIFY_LISTENERS);
-            world.update_neighbors(pos, None);
-            world.update_neighbors(&pos.down(), None);
+            world.update_neighbors_at(pos, block, None);
+            world.update_neighbors_at(&pos.down(), block, None);
         }
 
         let (click_on, click_off) = get_pressure_plate_sounds(block);
         if !has_output && was_pressed {
             world.play_block_sound(click_off, SoundCategory::Blocks, *pos);
-            world.emit_game_event(GameEvent::BlockDeactivate.name(), pos.to_centered_f64());
+            world.emit_game_event_from_entity(
+                GameEvent::BlockDeactivate.name(),
+                pos.to_centered_f64(),
+                source,
+                None,
+            );
         } else if has_output && !was_pressed {
             world.play_block_sound(click_on, SoundCategory::Blocks, *pos);
-            world.emit_game_event(GameEvent::BlockActivate.name(), pos.to_centered_f64());
+            world.emit_game_event_from_entity(
+                GameEvent::BlockActivate.name(),
+                pos.to_centered_f64(),
+                source,
+                None,
+            );
         }
 
         if has_output {
@@ -128,9 +152,17 @@ pub(crate) trait PressurePlate {
         }
     }
 
-    fn can_pressure_plate_place_at(world: &World, block_pos: &BlockPos) -> bool {
+    fn can_pressure_plate_place_at(world: &dyn BlockAccessor, block_pos: &BlockPos) -> bool {
         let floor = world.get_block_state(&block_pos.down());
-        floor.is_side_solid(BlockDirection::Up)
+        floor.is_center_solid(BlockDirection::Up)
+            || [
+                [0.0, 0.125, 0.0, 1.0],
+                [0.875, 1.0, 0.0, 1.0],
+                [0.125, 0.875, 0.0, 0.125],
+                [0.125, 0.875, 0.875, 1.0],
+            ]
+            .into_iter()
+            .all(|region| floor.collision_face_covers(block_pos.down(), BlockDirection::Up, region))
     }
 
     fn get_redstone_output(&self, block: &Block, state: BlockStateId) -> u8;

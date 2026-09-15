@@ -162,6 +162,8 @@ pub trait BlockBehaviour: Send + Sync {
 
     fn spawn_after_break(&self, _args: SpawnAfterBreakArgs<'_>) {}
 
+    fn player_will_destroy(&self, _args: BrokenArgs<'_>) {}
+
     fn broken(&self, _args: BrokenArgs<'_>) {}
 
     fn on_neighbor_update(&self, _args: OnNeighborUpdateArgs<'_>) {}

@@ -19,6 +19,10 @@ impl SoulFireBlock {
 }
 
 impl BlockBehaviour for SoulFireBlock {
+    fn placed(&self, args: crate::block::PlacedArgs<'_>) {
+        FireBlockBase::placed(&args);
+    }
+
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
         FireBlockBase::apply_fire_collision(&args, true);
     }
@@ -38,7 +42,7 @@ impl BlockBehaviour for SoulFireBlock {
         Self::is_soul_base(args.block_accessor.get_block(&args.position.down()))
     }
 
-    fn broken(&self, args: BrokenArgs<'_>) {
+    fn player_will_destroy(&self, args: BrokenArgs<'_>) {
         {
             FireBlockBase::broken(args.world, *args.position);
         }

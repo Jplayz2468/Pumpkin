@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::block::{
     EmitsRedstonePowerArgs, GetRedstonePowerArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
-    OnScheduledTickArgs, OnStateReplacedArgs,
+    OnScheduledTickArgs, OnStateReplacedArgs, PlacedArgs,
 };
 use crate::entity::EntityBase;
 use pumpkin_data::{Block, BlockStateId, FacingExt, block_properties::ObserverLikeProperties};
@@ -16,6 +16,23 @@ use crate::{block::BlockBehaviour, world::World};
 pub struct ObserverBlock;
 
 impl BlockBehaviour for ObserverBlock {
+    fn placed(&self, args: PlacedArgs<'_>) {
+        let mut props = ObserverLikeProperties::from_state_id(args.state_id);
+        if props.powered
+            && !args
+                .world
+                .is_block_tick_scheduled(args.position, args.block)
+        {
+            props.powered = false;
+            args.world.set_block_state(
+                args.position,
+                props.to_state_id(args.block),
+                BlockFlags::NOTIFY_LISTENERS | BlockFlags::SKIP_SHAPE_UPDATES,
+            );
+            Self::update_neighbors(args.world, args.block, args.position, props);
+        }
+    }
+
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = ObserverLikeProperties::default(args.block);
         props.facing = args.player.get_entity().get_facing();
@@ -82,15 +99,14 @@ impl BlockBehaviour for ObserverBlock {
     }
 
     fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
-        if !args.moved {
-            let props = ObserverLikeProperties::from_state_id(args.old_state_id);
-            if props.powered
-                && args
-                    .world
-                    .is_block_tick_scheduled(args.position, &Block::OBSERVER)
-            {
-                Self::update_neighbors(args.world, args.block, args.position, props);
-            }
+        let mut props = ObserverLikeProperties::from_state_id(args.old_state_id);
+        if props.powered
+            && args
+                .world
+                .is_block_tick_scheduled(args.position, args.block)
+        {
+            props.powered = false;
+            Self::update_neighbors(args.world, args.block, args.position, props);
         }
     }
 }
@@ -106,7 +122,7 @@ impl ObserverBlock {
         let opposite_facing_pos = block_pos.offset(facing.opposite().to_offset());
 
         world.update_neighbor(&opposite_facing_pos, block);
-        world.update_neighbors(&opposite_facing_pos, Some(facing));
+        world.update_neighbors_at(&opposite_facing_pos, block, Some(facing));
     }
 
     fn schedule_tick(world: &World, block_pos: &BlockPos) {

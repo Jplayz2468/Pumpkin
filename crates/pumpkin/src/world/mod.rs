@@ -5982,6 +5982,20 @@ impl World {
             flags.insert(BlockFlags::SKIP_DROPS);
         }
 
+        if let Some(player) = cause
+            && let Some(server) = self.server.upgrade()
+            && let Some(behaviour) = self.block_registry.get_pumpkin_block(broken_block.id)
+        {
+            behaviour.player_will_destroy(crate::block::BrokenArgs {
+                block: broken_block,
+                player,
+                position,
+                server: &server,
+                world: self,
+                state: broken_block_state,
+            });
+        }
+
         // Keep the old hive available after set_block_state removes its live BE.
         let mined_hive =
             if cause.is_some() && matches!(broken_block.id, BlockId::BEEHIVE | BlockId::BEE_NEST) {

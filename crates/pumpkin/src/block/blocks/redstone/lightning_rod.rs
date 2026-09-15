@@ -8,33 +8,15 @@ use crate::world::World;
 use pumpkin_data::block_properties::{Facing, LightningRodLikeProperties};
 use pumpkin_data::fluid::Fluid;
 use pumpkin_data::world::WorldEvent;
-use pumpkin_data::{BlockState, BlockStateId, FacingExt};
+use pumpkin_data::{Block, BlockState, BlockStateId, FacingExt};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
 
-// Vanilla registers the lightning-rod family through `WeatheringCopperCollection.registerBlocks`
-// (Blocks.java:5432-5442), which pairs two block classes across the 4 weathering prefixes:
-// the *waxed* half ("waxed_", "waxed_exposed_", "waxed_weathered_", "waxed_oxidized_") uses
-// the plain `LightningRodBlock` factory (`(var0, p) -> new LightningRodBlock(p)`), while the
-// *unwaxed* half ("", "exposed_", "weathered_", "oxidized_") uses `WeatheringLightningRodBlock`,
-// a subclass that adds only a random-tick `changeOverTime` oxidation step
-// (WeatheringLightningRodBlock.java:28-36) on top of identical `LightningRodBlock` behaviour.
-//
-// This struct is therefore the correct, complete implementation for the 4 waxed ids -- they
-// never weather further, so plain `LightningRodBlock` behaviour (place/power/redstone/lightning
-// strike, no random tick) is everything vanilla gives them.
-//
-// It is also registered for the base "minecraft:lightning_rod" id, matching what was already
-// here. That id is technically `WeatheringLightningRodBlock` in vanilla and should random-tick
-// toward `exposed_lightning_rod`, but lightning_rod is not a member of `COPPER_PROGRESSIONS` in
-// `block/blocks/weathering_copper.rs`, so `exposed_lightning_rod`, `weathered_lightning_rod`,
-// and `oxidized_lightning_rod` have no registered behaviour at all yet, and none of the 4
-// unwaxed ids oxidize. That gap belongs in `weathering_copper.rs` (owned by another in-flight
-// agent) rather than here -- see this file's module report.
+// Waxed lightning rods share the base behavior; all four unwaxed stages are
+// registered by WeatheringLightningRodBlock.
 #[pumpkin_block(
-    "minecraft:lightning_rod",
     "minecraft:waxed_lightning_rod",
     "minecraft:waxed_exposed_lightning_rod",
     "minecraft:waxed_weathered_lightning_rod",
@@ -46,29 +28,27 @@ impl LightningRodBlock {
     pub fn trigger(world: &Arc<World>, pos: &BlockPos) {
         let (block, state_id) = world.get_block_and_state_id(pos);
         let mut props = LightningRodLikeProperties::from_state_id(state_id);
-        if !props.powered {
-            props.powered = true;
-            world.set_block_state(pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
-
-            Self::update_neighbors(world, pos, props);
-
-            // In vanilla, it stays powered for 8 ticks (4 redstone ticks) before scheduled tick turns it off.
-            world.schedule_block_tick(block, *pos, 8, TickPriority::Normal);
-
-            let axis_index = match props.facing {
-                Facing::East | Facing::West => 0,
-                Facing::Up | Facing::Down => 1,
-                Facing::North | Facing::South => 2,
-            };
-            world.sync_world_event(WorldEvent::ParticlesElectricSpark, *pos, axis_index);
-        }
+        props.powered = true;
+        world.set_block_state(pos, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+        Self::update_neighbors(world, block, pos, props);
+        world.schedule_block_tick(block, *pos, 8, TickPriority::Normal);
+        let axis_index = match props.facing {
+            Facing::East | Facing::West => 0,
+            Facing::Up | Facing::Down => 1,
+            Facing::North | Facing::South => 2,
+        };
+        world.sync_world_event(WorldEvent::ParticlesElectricSpark, *pos, axis_index);
     }
 
-    fn update_neighbors(world: &Arc<World>, pos: &BlockPos, props: LightningRodLikeProperties) {
-        world.update_neighbors(pos, None);
+    fn update_neighbors(
+        world: &Arc<World>,
+        block: &Block,
+        pos: &BlockPos,
+        props: LightningRodLikeProperties,
+    ) {
         // The block it is attached to is in the opposite of the facing direction
         let attached_pos = pos.offset(props.facing.opposite().to_block_direction().to_offset());
-        world.update_neighbors(&attached_pos, None);
+        world.update_neighbors_at(&attached_pos, block, None);
     }
 }
 
@@ -76,13 +56,19 @@ impl BlockBehaviour for LightningRodBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = LightningRodLikeProperties::default(args.block);
         props.facing = args.direction.to_facing().opposite();
-        props.waterlogged = args.replacing.water_source();
+        let (fluid, state) =
+            World::fluid_state_from_block_state(args.world.get_block_state_id(args.position));
+        props.waterlogged = fluid.matches_type(&Fluid::WATER) && state.is_source;
         props.to_state_id(args.block)
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
         let props = LightningRodLikeProperties::from_state_id(args.state_id);
-        if props.powered {
+        if props.powered
+            && !args
+                .world
+                .is_block_tick_scheduled(args.position, args.block)
+        {
             args.world
                 .schedule_block_tick(args.block, *args.position, 8, TickPriority::Normal);
         }
@@ -124,25 +110,21 @@ impl BlockBehaviour for LightningRodBlock {
     }
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        let state = args.world.get_block_state(args.position);
-        let mut props = LightningRodLikeProperties::from_state_id(state.id);
-        if props.powered {
-            props.powered = false;
-            args.world.set_block_state(
-                args.position,
-                props.to_state_id(args.block),
-                BlockFlags::NOTIFY_ALL,
-            );
-            Self::update_neighbors(args.world, args.position, props);
-        }
+        let mut props =
+            LightningRodLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
+        props.powered = false;
+        args.world.set_block_state(
+            args.position,
+            props.to_state_id(args.block),
+            BlockFlags::NOTIFY_ALL,
+        );
+        Self::update_neighbors(args.world, args.block, args.position, props);
     }
 
     fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
-        if !args.moved {
-            let props = LightningRodLikeProperties::from_state_id(args.old_state_id);
-            if props.powered {
-                Self::update_neighbors(args.world, args.position, props);
-            }
+        let props = LightningRodLikeProperties::from_state_id(args.old_state_id);
+        if props.powered {
+            Self::update_neighbors(args.world, args.block, args.position, props);
         }
     }
 
@@ -185,4 +167,3 @@ mod tests {
         assert_eq!(strong_power(props, BlockDirection::North), 0);
     }
 }
-

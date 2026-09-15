@@ -1248,12 +1248,6 @@ impl BlockBehaviour for WaxedCopperGrateBlock {
 /// the existing `redstone::lightning_rod::LightningRodBlock` rather than re-derived, matching
 /// how the stair/trapdoor/slab/door wrappers above delegate to their plain counterparts.
 ///
-/// The base `minecraft:lightning_rod` block (`WeatherState::Unaffected` in
-/// `COPPER_PROGRESSIONS`) is also a `WeatheringLightningRodBlock` in vanilla and should
-/// random-tick the same way, but wiring that up means editing
-/// `redstone/lightning_rod.rs::LightningRodBlock`, which is explicitly out of scope for this
-/// change (its `#[pumpkin_block(...)]` id list must not be touched here to avoid clashing with
-/// another branch's waxed-id extension). Only the three ids below get this behaviour for now.
 #[derive(Default)]
 pub struct WeatheringLightningRodBlock;
 
@@ -1284,6 +1278,7 @@ impl WeatheringCopper for WeatheringLightningRodBlock {}
 impl BlockMetadata for WeatheringLightningRodBlock {
     fn ids() -> Box<[BlockId]> {
         [
+            BlockId::LIGHTNING_ROD,
             BlockId::EXPOSED_LIGHTNING_ROD,
             BlockId::WEATHERED_LIGHTNING_ROD,
             BlockId::OXIDIZED_LIGHTNING_ROD,
@@ -1343,14 +1338,12 @@ impl BlockBehaviour for WeatheringLightningRodBlock {
 mod weathering_lightning_rod_tests {
     use super::*;
 
-    /// Pins the three ids this wrapper is responsible for -- `minecraft:lightning_rod` and the
-    /// four `waxed_*` ids stay with `redstone::lightning_rod::LightningRodBlock` (out of scope
-    /// here; see the struct doc comment).
     #[test]
-    fn ids_cover_the_three_unwaxed_weathered_variants() {
+    fn ids_cover_all_four_unwaxed_variants() {
         let ids = WeatheringLightningRodBlock::ids();
-        assert_eq!(ids.len(), 3);
+        assert_eq!(ids.len(), 4);
         for id in [
+            BlockId::LIGHTNING_ROD,
             BlockId::EXPOSED_LIGHTNING_ROD,
             BlockId::WEATHERED_LIGHTNING_ROD,
             BlockId::OXIDIZED_LIGHTNING_ROD,

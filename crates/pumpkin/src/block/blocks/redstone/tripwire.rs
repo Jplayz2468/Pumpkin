@@ -8,8 +8,8 @@ use pumpkin_world::{tick::TickPriority, world::BlockFlags};
 
 use crate::{
     block::{
-        BlockBehaviour, BrokenArgs, GetStateForNeighborUpdateArgs, OnEntityCollisionArgs,
-        OnPlaceArgs, OnScheduledTickArgs, OnStateReplacedArgs, PlacedArgs,
+        BlockBehaviour, BrokenArgs, GetInsideCollisionShapeArgs, GetStateForNeighborUpdateArgs,
+        OnEntityCollisionArgs, OnPlaceArgs, OnScheduledTickArgs, OnStateReplacedArgs, PlacedArgs,
     },
     world::World,
 };
@@ -23,21 +23,21 @@ type TripwireHookProperties = pumpkin_data::block_properties::TripwireHookLikePr
 pub struct TripwireBlock;
 
 impl BlockBehaviour for TripwireBlock {
+    fn get_inside_collision_shape(&self, args: GetInsideCollisionShapeArgs<'_>) -> BoundingBox {
+        Self::detection_box(args.state.id)
+    }
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
-        let mut props = TripwireProperties::from_state_id(args.state.id);
-        if props.powered {
-            return;
+        if !TripwireProperties::from_state_id(args.state.id).powered
+            && !args
+                .world
+                .is_block_tick_scheduled(args.position, args.block)
+        {
+            Self::check_pressed(
+                args.world,
+                args.position,
+                !args.entity.is_ignoring_block_triggers(),
+            );
         }
-        props.powered = true;
-
-        let state_id = props.to_state_id(args.block);
-        args.world
-            .set_block_state(args.position, state_id, BlockFlags::NOTIFY_ALL);
-
-        Self::update(args.world, args.position, state_id);
-
-        args.world
-            .schedule_block_tick(args.block, *args.position, 10, TickPriority::Normal);
     }
 
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
@@ -71,7 +71,7 @@ impl BlockBehaviour for TripwireBlock {
         Self::update(args.world, args.position, args.state_id);
     }
 
-    fn broken(&self, args: BrokenArgs<'_>) {
+    fn player_will_destroy(&self, args: BrokenArgs<'_>) {
         let has_shears = args.player.inventory().held_item().get_item() == &Item::SHEARS;
         if has_shears {
             let mut props = TripwireProperties::from_state_id(args.state.id);
@@ -79,15 +79,14 @@ impl BlockBehaviour for TripwireBlock {
             args.world.set_block_state(
                 args.position,
                 props.to_state_id(args.block),
-                BlockFlags::empty(),
+                BlockFlags::SKIP_BLOCK_ENTITY_REPLACED_CALLBACK,
             );
-            args.world.emit_game_event(
+            args.world.emit_game_event_from_entity(
                 pumpkin_data::game_event::GameEvent::Shear.name(),
                 args.position.to_centered_f64(),
+                Some(args.player.as_ref()),
+                None,
             );
-            if args.player.gamemode.load() != pumpkin_util::GameMode::Creative {
-                args.player.damage_held_item(1);
-            }
         }
     }
 
@@ -110,35 +109,20 @@ impl BlockBehaviour for TripwireBlock {
     }
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        let state_id = args.world.get_block_state_id(args.position);
-
-        let mut props = TripwireProperties::from_state_id(state_id);
-        if !props.powered {
-            return;
-        }
-
-        let aabb = BoundingBox::from_block(args.position);
-        let has_entities = !args.world.get_entities_at_box(&aabb).is_empty();
-        let has_players = args
-            .world
-            .get_players_at_box(&aabb)
-            .into_iter()
-            .any(|p| p.gamemode.load() != pumpkin_util::GameMode::Spectator);
-
-        if !has_entities && !has_players {
-            props.powered = false;
-            let state_id = props.to_state_id(args.block);
-            args.world
-                .set_block_state(args.position, state_id, BlockFlags::NOTIFY_ALL);
-            Self::update(args.world, args.position, state_id);
-        } else {
-            args.world
-                .schedule_block_tick(args.block, *args.position, 10, TickPriority::Normal);
+        let state = args.world.get_block_state_id(args.position);
+        if TripwireProperties::from_state_id(state).powered {
+            let bounds = Self::detection_box(state).at_pos(*args.position);
+            let pressed = args
+                .world
+                .get_all_at_box(&bounds)
+                .iter()
+                .any(|entity| !entity.is_spectator() && !entity.is_ignoring_block_triggers());
+            Self::check_pressed(args.world, args.position, pressed);
         }
     }
 
     fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
-        if args.moved || Block::from_state_id(args.old_state_id) == args.block {
+        if args.moved {
             return;
         }
         let mut props = TripwireProperties::from_state_id(args.old_state_id);
@@ -149,6 +133,32 @@ impl BlockBehaviour for TripwireBlock {
 }
 
 impl TripwireBlock {
+    fn detection_box(state: BlockStateId) -> BoundingBox {
+        if TripwireProperties::from_state_id(state).attached {
+            BoundingBox::new_array([0.0, 1.0 / 16.0, 0.0], [1.0, 2.5 / 16.0, 1.0])
+        } else {
+            BoundingBox::new_array([0.0, 0.0, 0.0], [1.0, 0.5, 1.0])
+        }
+    }
+    fn check_pressed(world: &Arc<World>, pos: &BlockPos, pressed: bool) {
+        let mut props = TripwireProperties::from_state_id(world.get_block_state_id(pos));
+        let was_pressed = props.powered;
+        if pressed != was_pressed {
+            props.powered = pressed;
+            let state = props.to_state_id(&Block::TRIPWIRE);
+            world.set_block_state(pos, state, BlockFlags::NOTIFY_ALL);
+            Self::update(world, pos, state);
+        }
+        if pressed || was_pressed {
+            world.schedule_block_tick(
+                &Block::TRIPWIRE,
+                *pos,
+                if pressed { 10 } else { 0 },
+                TickPriority::Normal,
+            );
+        }
+    }
+
     fn update(world: &Arc<World>, pos: &BlockPos, state_id: BlockStateId) {
         for dir in [BlockDirection::South, BlockDirection::West] {
             for i in 1..42 {
@@ -217,18 +227,36 @@ mod tests {
         let hook_state = hook_props.to_state_id(&Block::TRIPWIRE_HOOK);
 
         // When looking North from wire towards hook, facing.opposite() is South -> matches
-        assert!(TripwireBlock::should_connect_to(hook_state, BlockDirection::North));
+        assert!(TripwireBlock::should_connect_to(
+            hook_state,
+            BlockDirection::North
+        ));
         // Other directions should not match
-        assert!(!TripwireBlock::should_connect_to(hook_state, BlockDirection::South));
-        assert!(!TripwireBlock::should_connect_to(hook_state, BlockDirection::East));
-        assert!(!TripwireBlock::should_connect_to(hook_state, BlockDirection::West));
+        assert!(!TripwireBlock::should_connect_to(
+            hook_state,
+            BlockDirection::South
+        ));
+        assert!(!TripwireBlock::should_connect_to(
+            hook_state,
+            BlockDirection::East
+        ));
+        assert!(!TripwireBlock::should_connect_to(
+            hook_state,
+            BlockDirection::West
+        ));
     }
 
     #[test]
     fn test_tripwire_should_not_connect_to_other_blocks() {
         let air = Block::AIR.default_state.id;
         let stone = Block::STONE.default_state.id;
-        assert!(!TripwireBlock::should_connect_to(air, BlockDirection::North));
-        assert!(!TripwireBlock::should_connect_to(stone, BlockDirection::South));
+        assert!(!TripwireBlock::should_connect_to(
+            air,
+            BlockDirection::North
+        ));
+        assert!(!TripwireBlock::should_connect_to(
+            stone,
+            BlockDirection::South
+        ));
     }
 }

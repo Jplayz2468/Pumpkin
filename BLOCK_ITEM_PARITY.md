@@ -556,3 +556,38 @@ so they must not be used to reconstruct audit completion.
 - Formatting and source inspection only; no compile/test/gameplay execution.
   Custom speleothem tags, dynamic collision/shape offsets, placement callbacks,
   fall mechanics and protocol behavior still prevent a blanket 1:1 claim.
+
+## Continued source port: composting, fire and redstone triggers
+
+- Composters stop consuming at level seven, emit success/failure fill events and
+  used-item stats, schedule maturation from placed/same-state callbacks, play
+  ready/empty sounds, and extract produce at the source's fixed height with two
+  level-random float offsets. Added source attribution to compost state events.
+- Spawner XP uses spawn-after-break, the level random stream and block-drops gate,
+  with the existing plugin experience event; it is no longer player-only.
+- Fire/soul fire share portal/survival placement behavior. Fire ignition clears
+  freezing, uses the level random stream, and delegates fire damage immunity to
+  the entity damage handler. Portal-axis selection draws one bounded integer.
+  Full inside-block effect aggregation remains a shared ordering gap.
+- Introduced player-will-destroy before drops/removal. Fire extinguishing and
+  shears disarming now occur there, rather than after the block has disappeared.
+- All four unwaxed lightning rods use weathering behavior. Rod strikes notify the
+  attached block with the rod as source and always schedule/play strike effects;
+  removal notifications also run during piston moves. Observers reset an imported
+  powered state without a pending tick and notify correctly when removed/moved.
+- Daylight detector inversion events include player/new-state context, release
+  the abilities lock before callbacks, and use the existing Minecraft cosine helper.
+- Pressure plates use center/rigid support, shape-update removal, trigger-ignoring
+  entity filtering, source-attributed activation, and plugin-adjusted output for
+  sound/recheck decisions. Added the shared entity trigger predicate for bats,
+  displays, markers, interaction entities, ominous spawners and marker armor stands.
+- Tripwire uses its attached/unattached detection box, pending-tick gate, precise
+  recheck/release cadence and pre-removal disarming without double shears wear.
+  Fixed wire/hook removal guards that previously always returned. Hook placement
+  uses directional support and nearest-looking choices; line updates preserve
+  intervening replacements, recheck a removed source hook, and notify both sets
+  of neighbors with the correct source block. Sounds use centered positions.
+- Source inspection, formatting and diff whitespace review only. No compilation,
+  tests or gameplay runs. Custom support shapes, redstone experimental orientation,
+  effect aggregation, automation inventory wrappers and all unaudited families
+  remain open; these edits do not establish full 1:1 parity.

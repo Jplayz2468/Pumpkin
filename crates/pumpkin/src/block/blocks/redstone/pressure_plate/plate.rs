@@ -3,13 +3,12 @@ use pumpkin_data::{
     tag::{self},
 };
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_world::world::BlockFlags;
 
 use crate::{
     block::{
         BlockBehaviour, BlockMetadata, CanPlaceAtArgs, EmitsRedstonePowerArgs,
-        GetRedstonePowerArgs, OnEntityCollisionArgs, OnNeighborUpdateArgs, OnScheduledTickArgs,
-        OnStateReplacedArgs,
+        GetRedstonePowerArgs, GetStateForNeighborUpdateArgs, OnEntityCollisionArgs,
+        OnScheduledTickArgs, OnStateReplacedArgs,
     },
     world::World,
 };
@@ -40,7 +39,7 @@ impl BlockBehaviour for PressurePlateBlock {
         let output = self.get_redstone_output(args.block, state.id);
         if output > 0 {
             let (block, state) = args.world.get_block_and_state(args.position);
-            Self.update_plate_state(args.world, args.position, block, state, output);
+            Self.update_plate_state(args.world, args.position, block, state, output, None);
         }
     }
 
@@ -63,16 +62,20 @@ impl BlockBehaviour for PressurePlateBlock {
         true
     }
 
-    fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        if !Self::can_pressure_plate_place_at(args.world, args.position) {
-            args.world
-                .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        if args.direction == BlockDirection::Down
+            && !Self::can_pressure_plate_place_at(args.world, args.position)
+        {
+            Block::AIR.default_state.id
+        } else {
+            args.state_id
         }
     }
-
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        args.world
-            .is_some_and(|world| Self::can_pressure_plate_place_at(world, args.position))
+        Self::can_pressure_plate_place_at(args.block_accessor, args.position)
     }
 }
 
@@ -84,22 +87,16 @@ impl PressurePlate for PressurePlateBlock {
 
     fn calculate_redstone_output(&self, world: &World, block: &Block, pos: &BlockPos) -> u8 {
         let aabb = detection_box_at(pos);
-        let is_mobs_only = Self::is_mobs_only(block);
-
-        let has_entity = world.get_entities_at_box(&aabb).iter().any(|e| {
-            if is_mobs_only {
-                e.get_living_entity().is_some()
-            } else {
-                true
-            }
-        });
-
-        let has_player = world
-            .get_players_at_box(&aabb)
-            .iter()
-            .any(|p| p.gamemode.load() != pumpkin_util::GameMode::Spectator);
-
-        if has_entity || has_player { 15 } else { 0 }
+        let mobs_only = Self::is_mobs_only(block);
+        if world.get_all_at_box(&aabb).iter().any(|entity| {
+            !entity.is_spectator()
+                && !entity.is_ignoring_block_triggers()
+                && (!mobs_only || entity.get_living_entity().is_some())
+        }) {
+            15
+        } else {
+            0
+        }
     }
 
     fn set_redstone_output(&self, block: &Block, state: &BlockState, output: u8) -> BlockStateId {
@@ -124,13 +121,17 @@ mod tests {
     #[test]
     fn plate_sensitivity() {
         // Vanilla: Stone & Polished Blackstone plates only trigger for LivingEntity (mobs & players)
-        assert!(PressurePlateBlock::is_mobs_only(&Block::STONE_PRESSURE_PLATE));
+        assert!(PressurePlateBlock::is_mobs_only(
+            &Block::STONE_PRESSURE_PLATE
+        ));
         assert!(PressurePlateBlock::is_mobs_only(
             &Block::POLISHED_BLACKSTONE_PRESSURE_PLATE
         ));
 
         // Vanilla: Wooden plates trigger for EVERYTHING (including items, arrows, projectiles)
-        assert!(!PressurePlateBlock::is_mobs_only(&Block::OAK_PRESSURE_PLATE));
+        assert!(!PressurePlateBlock::is_mobs_only(
+            &Block::OAK_PRESSURE_PLATE
+        ));
         assert!(!PressurePlateBlock::is_mobs_only(
             &Block::SPRUCE_PRESSURE_PLATE
         ));
@@ -168,10 +169,15 @@ mod tests {
         let block = &Block::OAK_PRESSURE_PLATE;
         let mut props = PressurePlateProps::default(block);
         props.powered = false;
-        assert_eq!(PressurePlateBlock.get_redstone_output(block, props.to_state_id(block)), 0);
+        assert_eq!(
+            PressurePlateBlock.get_redstone_output(block, props.to_state_id(block)),
+            0
+        );
 
         props.powered = true;
-        assert_eq!(PressurePlateBlock.get_redstone_output(block, props.to_state_id(block)), 15);
+        assert_eq!(
+            PressurePlateBlock.get_redstone_output(block, props.to_state_id(block)),
+            15
+        );
     }
 }
-

@@ -37,6 +37,7 @@ impl BlockBehaviour for DaylightDetectorBlock {
             return BlockActionResult::Pass;
         }
 
+        drop(player_abilities);
         let state = args.world.get_block_state(args.position);
         let mut props = DaylightDetectorProperties::from_state_id(state.id);
         props.inverted = !props.inverted;
@@ -44,9 +45,11 @@ impl BlockBehaviour for DaylightDetectorBlock {
         let new_state = props.to_state_id(args.block);
         args.world
             .set_block_state(args.position, new_state, BlockFlags::NOTIFY_LISTENERS);
-        args.world.emit_game_event(
+        args.world.emit_game_event_from_entity(
             GameEvent::BlockChange.name(),
             args.position.to_centered_f64(),
+            Some(args.player.as_ref()),
+            Some(new_state),
         );
 
         Self::update_signal_strength(args.world, args.position);
@@ -82,7 +85,7 @@ impl DaylightDetectorBlock {
                 std::f32::consts::PI * 2.0
             };
             sun_angle += (offset - sun_angle) * 0.2;
-            target = ((target as f32 * sun_angle.cos()) + 0.5).floor() as i32;
+            target = ((target as f32 * pumpkin_util::math::cos(sun_angle)) + 0.5).floor() as i32;
         }
 
         target.clamp(0, 15) as u8

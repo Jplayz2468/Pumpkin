@@ -1,6 +1,5 @@
 use pumpkin_data::BlockStateId;
 use pumpkin_data::biome::Biome;
-use pumpkin_data::block_properties::HorizontalAxis;
 use pumpkin_data::dimension::Dimension;
 use pumpkin_data::fluid::Fluid;
 use pumpkin_data::tag::{self, Taggable};
@@ -19,7 +18,6 @@ use crate::block::{
 };
 use crate::entity::EntityBase;
 use crate::world::World;
-use crate::world::portal::nether::NetherPortal;
 
 type FireProperties = pumpkin_data::block_properties::FireLikeProperties;
 
@@ -183,28 +181,7 @@ impl FireBlock {
 
 impl BlockBehaviour for FireBlock {
     fn placed(&self, args: PlacedArgs<'_>) {
-        let dimension = &args.world.dimension;
-        // First lets check if we are in OverWorld or Nether, its not possible to place an Nether portal in other dimensions in Vanilla
-        if (dimension == &Dimension::OVERWORLD || dimension == &Dimension::THE_NETHER)
-            && let Some(portal) =
-                NetherPortal::get_new_portal(args.world, args.position, HorizontalAxis::X)
-        {
-            portal.create(args.world);
-        } else if !self.can_place_at(CanPlaceAtArgs {
-            server: None,
-            world: Some(args.world),
-            block_accessor: args.world.as_ref(),
-            block: args.block,
-            state: args.state_id.to_state(),
-            position: args.position,
-            direction: None,
-            player: None,
-            use_item_on: None,
-        }) {
-            args.world
-                .set_block_state(args.position, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
-        }
-
+        FireBlockBase::placed(&args);
         self.state_changed(args);
     }
 
@@ -464,7 +441,7 @@ impl BlockBehaviour for FireBlock {
         }
     }
 
-    fn broken(&self, args: BrokenArgs<'_>) {
+    fn player_will_destroy(&self, args: BrokenArgs<'_>) {
         {
             FireBlockBase::broken(args.world, *args.position);
         }

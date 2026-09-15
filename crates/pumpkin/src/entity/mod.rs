@@ -301,6 +301,24 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         false
     }
 
+    fn is_ignoring_block_triggers(&self) -> bool {
+        if matches!(
+            self.get_entity().entity_type.resource_name,
+            "bat"
+                | "marker"
+                | "block_display"
+                | "item_display"
+                | "text_display"
+                | "interaction"
+                | "ominous_item_spawner"
+        ) {
+            return true;
+        }
+        self.cast_any()
+            .downcast_ref::<crate::entity::decoration::armor_stand::ArmorStandEntity>()
+            .is_some_and(|stand| stand.is_marker())
+    }
+
     fn can_hit(&self) -> bool {
         false
     }

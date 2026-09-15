@@ -1,12 +1,11 @@
 use pumpkin_data::{Block, BlockDirection, BlockId, BlockState, BlockStateId};
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_world::world::BlockFlags;
 
 use crate::{
     block::{
         BlockBehaviour, BlockMetadata, CanPlaceAtArgs, EmitsRedstonePowerArgs,
-        GetRedstonePowerArgs, OnEntityCollisionArgs, OnNeighborUpdateArgs, OnScheduledTickArgs,
-        OnStateReplacedArgs,
+        GetRedstonePowerArgs, GetStateForNeighborUpdateArgs, OnEntityCollisionArgs,
+        OnScheduledTickArgs, OnStateReplacedArgs,
     },
     world::World,
 };
@@ -40,7 +39,7 @@ impl BlockBehaviour for WeightedPressurePlateBlock {
         let output = self.get_redstone_output(args.block, state.id);
         if output > 0 {
             let (block, state) = args.world.get_block_and_state(args.position);
-            Self.update_plate_state(args.world, args.position, block, state, output);
+            Self.update_plate_state(args.world, args.position, block, state, output, None);
         }
     }
 
@@ -63,16 +62,20 @@ impl BlockBehaviour for WeightedPressurePlateBlock {
         true
     }
 
-    fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        if !Self::can_pressure_plate_place_at(args.world, args.position) {
-            args.world
-                .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        if args.direction == BlockDirection::Down
+            && !Self::can_pressure_plate_place_at(args.world, args.position)
+        {
+            Block::AIR.default_state.id
+        } else {
+            args.state_id
         }
     }
-
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        args.world
-            .is_some_and(|world| Self::can_pressure_plate_place_at(world, args.position))
+        Self::can_pressure_plate_place_at(args.block_accessor, args.position)
     }
 }
 
@@ -91,13 +94,12 @@ impl PressurePlate for WeightedPressurePlateBlock {
             150
         };
         let aabb = detection_box_at(pos);
-        let entities = world.get_entities_at_box(&aabb).len();
-        let players = world
-            .get_players_at_box(&aabb)
-            .into_iter()
-            .filter(|p| p.gamemode.load() != pumpkin_util::GameMode::Spectator)
+        let count = world
+            .get_all_at_box(&aabb)
+            .iter()
+            .filter(|entity| !entity.is_spectator() && !entity.is_ignoring_block_triggers())
             .count();
-        calculate_weighted_signal(entities + players, weight)
+        calculate_weighted_signal(count, weight)
     }
 
     fn set_redstone_output(&self, block: &Block, state: &BlockState, output: u8) -> BlockStateId {

@@ -5,9 +5,6 @@ use pumpkin_data::tag::Taggable;
 use pumpkin_data::world::WorldEvent;
 use pumpkin_data::{Block, BlockDirection, tag};
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::random::RandomGenerator;
-use pumpkin_util::random::xoroshiro128::Xoroshiro;
-use rand::RngExt;
 use soul_fire::SoulFireBlock;
 
 use crate::block::blocks::fire::fire::FireBlock;
@@ -53,7 +50,7 @@ impl FireBlockBase {
         if !block_state.is_air() {
             return false;
         }
-        if Self::is_soul_fire(world, block_pos) {
+        let survives = if Self::is_soul_fire(world, block_pos) {
             SoulFireBlock.can_place_at(CanPlaceAtArgs {
                 server: None,
                 world: Some(world),
@@ -76,8 +73,9 @@ impl FireBlockBase {
                 direction: None,
                 player: None,
                 use_item_on: None,
-            }) || Self::should_light_portal_at(world, block_pos, BlockDirection::Up)
-        }
+            })
+        };
+        survives || Self::should_light_portal_at(world, block_pos, BlockDirection::Up)
     }
 
     pub fn should_light_portal_at(
@@ -108,10 +106,11 @@ impl FireBlockBase {
                 .to_horizontal_axis()
                 .unwrap_or(pumpkin_data::block_properties::HorizontalAxis::X)
         } else {
-            BlockDirection::random_horizontal(&mut RandomGenerator::Xoroshiro(
-                Xoroshiro::from_seed(rand::rng().random()),
-            ))
-            .to_axis()
+            if world.rand_bounded_i32(2) == 0 {
+                pumpkin_data::block_properties::HorizontalAxis::X
+            } else {
+                pumpkin_data::block_properties::HorizontalAxis::Z
+            }
         };
         NetherPortal::get_new_portal(world, block_pos, dir).is_some()
     }
@@ -119,6 +118,9 @@ impl FireBlockBase {
     /// Shared fire collision behavior used by `fire` and `soul_fire`.
     pub fn apply_fire_collision(args: &OnEntityCollisionArgs<'_>, extra_damage_for_living: bool) {
         let base_entity = args.entity.get_entity();
+        if base_entity.frozen_ticks.load(Ordering::Relaxed) > 0 {
+            base_entity.set_frozen_ticks(0);
+        }
         if !base_entity.entity_type.fire_immune && !base_entity.fire_immune.load(Ordering::Relaxed)
         {
             let ticks = base_entity.fire_ticks.load(Ordering::Relaxed);
@@ -127,7 +129,7 @@ impl FireBlockBase {
             if ticks < 0 {
                 base_entity.fire_ticks.store(ticks + 1, Ordering::Relaxed);
             } else if base_entity.entity_type == &EntityType::PLAYER {
-                let rnd_ticks = rand::rng().random_range(1..3);
+                let rnd_ticks = 1 + args.world.rand_bounded_i32(2);
                 base_entity
                     .fire_ticks
                     .store(ticks + rnd_ticks, Ordering::Relaxed);
@@ -137,13 +139,45 @@ impl FireBlockBase {
             if base_entity.fire_ticks.load(Ordering::Relaxed) >= 0 {
                 args.entity.set_on_fire_for(8.0);
             }
+        }
+        // Damage is queued after ignition even for fire-immune entities; the
+        // entity's damage handler decides immunity to IN_FIRE.
+        base_entity.damage(
+            args.entity,
+            if extra_damage_for_living { 2.0 } else { 1.0 },
+            DamageType::IN_FIRE,
+        );
+    }
 
-            // Regular fire vs soul fire damage
-            if extra_damage_for_living {
-                base_entity.damage(args.entity, 2.0, DamageType::IN_FIRE);
-            } else {
-                base_entity.damage(args.entity, 1.0, DamageType::IN_FIRE);
-            }
+    pub fn placed(args: &crate::block::PlacedArgs<'_>) {
+        if matches!(args.world.dimension.id, id if id == Dimension::OVERWORLD.id || id == Dimension::THE_NETHER.id)
+            && let Some(portal) = NetherPortal::get_new_portal(
+                args.world,
+                args.position,
+                pumpkin_data::block_properties::HorizontalAxis::X,
+            )
+        {
+            portal.create(args.world);
+            return;
+        }
+        if let Some(behaviour) = args.world.block_registry.get_pumpkin_block(args.block.id)
+            && !behaviour.can_place_at(CanPlaceAtArgs {
+                server: None,
+                world: Some(args.world),
+                block_accessor: args.world.as_ref(),
+                block: args.block,
+                state: args.state_id.to_state(),
+                position: args.position,
+                direction: None,
+                player: None,
+                use_item_on: None,
+            })
+        {
+            args.world.set_block_state(
+                args.position,
+                Block::AIR.default_state.id,
+                pumpkin_world::world::BlockFlags::NOTIFY_ALL,
+            );
         }
     }
 
