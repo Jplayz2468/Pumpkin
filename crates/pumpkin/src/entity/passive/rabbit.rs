@@ -17,9 +17,8 @@ use crate::entity::{
     ageable::{AgeableData, AgeableMob},
     ai::goal::{
         active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal, breed::BreedGoal,
-        escape_danger::EscapeDangerGoal, follow_parent::FollowParentGoal,
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        melee_attack::MeleeAttackGoal, swim::SwimGoal, tempt::TemptGoal,
+        escape_danger::EscapeDangerGoal, look_at_entity::LookAtEntityGoal,
+        melee_attack::MeleeAttackGoal, revenge::RevengeGoal, swim::SwimGoal, tempt::TemptGoal,
         wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
@@ -105,7 +104,12 @@ impl RabbitEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // Rabbit.java:119-131. Vanilla also runs ClimbOnTopOfPowderSnowGoal (priority 1)
+            // and RaidGardenGoal (priority 5, a MoveToBlockGoal subclass that eats carrots);
+            // neither goal type exists in ai/goal yet, so they are left out rather than
+            // invented here. There is no FollowParentGoal or RandomLookAroundGoal in vanilla's
+            // list for this mob — both were present here before and have been removed.
+            goal_selector.add_goal(1, Box::new(SwimGoal::default()));
             goal_selector.add_goal(1, EscapeDangerGoal::new(2.2));
             goal_selector.add_goal(2, BreedGoal::new(0.8));
             goal_selector.add_goal(3, Box::new(TemptGoal::new(1.0, TEMPT_ITEMS)));
@@ -117,17 +121,19 @@ impl RabbitEntity {
                 4,
                 Box::new(AvoidEntityGoal::new(&EntityType::WOLF, 10.0, 2.2, 2.2)),
             );
+            // Rabbit.java:127 flees any `Monster`-class mob within 4 blocks. AvoidEntityGoal
+            // only tracks a single concrete EntityType (no class/tag matching), so this is an
+            // approximation using Zombie as the representative hostile mob; Fox (not a
+            // Monster in vanilla) and the 10.0F distance from the goal above were wrong here.
             goal_selector.add_goal(
                 4,
-                Box::new(AvoidEntityGoal::new(&EntityType::FOX, 10.0, 2.2, 2.2)),
+                Box::new(AvoidEntityGoal::new(&EntityType::ZOMBIE, 4.0, 2.2, 2.2)),
             );
-            goal_selector.add_goal(5, Box::new(FollowParentGoal::new(0.8)));
             goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(0.6)));
             goal_selector.add_goal(
                 11,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 10.0),
             );
-            goal_selector.add_goal(11, Box::new(RandomLookAroundGoal::default()));
         };
 
         mob_arc
@@ -147,6 +153,7 @@ impl RabbitEntity {
         );
 
         if variant == RabbitVariant::Evil {
+            // Rabbit.java:369-379 (killer bunny / "evil" variant).
             let mut goal_selector = self
                 .mob_entity
                 .goals_selector
@@ -159,18 +166,20 @@ impl RabbitEntity {
                 .target_selector
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
+            // Rabbit.java:372 `new HurtByTargetGoal(this).setAlertOthers()` at priority 1 —
+            // this was previously missing, with an ActiveTargetGoal<Player> wrongly placed
+            // at priority 1 instead of 2.
+            target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
             target_selector.add_goal(
-                1,
+                2,
                 ActiveTargetGoal::with_default(&self.mob_entity, &EntityType::PLAYER, true),
             );
             target_selector.add_goal(
                 2,
                 ActiveTargetGoal::with_default(&self.mob_entity, &EntityType::WOLF, true),
             );
-            target_selector.add_goal(
-                2,
-                ActiveTargetGoal::with_default(&self.mob_entity, &EntityType::FOX, true),
-            );
+            // Rabbit.java:373-374 lists only Player and Wolf at priority 2; there is no Fox
+            // target here in vanilla (that entry has been removed).
         }
     }
 }
