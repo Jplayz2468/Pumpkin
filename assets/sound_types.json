@@ -1,0 +1,1145 @@
+{
+  "AMETHYST": {
+    "break": "BlockAmethystBlockBreak",
+    "fall": "BlockAmethystBlockFall",
+    "hit": "BlockAmethystBlockHit",
+    "pitch": 1.0,
+    "place": "BlockAmethystBlockPlace",
+    "step": "BlockAmethystBlockStep",
+    "volume": 1.0
+  },
+  "AMETHYST_CLUSTER": {
+    "break": "BlockAmethystClusterBreak",
+    "fall": "BlockAmethystClusterFall",
+    "hit": "BlockAmethystClusterHit",
+    "pitch": 1.0,
+    "place": "BlockAmethystClusterPlace",
+    "step": "BlockAmethystClusterStep",
+    "volume": 1.0
+  },
+  "ANCIENT_DEBRIS": {
+    "break": "BlockAncientDebrisBreak",
+    "fall": "BlockAncientDebrisFall",
+    "hit": "BlockAncientDebrisHit",
+    "pitch": 1.0,
+    "place": "BlockAncientDebrisPlace",
+    "step": "BlockAncientDebrisStep",
+    "volume": 1.0
+  },
+  "ANVIL": {
+    "break": "BlockAnvilBreak",
+    "fall": "BlockAnvilFall",
+    "hit": "BlockAnvilHit",
+    "pitch": 1.0,
+    "place": "BlockAnvilPlace",
+    "step": "BlockAnvilStep",
+    "volume": 0.3
+  },
+  "AZALEA": {
+    "break": "BlockAzaleaBreak",
+    "fall": "BlockAzaleaFall",
+    "hit": "BlockAzaleaHit",
+    "pitch": 1.0,
+    "place": "BlockAzaleaPlace",
+    "step": "BlockAzaleaStep",
+    "volume": 1.0
+  },
+  "AZALEA_LEAVES": {
+    "break": "BlockAzaleaLeavesBreak",
+    "fall": "BlockAzaleaLeavesFall",
+    "hit": "BlockAzaleaLeavesHit",
+    "pitch": 1.0,
+    "place": "BlockAzaleaLeavesPlace",
+    "step": "BlockAzaleaLeavesStep",
+    "volume": 1.0
+  },
+  "BAMBOO": {
+    "break": "BlockBambooBreak",
+    "fall": "BlockBambooFall",
+    "hit": "BlockBambooHit",
+    "pitch": 1.0,
+    "place": "BlockBambooPlace",
+    "step": "BlockBambooStep",
+    "volume": 1.0
+  },
+  "BAMBOO_SAPLING": {
+    "break": "BlockBambooSaplingBreak",
+    "fall": "BlockBambooFall",
+    "hit": "BlockBambooSaplingHit",
+    "pitch": 1.0,
+    "place": "BlockBambooSaplingPlace",
+    "step": "BlockBambooStep",
+    "volume": 1.0
+  },
+  "BAMBOO_WOOD": {
+    "break": "BlockBambooWoodBreak",
+    "fall": "BlockBambooWoodFall",
+    "hit": "BlockBambooWoodHit",
+    "pitch": 1.0,
+    "place": "BlockBambooWoodPlace",
+    "step": "BlockBambooWoodStep",
+    "volume": 1.0
+  },
+  "BAMBOO_WOOD_HANGING_SIGN": {
+    "break": "BlockBambooWoodHangingSignBreak",
+    "fall": "BlockBambooWoodHangingSignFall",
+    "hit": "BlockBambooWoodHangingSignHit",
+    "pitch": 1.0,
+    "place": "BlockBambooWoodHangingSignPlace",
+    "step": "BlockBambooWoodHangingSignStep",
+    "volume": 1.0
+  },
+  "BASALT": {
+    "break": "BlockBasaltBreak",
+    "fall": "BlockBasaltFall",
+    "hit": "BlockBasaltHit",
+    "pitch": 1.0,
+    "place": "BlockBasaltPlace",
+    "step": "BlockBasaltStep",
+    "volume": 1.0
+  },
+  "BIG_DRIPLEAF": {
+    "break": "BlockBigDripleafBreak",
+    "fall": "BlockBigDripleafFall",
+    "hit": "BlockBigDripleafHit",
+    "pitch": 1.0,
+    "place": "BlockBigDripleafPlace",
+    "step": "BlockBigDripleafStep",
+    "volume": 1.0
+  },
+  "BONE_BLOCK": {
+    "break": "BlockBoneBlockBreak",
+    "fall": "BlockBoneBlockFall",
+    "hit": "BlockBoneBlockHit",
+    "pitch": 1.0,
+    "place": "BlockBoneBlockPlace",
+    "step": "BlockBoneBlockStep",
+    "volume": 1.0
+  },
+  "CACTUS_FLOWER": {
+    "break": "BlockCactusFlowerBreak",
+    "fall": "IntentionallyEmpty",
+    "hit": "IntentionallyEmpty",
+    "pitch": 1.0,
+    "place": "BlockCactusFlowerPlace",
+    "step": "IntentionallyEmpty",
+    "volume": 1.0
+  },
+  "CALCITE": {
+    "break": "BlockCalciteBreak",
+    "fall": "BlockCalciteFall",
+    "hit": "BlockCalciteHit",
+    "pitch": 1.0,
+    "place": "BlockCalcitePlace",
+    "step": "BlockCalciteStep",
+    "volume": 1.0
+  },
+  "CANDLE": {
+    "break": "BlockCandleBreak",
+    "fall": "BlockCandleFall",
+    "hit": "BlockCandleHit",
+    "pitch": 1.0,
+    "place": "BlockCandlePlace",
+    "step": "BlockCandleStep",
+    "volume": 1.0
+  },
+  "CAVE_VINES": {
+    "break": "BlockCaveVinesBreak",
+    "fall": "BlockCaveVinesFall",
+    "hit": "BlockCaveVinesHit",
+    "pitch": 1.0,
+    "place": "BlockCaveVinesPlace",
+    "step": "BlockCaveVinesStep",
+    "volume": 1.0
+  },
+  "CHAIN": {
+    "break": "BlockChainBreak",
+    "fall": "BlockChainFall",
+    "hit": "BlockChainHit",
+    "pitch": 1.0,
+    "place": "BlockChainPlace",
+    "step": "BlockChainStep",
+    "volume": 1.0
+  },
+  "CHERRY_LEAVES": {
+    "break": "BlockCherryLeavesBreak",
+    "fall": "BlockCherryLeavesFall",
+    "hit": "BlockCherryLeavesHit",
+    "pitch": 1.0,
+    "place": "BlockCherryLeavesPlace",
+    "step": "BlockCherryLeavesStep",
+    "volume": 1.0
+  },
+  "CHERRY_SAPLING": {
+    "break": "BlockCherrySaplingBreak",
+    "fall": "BlockCherrySaplingFall",
+    "hit": "BlockCherrySaplingHit",
+    "pitch": 1.0,
+    "place": "BlockCherrySaplingPlace",
+    "step": "BlockCherrySaplingStep",
+    "volume": 1.0
+  },
+  "CHERRY_WOOD": {
+    "break": "BlockCherryWoodBreak",
+    "fall": "BlockCherryWoodFall",
+    "hit": "BlockCherryWoodHit",
+    "pitch": 1.0,
+    "place": "BlockCherryWoodPlace",
+    "step": "BlockCherryWoodStep",
+    "volume": 1.0
+  },
+  "CHERRY_WOOD_HANGING_SIGN": {
+    "break": "BlockCherryWoodHangingSignBreak",
+    "fall": "BlockCherryWoodHangingSignFall",
+    "hit": "BlockCherryWoodHangingSignHit",
+    "pitch": 1.0,
+    "place": "BlockCherryWoodHangingSignPlace",
+    "step": "BlockCherryWoodHangingSignStep",
+    "volume": 1.0
+  },
+  "CHISELED_BOOKSHELF": {
+    "break": "BlockChiseledBookshelfBreak",
+    "fall": "BlockChiseledBookshelfFall",
+    "hit": "BlockChiseledBookshelfHit",
+    "pitch": 1.0,
+    "place": "BlockChiseledBookshelfPlace",
+    "step": "BlockChiseledBookshelfStep",
+    "volume": 1.0
+  },
+  "CINNABAR": {
+    "break": "BlockCinnabarBreak",
+    "fall": "BlockCinnabarFall",
+    "hit": "BlockCinnabarHit",
+    "pitch": 1.0,
+    "place": "BlockCinnabarPlace",
+    "step": "BlockCinnabarStep",
+    "volume": 1.0
+  },
+  "COBWEB": {
+    "break": "BlockCobwebBreak",
+    "fall": "BlockCobwebFall",
+    "hit": "BlockCobwebHit",
+    "pitch": 1.0,
+    "place": "BlockCobwebPlace",
+    "step": "BlockCobwebStep",
+    "volume": 1.0
+  },
+  "COPPER": {
+    "break": "BlockCopperBreak",
+    "fall": "BlockCopperFall",
+    "hit": "BlockCopperHit",
+    "pitch": 1.0,
+    "place": "BlockCopperPlace",
+    "step": "BlockCopperStep",
+    "volume": 1.0
+  },
+  "COPPER_BULB": {
+    "break": "BlockCopperBulbBreak",
+    "fall": "BlockCopperBulbFall",
+    "hit": "BlockCopperBulbHit",
+    "pitch": 1.0,
+    "place": "BlockCopperBulbPlace",
+    "step": "BlockCopperBulbStep",
+    "volume": 1.0
+  },
+  "COPPER_GOLEM_STATUE": {
+    "break": "BlockCopperGolemStatueBreak",
+    "fall": "BlockCopperGolemStatueFall",
+    "hit": "BlockCopperGolemStatueHit",
+    "pitch": 1.0,
+    "place": "BlockCopperGolemStatuePlace",
+    "step": "BlockCopperGolemStatueStep",
+    "volume": 1.0
+  },
+  "COPPER_GRATE": {
+    "break": "BlockCopperGrateBreak",
+    "fall": "BlockCopperGrateFall",
+    "hit": "BlockCopperGrateHit",
+    "pitch": 1.0,
+    "place": "BlockCopperGratePlace",
+    "step": "BlockCopperGrateStep",
+    "volume": 1.0
+  },
+  "CORAL_BLOCK": {
+    "break": "BlockCoralBlockBreak",
+    "fall": "BlockCoralBlockFall",
+    "hit": "BlockCoralBlockHit",
+    "pitch": 1.0,
+    "place": "BlockCoralBlockPlace",
+    "step": "BlockCoralBlockStep",
+    "volume": 1.0
+  },
+  "CREAKING_HEART": {
+    "break": "BlockCreakingHeartBreak",
+    "fall": "BlockCreakingHeartFall",
+    "hit": "BlockCreakingHeartHit",
+    "pitch": 1.0,
+    "place": "BlockCreakingHeartPlace",
+    "step": "BlockCreakingHeartStep",
+    "volume": 1.0
+  },
+  "CROP": {
+    "break": "BlockCropBreak",
+    "fall": "BlockGrassFall",
+    "hit": "BlockGrassHit",
+    "pitch": 1.0,
+    "place": "ItemCropPlant",
+    "step": "BlockGrassStep",
+    "volume": 1.0
+  },
+  "DECORATED_POT": {
+    "break": "BlockDecoratedPotBreak",
+    "fall": "BlockDecoratedPotFall",
+    "hit": "BlockDecoratedPotHit",
+    "pitch": 1.0,
+    "place": "BlockDecoratedPotPlace",
+    "step": "BlockDecoratedPotStep",
+    "volume": 1.0
+  },
+  "DECORATED_POT_CRACKED": {
+    "break": "BlockDecoratedPotShatter",
+    "fall": "BlockDecoratedPotFall",
+    "hit": "BlockDecoratedPotHit",
+    "pitch": 1.0,
+    "place": "BlockDecoratedPotPlace",
+    "step": "BlockDecoratedPotStep",
+    "volume": 1.0
+  },
+  "DEEPSLATE": {
+    "break": "BlockDeepslateBreak",
+    "fall": "BlockDeepslateFall",
+    "hit": "BlockDeepslateHit",
+    "pitch": 1.0,
+    "place": "BlockDeepslatePlace",
+    "step": "BlockDeepslateStep",
+    "volume": 1.0
+  },
+  "DEEPSLATE_BRICKS": {
+    "break": "BlockDeepslateBricksBreak",
+    "fall": "BlockDeepslateBricksFall",
+    "hit": "BlockDeepslateBricksHit",
+    "pitch": 1.0,
+    "place": "BlockDeepslateBricksPlace",
+    "step": "BlockDeepslateBricksStep",
+    "volume": 1.0
+  },
+  "DEEPSLATE_TILES": {
+    "break": "BlockDeepslateTilesBreak",
+    "fall": "BlockDeepslateTilesFall",
+    "hit": "BlockDeepslateTilesHit",
+    "pitch": 1.0,
+    "place": "BlockDeepslateTilesPlace",
+    "step": "BlockDeepslateTilesStep",
+    "volume": 1.0
+  },
+  "DRIED_GHAST": {
+    "break": "BlockDriedGhastBreak",
+    "fall": "BlockDriedGhastFall",
+    "hit": "IntentionallyEmpty",
+    "pitch": 1.0,
+    "place": "IntentionallyEmpty",
+    "step": "BlockDriedGhastStep",
+    "volume": 1.0
+  },
+  "DRIPSTONE_BLOCK": {
+    "break": "BlockDripstoneBlockBreak",
+    "fall": "BlockDripstoneBlockFall",
+    "hit": "BlockDripstoneBlockHit",
+    "pitch": 1.0,
+    "place": "BlockDripstoneBlockPlace",
+    "step": "BlockDripstoneBlockStep",
+    "volume": 1.0
+  },
+  "EMPTY": {
+    "break": "IntentionallyEmpty",
+    "fall": "IntentionallyEmpty",
+    "hit": "IntentionallyEmpty",
+    "pitch": 1.0,
+    "place": "IntentionallyEmpty",
+    "step": "IntentionallyEmpty",
+    "volume": 1.0
+  },
+  "FLOWERING_AZALEA": {
+    "break": "BlockFloweringAzaleaBreak",
+    "fall": "BlockFloweringAzaleaFall",
+    "hit": "BlockFloweringAzaleaHit",
+    "pitch": 1.0,
+    "place": "BlockFloweringAzaleaPlace",
+    "step": "BlockFloweringAzaleaStep",
+    "volume": 1.0
+  },
+  "FROGLIGHT": {
+    "break": "BlockFroglightBreak",
+    "fall": "BlockFroglightFall",
+    "hit": "BlockFroglightHit",
+    "pitch": 1.0,
+    "place": "BlockFroglightPlace",
+    "step": "BlockFroglightStep",
+    "volume": 1.0
+  },
+  "FROGSPAWN": {
+    "break": "BlockFrogspawnBreak",
+    "fall": "BlockFrogspawnFall",
+    "hit": "BlockFrogspawnHit",
+    "pitch": 1.0,
+    "place": "BlockFrogspawnPlace",
+    "step": "BlockFrogspawnStep",
+    "volume": 1.0
+  },
+  "FUNGUS": {
+    "break": "BlockFungusBreak",
+    "fall": "BlockFungusFall",
+    "hit": "BlockFungusHit",
+    "pitch": 1.0,
+    "place": "BlockFungusPlace",
+    "step": "BlockFungusStep",
+    "volume": 1.0
+  },
+  "GILDED_BLACKSTONE": {
+    "break": "BlockGildedBlackstoneBreak",
+    "fall": "BlockGildedBlackstoneFall",
+    "hit": "BlockGildedBlackstoneHit",
+    "pitch": 1.0,
+    "place": "BlockGildedBlackstonePlace",
+    "step": "BlockGildedBlackstoneStep",
+    "volume": 1.0
+  },
+  "GLASS": {
+    "break": "BlockGlassBreak",
+    "fall": "BlockGlassFall",
+    "hit": "BlockGlassHit",
+    "pitch": 1.0,
+    "place": "BlockGlassPlace",
+    "step": "BlockGlassStep",
+    "volume": 1.0
+  },
+  "GLOW_LICHEN": {
+    "break": "BlockGrassBreak",
+    "fall": "BlockGrassFall",
+    "hit": "BlockGrassHit",
+    "pitch": 1.0,
+    "place": "BlockGrassPlace",
+    "step": "BlockVineStep",
+    "volume": 1.0
+  },
+  "GRASS": {
+    "break": "BlockGrassBreak",
+    "fall": "BlockGrassFall",
+    "hit": "BlockGrassHit",
+    "pitch": 1.0,
+    "place": "BlockGrassPlace",
+    "step": "BlockGrassStep",
+    "volume": 1.0
+  },
+  "GRAVEL": {
+    "break": "BlockGravelBreak",
+    "fall": "BlockGravelFall",
+    "hit": "BlockGravelHit",
+    "pitch": 1.0,
+    "place": "BlockGravelPlace",
+    "step": "BlockGravelStep",
+    "volume": 1.0
+  },
+  "HANGING_ROOTS": {
+    "break": "BlockHangingRootsBreak",
+    "fall": "BlockHangingRootsFall",
+    "hit": "BlockHangingRootsHit",
+    "pitch": 1.0,
+    "place": "BlockHangingRootsPlace",
+    "step": "BlockHangingRootsStep",
+    "volume": 1.0
+  },
+  "HANGING_SIGN": {
+    "break": "BlockHangingSignBreak",
+    "fall": "BlockHangingSignFall",
+    "hit": "BlockHangingSignHit",
+    "pitch": 1.0,
+    "place": "BlockHangingSignPlace",
+    "step": "BlockHangingSignStep",
+    "volume": 1.0
+  },
+  "HARD_CROP": {
+    "break": "BlockWoodBreak",
+    "fall": "BlockWoodFall",
+    "hit": "BlockWoodHit",
+    "pitch": 1.0,
+    "place": "ItemCropPlant",
+    "step": "BlockWoodStep",
+    "volume": 1.0
+  },
+  "HEAVY_CORE": {
+    "break": "BlockHeavyCoreBreak",
+    "fall": "BlockHeavyCoreFall",
+    "hit": "BlockHeavyCoreHit",
+    "pitch": 1.0,
+    "place": "BlockHeavyCorePlace",
+    "step": "BlockHeavyCoreStep",
+    "volume": 1.0
+  },
+  "HONEY_BLOCK": {
+    "break": "BlockHoneyBlockBreak",
+    "fall": "BlockHoneyBlockFall",
+    "hit": "BlockHoneyBlockHit",
+    "pitch": 1.0,
+    "place": "BlockHoneyBlockPlace",
+    "step": "BlockHoneyBlockStep",
+    "volume": 1.0
+  },
+  "IRON": {
+    "break": "BlockIronBreak",
+    "fall": "BlockIronFall",
+    "hit": "BlockIronHit",
+    "pitch": 1.0,
+    "place": "BlockIronPlace",
+    "step": "BlockIronStep",
+    "volume": 1.0
+  },
+  "LADDER": {
+    "break": "BlockLadderBreak",
+    "fall": "BlockLadderFall",
+    "hit": "BlockLadderHit",
+    "pitch": 1.0,
+    "place": "BlockLadderPlace",
+    "step": "BlockLadderStep",
+    "volume": 1.0
+  },
+  "LANTERN": {
+    "break": "BlockLanternBreak",
+    "fall": "BlockLanternFall",
+    "hit": "BlockLanternHit",
+    "pitch": 1.0,
+    "place": "BlockLanternPlace",
+    "step": "BlockLanternStep",
+    "volume": 1.0
+  },
+  "LARGE_AMETHYST_BUD": {
+    "break": "BlockLargeAmethystBudBreak",
+    "fall": "BlockAmethystClusterFall",
+    "hit": "BlockAmethystClusterHit",
+    "pitch": 1.0,
+    "place": "BlockLargeAmethystBudPlace",
+    "step": "BlockAmethystClusterStep",
+    "volume": 1.0
+  },
+  "LEAF_LITTER": {
+    "break": "BlockLeafLitterBreak",
+    "fall": "BlockLeafLitterFall",
+    "hit": "BlockLeafLitterHit",
+    "pitch": 1.0,
+    "place": "BlockLeafLitterPlace",
+    "step": "BlockLeafLitterStep",
+    "volume": 1.0
+  },
+  "LILY_PAD": {
+    "break": "BlockBigDripleafBreak",
+    "fall": "BlockBigDripleafFall",
+    "hit": "BlockBigDripleafHit",
+    "pitch": 1.0,
+    "place": "BlockLilyPadPlace",
+    "step": "BlockBigDripleafStep",
+    "volume": 1.0
+  },
+  "LODESTONE": {
+    "break": "BlockLodestoneBreak",
+    "fall": "BlockLodestoneFall",
+    "hit": "BlockLodestoneHit",
+    "pitch": 1.0,
+    "place": "BlockLodestonePlace",
+    "step": "BlockLodestoneStep",
+    "volume": 1.0
+  },
+  "MANGROVE_ROOTS": {
+    "break": "BlockMangroveRootsBreak",
+    "fall": "BlockMangroveRootsFall",
+    "hit": "BlockMangroveRootsHit",
+    "pitch": 1.0,
+    "place": "BlockMangroveRootsPlace",
+    "step": "BlockMangroveRootsStep",
+    "volume": 1.0
+  },
+  "MEDIUM_AMETHYST_BUD": {
+    "break": "BlockMediumAmethystBudBreak",
+    "fall": "BlockAmethystClusterFall",
+    "hit": "BlockAmethystClusterHit",
+    "pitch": 1.0,
+    "place": "BlockMediumAmethystBudPlace",
+    "step": "BlockAmethystClusterStep",
+    "volume": 1.0
+  },
+  "METAL": {
+    "break": "BlockMetalBreak",
+    "fall": "BlockMetalFall",
+    "hit": "BlockMetalHit",
+    "pitch": 1.5,
+    "place": "BlockMetalPlace",
+    "step": "BlockMetalStep",
+    "volume": 1.0
+  },
+  "MOSS": {
+    "break": "BlockMossBreak",
+    "fall": "BlockMossFall",
+    "hit": "BlockMossHit",
+    "pitch": 1.0,
+    "place": "BlockMossPlace",
+    "step": "BlockMossStep",
+    "volume": 1.0
+  },
+  "MOSS_CARPET": {
+    "break": "BlockMossCarpetBreak",
+    "fall": "BlockMossCarpetFall",
+    "hit": "BlockMossCarpetHit",
+    "pitch": 1.0,
+    "place": "BlockMossCarpetPlace",
+    "step": "BlockMossCarpetStep",
+    "volume": 1.0
+  },
+  "MUD": {
+    "break": "BlockMudBreak",
+    "fall": "BlockMudFall",
+    "hit": "BlockMudHit",
+    "pitch": 1.0,
+    "place": "BlockMudPlace",
+    "step": "BlockMudStep",
+    "volume": 1.0
+  },
+  "MUDDY_MANGROVE_ROOTS": {
+    "break": "BlockMuddyMangroveRootsBreak",
+    "fall": "BlockMuddyMangroveRootsFall",
+    "hit": "BlockMuddyMangroveRootsHit",
+    "pitch": 1.0,
+    "place": "BlockMuddyMangroveRootsPlace",
+    "step": "BlockMuddyMangroveRootsStep",
+    "volume": 1.0
+  },
+  "MUD_BRICKS": {
+    "break": "BlockMudBricksBreak",
+    "fall": "BlockMudBricksFall",
+    "hit": "BlockMudBricksHit",
+    "pitch": 1.0,
+    "place": "BlockMudBricksPlace",
+    "step": "BlockMudBricksStep",
+    "volume": 1.0
+  },
+  "NETHERITE_BLOCK": {
+    "break": "BlockNetheriteBlockBreak",
+    "fall": "BlockNetheriteBlockFall",
+    "hit": "BlockNetheriteBlockHit",
+    "pitch": 1.0,
+    "place": "BlockNetheriteBlockPlace",
+    "step": "BlockNetheriteBlockStep",
+    "volume": 1.0
+  },
+  "NETHERRACK": {
+    "break": "BlockNetherrackBreak",
+    "fall": "BlockNetherrackFall",
+    "hit": "BlockNetherrackHit",
+    "pitch": 1.0,
+    "place": "BlockNetherrackPlace",
+    "step": "BlockNetherrackStep",
+    "volume": 1.0
+  },
+  "NETHER_BRICKS": {
+    "break": "BlockNetherBricksBreak",
+    "fall": "BlockNetherBricksFall",
+    "hit": "BlockNetherBricksHit",
+    "pitch": 1.0,
+    "place": "BlockNetherBricksPlace",
+    "step": "BlockNetherBricksStep",
+    "volume": 1.0
+  },
+  "NETHER_GOLD_ORE": {
+    "break": "BlockNetherGoldOreBreak",
+    "fall": "BlockNetherGoldOreFall",
+    "hit": "BlockNetherGoldOreHit",
+    "pitch": 1.0,
+    "place": "BlockNetherGoldOrePlace",
+    "step": "BlockNetherGoldOreStep",
+    "volume": 1.0
+  },
+  "NETHER_ORE": {
+    "break": "BlockNetherOreBreak",
+    "fall": "BlockNetherOreFall",
+    "hit": "BlockNetherOreHit",
+    "pitch": 1.0,
+    "place": "BlockNetherOrePlace",
+    "step": "BlockNetherOreStep",
+    "volume": 1.0
+  },
+  "NETHER_SPROUTS": {
+    "break": "BlockNetherSproutsBreak",
+    "fall": "BlockNetherSproutsFall",
+    "hit": "BlockNetherSproutsHit",
+    "pitch": 1.0,
+    "place": "BlockNetherSproutsPlace",
+    "step": "BlockNetherSproutsStep",
+    "volume": 1.0
+  },
+  "NETHER_WART": {
+    "break": "BlockNetherWartBreak",
+    "fall": "BlockStoneFall",
+    "hit": "BlockStoneHit",
+    "pitch": 1.0,
+    "place": "ItemNetherWartPlant",
+    "step": "BlockStoneStep",
+    "volume": 1.0
+  },
+  "NETHER_WOOD": {
+    "break": "BlockNetherWoodBreak",
+    "fall": "BlockNetherWoodFall",
+    "hit": "BlockNetherWoodHit",
+    "pitch": 1.0,
+    "place": "BlockNetherWoodPlace",
+    "step": "BlockNetherWoodStep",
+    "volume": 1.0
+  },
+  "NETHER_WOOD_HANGING_SIGN": {
+    "break": "BlockNetherWoodHangingSignBreak",
+    "fall": "BlockNetherWoodHangingSignFall",
+    "hit": "BlockNetherWoodHangingSignHit",
+    "pitch": 1.0,
+    "place": "BlockNetherWoodHangingSignPlace",
+    "step": "BlockNetherWoodHangingSignStep",
+    "volume": 1.0
+  },
+  "NYLIUM": {
+    "break": "BlockNyliumBreak",
+    "fall": "BlockNyliumFall",
+    "hit": "BlockNyliumHit",
+    "pitch": 1.0,
+    "place": "BlockNyliumPlace",
+    "step": "BlockNyliumStep",
+    "volume": 1.0
+  },
+  "PACKED_MUD": {
+    "break": "BlockPackedMudBreak",
+    "fall": "BlockPackedMudFall",
+    "hit": "BlockPackedMudHit",
+    "pitch": 1.0,
+    "place": "BlockPackedMudPlace",
+    "step": "BlockPackedMudStep",
+    "volume": 1.0
+  },
+  "PINK_PETALS": {
+    "break": "BlockPinkPetalsBreak",
+    "fall": "BlockPinkPetalsFall",
+    "hit": "BlockPinkPetalsHit",
+    "pitch": 1.0,
+    "place": "BlockPinkPetalsPlace",
+    "step": "BlockPinkPetalsStep",
+    "volume": 1.0
+  },
+  "POINTED_DRIPSTONE": {
+    "break": "BlockPointedDripstoneBreak",
+    "fall": "BlockPointedDripstoneFall",
+    "hit": "BlockPointedDripstoneHit",
+    "pitch": 1.0,
+    "place": "BlockPointedDripstonePlace",
+    "step": "BlockPointedDripstoneStep",
+    "volume": 1.0
+  },
+  "POLISHED_DEEPSLATE": {
+    "break": "BlockPolishedDeepslateBreak",
+    "fall": "BlockPolishedDeepslateFall",
+    "hit": "BlockPolishedDeepslateHit",
+    "pitch": 1.0,
+    "place": "BlockPolishedDeepslatePlace",
+    "step": "BlockPolishedDeepslateStep",
+    "volume": 1.0
+  },
+  "POLISHED_TUFF": {
+    "break": "BlockPolishedTuffBreak",
+    "fall": "BlockPolishedTuffFall",
+    "hit": "BlockPolishedTuffHit",
+    "pitch": 1.0,
+    "place": "BlockPolishedTuffPlace",
+    "step": "BlockPolishedTuffStep",
+    "volume": 1.0
+  },
+  "POTENT_SULFUR": {
+    "break": "BlockPotentSulfurBreak",
+    "fall": "BlockPotentSulfurFall",
+    "hit": "BlockPotentSulfurHit",
+    "pitch": 1.0,
+    "place": "BlockPotentSulfurPlace",
+    "step": "BlockPotentSulfurStep",
+    "volume": 1.0
+  },
+  "POWDER_SNOW": {
+    "break": "BlockPowderSnowBreak",
+    "fall": "BlockPowderSnowFall",
+    "hit": "BlockPowderSnowHit",
+    "pitch": 1.0,
+    "place": "BlockPowderSnowPlace",
+    "step": "BlockPowderSnowStep",
+    "volume": 1.0
+  },
+  "RESIN": {
+    "break": "BlockResinBreak",
+    "fall": "BlockResinFall",
+    "hit": "IntentionallyEmpty",
+    "pitch": 1.0,
+    "place": "BlockResinPlace",
+    "step": "BlockResinStep",
+    "volume": 1.0
+  },
+  "RESIN_BRICKS": {
+    "break": "BlockResinBricksBreak",
+    "fall": "BlockResinBricksFall",
+    "hit": "BlockResinBricksHit",
+    "pitch": 1.0,
+    "place": "BlockResinBricksPlace",
+    "step": "BlockResinBricksStep",
+    "volume": 1.0
+  },
+  "ROOTED_DIRT": {
+    "break": "BlockRootedDirtBreak",
+    "fall": "BlockRootedDirtFall",
+    "hit": "BlockRootedDirtHit",
+    "pitch": 1.0,
+    "place": "BlockRootedDirtPlace",
+    "step": "BlockRootedDirtStep",
+    "volume": 1.0
+  },
+  "ROOTS": {
+    "break": "BlockRootsBreak",
+    "fall": "BlockRootsFall",
+    "hit": "BlockRootsHit",
+    "pitch": 1.0,
+    "place": "BlockRootsPlace",
+    "step": "BlockRootsStep",
+    "volume": 1.0
+  },
+  "SAND": {
+    "break": "BlockSandBreak",
+    "fall": "BlockSandFall",
+    "hit": "BlockSandHit",
+    "pitch": 1.0,
+    "place": "BlockSandPlace",
+    "step": "BlockSandStep",
+    "volume": 1.0
+  },
+  "SCAFFOLDING": {
+    "break": "BlockScaffoldingBreak",
+    "fall": "BlockScaffoldingFall",
+    "hit": "BlockScaffoldingHit",
+    "pitch": 1.0,
+    "place": "BlockScaffoldingPlace",
+    "step": "BlockScaffoldingStep",
+    "volume": 1.0
+  },
+  "SCULK": {
+    "break": "BlockSculkBreak",
+    "fall": "BlockSculkFall",
+    "hit": "BlockSculkHit",
+    "pitch": 1.0,
+    "place": "BlockSculkPlace",
+    "step": "BlockSculkStep",
+    "volume": 1.0
+  },
+  "SCULK_CATALYST": {
+    "break": "BlockSculkCatalystBreak",
+    "fall": "BlockSculkCatalystFall",
+    "hit": "BlockSculkCatalystHit",
+    "pitch": 1.0,
+    "place": "BlockSculkCatalystPlace",
+    "step": "BlockSculkCatalystStep",
+    "volume": 1.0
+  },
+  "SCULK_SENSOR": {
+    "break": "BlockSculkSensorBreak",
+    "fall": "BlockSculkSensorFall",
+    "hit": "BlockSculkSensorHit",
+    "pitch": 1.0,
+    "place": "BlockSculkSensorPlace",
+    "step": "BlockSculkSensorStep",
+    "volume": 1.0
+  },
+  "SCULK_SHRIEKER": {
+    "break": "BlockSculkShriekerBreak",
+    "fall": "BlockSculkShriekerFall",
+    "hit": "BlockSculkShriekerHit",
+    "pitch": 1.0,
+    "place": "BlockSculkShriekerPlace",
+    "step": "BlockSculkShriekerStep",
+    "volume": 1.0
+  },
+  "SCULK_VEIN": {
+    "break": "BlockSculkVeinBreak",
+    "fall": "BlockSculkVeinFall",
+    "hit": "BlockSculkVeinHit",
+    "pitch": 1.0,
+    "place": "BlockSculkVeinPlace",
+    "step": "BlockSculkVeinStep",
+    "volume": 1.0
+  },
+  "SHELF": {
+    "break": "BlockShelfBreak",
+    "fall": "BlockShelfFall",
+    "hit": "BlockShelfHit",
+    "pitch": 1.0,
+    "place": "BlockShelfPlace",
+    "step": "BlockShelfStep",
+    "volume": 1.0
+  },
+  "SHROOMLIGHT": {
+    "break": "BlockShroomlightBreak",
+    "fall": "BlockShroomlightFall",
+    "hit": "BlockShroomlightHit",
+    "pitch": 1.0,
+    "place": "BlockShroomlightPlace",
+    "step": "BlockShroomlightStep",
+    "volume": 1.0
+  },
+  "SLIME_BLOCK": {
+    "break": "BlockSlimeBlockBreak",
+    "fall": "BlockSlimeBlockFall",
+    "hit": "BlockSlimeBlockHit",
+    "pitch": 1.0,
+    "place": "BlockSlimeBlockPlace",
+    "step": "BlockSlimeBlockStep",
+    "volume": 1.0
+  },
+  "SMALL_AMETHYST_BUD": {
+    "break": "BlockSmallAmethystBudBreak",
+    "fall": "BlockAmethystClusterFall",
+    "hit": "BlockAmethystClusterHit",
+    "pitch": 1.0,
+    "place": "BlockSmallAmethystBudPlace",
+    "step": "BlockAmethystClusterStep",
+    "volume": 1.0
+  },
+  "SMALL_DRIPLEAF": {
+    "break": "BlockSmallDripleafBreak",
+    "fall": "BlockSmallDripleafFall",
+    "hit": "BlockSmallDripleafHit",
+    "pitch": 1.0,
+    "place": "BlockSmallDripleafPlace",
+    "step": "BlockSmallDripleafStep",
+    "volume": 1.0
+  },
+  "SNOW": {
+    "break": "BlockSnowBreak",
+    "fall": "BlockSnowFall",
+    "hit": "BlockSnowHit",
+    "pitch": 1.0,
+    "place": "BlockSnowPlace",
+    "step": "BlockSnowStep",
+    "volume": 1.0
+  },
+  "SOUL_SAND": {
+    "break": "BlockSoulSandBreak",
+    "fall": "BlockSoulSandFall",
+    "hit": "BlockSoulSandHit",
+    "pitch": 1.0,
+    "place": "BlockSoulSandPlace",
+    "step": "BlockSoulSandStep",
+    "volume": 1.0
+  },
+  "SOUL_SOIL": {
+    "break": "BlockSoulSoilBreak",
+    "fall": "BlockSoulSoilFall",
+    "hit": "BlockSoulSoilHit",
+    "pitch": 1.0,
+    "place": "BlockSoulSoilPlace",
+    "step": "BlockSoulSoilStep",
+    "volume": 1.0
+  },
+  "SPAWNER": {
+    "break": "BlockSpawnerBreak",
+    "fall": "BlockSpawnerFall",
+    "hit": "BlockSpawnerHit",
+    "pitch": 1.0,
+    "place": "BlockSpawnerPlace",
+    "step": "BlockSpawnerStep",
+    "volume": 1.0
+  },
+  "SPONGE": {
+    "break": "BlockSpongeBreak",
+    "fall": "BlockSpongeFall",
+    "hit": "BlockSpongeHit",
+    "pitch": 1.0,
+    "place": "BlockSpongePlace",
+    "step": "BlockSpongeStep",
+    "volume": 1.0
+  },
+  "SPORE_BLOSSOM": {
+    "break": "BlockSporeBlossomBreak",
+    "fall": "BlockSporeBlossomFall",
+    "hit": "BlockSporeBlossomHit",
+    "pitch": 1.0,
+    "place": "BlockSporeBlossomPlace",
+    "step": "BlockSporeBlossomStep",
+    "volume": 1.0
+  },
+  "STEM": {
+    "break": "BlockStemBreak",
+    "fall": "BlockStemFall",
+    "hit": "BlockStemHit",
+    "pitch": 1.0,
+    "place": "BlockStemPlace",
+    "step": "BlockStemStep",
+    "volume": 1.0
+  },
+  "STONE": {
+    "break": "BlockStoneBreak",
+    "fall": "BlockStoneFall",
+    "hit": "BlockStoneHit",
+    "pitch": 1.0,
+    "place": "BlockStonePlace",
+    "step": "BlockStoneStep",
+    "volume": 1.0
+  },
+  "SULFUR": {
+    "break": "BlockSulfurBreak",
+    "fall": "BlockSulfurFall",
+    "hit": "BlockSulfurHit",
+    "pitch": 1.0,
+    "place": "BlockSulfurPlace",
+    "step": "BlockSulfurStep",
+    "volume": 1.0
+  },
+  "SULFUR_SPIKE": {
+    "break": "BlockSulfurSpikeBreak",
+    "fall": "BlockSulfurSpikeFall",
+    "hit": "BlockSulfurSpikeHit",
+    "pitch": 1.0,
+    "place": "BlockSulfurSpikePlace",
+    "step": "BlockSulfurSpikeStep",
+    "volume": 1.0
+  },
+  "SUSPICIOUS_GRAVEL": {
+    "break": "BlockSuspiciousGravelBreak",
+    "fall": "BlockSuspiciousGravelFall",
+    "hit": "BlockSuspiciousGravelHit",
+    "pitch": 1.0,
+    "place": "BlockSuspiciousGravelPlace",
+    "step": "BlockSuspiciousGravelStep",
+    "volume": 1.0
+  },
+  "SUSPICIOUS_SAND": {
+    "break": "BlockSuspiciousSandBreak",
+    "fall": "BlockSuspiciousSandFall",
+    "hit": "BlockSuspiciousSandHit",
+    "pitch": 1.0,
+    "place": "BlockSuspiciousSandPlace",
+    "step": "BlockSuspiciousSandStep",
+    "volume": 1.0
+  },
+  "SWEET_BERRY_BUSH": {
+    "break": "BlockSweetBerryBushBreak",
+    "fall": "BlockGrassFall",
+    "hit": "BlockGrassHit",
+    "pitch": 1.0,
+    "place": "BlockSweetBerryBushPlace",
+    "step": "BlockGrassStep",
+    "volume": 1.0
+  },
+  "TRIAL_SPAWNER": {
+    "break": "BlockTrialSpawnerBreak",
+    "fall": "BlockTrialSpawnerFall",
+    "hit": "BlockTrialSpawnerHit",
+    "pitch": 1.0,
+    "place": "BlockTrialSpawnerPlace",
+    "step": "BlockTrialSpawnerStep",
+    "volume": 1.0
+  },
+  "TUFF": {
+    "break": "BlockTuffBreak",
+    "fall": "BlockTuffFall",
+    "hit": "BlockTuffHit",
+    "pitch": 1.0,
+    "place": "BlockTuffPlace",
+    "step": "BlockTuffStep",
+    "volume": 1.0
+  },
+  "TUFF_BRICKS": {
+    "break": "BlockTuffBricksBreak",
+    "fall": "BlockTuffBricksFall",
+    "hit": "BlockTuffBricksHit",
+    "pitch": 1.0,
+    "place": "BlockTuffBricksPlace",
+    "step": "BlockTuffBricksStep",
+    "volume": 1.0
+  },
+  "TWISTING_VINES": {
+    "break": "BlockWeepingVinesBreak",
+    "fall": "BlockWeepingVinesFall",
+    "hit": "BlockWeepingVinesHit",
+    "pitch": 0.5,
+    "place": "BlockWeepingVinesPlace",
+    "step": "BlockWeepingVinesStep",
+    "volume": 1.0
+  },
+  "VAULT": {
+    "break": "BlockVaultBreak",
+    "fall": "BlockVaultFall",
+    "hit": "BlockVaultHit",
+    "pitch": 1.0,
+    "place": "BlockVaultPlace",
+    "step": "BlockVaultStep",
+    "volume": 1.0
+  },
+  "VINE": {
+    "break": "BlockVineBreak",
+    "fall": "BlockVineFall",
+    "hit": "BlockVineHit",
+    "pitch": 1.0,
+    "place": "BlockVinePlace",
+    "step": "BlockVineStep",
+    "volume": 1.0
+  },
+  "WART_BLOCK": {
+    "break": "BlockWartBlockBreak",
+    "fall": "BlockWartBlockFall",
+    "hit": "BlockWartBlockHit",
+    "pitch": 1.0,
+    "place": "BlockWartBlockPlace",
+    "step": "BlockWartBlockStep",
+    "volume": 1.0
+  },
+  "WEEPING_VINES": {
+    "break": "BlockWeepingVinesBreak",
+    "fall": "BlockWeepingVinesFall",
+    "hit": "BlockWeepingVinesHit",
+    "pitch": 1.0,
+    "place": "BlockWeepingVinesPlace",
+    "step": "BlockWeepingVinesStep",
+    "volume": 1.0
+  },
+  "WET_GRASS": {
+    "break": "BlockWetGrassBreak",
+    "fall": "BlockWetGrassFall",
+    "hit": "BlockWetGrassHit",
+    "pitch": 1.0,
+    "place": "BlockWetGrassPlace",
+    "step": "BlockWetGrassStep",
+    "volume": 1.0
+  },
+  "WET_SPONGE": {
+    "break": "BlockWetSpongeBreak",
+    "fall": "BlockWetSpongeFall",
+    "hit": "BlockWetSpongeHit",
+    "pitch": 1.0,
+    "place": "BlockWetSpongePlace",
+    "step": "BlockWetSpongeStep",
+    "volume": 1.0
+  },
+  "WOOD": {
+    "break": "BlockWoodBreak",
+    "fall": "BlockWoodFall",
+    "hit": "BlockWoodHit",
+    "pitch": 1.0,
+    "place": "BlockWoodPlace",
+    "step": "BlockWoodStep",
+    "volume": 1.0
+  },
+  "WOOL": {
+    "break": "BlockWoolBreak",
+    "fall": "BlockWoolFall",
+    "hit": "BlockWoolHit",
+    "pitch": 1.0,
+    "place": "BlockWoolPlace",
+    "step": "BlockWoolStep",
+    "volume": 1.0
+  }
+}

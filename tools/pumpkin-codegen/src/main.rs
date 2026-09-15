@@ -78,6 +78,7 @@ mod screen;
 mod sdk;
 mod sound;
 mod sound_category;
+mod sound_type;
 mod spawn_egg;
 mod statistic;
 mod structures;
@@ -133,6 +134,7 @@ pub fn main() {
         (message_type::build, "message_type.rs"),
         (spawn_egg::build, "spawn_egg.rs"),
         (block::build, "block.rs"),
+        (sound_type::build, "sound_type.rs"),
         (item::build, "item.rs"),
         (structures::build, "structures.rs"),
         (material_rule::build, "material_rule.rs"),
