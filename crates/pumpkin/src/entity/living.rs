@@ -38,7 +38,7 @@ use crossbeam::atomic::AtomicCell;
 use pumpkin_data::AttributeModifierSlot;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::data_component_impl::Operation;
-use pumpkin_data::data_component_impl::food::{ConsumableImpl, ConsumeEffect};
+use pumpkin_data::data_component_impl::food::{ConsumableImpl, ConsumeEffect, UseRemainderImpl};
 use pumpkin_data::data_component_impl::{
     AttributeModifiersImpl, BlocksAttacksImpl, DeathProtectionImpl, EnchantmentsImpl,
     EquipmentSlot, EquippableImpl, FoodImpl,
@@ -3666,7 +3666,6 @@ impl EntityBase for LivingEntity {
                 .clone();
             if let Some(item) = item_in_use.as_ref() {
                 // Consume item
-                let mut is_potion = false;
                 if let Some(food) = item.get_data_component::<FoodImpl>()
                     && let Some(player) = caller.get_player()
                 {
@@ -3677,6 +3676,23 @@ impl EntityBase for LivingEntity {
                         "burp",
                         &self.entity.pos.load(),
                         -1,
+                    );
+                }
+
+                // Vanilla: `Consumable.onConsume` always plays the component's configured
+                // sound (`entity.generic.eat`/`entity.generic.drink`/etc.) once, regardless
+                // of whether the item is food (Consumable.java:79, emitParticlesAndSounds
+                // called with the finishing particle count). The consuming player already
+                // predicts this sound locally, so only broadcast it to everyone else,
+                // matching `Player.playSound` excluding `this` (Player.java:399).
+                if let Some(consumable) = item.get_data_component::<ConsumableImpl>()
+                    && let Some(player) = caller.get_player()
+                {
+                    player.world().play_sound_event_expect(
+                        player,
+                        &consumable.sound_event,
+                        SoundCategory::Players,
+                        &self.entity.pos.load(),
                     );
                 }
 
@@ -3694,8 +3710,17 @@ impl EntityBase for LivingEntity {
                         1.0,
                         crate::item::potion::PotionApplicationSource::Normal,
                     );
-                    is_potion = true;
                 }
+
+                // Vanilla: `ItemStack.applyAfterUseComponentSideEffects` converts the spent
+                // stack into the item's `use_remainder` (bowls for stews, glass bottles for
+                // potions/honey bottles, buckets for milk) once the stack is fully consumed
+                // (ItemStack.java:396-410, UseRemainder.java:15-36). In creative mode the
+                // stack is never shrunk (`ItemStack.consume`, ItemStack.java:1082-1086), so
+                // it is never converted either.
+                let remainder_item = item
+                    .get_data_component::<UseRemainderImpl>()
+                    .and_then(|remainder| Item::from_registry_key(&remainder.item));
 
                 if let Some(player) = caller.get_player() {
                     player.trigger_advancement(
@@ -3713,11 +3738,11 @@ impl EntityBase for LivingEntity {
                     // Check main hand (hotbar selected)
                     let mut held = player.inventory.held_item();
                     if held.are_items_and_components_equal(item) {
-                        if is_potion {
+                        if let Some(remainder_item) = remainder_item {
                             if player.gamemode.load() != GameMode::Creative {
                                 held.decrement(1);
                                 if held.is_empty() {
-                                    held = ItemStack::new(1, &Item::GLASS_BOTTLE);
+                                    held = ItemStack::new(1, remainder_item);
                                 }
                             }
                         } else {
@@ -3731,11 +3756,11 @@ impl EntityBase for LivingEntity {
                         // Check off-hand
                         let mut off_hand = player.inventory.off_hand_item();
                         if off_hand.are_items_and_components_equal(item) {
-                            if is_potion {
+                            if let Some(remainder_item) = remainder_item {
                                 if player.gamemode.load() != GameMode::Creative {
                                     off_hand.decrement(1);
                                     if off_hand.is_empty() {
-                                        off_hand = ItemStack::new(1, &Item::GLASS_BOTTLE);
+                                        off_hand = ItemStack::new(1, remainder_item);
                                     }
                                 }
                             } else {
@@ -3755,11 +3780,11 @@ impl EntityBase for LivingEntity {
                         let hand_to_modify = active_hand.unwrap_or(Hand::Right);
                         let mut item_stack = self.get_stack_in_hand(caller, hand_to_modify);
 
-                        if is_potion {
+                        if let Some(remainder_item) = remainder_item {
                             if player.gamemode.load() != GameMode::Creative {
                                 item_stack.decrement(1);
                                 if item_stack.is_empty() {
-                                    item_stack = ItemStack::new(1, &Item::GLASS_BOTTLE);
+                                    item_stack = ItemStack::new(1, remainder_item);
                                 }
                             }
                         } else {
@@ -3948,7 +3973,17 @@ impl LivingEntity {
                         );
                     }
                 }
-                ConsumeEffect::PlaySound(_) => {}
+                ConsumeEffect::PlaySound(sound) => {
+                    // Vanilla broadcasts to everyone at the consumer's block position,
+                    // including the consumer itself (`level.playSound(null, ...)`,
+                    // PlaySoundConsumeEffect.java:29), unlike the implicit finishing sound
+                    // which excludes the consumer.
+                    self.entity.world.load().play_sound_event(
+                        sound,
+                        SoundCategory::Players,
+                        &self.entity.pos.load(),
+                    );
+                }
             }
         }
     }

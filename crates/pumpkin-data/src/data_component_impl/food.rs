@@ -393,14 +393,33 @@ impl DataComponentImpl for UseEffectsImpl {
     default_impl!(UseEffects);
 }
 
+/// Mirrors `UseRemainder.convertInto` (`UseRemainder.java:9`): the item stack left in hand
+/// once this item is fully consumed (e.g. `bowl` for stews, `glass_bottle` for potions and
+/// honey bottles, `bucket` for milk buckets). Stored as the registry key without the
+/// `minecraft:` prefix, resolved to a concrete item at the point of use.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct UseRemainderImpl;
+pub struct UseRemainderImpl {
+    pub item: Cow<'static, str>,
+}
 impl UseRemainderImpl {
-    pub const fn read_data(_data: &NbtTag) -> Option<Self> {
-        Some(Self)
+    pub fn read_data(data: &NbtTag) -> Option<Self> {
+        let compound = data.extract_compound()?;
+        let id = compound.get_string("id")?;
+        let item = id.strip_prefix("minecraft:").unwrap_or(id).to_string();
+        Some(Self {
+            item: Cow::Owned(item),
+        })
     }
 }
 impl DataComponentImpl for UseRemainderImpl {
+    fn write_data(&self) -> NbtTag {
+        let mut compound = NbtCompound::new();
+        compound.put_string("id", format!("minecraft:{}", self.item));
+        NbtTag::Compound(compound)
+    }
+    fn get_hash(&self) -> i32 {
+        get_str_hash(&self.item) as i32
+    }
     default_impl!(UseRemainder);
 }
 
@@ -591,8 +610,9 @@ impl Hash for PotionDurationScaleImpl {
 
 #[cfg(test)]
 mod tests {
-    use super::{DataComponentImpl, PotionDurationScaleImpl};
+    use super::{DataComponentImpl, PotionDurationScaleImpl, UseRemainderImpl};
     use crate::item::Item;
+    use std::borrow::Cow;
 
     #[test]
     fn potion_duration_scale_round_trips_as_a_float() {
@@ -616,6 +636,36 @@ mod tests {
             .expect("tipped arrows should have a duration scale");
 
         assert_eq!(scale.scale, 0.125);
+    }
+
+    #[test]
+    fn use_remainder_round_trips_through_nbt() {
+        let remainder = UseRemainderImpl {
+            item: Cow::Borrowed("bowl"),
+        };
+        let encoded = remainder.write_data();
+        let decoded = UseRemainderImpl::read_data(&encoded).expect("remainder should decode");
+
+        assert_eq!(decoded, remainder);
+    }
+
+    /// Pins `UseRemainder.convertInto` (`UseRemainder.java:9`): mushroom stew must leave a
+    /// bowl behind once eaten, not vanish or leave nothing.
+    #[test]
+    fn generated_mushroom_stew_remainder_resolves_to_a_bowl() {
+        let remainder = Item::MUSHROOM_STEW
+            .components
+            .iter()
+            .find_map(|(id, component)| {
+                (*id == crate::data_component::DataComponent::UseRemainder)
+                    .then(|| component.as_any().downcast_ref::<UseRemainderImpl>())
+                    .flatten()
+            })
+            .expect("mushroom stew should have a use remainder");
+
+        let resolved =
+            Item::from_registry_key(&remainder.item).expect("remainder item should resolve");
+        assert_eq!(resolved.registry_key, "bowl");
     }
 }
 
