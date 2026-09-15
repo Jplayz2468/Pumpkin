@@ -8,6 +8,7 @@ use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::server::Server;
 use crate::world::World;
 use pumpkin_data::Block;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::world::WorldEvent;
@@ -61,6 +62,7 @@ pub(crate) fn try_wax_block(world: &Arc<World>, location: BlockPos, block: &Bloc
 
     world.set_block_state(&location, new_state_id, BlockFlags::NOTIFY_ALL);
     world.sync_world_event(WorldEvent::ParticlesAndSoundWaxOn, location, 0);
+    world.emit_game_event(GameEvent::BlockChange.name(), location.to_centered_f64());
     true
 }
 
