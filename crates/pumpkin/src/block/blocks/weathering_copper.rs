@@ -3,8 +3,9 @@ use std::sync::Arc;
 use pumpkin_data::block_properties::{
     ChestLikeProperties, ChestType, CopperBulbLikeProperties, CopperGolemStatueLikeProperties,
     DoubleBlockHalf, EnumVariants, IronChainLikeProperties, LanternLikeProperties,
-    MangroveRootsLikeProperties, OakDoorLikeProperties, OakFenceLikeProperties,
-    OakStairsLikeProperties, OakTrapdoorLikeProperties, ResinBrickSlabLikeProperties,
+    LightningRodLikeProperties, MangroveRootsLikeProperties, OakDoorLikeProperties,
+    OakFenceLikeProperties, OakStairsLikeProperties, OakTrapdoorLikeProperties,
+    ResinBrickSlabLikeProperties,
 };
 use pumpkin_data::fluid::Fluid;
 use pumpkin_data::tag::Taggable;
@@ -15,14 +16,16 @@ use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::blocks::doors::DoorBlock;
+use crate::block::blocks::redstone::lightning_rod::LightningRodBlock;
 use crate::block::blocks::slabs::SlabBlock;
 use crate::block::blocks::stairs::StairBlock;
 use crate::block::blocks::trapdoor::TrapDoorBlock;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
     BlockBehaviour, BlockMetadata, BrokenArgs, CanPlaceAtArgs, CanUpdateAtArgs,
-    GetComparatorOutputArgs, GetStateForNeighborUpdateArgs, NormalUseArgs, OnNeighborUpdateArgs,
-    OnPlaceArgs, OnStateReplacedArgs, PathComputationType, PlacedArgs, RandomTickArgs,
+    EmitsRedstonePowerArgs, GetComparatorOutputArgs, GetRedstonePowerArgs,
+    GetStateForNeighborUpdateArgs, NormalUseArgs, OnNeighborUpdateArgs, OnPlaceArgs,
+    OnScheduledTickArgs, OnStateReplacedArgs, PathComputationType, PlacedArgs, RandomTickArgs,
 };
 use crate::world::World;
 
@@ -135,13 +138,27 @@ pub trait WeatheringCopper: ChangeOverTimeBlock<WeatherState> {
     }
 }
 
-/// All 14 copper families with their 4 weathering stages (Unaffected, Exposed, Weathered, Oxidized).
+/// All 15 copper families with their 4 weathering stages (Unaffected, Exposed, Weathered, Oxidized).
 const COPPER_PROGRESSIONS: &[(&Block, &Block, &Block, &Block)] = &[
     (
         &Block::COPPER_BLOCK,
         &Block::EXPOSED_COPPER,
         &Block::WEATHERED_COPPER,
         &Block::OXIDIZED_COPPER,
+    ),
+    (
+        // Vanilla: `Blocks.java:5432` registers `LIGHTNING_ROD` through
+        // `WeatheringCopperCollection.registerBlocks`, whose unwaxed factory
+        // (`WeatheringLightningRodBlock::new`) is applied to all four states including
+        // UNAFFECTED (`WeatheringCopperCollection.java:46-53`). `WeatheringCopper.NEXT_BY_BLOCK`
+        // (`WeatheringCopper.java:38`) lists plain `Blocks.LIGHTNING_ROD` alongside the other
+        // copper families, so the base `minecraft:lightning_rod` block is itself part of this
+        // progression -- only its own random-tick hookup lives outside this file's scope (see
+        // `redstone/lightning_rod.rs`, which this branch does not touch).
+        &Block::LIGHTNING_ROD,
+        &Block::EXPOSED_LIGHTNING_ROD,
+        &Block::WEATHERED_LIGHTNING_ROD,
+        &Block::OXIDIZED_LIGHTNING_ROD,
     ),
     (
         &Block::CUT_COPPER,
@@ -418,6 +435,18 @@ pub fn with_properties_of(
         || from_block == &Block::OXIDIZED_COPPER_CHAIN
     {
         let props = IronChainLikeProperties::from_state_id(from_state_id);
+        return props.to_state_id(to_block);
+    }
+
+    // 13. Lightning Rods (base `lightning_rod` plus the three weathered variants; see
+    // `redstone/lightning_rod.rs::LightningRodLikeProperties` for the shared FACING/POWERED/
+    // WATERLOGGED property set).
+    if from_block == &Block::LIGHTNING_ROD
+        || from_block == &Block::EXPOSED_LIGHTNING_ROD
+        || from_block == &Block::WEATHERED_LIGHTNING_ROD
+        || from_block == &Block::OXIDIZED_LIGHTNING_ROD
+    {
+        let props = LightningRodLikeProperties::from_state_id(from_state_id);
         return props.to_state_id(to_block);
     }
 
@@ -1088,6 +1117,222 @@ impl BlockBehaviour for WaxedCopperGrateBlock {
             );
         }
         props.to_state_id(args.block)
+    }
+}
+
+/// Weathering lightning rod blocks: `exposed_lightning_rod`, `weathered_lightning_rod`, and
+/// `oxidized_lightning_rod`.
+///
+/// Vanilla's `WeatheringLightningRodBlock` (`WeatheringLightningRodBlock.java`) extends
+/// `LightningRodBlock` and mixes in `WeatheringCopper`, overriding only `randomTick`
+/// (delegates straight to `changeOverTime`, `WeatheringLightningRodBlock.java:29-31`) and
+/// `isRandomlyTicking` (`:34-36`, `WeatheringCopper.getNext(block).isPresent()` -- handled here
+/// by the data-side `HAS_RANDOM_TICKS` flag the generated block states for these ids already
+/// carry, so no override is needed). Every other behaviour -- placement, waterlogging, weak/
+/// strong redstone power, the scheduled power-off tick, and the neighbor-update on removal --
+/// is untouched `LightningRodBlock` behaviour (`LightningRodBlock.java`), so it is delegated to
+/// the existing `redstone::lightning_rod::LightningRodBlock` rather than re-derived, matching
+/// how the stair/trapdoor/slab/door wrappers above delegate to their plain counterparts.
+///
+/// The base `minecraft:lightning_rod` block (`WeatherState::Unaffected` in
+/// `COPPER_PROGRESSIONS`) is also a `WeatheringLightningRodBlock` in vanilla and should
+/// random-tick the same way, but wiring that up means editing
+/// `redstone/lightning_rod.rs::LightningRodBlock`, which is explicitly out of scope for this
+/// change (its `#[pumpkin_block(...)]` id list must not be touched here to avoid clashing with
+/// another branch's waxed-id extension). Only the three ids below get this behaviour for now.
+#[derive(Default)]
+pub struct WeatheringLightningRodBlock;
+
+impl ChangeOverTimeBlock<WeatherState> for WeatheringLightningRodBlock {
+    fn get_age(&self, block: &Block) -> Option<WeatherState> {
+        get_weather_state(block)
+    }
+
+    fn get_chance_modifier(&self, age: WeatherState) -> f32 {
+        get_chance_modifier(age)
+    }
+
+    fn get_next(&self, block: &Block) -> Option<&'static Block> {
+        get_next(block)
+    }
+
+    fn get_previous(&self, block: &Block) -> Option<&'static Block> {
+        get_previous(block)
+    }
+
+    fn get_first(&self, block: &Block) -> Option<&'static Block> {
+        get_first(block)
+    }
+}
+
+impl WeatheringCopper for WeatheringLightningRodBlock {}
+
+impl BlockMetadata for WeatheringLightningRodBlock {
+    fn ids() -> Box<[BlockId]> {
+        [
+            BlockId::EXPOSED_LIGHTNING_ROD,
+            BlockId::WEATHERED_LIGHTNING_ROD,
+            BlockId::OXIDIZED_LIGHTNING_ROD,
+        ]
+        .into()
+    }
+}
+
+impl BlockBehaviour for WeatheringLightningRodBlock {
+    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
+        LightningRodBlock.on_place(args)
+    }
+
+    fn placed(&self, args: PlacedArgs<'_>) {
+        LightningRodBlock.placed(args);
+    }
+
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        LightningRodBlock.get_state_for_neighbor_update(args)
+    }
+
+    fn emits_redstone_power(&self, args: EmitsRedstonePowerArgs<'_>) -> bool {
+        LightningRodBlock.emits_redstone_power(args)
+    }
+
+    fn get_weak_redstone_power(&self, args: GetRedstonePowerArgs<'_>) -> u8 {
+        LightningRodBlock.get_weak_redstone_power(args)
+    }
+
+    fn get_strong_redstone_power(&self, args: GetRedstonePowerArgs<'_>) -> u8 {
+        LightningRodBlock.get_strong_redstone_power(args)
+    }
+
+    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        LightningRodBlock.on_scheduled_tick(args);
+    }
+
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
+        LightningRodBlock.on_state_replaced(args);
+    }
+
+    fn is_pathfindable(&self, state: &BlockState, computation_type: PathComputationType) -> bool {
+        LightningRodBlock.is_pathfindable(state, computation_type)
+    }
+
+    /// Vanilla `WeatheringLightningRodBlock.randomTick` (`WeatheringLightningRodBlock.java:29-31`)
+    /// just calls `changeOverTime`, same as every other weathering copper block above.
+    fn random_tick(&self, mut args: RandomTickArgs<'_>) {
+        change_over_time(args.world, args.position, args.block, &mut args.random);
+    }
+}
+
+#[cfg(test)]
+mod weathering_lightning_rod_tests {
+    use super::*;
+
+    /// Pins the three ids this wrapper is responsible for -- `minecraft:lightning_rod` and the
+    /// four `waxed_*` ids stay with `redstone::lightning_rod::LightningRodBlock` (out of scope
+    /// here; see the struct doc comment).
+    #[test]
+    fn ids_cover_the_three_unwaxed_weathered_variants() {
+        let ids = WeatheringLightningRodBlock::ids();
+        assert_eq!(ids.len(), 3);
+        for id in [
+            BlockId::EXPOSED_LIGHTNING_ROD,
+            BlockId::WEATHERED_LIGHTNING_ROD,
+            BlockId::OXIDIZED_LIGHTNING_ROD,
+        ] {
+            assert!(ids.contains(&id), "{id:?} missing from weathering lightning rod ids");
+        }
+    }
+
+    /// Exercises the real `get_next`/`get_previous` lookups (via `COPPER_PROGRESSIONS`) for the
+    /// full lightning rod chain, matching vanilla's `WeatheringCopper.NEXT_BY_BLOCK`
+    /// (`WeatheringCopper.java:38` lists `Blocks.LIGHTNING_ROD`, chained through
+    /// `progressMapping`, `WeatheringCopperCollection.java:167-171`):
+    /// lightning_rod -> exposed -> weathered -> oxidized, with no state before the first or
+    /// after the last.
+    #[test]
+    fn lightning_rod_progression_matches_vanilla_chain() {
+        assert_eq!(get_next(&Block::LIGHTNING_ROD), Some(&Block::EXPOSED_LIGHTNING_ROD));
+        assert_eq!(get_next(&Block::EXPOSED_LIGHTNING_ROD), Some(&Block::WEATHERED_LIGHTNING_ROD));
+        assert_eq!(
+            get_next(&Block::WEATHERED_LIGHTNING_ROD),
+            Some(&Block::OXIDIZED_LIGHTNING_ROD)
+        );
+        assert_eq!(get_next(&Block::OXIDIZED_LIGHTNING_ROD), None);
+
+        assert_eq!(get_previous(&Block::EXPOSED_LIGHTNING_ROD), Some(&Block::LIGHTNING_ROD));
+        assert_eq!(
+            get_previous(&Block::WEATHERED_LIGHTNING_ROD),
+            Some(&Block::EXPOSED_LIGHTNING_ROD)
+        );
+        assert_eq!(
+            get_previous(&Block::OXIDIZED_LIGHTNING_ROD),
+            Some(&Block::WEATHERED_LIGHTNING_ROD)
+        );
+        assert_eq!(get_previous(&Block::LIGHTNING_ROD), None);
+
+        for id in [
+            &Block::LIGHTNING_ROD,
+            &Block::EXPOSED_LIGHTNING_ROD,
+            &Block::WEATHERED_LIGHTNING_ROD,
+            &Block::OXIDIZED_LIGHTNING_ROD,
+        ] {
+            assert_eq!(get_first(id), Some(&Block::LIGHTNING_ROD));
+        }
+    }
+
+    /// `with_properties_of` (used by `change_over_time` on every weathering step) must carry
+    /// FACING/POWERED/WATERLOGGED across a lightning rod's state change unchanged -- vanilla's
+    /// `BlockState.withPropertiesOf` (referenced from `WeatheringCopper.getNext`,
+    /// `WeatheringCopper.java:75`) copies every shared property verbatim, it never resets them
+    /// to the target block's default. Exercises the real production function end to end (not a
+    /// re-derivation of it) for every FACING/POWERED/WATERLOGGED combination through the full
+    /// lightning_rod -> exposed -> weathered -> oxidized chain.
+    #[test]
+    fn with_properties_of_preserves_lightning_rod_state_through_the_whole_chain() {
+        use pumpkin_data::block_properties::Facing;
+
+        let chain = [
+            &Block::LIGHTNING_ROD,
+            &Block::EXPOSED_LIGHTNING_ROD,
+            &Block::WEATHERED_LIGHTNING_ROD,
+            &Block::OXIDIZED_LIGHTNING_ROD,
+        ];
+
+        for facing in [
+            Facing::Down,
+            Facing::Up,
+            Facing::North,
+            Facing::South,
+            Facing::West,
+            Facing::East,
+        ] {
+            for powered in [false, true] {
+                for waterlogged in [false, true] {
+                    let mut props = LightningRodLikeProperties::default(&Block::LIGHTNING_ROD);
+                    props.facing = facing;
+                    props.powered = powered;
+                    props.waterlogged = waterlogged;
+                    let mut state_id = props.to_state_id(&Block::LIGHTNING_ROD);
+
+                    for window in chain.windows(2) {
+                        let (from_block, to_block) = (window[0], window[1]);
+                        state_id = with_properties_of(from_block, state_id, to_block);
+                        let round_tripped = LightningRodLikeProperties::from_state_id(state_id);
+                        assert_eq!(round_tripped.facing, facing, "facing lost going into {to_block:?}");
+                        assert_eq!(
+                            round_tripped.powered, powered,
+                            "powered lost going into {to_block:?}"
+                        );
+                        assert_eq!(
+                            round_tripped.waterlogged, waterlogged,
+                            "waterlogged lost going into {to_block:?}"
+                        );
+                    }
+                }
+            }
+        }
     }
 }
 
