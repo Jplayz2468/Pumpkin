@@ -4,14 +4,35 @@ use pumpkin_data::BlockDirection;
 use pumpkin_data::BlockId;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{DoubleBlockHalf, TallSeagrassLikeProperties};
+use pumpkin_data::item::Item;
+use pumpkin_data::item_stack::ItemStack;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::{
-    BlockBehaviour, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
+    BlockBehaviour, BlockMetadata, BonemealArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
     blocks::plant::PlantBlockBase,
 };
 
 pub struct TallPlantBlock;
+
+/// Vanilla registers sunflower/lilac/rose_bush/peony with `TallFlowerBlock` (which extends
+/// `DoublePlantBlock` and implements `BonemealableBlock`), while tall_grass/large_fern/
+/// pitcher_plant are plain `DoublePlantBlock` with no bonemeal support at all
+/// (Blocks.java:3087-3160, 3760-3765 in comparison/vanilla-src). Since this struct covers
+/// both groups, bonemeal must only ever apply to the four flower variants.
+fn tall_flower_item(block: &Block) -> Option<&'static Item> {
+    if block == &Block::SUNFLOWER {
+        Some(&Item::SUNFLOWER)
+    } else if block == &Block::LILAC {
+        Some(&Item::LILAC)
+    } else if block == &Block::ROSE_BUSH {
+        Some(&Item::ROSE_BUSH)
+    } else if block == &Block::PEONY {
+        Some(&Item::PEONY)
+    } else {
+        None
+    }
+}
 
 impl BlockMetadata for TallPlantBlock {
     fn ids() -> Box<[BlockId]> {
@@ -30,6 +51,26 @@ impl BlockMetadata for TallPlantBlock {
 }
 
 impl BlockBehaviour for TallPlantBlock {
+    // TallFlowerBlock.isValidBonemealTarget / isBonemealSuccess (TallFlowerBlock.java:26-33)
+    // are unconditionally true for the flower half you clicked (upper or lower); there is no
+    // growth stage to check, unlike other bonemealable plants.
+    fn is_valid_bonemeal_target(&self, args: BonemealArgs<'_>) -> bool {
+        tall_flower_item(args.block).is_some()
+    }
+
+    fn is_bonemeal_success(&self, args: BonemealArgs<'_>) -> bool {
+        tall_flower_item(args.block).is_some()
+    }
+
+    // TallFlowerBlock.performBonemeal (TallFlowerBlock.java:36-38) does not grow anything; it
+    // just pops one extra copy of the flower itself at the clicked position, giving a
+    // renewable way to duplicate sunflowers/lilacs/rose bushes/peonies with bone meal.
+    fn perform_bonemeal(&self, args: BonemealArgs<'_>) {
+        if let Some(item) = tall_flower_item(args.block) {
+            args.world.drop_stack(args.position, ItemStack::new(1, item));
+        }
+    }
+
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
         let up_pos = args.position.up();
 
