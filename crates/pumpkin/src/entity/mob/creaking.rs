@@ -21,7 +21,7 @@ use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
         active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
+        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal,
         wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
@@ -118,7 +118,8 @@ impl CreakingEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // No float goal, deliberately. CreakingAi registers none and there is no
+            // `Swim` brain behaviour either, so this mob sinks in vanilla.
             goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, true)));
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(

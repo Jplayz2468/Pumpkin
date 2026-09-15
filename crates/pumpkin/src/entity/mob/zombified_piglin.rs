@@ -11,7 +11,7 @@ use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
         destroy_egg::DestroyEggGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, revenge::RevengeGoal, swim::SwimGoal,
+        look_at_entity::LookAtEntityGoal, revenge::RevengeGoal,
         wander_around::WanderAroundGoal, zombie_attack::ZombieAttackGoal,
     },
     mob::{Mob, MobEntity, equipment::RegionalDifficulty},
@@ -52,7 +52,8 @@ impl ZombifiedPiglinEntity {
             // `Zombie.registerGoals` (Zombie.java:112-115); only the goals
             // below come from its own `addBehaviourGoals`
             // (ZombifiedPiglin.java:71-78).
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // No float goal, deliberately. ZombifiedPiglin.java registers none and there is no
+            // `Swim` brain behaviour either, so this mob sinks in vanilla.
             goal_selector.add_goal(4, DestroyEggGoal::new(1.0, 3));
             // Vanilla uses `ZombieAttackGoal(this, 1.0, false)`
             // (ZombifiedPiglin.java:73), not a generic melee goal.

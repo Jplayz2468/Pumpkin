@@ -51,7 +51,8 @@ impl SilverfishEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // Silverfish.java:43: the float goal sits at priority 1, not 0.
+            goal_selector.add_goal(1, Box::new(SwimGoal::default()));
             // Silverfish.java:44.
             goal_selector.add_goal(1, Box::new(ClimbOnTopOfPowderSnowGoal));
             // Silverfish.java:45.

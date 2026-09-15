@@ -12,7 +12,7 @@ use crate::entity::{
     ai::goal::{
         active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal,
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
-        melee_attack::MeleeAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
+        melee_attack::MeleeAttackGoal, revenge::RevengeGoal,
         wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
@@ -82,7 +82,8 @@ impl HoglinEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // No float goal, deliberately. HoglinAi registers none and there is no
+            // `Swim` brain behaviour either, so this mob sinks in vanilla.
             goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, true)));
             // HoglinAi.java:74: adult hoglins keep DESIRED_DISTANCE_FROM_PIGLIN_WHEN_IDLING
             // (8 blocks) from the nearest visible adult piglin while idle

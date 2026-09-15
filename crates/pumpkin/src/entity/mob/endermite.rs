@@ -41,7 +41,8 @@ impl EndermiteEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // Endermite.java:41: the float goal sits at priority 1, not 0.
+            goal_selector.add_goal(1, Box::new(SwimGoal::default()));
             // Endermite.java:42.
             goal_selector.add_goal(1, Box::new(ClimbOnTopOfPowderSnowGoal));
             // Endermite.java:43: `new MeleeAttackGoal(this, 1.0, false)` -- pauseWhenIdle

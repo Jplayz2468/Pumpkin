@@ -23,7 +23,7 @@ use crate::entity::{
         active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal,
         look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
         melee_attack::MeleeAttackGoal, open_door::OpenDoorGoal,
-        ranged_crossbow_attack::RangedCrossbowAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
+        ranged_crossbow_attack::RangedCrossbowAttackGoal, revenge::RevengeGoal,
         wander_around::WanderAroundGoal,
     },
     mob::{
@@ -97,7 +97,8 @@ impl PiglinEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // No float goal, deliberately. PiglinAi registers none and there is no
+            // `Swim` brain behaviour either, so this mob sinks in vanilla.
             goal_selector.add_goal(1, Box::new(OpenDoorGoal::new(true)));
             // PiglinAi.java:106,285-293: `avoidZombified` (CORE activity, so it runs
             // regardless of age or current activity) copies the nearest visible zombified

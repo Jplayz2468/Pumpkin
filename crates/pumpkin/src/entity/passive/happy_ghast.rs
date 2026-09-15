@@ -60,7 +60,8 @@ impl HappyGhastEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            // HappyGhast.java:103 (HappyGhastFloatGoal): the float goal sits at priority 3, not 0.
+            goal_selector.add_goal(3, Box::new(SwimGoal::default()));
             goal_selector.add_goal(1, Box::new(TemptGoal::new(1.0, HAPPY_GHAST_FOOD)));
             goal_selector.add_goal(2, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(
