@@ -195,7 +195,7 @@ use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::fluid::Fluid;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::sound::SoundCategory;
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockDirection, BlockId, BlockState};
 use pumpkin_inventory::screen_handler::ScreenHandlerFactory;
@@ -839,25 +839,19 @@ impl BlockRegistry {
         //
         // Bedrock's generic "place" level sound event resolves the correct per-block sound
         // client-side from the block's network id, but the Java protocol has no such
-        // lookup: the server must pick the exact SoundEvent itself. pumpkin-data does not
-        // yet carry a per-block SoundType (no `sound_group`/`SoundType` field exists
-        // anywhere in the generated block data, and the extractor that feeds
-        // `assets/blocks.json` doesn't emit one either), so there is no way to look up the
-        // real per-block place sound here. Vanilla's own fallback for a block whose
-        // `BlockBehaviour.Properties` never calls `.sound(...)` is `SoundType.STONE`
-        // (BlockBehaviour.java:986), which is volume 1.0 / pitch 1.0 - so that is the
-        // default used here too: (1.0 + 1.0) / 2.0 = 1.0 volume, 1.0 * 0.8 = 0.8 pitch.
-        // This makes non-stone-like blocks (wood, wool, grass, ...) sound wrong, but is
-        // strictly closer to vanilla than the previous behavior, which was silent on Java
-        // for every block. A real fix needs per-block SoundType data added to the
-        // pumpkin-data codegen pipeline (see SoundType.java for the full 80+-entry table).
+        // lookup: the server must pick the exact SoundEvent itself. `sound_type_for_block`
+        // is pumpkin-data's per-block vanilla `SoundType` table (volume, pitch, and the
+        // break/step/place/hit/fall `Sound`s), generated from `Blocks.java`'s
+        // `BlockBehaviour.Properties.sound(...)` declarations -- see
+        // `tools/pumpkin-codegen/src/sound_type.rs` for how it was extracted.
+        let sound_type = pumpkin_data::sound_type::sound_type_for_block(placed_block.id);
         world.play_sound_raw_expect(
             player,
-            Sound::BlockStonePlace as u16,
+            sound_type.place_sound as u16,
             SoundCategory::Blocks,
             &final_block_pos.to_centered_f64(),
-            1.0,
-            0.8,
+            (sound_type.volume + 1.0) / 2.0,
+            sound_type.pitch * 0.8,
         );
         world.play_bedrock_level_sound(
             "place",

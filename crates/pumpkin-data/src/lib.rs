@@ -417,6 +417,14 @@ pub use block_state::{BlockState, BlockStateId};
 #[cfg(feature = "block")]
 pub use blocks::{Block, BlockId, SpawnFloorPredicate};
 
+// Needs both `block` (for `BlockId`) and `sound` (for `Sound`): the per-block vanilla
+// `SoundType` table (volume/pitch + break/step/place/hit/fall `Sound`s), used by e.g. the
+// generic block-placement sound in `pumpkin::block::registry::place_block`.
+#[cfg(all(feature = "block", feature = "sound"))]
+#[rustfmt::skip]
+#[path = "generated/sound_type.rs"]
+pub mod sound_type;
+
 #[cfg(feature = "material_rule")]
 #[rustfmt::skip]
 #[path = "generated/material_rule.rs"]
