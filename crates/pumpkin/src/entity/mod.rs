@@ -1234,6 +1234,9 @@ impl Entity {
         );
     }
 
+    /// Port of `Avatar.getDefaultDimensions` / the `POSES` table (`Avatar.java:24-35`,
+    /// `Avatar.java:66-68`). Only players vary their whole dimensions (not just eye height)
+    /// per pose this way — use [`Self::dimensions_for_pose`] for any other entity.
     #[must_use]
     pub const fn get_entity_dimensions(pose: EntityPose) -> EntityDimensions {
         match pose {
@@ -1244,6 +1247,36 @@ impl Entity {
             EntityPose::Crouching => EntityDimensions::new(0.6, 1.5, 1.27),
             EntityPose::Dying => EntityDimensions::new(0.2, 0.2, 1.62),
             _ => EntityDimensions::new(0.6, 1.8, 1.62),
+        }
+    }
+
+    /// Dimensions an entity of `entity_type` should take on for `pose`, dispatched per vanilla
+    /// class the way `LivingEntity.getDimensions` (`LivingEntity.java:3738-3739`) does:
+    /// - The warden overrides digging/emerging (`entity::mob::warden::dimensions`).
+    /// - Player (`Avatar`) varies its whole shape per pose via the `POSES` table
+    ///   (`Avatar.getDefaultDimensions`, `Avatar.java:66-68`).
+    /// - Every other entity only special-cases `Pose.SLEEPING`
+    ///   (`LivingEntity.java:3738-3739`); any other pose keeps the entity's own type
+    ///   dimensions, since the generic `LivingEntity.getDefaultDimensions` ignores the pose
+    ///   argument entirely (`LivingEntity.java:3742-3743`).
+    ///
+    /// Takes `entity_type` explicitly (rather than `&self`) so it can be used both for `self`
+    /// (`set_pose`) and for another entity, e.g. a dismounting passenger
+    /// (`remove_passenger_internal`), and so it is cheap to unit-test.
+    #[must_use]
+    pub fn dimensions_for_pose(entity_type: &'static EntityType, pose: EntityPose) -> EntityDimensions {
+        if entity_type == &EntityType::WARDEN {
+            crate::entity::mob::warden::dimensions(pose)
+        } else if entity_type == &EntityType::PLAYER {
+            Self::get_entity_dimensions(pose)
+        } else if pose == EntityPose::Sleeping {
+            EntityDimensions::new(0.2, 0.2, 0.2)
+        } else {
+            EntityDimensions {
+                width: entity_type.dimension[0],
+                height: entity_type.dimension[1],
+                eye_height: entity_type.eye_height,
+            }
         }
     }
 
@@ -3320,11 +3353,11 @@ impl Entity {
             }
         }
 
-        let dimension = if self.entity_type == &EntityType::WARDEN {
-            crate::entity::mob::warden::dimensions(pose)
-        } else {
-            Self::get_entity_dimensions(pose)
-        };
+        // Per-entity dispatch (warden / player / generic own-type dimensions) — see
+        // `dimensions_for_pose`. Previously this always used the player-only pose table,
+        // corrupting every non-player, non-warden entity's bounding box and eye height on any
+        // pose change (LivingEntity.java:3738-3743 vs. Avatar.java:66-68).
+        let dimension = Self::dimensions_for_pose(self.entity_type, pose);
         let position = self.pos.load();
         let aabb = BoundingBox::new_from_pos(position.x, position.y, position.z, &dimension);
         self.pose.store(pose);
@@ -4010,7 +4043,10 @@ impl Entity {
                 let mut found = None;
 
                 'search: for (pose, y_offsets) in poses_and_heights {
-                    let dims = Self::get_entity_dimensions(pose);
+                    // Dismount bounds use the passenger's OWN dimensions for the candidate
+                    // pose (vanilla: `passenger.getLocalBoundsForPose` -> `getDimensions`,
+                    // LivingEntity.java:3750-3752), not the player-only pose table.
+                    let dims = Self::dimensions_for_pose(passenger_entity.entity_type, pose);
 
                     for y_offset in y_offsets {
                         for &(ox, oz) in &offsets {
@@ -4061,7 +4097,7 @@ impl Entity {
                     ];
 
                     for pose in poses {
-                        let dims = Self::get_entity_dimensions(pose);
+                        let dims = Self::dimensions_for_pose(passenger_entity.entity_type, pose);
                         let bbox = BoundingBox::new_from_pos(
                             self.pos.load().x,
                             vehicle_top,
@@ -4541,5 +4577,43 @@ mod tests {
                 "status mismatch at index {i}"
             );
         }
+    }
+
+    #[test]
+    fn non_player_mob_keeps_own_dimensions_across_pose_change() {
+        // Regression test for `set_pose` previously calling the player-only `POSES` table
+        // (`get_entity_dimensions`) for every entity. Vanilla only varies whole-body
+        // dimensions per pose for Avatar/Player (`Avatar.getDefaultDimensions`,
+        // `Avatar.java:66-68`); every other `LivingEntity` keeps its own type dimensions for
+        // any pose besides `SLEEPING` (`LivingEntity.getDimensions` /
+        // `getDefaultDimensions`, `LivingEntity.java:3738-3743`).
+        let standing = Entity::dimensions_for_pose(&EntityType::ZOMBIE, EntityPose::Standing);
+        let crouching = Entity::dimensions_for_pose(&EntityType::ZOMBIE, EntityPose::Crouching);
+        let swimming = Entity::dimensions_for_pose(&EntityType::ZOMBIE, EntityPose::Swimming);
+        let dying = Entity::dimensions_for_pose(&EntityType::ZOMBIE, EntityPose::Dying);
+
+        for (name, other) in [("crouching", crouching), ("swimming", swimming), ("dying", dying)]
+        {
+            assert_eq!(other.width, standing.width, "zombie width changed for {name}");
+            assert_eq!(other.height, standing.height, "zombie height changed for {name}");
+            assert_eq!(
+                other.eye_height, standing.eye_height,
+                "zombie eye height changed for {name}"
+            );
+        }
+        // The unchanged dimensions are the zombie's own type dimensions, not some other
+        // hardcoded shape.
+        assert_eq!(standing.width, EntityType::ZOMBIE.dimension[0]);
+        assert_eq!(standing.height, EntityType::ZOMBIE.dimension[1]);
+        assert_eq!(standing.eye_height, EntityType::ZOMBIE.eye_height);
+
+        // A player, by contrast, still varies its whole shape per pose via Avatar's POSES
+        // table — this must keep working exactly as before.
+        let player_standing =
+            Entity::dimensions_for_pose(&EntityType::PLAYER, EntityPose::Standing);
+        let player_crouching =
+            Entity::dimensions_for_pose(&EntityType::PLAYER, EntityPose::Crouching);
+        assert_ne!(player_standing.height, player_crouching.height);
+        assert_ne!(player_standing.eye_height, player_crouching.eye_height);
     }
 }
