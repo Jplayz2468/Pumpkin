@@ -14,7 +14,32 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
 
-#[pumpkin_block("minecraft:lightning_rod")]
+// Vanilla registers the lightning-rod family through `WeatheringCopperCollection.registerBlocks`
+// (Blocks.java:5432-5442), which pairs two block classes across the 4 weathering prefixes:
+// the *waxed* half ("waxed_", "waxed_exposed_", "waxed_weathered_", "waxed_oxidized_") uses
+// the plain `LightningRodBlock` factory (`(var0, p) -> new LightningRodBlock(p)`), while the
+// *unwaxed* half ("", "exposed_", "weathered_", "oxidized_") uses `WeatheringLightningRodBlock`,
+// a subclass that adds only a random-tick `changeOverTime` oxidation step
+// (WeatheringLightningRodBlock.java:28-36) on top of identical `LightningRodBlock` behaviour.
+//
+// This struct is therefore the correct, complete implementation for the 4 waxed ids -- they
+// never weather further, so plain `LightningRodBlock` behaviour (place/power/redstone/lightning
+// strike, no random tick) is everything vanilla gives them.
+//
+// It is also registered for the base "minecraft:lightning_rod" id, matching what was already
+// here. That id is technically `WeatheringLightningRodBlock` in vanilla and should random-tick
+// toward `exposed_lightning_rod`, but lightning_rod is not a member of `COPPER_PROGRESSIONS` in
+// `block/blocks/weathering_copper.rs`, so `exposed_lightning_rod`, `weathered_lightning_rod`,
+// and `oxidized_lightning_rod` have no registered behaviour at all yet, and none of the 4
+// unwaxed ids oxidize. That gap belongs in `weathering_copper.rs` (owned by another in-flight
+// agent) rather than here -- see this file's module report.
+#[pumpkin_block(
+    "minecraft:lightning_rod",
+    "minecraft:waxed_lightning_rod",
+    "minecraft:waxed_exposed_lightning_rod",
+    "minecraft:waxed_weathered_lightning_rod",
+    "minecraft:waxed_oxidized_lightning_rod"
+)]
 pub struct LightningRodBlock;
 
 impl LightningRodBlock {
