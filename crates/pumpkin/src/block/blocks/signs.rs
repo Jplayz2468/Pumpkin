@@ -576,10 +576,18 @@ impl BlockBehaviour for SignBlock {
                 is_facing_front_text(args.world, args.position, args.block, args.player);
             let text = sign_entity.get_text(is_front_text);
 
+            // SignBlock.java:97-100 — `HoneycombItem` overrides `canApplyToSign` to always
+            // return `true` (waxing a blank sign is allowed), but every other
+            // `SignApplicator` (ink sac, glow ink sac, dye) relies on the interface's default
+            // `canApplyToSign`, which is `SignText.hasMessage(player)`: applying dye/ink to a
+            // sign with no text on the clicked face is refused so the click falls through to
+            // opening the text editor instead of silently consuming the item.
             let result = if let Some(honeycomb_item) =
                 pumpkin_item.as_any().downcast_ref::<HoneyCombItem>()
             {
                 honeycomb_item.apply_to_sign(&args, &block_entity, &sign_entity)
+            } else if !sign_has_message(text, args.player) {
+                BlockActionResult::PassToDefaultBlockAction
             } else if let Some(g_ink_sac_item) =
                 pumpkin_item.as_any().downcast_ref::<GlowingInkSacItem>()
             {
@@ -605,6 +613,19 @@ impl BlockBehaviour for SignBlock {
                         crate::entity::player::advancement::trigger::AdvancementTrigger::GlowedSign,
                     );
                 }
+                // SignBlock.java:109-111 — `awardStat`/`gameEvent(BLOCK_CHANGE)` are fired by
+                // the block generically on every successful applicator use, not by the
+                // individual `SignApplicator` (ink sac/glow ink sac/dye/honeycomb all share
+                // this, matching the item-use stat and world event on the block).
+                args.player.increment_stat(
+                    pumpkin_data::statistic::StatisticCategory::Used,
+                    i32::from(args.item_stack.item.id),
+                    1,
+                );
+                args.world.emit_game_event(
+                    pumpkin_data::game_event::GameEvent::BlockChange.name(),
+                    args.position.to_centered_f64(),
+                );
                 if !args.player.has_infinite_materials() {
                     args.item_stack.decrement(1);
                 }
@@ -647,6 +668,22 @@ fn other_player_is_editing_sign(
         return true;
     }
     false
+}
+
+/// `SignText.hasMessage`: whether the given sign text face has at least one non-empty
+/// message line, using the filtered lines when the player has text filtering enabled.
+/// This gates every `SignApplicator` other than the honeycomb (which overrides it to
+/// always allow waxing), mirroring `SignApplicator::canApplyToSign`'s default impl.
+fn sign_has_message(text: &Text, player: &Player) -> bool {
+    let messages = if player.is_text_filtering_enabled() {
+        &text.filtered_messages
+    } else {
+        &text.messages
+    };
+    let messages = messages
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    messages.iter().any(|msg| !msg.is_empty())
 }
 
 /// Checks whether all messages on the given sign text face are plain text or empty.
