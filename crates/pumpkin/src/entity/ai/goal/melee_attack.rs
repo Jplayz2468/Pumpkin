@@ -56,14 +56,29 @@ impl Goal for MeleeAttackGoal {
 
         let target = mob.get_mob_entity().get_target();
 
-        let Some(target) = target.as_ref() else {
+        let Some(target) = target else {
             return false;
         };
         if !target.get_entity().is_alive() {
             return false;
         }
-        // TODO: add path when is implemented Navigation
-        true //TODO: modify that because if a path to the target not exists then call mob.is_in_attack_range(target)
+
+        // MeleeAttackGoal.java:48-50: `this.path = createPath(target, 0);` and then
+        // `path != null ? true : isWithinMeleeAttackRange(target)`. A mob with no route to
+        // its target must not claim MOVE/LOOK, but one already standing next to the target
+        // still starts (and `start` zeroes the attack cooldown, which is what lets it swing).
+        let mob_entity = mob.get_mob_entity();
+        let has_path = {
+            let mut navigator = mob_entity
+                .navigator
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            navigator
+                .create_path(&mob_entity.living_entity, target.get_entity().pos.load(), 0)
+                .is_some()
+        };
+
+        has_path || mob_entity.is_in_attack_range(&*target)
     }
 
     fn should_continue(&self, mob: &dyn Mob) -> bool {
@@ -97,7 +112,8 @@ impl Goal for MeleeAttackGoal {
     }
 
     fn start(&mut self, mob: &dyn Mob) {
-        // TODO: add missing fields like mob attacking to true and correct Navigation methods
+        // MeleeAttackGoal.java:70 `this.mob.setAggressive(true)`.
+        mob.get_mob_entity().set_attacking(true);
 
         let target = mob.get_mob_entity().get_target().clone();
         if let Some(target) = target {
@@ -119,7 +135,12 @@ impl Goal for MeleeAttackGoal {
     }
 
     fn stop(&mut self, mob: &dyn Mob) {
-        // Only clear target if they switched to creative/spectator
+        // MeleeAttackGoal.java:77-78: the target is dropped *only* when it stopped being a
+        // legitimate target, i.e. a player that went creative or spectator. Every other
+        // target — survival players, villagers, golems — must survive the goal stopping,
+        // because this goal stops (and restarts 20 ticks later) constantly: `should_continue`
+        // ends it the moment the navigation path completes, which is exactly when the mob
+        // has arrived next to its victim.
         let should_clear = mob
             .get_mob_entity()
             .get_target()
@@ -130,6 +151,9 @@ impl Goal for MeleeAttackGoal {
         if should_clear {
             mob.set_mob_target(None);
         }
+
+        // MeleeAttackGoal.java:80 `this.mob.setAggressive(false)`.
+        mob.get_mob_entity().set_attacking(false);
 
         // Vanilla: this.mob.getNavigation().stop()
         mob.get_mob_entity()
@@ -157,10 +181,18 @@ impl Goal for MeleeAttackGoal {
         self.update_countdown_ticks = (self.update_countdown_ticks - 1).max(0);
 
         let current_target_pos = target.get_entity().pos.load();
+        // MeleeAttackGoal.java:93-101. Vanilla evaluates the line-of-sight term first, but
+        // every term here is side-effect free, so the cheap counter checks come first and the
+        // raycast only runs on the ticks that would actually repath.
         let should_update_nav = self.update_countdown_ticks <= 0
             && (self.last_target_position.is_none_or(|last_pos| {
                 current_target_pos.squared_distance_to_vec(&last_pos) >= 1.0
-            }) || mob.get_random().random_range(0..20) == 0);
+            }) || mob.get_random().random_range(0..20) == 0)
+            && (self.pause_when_mob_idle
+                || mob.get_entity().world.load_full().has_line_of_sight(
+                    mob.get_entity().get_eye_pos(),
+                    target.get_entity().get_eye_pos(),
+                ));
 
         if should_update_nav {
             let mob_pos = mob.get_entity().pos.load();

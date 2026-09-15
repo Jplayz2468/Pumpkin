@@ -27,9 +27,14 @@ impl EntityPredicate<'_> {
                 // TODO: implement
                 false
             }
+            // Java's `EntitySelector.NO_CREATIVE_OR_SPECTATOR`:
+            //   entity -> !(entity instanceof Player p) || !p.isSpectator() && !p.isCreative()
+            // It passes *everything that is not* a creative/spectator player, so every
+            // non-player and every survival player must return `true` here. Callers read it
+            // as "this target is still a legitimate target".
             EntityPredicate::ExceptCreativeOrSpectator => entity
                 .get_player()
-                .is_some_and(|player| player.is_spectator() || player.is_creative()),
+                .is_none_or(|player| !player.is_spectator() && !player.is_creative()),
             EntityPredicate::ExceptSpectator => !entity.is_spectator(),
             EntityPredicate::CanCollide => {
                 EntityPredicate::ExceptSpectator.test(entity) && entity.is_collidable(None)
