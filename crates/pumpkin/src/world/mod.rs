@@ -1269,10 +1269,6 @@ impl World {
                     pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMISATION,
                     skin_parts,
                 ),
-                Metadata::new(
-                    pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMIZATION_ID,
-                    skin_parts,
-                ),
             ] {
                 let _ = meta.write(&mut buf, &version);
             }
@@ -4116,13 +4112,6 @@ impl World {
                 {
                     let meta = Metadata::new(
                         pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMISATION,
-                        config.skin_parts,
-                    );
-                    let _ = meta.write(&mut buf, &client.version.load());
-                };
-                {
-                    let meta = Metadata::new(
-                        pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMIZATION_ID,
                         config.skin_parts,
                     );
                     let _ = meta.write(&mut buf, &client.version.load());

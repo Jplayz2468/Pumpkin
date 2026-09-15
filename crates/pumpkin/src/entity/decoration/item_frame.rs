@@ -154,7 +154,7 @@ impl ItemFrameEntity {
         self.rotation.store(rot, Ordering::Relaxed);
 
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::item_frame::ROTATION, rot as i32);
+            .set_synced_data_compat(pumpkin_data::tracked_data::item_frame::ROTATION,pumpkin_data::tracked_data::item_frame::DATA_ROTATION, rot as i32);
 
         if update_neighbours {
             let world = self.entity.world.load();
@@ -337,7 +337,7 @@ impl EntityBase for ItemFrameEntity {
             item_serializer,
         );
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::item_frame::ROTATION, rotation);
+            .set_synced_data_compat(pumpkin_data::tracked_data::item_frame::ROTATION,pumpkin_data::tracked_data::item_frame::DATA_ROTATION, rotation);
     }
 
     fn send_java_spawn_packet(&self, client: &crate::net::java::JavaClient) {
@@ -361,10 +361,18 @@ impl EntityBase for ItemFrameEntity {
                 pumpkin_data::tracked_data::item_frame::ITEM,
                 item_serializer,
             );
+            // ROTATION is the pre-26.1 name and resolves to 255 — "absent" — from 26.1
+            // on, where the field became DATA_ROTATION. Writing both means exactly one
+            // reaches any given client; the other is skipped for that version.
             let meta_rot =
                 Metadata::new(pumpkin_data::tracked_data::item_frame::ROTATION, rotation);
+            let meta_rot_modern =
+                Metadata::new(pumpkin_data::tracked_data::item_frame::DATA_ROTATION, rotation);
 
-            if meta_item.write(&mut data, &ver).is_ok() && meta_rot.write(&mut data, &ver).is_ok() {
+            if meta_item.write(&mut data, &ver).is_ok()
+                && meta_rot.write(&mut data, &ver).is_ok()
+                && meta_rot_modern.write(&mut data, &ver).is_ok()
+            {
                 data.push(255);
                 let meta_packet =
                     CSetEntityMetadata::new(self.entity.entity_id.into(), data.into());

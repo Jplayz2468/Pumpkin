@@ -188,8 +188,9 @@ impl EntityBase for AreaEffectCloudEntity {
             meta,
         );
 
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::area_effect_cloud::RADIUS,
+            pumpkin_data::tracked_data::area_effect_cloud::DATA_RADIUS,
             radius,
         );
 
@@ -199,8 +200,9 @@ impl EntityBase for AreaEffectCloudEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let is_waiting = 0 < wait_time;
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::area_effect_cloud::WAITING,
+            pumpkin_data::tracked_data::area_effect_cloud::DATA_WAITING,
             is_waiting,
         );
     }
@@ -238,8 +240,9 @@ impl EntityBase for AreaEffectCloudEntity {
 
         // When the waiting period ends, notify clients so they render full particles
         if age == wait_time && wait_time > 0 {
-            self.entity.set_synced_data(
+            self.entity.set_synced_data_compat(
                 pumpkin_data::tracked_data::area_effect_cloud::WAITING,
+                pumpkin_data::tracked_data::area_effect_cloud::DATA_WAITING,
                 false,
             );
         }
@@ -268,8 +271,9 @@ impl EntityBase for AreaEffectCloudEntity {
 
             // Send new radius
             drop(radius);
-            self.entity.set_synced_data(
+            self.entity.set_synced_data_compat(
                 pumpkin_data::tracked_data::area_effect_cloud::RADIUS,
+                pumpkin_data::tracked_data::area_effect_cloud::DATA_RADIUS,
                 current_radius,
             );
         }
@@ -418,8 +422,9 @@ impl EntityBase for AreaEffectCloudEntity {
                 drop(radius_lock);
 
                 // Send updated radius to clients
-                self.entity.set_synced_data(
+                self.entity.set_synced_data_compat(
                     pumpkin_data::tracked_data::area_effect_cloud::RADIUS,
+                    pumpkin_data::tracked_data::area_effect_cloud::DATA_RADIUS,
                     current_radius,
                 );
             }

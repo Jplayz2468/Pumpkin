@@ -82,7 +82,7 @@ impl InteractionEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = width;
         self.update_dimensions();
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::interaction::WIDTH, width);
+            .set_synced_data_compat(pumpkin_data::tracked_data::interaction::WIDTH,pumpkin_data::tracked_data::interaction::DATA_WIDTH_ID, width);
     }
 
     pub fn get_height(&self) -> f32 {
@@ -99,7 +99,7 @@ impl InteractionEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = height;
         self.update_dimensions();
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::interaction::HEIGHT, height);
+            .set_synced_data_compat(pumpkin_data::tracked_data::interaction::HEIGHT,pumpkin_data::tracked_data::interaction::DATA_HEIGHT_ID, height);
     }
 
     pub fn get_response(&self) -> bool {
@@ -109,7 +109,7 @@ impl InteractionEntity {
     pub fn set_response(&self, response: bool) {
         self.response.store(response, Ordering::Relaxed);
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::interaction::RESPONSE, response);
+            .set_synced_data_compat(pumpkin_data::tracked_data::interaction::RESPONSE,pumpkin_data::tracked_data::interaction::DATA_RESPONSE_ID, response);
     }
 
     pub fn update_dimensions(&self) {
@@ -234,11 +234,11 @@ impl EntityBase for InteractionEntity {
         let response = self.response.load(Ordering::Relaxed);
 
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::interaction::WIDTH, width);
+            .set_synced_data_compat(pumpkin_data::tracked_data::interaction::WIDTH,pumpkin_data::tracked_data::interaction::DATA_WIDTH_ID, width);
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::interaction::HEIGHT, height);
+            .set_synced_data_compat(pumpkin_data::tracked_data::interaction::HEIGHT,pumpkin_data::tracked_data::interaction::DATA_HEIGHT_ID, height);
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::interaction::RESPONSE, response);
+            .set_synced_data_compat(pumpkin_data::tracked_data::interaction::RESPONSE,pumpkin_data::tracked_data::interaction::DATA_RESPONSE_ID, response);
     }
 
     fn get_entity(&self) -> &Entity {

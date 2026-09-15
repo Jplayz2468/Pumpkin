@@ -128,7 +128,7 @@ impl ShulkerEntity {
         let val = color.unwrap_or(NO_COLOR);
         self.color.store(val, Ordering::Relaxed);
         let entity = &self.mob_entity.living_entity.entity;
-        entity.set_synced_data(pumpkin_data::tracked_data::shulker::COLOR, val as i8);
+        entity.set_synced_data_compat(pumpkin_data::tracked_data::shulker::COLOR,pumpkin_data::tracked_data::shulker::DATA_COLOR_ID, val as i8);
     }
 
     pub fn get_raw_peek(&self) -> u8 {

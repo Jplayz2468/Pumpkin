@@ -349,8 +349,9 @@ impl Mob for WolfEntity {
             pumpkin_data::tracked_data::wolf::TAMEABLE_FLAGS,
             self.get_tame_flags(),
         );
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::wolf::COLLAR_COLOR,
+            pumpkin_data::tracked_data::wolf::DATA_COLLAR_COLOR,
             VarInt(self.collar_color.load(Ordering::Relaxed) as i32),
         );
         entity.set_synced_data(
@@ -425,8 +426,9 @@ impl WolfEntity {
     pub fn set_collar_color(&self, color: u8) {
         self.collar_color.store(color, Ordering::Relaxed);
         let entity = self.get_entity();
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::wolf::COLLAR_COLOR,
+            pumpkin_data::tracked_data::wolf::DATA_COLLAR_COLOR,
             VarInt(color as i32),
         );
     }

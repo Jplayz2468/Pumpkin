@@ -153,10 +153,6 @@ impl TrackedEntity {
                             pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMISATION,
                             skin_parts,
                         ),
-                        Metadata::new(
-                            pumpkin_data::tracked_data::player::PLAYER_MODE_CUSTOMIZATION_ID,
-                            skin_parts,
-                        ),
                     ] {
                         let _ = meta.write(&mut buf, &version);
                     }

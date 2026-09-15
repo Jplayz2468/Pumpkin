@@ -121,8 +121,9 @@ impl FrogEntity {
     pub fn set_variant(&self, variant: FrogVariant) {
         self.variant.store(variant.id(), Ordering::Relaxed);
         let entity = self.get_entity();
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::frog::VARIANT,
+            pumpkin_data::tracked_data::frog::DATA_VARIANT_ID,
             VarInt(variant.id()),
         );
     }
@@ -174,8 +175,9 @@ impl Mob for FrogEntity {
         if is_baby {
             entity.set_synced_data(pumpkin_data::tracked_data::frog::BABY_ID, true);
         }
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::frog::VARIANT,
+            pumpkin_data::tracked_data::frog::DATA_VARIANT_ID,
             VarInt(self.get_variant().id()),
         );
     }

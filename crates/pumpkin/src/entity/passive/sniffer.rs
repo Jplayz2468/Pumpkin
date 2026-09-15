@@ -121,8 +121,9 @@ impl SnifferEntity {
     pub fn set_state(&self, state: SnifferState) {
         self.state.store(state.id(), Ordering::Relaxed);
         let entity = self.get_entity();
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::sniffer::STATE,
+            pumpkin_data::tracked_data::sniffer::DATA_STATE,
             VarInt(state.id()),
         );
     }
@@ -378,8 +379,9 @@ impl Mob for SnifferEntity {
         if is_baby {
             entity.set_synced_data(pumpkin_data::tracked_data::sniffer::BABY_ID, true);
         }
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::sniffer::STATE,
+            pumpkin_data::tracked_data::sniffer::DATA_STATE,
             VarInt(self.get_state().id()),
         );
         entity.set_synced_data(

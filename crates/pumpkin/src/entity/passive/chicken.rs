@@ -172,8 +172,9 @@ impl Mob for ChickenEntity {
         if is_baby {
             entity.set_synced_data(pumpkin_data::tracked_data::chicken::BABY_ID, true);
         }
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::chicken::VARIANT,
+            pumpkin_data::tracked_data::chicken::DATA_VARIANT_ID,
             VarInt(self.variant.load(Ordering::Relaxed) as i32),
         );
     }

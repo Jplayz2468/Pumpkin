@@ -97,8 +97,9 @@ impl DisplayEntity {
     pub fn set_interpolation_start_delta_ticks(&self, ticks: i32) {
         self.interpolation_start_delta_ticks
             .store(ticks, Ordering::Relaxed);
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::START_INTERPOLATION,
+            pumpkin_data::tracked_data::display::DATA_TRANSFORMATION_INTERPOLATION_START_DELTA_TICKS_ID,
             VarInt(ticks),
         );
     }
@@ -110,8 +111,9 @@ impl DisplayEntity {
     pub fn set_interpolation_duration(&self, duration: i32) {
         self.interpolation_duration
             .store(duration, Ordering::Relaxed);
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::INTERPOLATION_DURATION,
+            pumpkin_data::tracked_data::display::DATA_TRANSFORMATION_INTERPOLATION_DURATION_ID,
             VarInt(duration),
         );
     }
@@ -122,8 +124,9 @@ impl DisplayEntity {
 
     pub fn set_teleport_duration(&self, duration: i32) {
         self.teleport_duration.store(duration, Ordering::Relaxed);
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::TELEPORT_DURATION,
+            pumpkin_data::tracked_data::display::DATA_POS_ROT_INTERPOLATION_DURATION_ID,
             VarInt(duration),
         );
     }
@@ -140,8 +143,9 @@ impl DisplayEntity {
             .translation
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = translation;
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::TRANSLATION,
+            pumpkin_data::tracked_data::display::DATA_TRANSLATION_ID,
             Vector3fSerializer(translation.x, translation.y, translation.z),
         );
     }
@@ -158,8 +162,9 @@ impl DisplayEntity {
             .scale
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = scale;
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::SCALE,
+            pumpkin_data::tracked_data::display::DATA_SCALE_ID,
             Vector3fSerializer(scale.x, scale.y, scale.z),
         );
     }
@@ -176,8 +181,9 @@ impl DisplayEntity {
             .left_rotation
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = left_rotation;
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::LEFT_ROTATION,
+            pumpkin_data::tracked_data::display::DATA_LEFT_ROTATION_ID,
             QuaternionfSerializer(
                 left_rotation[0],
                 left_rotation[1],
@@ -199,8 +205,9 @@ impl DisplayEntity {
             .right_rotation
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = right_rotation;
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::RIGHT_ROTATION,
+            pumpkin_data::tracked_data::display::DATA_RIGHT_ROTATION_ID,
             QuaternionfSerializer(
                 right_rotation[0],
                 right_rotation[1],
@@ -217,7 +224,7 @@ impl DisplayEntity {
     pub fn set_billboard(&self, billboard: u8) {
         self.billboard.store(billboard, Ordering::Relaxed);
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::display::BILLBOARD, billboard);
+            .set_synced_data_compat(pumpkin_data::tracked_data::display::BILLBOARD,pumpkin_data::tracked_data::display::DATA_BILLBOARD_RENDER_CONSTRAINTS_ID, billboard);
     }
 
     pub fn get_brightness(&self) -> i32 {
@@ -226,8 +233,9 @@ impl DisplayEntity {
 
     pub fn set_brightness(&self, brightness: i32) {
         self.brightness.store(brightness, Ordering::Relaxed);
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::BRIGHTNESS,
+            pumpkin_data::tracked_data::display::DATA_BRIGHTNESS_OVERRIDE_ID,
             VarInt(brightness),
         );
     }
@@ -245,7 +253,7 @@ impl DisplayEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = view_range;
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::display::VIEW_RANGE, view_range);
+            .set_synced_data_compat(pumpkin_data::tracked_data::display::VIEW_RANGE,pumpkin_data::tracked_data::display::DATA_VIEW_RANGE_ID, view_range);
     }
 
     pub fn get_shadow_radius(&self) -> f32 {
@@ -260,8 +268,9 @@ impl DisplayEntity {
             .shadow_radius
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = shadow_radius;
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::SHADOW_RADIUS,
+            pumpkin_data::tracked_data::display::DATA_SHADOW_RADIUS_ID,
             shadow_radius,
         );
     }
@@ -278,8 +287,9 @@ impl DisplayEntity {
             .shadow_strength
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = shadow_strength;
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::SHADOW_STRENGTH,
+            pumpkin_data::tracked_data::display::DATA_SHADOW_STRENGTH_ID,
             shadow_strength,
         );
     }
@@ -297,7 +307,7 @@ impl DisplayEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = width;
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::display::WIDTH, width);
+            .set_synced_data_compat(pumpkin_data::tracked_data::display::WIDTH,pumpkin_data::tracked_data::display::DATA_WIDTH_ID, width);
     }
 
     pub fn get_display_height(&self) -> f32 {
@@ -313,7 +323,7 @@ impl DisplayEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = height;
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::display::HEIGHT, height);
+            .set_synced_data_compat(pumpkin_data::tracked_data::display::HEIGHT,pumpkin_data::tracked_data::display::DATA_HEIGHT_ID, height);
     }
 
     pub fn get_glow_color_override(&self) -> i32 {
@@ -322,8 +332,9 @@ impl DisplayEntity {
 
     pub fn set_glow_color_override(&self, color: i32) {
         self.glow_color_override.store(color, Ordering::Relaxed);
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::GLOW_COLOR_OVERRIDE,
+            pumpkin_data::tracked_data::display::DATA_GLOW_COLOR_OVERRIDE_ID,
             VarInt(color),
         );
     }
@@ -367,24 +378,29 @@ impl DisplayEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::START_INTERPOLATION,
+            pumpkin_data::tracked_data::display::DATA_TRANSFORMATION_INTERPOLATION_START_DELTA_TICKS_ID,
             VarInt(self.interpolation_start_delta_ticks.load(Ordering::Relaxed)),
         );
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::INTERPOLATION_DURATION,
+            pumpkin_data::tracked_data::display::DATA_TRANSFORMATION_INTERPOLATION_DURATION_ID,
             VarInt(self.interpolation_duration.load(Ordering::Relaxed)),
         );
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::TRANSLATION,
+            pumpkin_data::tracked_data::display::DATA_TRANSLATION_ID,
             Vector3fSerializer(translation.x, translation.y, translation.z),
         );
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::SCALE,
+            pumpkin_data::tracked_data::display::DATA_SCALE_ID,
             Vector3fSerializer(scale.x, scale.y, scale.z),
         );
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::LEFT_ROTATION,
+            pumpkin_data::tracked_data::display::DATA_LEFT_ROTATION_ID,
             QuaternionfSerializer(
                 left_rotation[0],
                 left_rotation[1],
@@ -392,8 +408,9 @@ impl DisplayEntity {
                 left_rotation[3],
             ),
         );
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::RIGHT_ROTATION,
+            pumpkin_data::tracked_data::display::DATA_RIGHT_ROTATION_ID,
             QuaternionfSerializer(
                 right_rotation[0],
                 right_rotation[1],
@@ -401,34 +418,40 @@ impl DisplayEntity {
                 right_rotation[3],
             ),
         );
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::BILLBOARD,
+            pumpkin_data::tracked_data::display::DATA_BILLBOARD_RENDER_CONSTRAINTS_ID,
             self.billboard.load(Ordering::Relaxed),
         );
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::BRIGHTNESS,
+            pumpkin_data::tracked_data::display::DATA_BRIGHTNESS_OVERRIDE_ID,
             VarInt(self.brightness.load(Ordering::Relaxed)),
         );
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::display::VIEW_RANGE, view_range);
-        self.entity.set_synced_data(
+            .set_synced_data_compat(pumpkin_data::tracked_data::display::VIEW_RANGE,pumpkin_data::tracked_data::display::DATA_VIEW_RANGE_ID, view_range);
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::SHADOW_RADIUS,
+            pumpkin_data::tracked_data::display::DATA_SHADOW_RADIUS_ID,
             shadow_radius,
         );
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::SHADOW_STRENGTH,
+            pumpkin_data::tracked_data::display::DATA_SHADOW_STRENGTH_ID,
             shadow_strength,
         );
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::display::WIDTH, width);
+            .set_synced_data_compat(pumpkin_data::tracked_data::display::WIDTH,pumpkin_data::tracked_data::display::DATA_WIDTH_ID, width);
         self.entity
-            .set_synced_data(pumpkin_data::tracked_data::display::HEIGHT, height);
-        self.entity.set_synced_data(
+            .set_synced_data_compat(pumpkin_data::tracked_data::display::HEIGHT,pumpkin_data::tracked_data::display::DATA_HEIGHT_ID, height);
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::TELEPORT_DURATION,
+            pumpkin_data::tracked_data::display::DATA_POS_ROT_INTERPOLATION_DURATION_ID,
             VarInt(self.teleport_duration.load(Ordering::Relaxed)),
         );
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::display::GLOW_COLOR_OVERRIDE,
+            pumpkin_data::tracked_data::display::DATA_GLOW_COLOR_OVERRIDE_ID,
             VarInt(self.glow_color_override.load(Ordering::Relaxed)),
         );
     }
@@ -681,8 +704,9 @@ impl BlockDisplayEntity {
 
     pub fn set_block_state(&self, block_state: i32) {
         self.block_state.store(block_state, Ordering::Relaxed);
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::block_display::BLOCK_STATE,
+            pumpkin_data::tracked_data::block_display::DATA_BLOCK_STATE_ID,
             VarInt(block_state),
         );
     }
@@ -705,8 +729,9 @@ impl EntityBase for BlockDisplayEntity {
 
     fn init_data_tracker(&self) {
         self.display.init_display_data_tracker();
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::block_display::BLOCK_STATE,
+            pumpkin_data::tracked_data::block_display::DATA_BLOCK_STATE_ID,
             VarInt(self.block_state.load(Ordering::Relaxed)),
         );
     }
@@ -793,7 +818,7 @@ impl ItemDisplayEntity {
         self.item_display.store(mode, Ordering::Relaxed);
         self.display
             .entity
-            .set_synced_data(pumpkin_data::tracked_data::item_display::ITEM_DISPLAY, mode);
+            .set_synced_data_compat(pumpkin_data::tracked_data::item_display::ITEM_DISPLAY,pumpkin_data::tracked_data::item_display::DATA_ITEM_DISPLAY_ID, mode);
     }
 }
 
@@ -845,8 +870,9 @@ impl EntityBase for ItemDisplayEntity {
                     .clone(),
             ),
         );
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::item_display::ITEM_DISPLAY,
+            pumpkin_data::tracked_data::item_display::DATA_ITEM_DISPLAY_ID,
             self.item_display.load(Ordering::Relaxed),
         );
     }
@@ -927,7 +953,7 @@ impl TextDisplayEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = text.clone();
         self.display
             .entity
-            .set_synced_data(pumpkin_data::tracked_data::text_display::TEXT, text);
+            .set_synced_data_compat(pumpkin_data::tracked_data::text_display::TEXT,pumpkin_data::tracked_data::text_display::DATA_TEXT_ID, text);
     }
 
     pub fn get_line_width(&self) -> i32 {
@@ -936,8 +962,9 @@ impl TextDisplayEntity {
 
     pub fn set_line_width(&self, width: i32) {
         self.line_width.store(width, Ordering::Relaxed);
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::LINE_WIDTH,
+            pumpkin_data::tracked_data::text_display::DATA_LINE_WIDTH_ID,
             VarInt(width),
         );
     }
@@ -948,8 +975,9 @@ impl TextDisplayEntity {
 
     pub fn set_background_color(&self, color: i32) {
         self.background.store(color, Ordering::Relaxed);
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::BACKGROUND,
+            pumpkin_data::tracked_data::text_display::DATA_BACKGROUND_COLOR_ID,
             VarInt(color),
         );
     }
@@ -960,8 +988,9 @@ impl TextDisplayEntity {
 
     pub fn set_text_opacity(&self, opacity: i8) {
         self.text_opacity.store(opacity, Ordering::Relaxed);
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::TEXT_OPACITY,
+            pumpkin_data::tracked_data::text_display::DATA_TEXT_OPACITY_ID,
             opacity as u8,
         );
     }
@@ -978,8 +1007,9 @@ impl TextDisplayEntity {
             flags &= !1;
         }
         self.flags.store(flags, Ordering::Relaxed);
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::TEXT_DISPLAY_FLAGS,
+            pumpkin_data::tracked_data::text_display::DATA_STYLE_FLAGS_ID,
             flags,
         );
     }
@@ -996,8 +1026,9 @@ impl TextDisplayEntity {
             flags &= !2;
         }
         self.flags.store(flags, Ordering::Relaxed);
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::TEXT_DISPLAY_FLAGS,
+            pumpkin_data::tracked_data::text_display::DATA_STYLE_FLAGS_ID,
             flags,
         );
     }
@@ -1014,8 +1045,9 @@ impl TextDisplayEntity {
             flags &= !4;
         }
         self.flags.store(flags, Ordering::Relaxed);
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::TEXT_DISPLAY_FLAGS,
+            pumpkin_data::tracked_data::text_display::DATA_STYLE_FLAGS_ID,
             flags,
         );
     }
@@ -1039,8 +1071,9 @@ impl TextDisplayEntity {
             flags |= 16;
         }
         self.flags.store(flags, Ordering::Relaxed);
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::TEXT_DISPLAY_FLAGS,
+            pumpkin_data::tracked_data::text_display::DATA_STYLE_FLAGS_ID,
             flags,
         );
     }
@@ -1127,21 +1160,25 @@ impl EntityBase for TextDisplayEntity {
             .clone();
         self.display
             .entity
-            .set_synced_data(pumpkin_data::tracked_data::text_display::TEXT, text);
-        self.display.entity.set_synced_data(
+            .set_synced_data_compat(pumpkin_data::tracked_data::text_display::TEXT,pumpkin_data::tracked_data::text_display::DATA_TEXT_ID, text);
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::LINE_WIDTH,
+            pumpkin_data::tracked_data::text_display::DATA_LINE_WIDTH_ID,
             VarInt(self.line_width.load(Ordering::Relaxed)),
         );
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::BACKGROUND,
+            pumpkin_data::tracked_data::text_display::DATA_BACKGROUND_COLOR_ID,
             VarInt(self.background.load(Ordering::Relaxed)),
         );
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::TEXT_OPACITY,
+            pumpkin_data::tracked_data::text_display::DATA_TEXT_OPACITY_ID,
             self.text_opacity.load(Ordering::Relaxed) as u8,
         );
-        self.display.entity.set_synced_data(
+        self.display.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::text_display::TEXT_DISPLAY_FLAGS,
+            pumpkin_data::tracked_data::text_display::DATA_STYLE_FLAGS_ID,
             self.flags.load(Ordering::Relaxed),
         );
     }

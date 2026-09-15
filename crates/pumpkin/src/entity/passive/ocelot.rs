@@ -127,7 +127,7 @@ impl OcelotEntity {
     pub fn set_trusting(&self, trusting: bool) {
         self.is_trusting.store(trusting, Ordering::Relaxed);
         let entity = self.get_entity();
-        entity.set_synced_data(pumpkin_data::tracked_data::ocelot::TRUSTING, trusting);
+        entity.set_synced_data_compat(pumpkin_data::tracked_data::ocelot::TRUSTING,pumpkin_data::tracked_data::ocelot::DATA_TRUSTING, trusting);
     }
 }
 
@@ -175,8 +175,9 @@ impl Mob for OcelotEntity {
         if is_baby {
             entity.set_synced_data(pumpkin_data::tracked_data::ocelot::BABY_ID, true);
         }
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::ocelot::TRUSTING,
+            pumpkin_data::tracked_data::ocelot::DATA_TRUSTING,
             self.is_trusting.load(Ordering::Relaxed),
         );
     }

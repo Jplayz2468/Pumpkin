@@ -28,8 +28,9 @@ impl EndCrystalEntity {
 
     pub fn set_show_bottom(&self, show_bottom: bool) {
         self.show_bottom.store(show_bottom, Ordering::Relaxed);
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::end_crystal::SHOW_BOTTOM,
+            pumpkin_data::tracked_data::end_crystal::DATA_SHOW_BOTTOM,
             show_bottom,
         );
     }
@@ -43,8 +44,9 @@ impl EndCrystalEntity {
             .beam_target
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = beam_target;
-        self.entity.set_synced_data(
+        self.entity.set_synced_data_compat(
             pumpkin_data::tracked_data::end_crystal::BEAM_TARGET,
+            pumpkin_data::tracked_data::end_crystal::DATA_BEAM_TARGET,
             beam_target,
         );
     }

@@ -109,6 +109,7 @@ pub mod projectile_deflection;
 pub mod synched_entity_data;
 pub mod tnt;
 pub mod r#type;
+pub mod variant;
 pub mod vehicle;
 
 pub use lightning::LightningBoltEntity;
@@ -3171,6 +3172,43 @@ impl Entity {
         self.world
             .load()
             .play_sound(sound, SoundCategory::Neutral, &self.pos.load());
+    }
+
+    /// Sets a field that was renamed in 26.1, writing it under BOTH names.
+    ///
+    /// The generated tracked-data table keeps the two protocol eras side by side. Fields
+    /// older than 26.1 keep their historical name (`creeper::CHARGED`,
+    /// `cat::CAT_VARIANT`, `shulker::COLOR`, ...), and those constants resolve to 255 —
+    /// "absent in this version" — from 26.1 on, where the field was renamed
+    /// (`DATA_IS_POWERED`, `DATA_VARIANT_ID`, `DATA_COLOR_ID`). A field that resolves to
+    /// 255 is silently skipped when the packet is written, so writing only the historical
+    /// name sent nothing at all to a 26.x client: charged creepers had no aura, cat and
+    /// frog variants never rendered, wolf collars stayed default, shulkers lost their
+    /// colour, item frames their rotation, and every display entity its transform.
+    ///
+    /// Each constant is skipped automatically on the versions where it does not exist, so
+    /// writing both means exactly one reaches any given client. The pair has to be named
+    /// here rather than looked up centrally: `TrackedData` is just an id/type pair, and
+    /// two different mobs' fields (`creeper::CHARGED` and `ocelot::TRUSTING`, say) can be
+    /// structurally identical, so only the call site knows which field it means.
+    pub fn set_synced_data_compat<T: MetadataSerializer + Clone + Send + Sync + 'static>(
+        &self,
+        legacy: pumpkin_data::tracked_data::TrackedData,
+        modern: pumpkin_data::tracked_data::TrackedData,
+        value: T,
+    ) -> bool {
+        debug_assert_eq!(
+            legacy.r#type, modern.r#type,
+            "a renamed field must keep its metadata type"
+        );
+        let changed_legacy = self.synched_data.set(legacy, value.clone());
+        let changed_modern = self.synched_data.set(modern, value);
+        if changed_legacy || changed_modern {
+            self.send_dirty_entity_data();
+            true
+        } else {
+            false
+        }
     }
 
     pub fn set_synced_data<T: MetadataSerializer + Clone + Send + Sync + 'static>(

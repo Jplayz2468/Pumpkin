@@ -242,8 +242,9 @@ impl CatEntity {
     pub fn set_variant(&self, variant: u8) {
         self.variant.store(variant, Ordering::Relaxed);
         let entity = self.get_entity();
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::cat::CAT_VARIANT,
+            pumpkin_data::tracked_data::cat::DATA_VARIANT_ID,
             VarInt(variant as i32),
         );
     }
@@ -388,8 +389,9 @@ impl Mob for CatEntity {
             pumpkin_data::tracked_data::cat::OWNER_UUID,
             self.get_owner(),
         );
-        entity.set_synced_data(
+        entity.set_synced_data_compat(
             pumpkin_data::tracked_data::cat::CAT_VARIANT,
+            pumpkin_data::tracked_data::cat::DATA_VARIANT_ID,
             VarInt(self.variant.load(Ordering::Relaxed) as i32),
         );
         entity.set_synced_data(
