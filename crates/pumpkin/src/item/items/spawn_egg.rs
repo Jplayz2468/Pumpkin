@@ -155,11 +155,15 @@ impl ItemBehaviour for SpawnEggItem {
                 }
             }
 
+            // Vanilla: `blockState.getCollisionShape(level, pos).isEmpty()` decides
+            // whether the egg spawns into the clicked block or the offset neighbour.
+            // This covers air, fluids and any other non-colliding block (flowers,
+            // carpets, rails, etc.), not just air/water/lava. SpawnEggItem.java:70-74
             let target_state = world.get_block_state(&location);
-            let target_block = world.get_block(&location);
-            let spawn_block_pos = if target_state.is_air()
-                || target_block.id == Block::WATER.id
-                || target_block.id == Block::LAVA.id
+            let spawn_block_pos = if target_state
+                .get_block_collision_shapes_at(&location)
+                .next()
+                .is_none()
             {
                 location
             } else {
