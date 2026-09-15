@@ -444,6 +444,14 @@ impl MoveControlTrait for SlimeMoveControl {
 
         let on_ground = entity.on_ground.load(Ordering::Relaxed);
 
+        // AbstractCubeMob.java:462,479 (CubeMobMoveControl#tick): `setSpeed` sets both the
+        // Entity `speed` field and `zza`, and `Mob#setSpeed` scales the requested modifier by
+        // the movement-speed attribute (Mob.java:440-443) rather than using the raw modifier.
+        // Pumpkin's generic `MoveControl`'s `Jumping` arm does the same (move_control.rs), so
+        // mirror it here instead of writing the unscaled 1.0/1.2 modifier straight into
+        // `movement_input.z`.
+        let movement_speed = living_entity.get_attribute_value(&Attributes::MOVEMENT_SPEED);
+
         if on_ground {
             if speed_modifier > 0.0 {
                 let current_delay = slime.jump_delay.load(Ordering::Relaxed);
@@ -465,7 +473,7 @@ impl MoveControlTrait for SlimeMoveControl {
                             slime.get_sound_pitch(),
                         );
                     }
-                    movement_input.z = speed_modifier;
+                    movement_input.z = speed_modifier * movement_speed;
                 } else {
                     slime.jump_delay.store(current_delay - 1, Ordering::Relaxed);
                     living_entity.jumping.store(false, Ordering::SeqCst);
@@ -476,7 +484,7 @@ impl MoveControlTrait for SlimeMoveControl {
         } else {
             // In air: move forward but don't "jump" again
             if speed_modifier > 0.0 {
-                movement_input.z = speed_modifier;
+                movement_input.z = speed_modifier * movement_speed;
             }
             living_entity.jumping.store(false, Ordering::SeqCst);
         }

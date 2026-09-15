@@ -71,7 +71,11 @@ impl GhastEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-            // Priority 1: Target nearest player within vertical proximity
+            // Priority 1: Target nearest player within vertical proximity.
+            // Ghast.java:61: `(target, level) -> Math.abs(target.getY() - this.getY()) <= 4.0`
+            // -- this predicate was previously a no-op (`|_, _| true`), so the vertical
+            // restriction vanilla applies to Ghast targeting was silently missing.
+            let target_weak = Arc::downgrade(&mob_arc);
             target_selector.add_goal(
                 1,
                 Box::new(ActiveTargetGoal::new(
@@ -80,7 +84,12 @@ impl GhastEntity {
                     10,
                     true,
                     false,
-                    Some(|_target: &LivingEntity, _world: &World| true),
+                    Some(move |target: &LivingEntity, _world: &World| {
+                        target_weak.upgrade().is_none_or(|ghast| {
+                            let my_y = ghast.mob_entity.living_entity.entity.pos.load().y;
+                            (target.entity.pos.load().y - my_y).abs() <= 4.0
+                        })
+                    }),
                 )),
             );
         };
@@ -194,6 +203,9 @@ impl Goal for GhastLookGoal {
     }
 
     fn tick(&mut self, mob: &dyn Mob) {
+        // Ghast.java:187-202 (faceMovementDirection): sets `yRot`/`yBodyRot` only -- it
+        // never touches `yHeadRot`. The previous version stored into `head_yaw` instead of
+        // `body_yaw`, so the body never actually turned to face movement/target.
         let mob_entity = mob.get_mob_entity();
         let target_opt = mob_entity.get_target();
 
@@ -206,15 +218,15 @@ impl Goal for GhastLookGoal {
                 let dz = target_pos.z - mob_pos.z;
                 let yaw = (-f64::atan2(dx, dz).to_degrees()) as f32;
                 mob_entity.living_entity.entity.yaw.store(yaw);
-                mob_entity.living_entity.entity.head_yaw.store(yaw);
+                mob_entity.living_entity.entity.body_yaw.store(yaw);
             }
         } else {
+            // Java always recomputes from the delta-movement vector, even when it's
+            // (0, 0) (atan2(0, 0) == 0), rather than leaving the previous yaw in place.
             let velocity = mob_entity.living_entity.entity.velocity.load();
-            if velocity.x != 0.0 || velocity.z != 0.0 {
-                let yaw = (-f64::atan2(velocity.x, velocity.z).to_degrees()) as f32;
-                mob_entity.living_entity.entity.yaw.store(yaw);
-                mob_entity.living_entity.entity.head_yaw.store(yaw);
-            }
+            let yaw = (-f64::atan2(velocity.x, velocity.z).to_degrees()) as f32;
+            mob_entity.living_entity.entity.yaw.store(yaw);
+            mob_entity.living_entity.entity.body_yaw.store(yaw);
         }
     }
 
@@ -283,8 +295,15 @@ impl Goal for GhastShootFireballGoal {
         let ghast_pos = entity.pos.load();
         let target_pos = target.get_entity().pos.load();
         let dist_sq = ghast_pos.squared_distance_to_vec(&target_pos);
+        // Ghast.java:358: `target.distanceToSqr(this.ghast) < 4096.0 &&
+        // this.ghast.hasLineOfSight(target)`. There is no general raycast-based
+        // has-line-of-sight check for mobs anywhere in this codebase yet (see the same
+        // `let has_line_of_sight = true;` stand-in in ai/goal/blaze_attack.rs and
+        // ai/goal/ranged_attack.rs), so this mirrors that established stub rather than
+        // silently dropping the condition.
+        let has_line_of_sight = true;
 
-        if dist_sq < 4096.0 {
+        if dist_sq < 4096.0 && has_line_of_sight {
             let world = entity.world.load();
             self.charge_time += 1;
 
