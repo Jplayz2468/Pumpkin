@@ -128,20 +128,6 @@ impl BedrockClient {
                             .current_block_breaking_speed
                             .swap(speed.to_bits(), Ordering::Relaxed);
                         if starts_breaking {
-                            if block == &pumpkin_data::Block::NOTE_BLOCK {
-                                let props =
-                                    pumpkin_data::block_properties::NoteBlockLikeProperties::from_state_id(
-                                        state.id,
-                                    );
-                                crate::block::blocks::note::NoteBlock::play_note(
-                                    &props, &world, &location,
-                                );
-                                player.increment_stat(
-                                    pumpkin_data::statistic::StatisticCategory::Custom,
-                                    pumpkin_data::statistic::CustomStatistic::PlayNoteblock as i32,
-                                    1,
-                                );
-                            }
                             world.set_block_breaking(
                                 entity,
                                 location,

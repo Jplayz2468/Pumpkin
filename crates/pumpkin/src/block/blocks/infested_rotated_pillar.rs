@@ -1,14 +1,8 @@
-use std::sync::Arc;
-
 use pumpkin_data::BlockStateId;
-use pumpkin_data::entity::EntityType;
 use pumpkin_macros::pumpkin_block;
-use pumpkin_util::GameMode;
 
 use crate::block::BlockBehaviour;
-use crate::block::BrokenArgs;
 use crate::block::OnPlaceArgs;
-use crate::entity::Entity;
 
 // InfestedRotatedPillarBlock.java extends InfestedBlock and additionally carries the
 // vanilla RotatedPillarBlock AXIS property (see RotatedPillarBlock#getStateForPlacement /
@@ -28,22 +22,7 @@ impl BlockBehaviour for InfestedRotatedPillarBlock {
         props.to_state_id(args.block)
     }
 
-    // InfestedBlock.java:60-66 spawnAfterBreak spawns a silverfish when the block is
-    // broken (unless drops are disabled / prevented by enchantment); mirrors InfestedBlock
-    // in infested.rs, which this family inherits from in vanilla.
-    fn broken(&self, args: BrokenArgs<'_>) {
-        {
-            // TODO: ugly fix, use onStacksDropped
-            if args.player.gamemode.load() == GameMode::Creative {
-                return;
-            }
-            let entity = Entity::new(
-                args.world.clone(),
-                args.position.0.to_f64(),
-                &EntityType::SILVERFISH,
-            );
-
-            args.world.spawn_entity(Arc::new(entity));
-        }
+    fn spawn_after_break(&self, args: crate::block::SpawnAfterBreakArgs<'_>) {
+        super::infested::InfestedBlock.spawn_after_break(args);
     }
 }

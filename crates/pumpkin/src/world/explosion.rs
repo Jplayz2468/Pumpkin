@@ -12,7 +12,7 @@ use pumpkin_world::chunk::ChunkData;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    block::{ExplodeArgs, drop_loot},
+    block::{ExplodeArgs, drop_explosion_loot},
     entity::{Entity, EntityBase},
     world::loot::LootContextParameters,
 };
@@ -592,7 +592,7 @@ impl<'a> Explosion<'a> {
                         // Vanilla: `doDropExperienceHack = explosion.getIndirectSourceEntity()
                         // instanceof Player` (BlockBehaviour.java:180), passed into
                         // `state.spawnAfterBreak(..., doDropExperienceHack)` (line 192).
-                        drop_loot(world, block, pos, self.caused_by_player, &params);
+                        drop_explosion_loot(world, block, pos, self.caused_by_player, &params);
                     }
                     world.set_block_state(pos, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
                     world.close_container_screens_at(pos);

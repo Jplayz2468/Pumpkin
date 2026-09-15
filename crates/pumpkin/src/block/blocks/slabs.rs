@@ -21,12 +21,16 @@ impl BlockBehaviour for SlabBlock {
         }
 
         let mut slab_props = SlabProperties::default(args.block);
-        slab_props.waterlogged = args.replacing.water_source();
+        let (fluid, fluid_state) = crate::world::World::fluid_state_from_block_state(
+            args.world.get_block_state_id(args.position),
+        );
+        slab_props.waterlogged =
+            fluid.matches_type(&pumpkin_data::Fluid::WATER) && fluid_state.is_source;
         slab_props.r#type = match args.direction {
             BlockDirection::Up => SlabType::Top,
             BlockDirection::Down => SlabType::Bottom,
             _ => match args.use_item_on.cursor_pos.y {
-                0.0..0.5 => SlabType::Bottom,
+                y if y <= 0.5 => SlabType::Bottom,
                 _ => SlabType::Top,
             },
         };
@@ -37,15 +41,22 @@ impl BlockBehaviour for SlabBlock {
     fn can_update_at(&self, args: CanUpdateAtArgs<'_>) -> bool {
         let slab_props = SlabProperties::from_state_id(args.state_id);
 
-        slab_props.r#type
-            == match args.direction {
-                BlockDirection::Up => SlabType::Bottom,
-                BlockDirection::Down => SlabType::Top,
-                _ => match args.use_item_on.cursor_pos.y {
-                    0.0..0.5 => SlabType::Top,
-                    _ => SlabType::Bottom,
-                },
+        if slab_props.r#type == SlabType::Double {
+            return false;
+        }
+        if !args.replacing_clicked {
+            return true;
+        }
+        let above = args.cursor_pos.y > 0.5;
+        match slab_props.r#type {
+            SlabType::Bottom => {
+                args.direction == BlockDirection::Up || (above && args.direction.is_horizontal())
             }
+            SlabType::Top => {
+                args.direction == BlockDirection::Down || (!above && args.direction.is_horizontal())
+            }
+            SlabType::Double => false,
+        }
     }
 
     fn is_pathfindable(&self, state: &BlockState, computation_type: PathComputationType) -> bool {

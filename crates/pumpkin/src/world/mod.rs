@@ -6302,6 +6302,23 @@ impl World {
             )
         };
 
+        self.drop_stack_at(spawn_pos, stack);
+    }
+
+    /// Block.popResource draws the position even when block drops are disabled.
+    pub fn drop_block_stack(self: &Arc<Self>, pos: &BlockPos, stack: ItemStack) {
+        let spawn_pos = Vector3::new(
+            f64::from(pos.0.x) + 0.5 + (-0.25 + self.rand_f64() * 0.5),
+            f64::from(pos.0.y) + 0.5 + (-0.25 + self.rand_f64() * 0.5)
+                - f64::from(EntityType::ITEM.dimension[1]) / 2.0,
+            f64::from(pos.0.z) + 0.5 + (-0.25 + self.rand_f64() * 0.5),
+        );
+        if !stack.is_empty() && self.level_info.load().game_rules.block_drops {
+            self.drop_stack_at(spawn_pos, stack);
+        }
+    }
+
+    fn drop_stack_at(self: &Arc<Self>, spawn_pos: Vector3<f64>, stack: ItemStack) {
         let entity = Entity::new(self.clone(), spawn_pos, &EntityType::ITEM);
         let mut item_event = crate::plugin::api::events::entity::item_spawn::ItemSpawnEvent::new(
             entity.entity_id,

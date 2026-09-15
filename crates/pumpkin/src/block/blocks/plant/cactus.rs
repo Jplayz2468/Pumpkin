@@ -107,8 +107,12 @@ impl BlockBehaviour for CactusBlock {
 
 fn can_place_at(world: &dyn BlockAccessor, block_pos: &BlockPos) -> bool {
     for direction in BlockDirection::horizontal() {
-        let (block, state) = world.get_block_and_state(&block_pos.offset(direction.to_offset()));
-        if state.is_solid() || block == &Block::LAVA {
+        let state = world.get_block_state(&block_pos.offset(direction.to_offset()));
+        if state.is_solid()
+            || crate::world::World::fluid_state_from_block_state(state.id)
+                .0
+                .has_tag(&tag::Fluid::MINECRAFT_LAVA)
+        {
             return false;
         }
     }

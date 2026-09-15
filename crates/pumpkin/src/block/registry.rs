@@ -550,7 +550,9 @@ pub(crate) fn can_replace_with_other_block(block: &Block, state: &BlockState) ->
         pumpkin_data::BlockId::SCULK_VEIN
             | pumpkin_data::BlockId::GLOW_LICHEN
             | pumpkin_data::BlockId::RESIN_CLUMP
-    ) || state.replaceable()
+    ) || (block == &Block::SNOW
+        && pumpkin_data::block_properties::SnowLikeProperties::from_state_id(state.id).layers == 1)
+        || state.replaceable()
 }
 
 impl BlockRegistry {
@@ -1193,7 +1195,8 @@ impl BlockRegistry {
                 position,
                 direction,
                 player,
-                use_item_on,
+                cursor_pos: &use_item_on.cursor_pos,
+                replacing_clicked: use_item_on.position == *position,
             });
         }
         false

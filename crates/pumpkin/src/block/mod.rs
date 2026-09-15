@@ -5,7 +5,7 @@ use pumpkin_data::{Block, BlockId, BlockState};
 use crate::block::random::BlockRandom;
 use pumpkin_data::BlockStateId;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::random::{RandomGenerator, get_seed, xoroshiro128::Xoroshiro};
+use pumpkin_util::random::RandomGenerator;
 
 use crate::entity::experience_orb::ExperienceOrbEntity;
 use crate::entity::player::Player;
@@ -160,6 +160,8 @@ pub trait BlockBehaviour: Send + Sync {
 
     fn attacked(&self, _args: AttackArgs<'_>) {}
 
+    fn spawn_after_break(&self, _args: SpawnAfterBreakArgs<'_>) {}
+
     fn broken(&self, _args: BrokenArgs<'_>) {}
 
     fn on_neighbor_update(&self, _args: OnNeighborUpdateArgs<'_>) {}
@@ -234,6 +236,14 @@ pub struct BonemealArgs<'a> {
     pub block: &'a Block,
     pub position: &'a BlockPos,
     pub state_id: BlockStateId,
+}
+
+pub struct SpawnAfterBreakArgs<'a> {
+    pub world: &'a Arc<World>,
+    pub block: &'a Block,
+    pub position: &'a BlockPos,
+    pub experience: bool,
+    pub params: &'a LootContextParameters,
 }
 
 pub struct AttackArgs<'a> {
@@ -401,7 +411,8 @@ pub struct CanUpdateAtArgs<'a> {
     pub position: &'a BlockPos,
     pub direction: BlockDirection,
     pub player: &'a Player,
-    pub use_item_on: &'a SUseItemOn,
+    pub cursor_pos: &'a Vector3<f32>,
+    pub replacing_clicked: bool,
 }
 
 pub struct PlacedArgs<'a> {
@@ -526,6 +537,30 @@ pub fn drop_loot(
     experience: bool,
     params: &LootContextParameters,
 ) {
+    drop_loot_inner(world, block, pos, experience, params, false);
+}
+
+pub fn drop_explosion_loot(
+    world: &Arc<World>,
+    block: &Block,
+    pos: &BlockPos,
+    experience: bool,
+    params: &LootContextParameters,
+) {
+    drop_loot_inner(world, block, pos, experience, params, true);
+}
+
+fn drop_loot_inner(
+    world: &Arc<World>,
+    block: &Block,
+    pos: &BlockPos,
+    experience: bool,
+    params: &LootContextParameters,
+    explosion: bool,
+) {
+    if explosion {
+        spawn_after_break(world, block, pos, experience, params);
+    }
     let has_silk_touch = params.tool.as_ref().is_some_and(|tool| {
         pumpkin_data::Enchantment::from_name("silk_touch")
             .is_some_and(|e| tool.get_enchantment_level(e) > 0)
@@ -576,18 +611,45 @@ pub fn drop_loot(
             }
             if !event.cancelled {
                 for stack in event.items {
-                    world.drop_stack(pos, stack);
+                    world.drop_block_stack(pos, stack);
                 }
             }
         }
     }
 
+    if !explosion {
+        spawn_after_break(world, block, pos, experience, params);
+    }
+}
+
+fn spawn_after_break(
+    world: &Arc<World>,
+    block: &Block,
+    pos: &BlockPos,
+    experience: bool,
+    params: &LootContextParameters,
+) {
+    let has_silk_touch = params
+        .tool
+        .as_ref()
+        .is_some_and(|tool| tool.get_enchantment_level(&pumpkin_data::Enchantment::SILK_TOUCH) > 0);
+
     if experience
         && !has_silk_touch
         && let Some(experience) = &block.experience
     {
-        let mut random = RandomGenerator::Xoroshiro(Xoroshiro::from_seed(get_seed()));
-        let amount = experience.experience.get(&mut random);
+        let amount = {
+            let mut shared = world
+                .random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut random = RandomGenerator::Legacy(shared.clone());
+            let amount = experience.experience.get(&mut random);
+            if let RandomGenerator::Legacy(updated) = random {
+                *shared = updated;
+            }
+            amount
+        };
         if amount > 0 {
             let mut event = crate::plugin::block::block_exp::BlockExpEvent {
                 block_pos: *pos,
@@ -597,10 +659,19 @@ pub fn drop_loot(
             if let Some(server) = world.server.upgrade() {
                 server.plugin_manager.fire_blocking(&server, &mut event);
             }
-            if event.exp > 0 {
-                ExperienceOrbEntity::spawn(world, pos.to_f64(), event.exp as u32);
+            if event.exp > 0 && world.level_info.load().game_rules.block_drops {
+                ExperienceOrbEntity::spawn(world, pos.to_centered_f64(), event.exp as u32);
             }
         }
+    }
+    if let Some(behaviour) = world.block_registry.get_pumpkin_block(block.id) {
+        behaviour.spawn_after_break(SpawnAfterBreakArgs {
+            world,
+            block,
+            position: pos,
+            experience,
+            params,
+        });
     }
 }
 

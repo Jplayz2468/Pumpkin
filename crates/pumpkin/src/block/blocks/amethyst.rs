@@ -6,7 +6,6 @@ use pumpkin_data::{
 };
 use pumpkin_macros::pumpkin_block;
 use pumpkin_world::{tick::TickPriority, world::BlockFlags};
-use rand::RngExt;
 
 use crate::block::{
     BlockBehaviour, BlockMetadata, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
@@ -48,17 +47,22 @@ impl BlockBehaviour for AmethystBlock {
         // `BuddingAmethystBlock::random_tick` below, which grows buds with
         // `facing = grow_direction` (support -> bud, i.e. also "away from surface").
         props.facing = args.direction.opposite().to_facing();
-        props.waterlogged = args.replacing.water_source();
+        let (fluid, state) = crate::world::World::fluid_state_from_block_state(
+            args.world.get_block_state_id(args.position),
+        );
+        props.waterlogged = fluid.matches_type(&Fluid::WATER) && state.is_source;
         props.to_state_id(args.block)
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        // Use the provided direction, or fallback to the current state's direction if missing
-        let direction = args
-            .direction
-            .unwrap_or_else(|| self.get_direction(args.state.id, args.block));
+        let facing = AmethystClusterLikeProperties::from_state_id(args.state.id)
+            .facing
+            .to_block_direction();
+        WallMountedBlock::can_place_at(self, args.block_accessor, args.position, facing.opposite())
+    }
 
-        WallMountedBlock::can_place_at(self, args.block_accessor, args.position, direction)
+    fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
+        AmethystBlockBlock.on_projectile_hit(args);
     }
 
     fn get_state_for_neighbor_update(
@@ -100,6 +104,9 @@ impl WallMountedBlock for AmethystBlock {
 pub struct BuddingAmethystBlock;
 
 impl BlockBehaviour for BuddingAmethystBlock {
+    fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
+        AmethystBlockBlock.on_projectile_hit(args);
+    }
     fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         if args.rand_bounded_i32(5) == 0 {
             let dir_index = args.rand_bounded_i32(ALL_DIRECTIONS.len() as i32) as usize;
@@ -127,7 +134,10 @@ impl BlockBehaviour for BuddingAmethystBlock {
                     None
                 };
 
-            if let Some((next_stage, waterlogged)) = next_stage_and_water {
+            if let Some((next_stage, _)) = next_stage_and_water {
+                let (fluid, state) =
+                    crate::world::World::fluid_state_from_block_state(relative_state_id);
+                let waterlogged = fluid.matches_type(&Fluid::WATER) && state.is_source;
                 let mut target_props = AmethystClusterLikeProperties::default(next_stage);
                 target_props.facing = grow_direction.to_facing();
                 target_props.waterlogged = waterlogged;
@@ -142,7 +152,11 @@ impl BlockBehaviour for BuddingAmethystBlock {
 #[must_use]
 pub fn can_cluster_grow_at_state(block: &Block, state_id: BlockStateId) -> bool {
     block.default_state.is_air()
-        || (block == &Block::WATER && state_id == Block::WATER.default_state.id)
+        || (block == &Block::WATER
+            && crate::world::World::fluid_state_from_block_state(state_id)
+                .1
+                .level
+                == 8)
 }
 
 /// The solid `minecraft:amethyst_block`, distinct from the bud/cluster growth stages above.
@@ -157,7 +171,7 @@ impl BlockBehaviour for AmethystBlockBlock {
             SoundCategory::Blocks,
             &args.position.to_centered_f64(),
             1.0,
-            0.5 + rand::rng().random::<f32>() * 1.2,
+            0.5 + args.world.rand_f32() * 1.2,
         );
     }
 }
@@ -198,7 +212,10 @@ mod tests {
             self.get_block_state(position).id
         }
 
-        fn get_block_and_state(&self, position: &BlockPos) -> (&'static Block, &'static BlockState) {
+        fn get_block_and_state(
+            &self,
+            position: &BlockPos,
+        ) -> (&'static Block, &'static BlockState) {
             (self.get_block(position), self.get_block_state(position))
         }
     }
@@ -248,17 +265,20 @@ mod tests {
         let below = BlockPos::new(0, 0, 0);
         let accessor_supported = FakeAccessor { solid_pos: below };
         assert!(
-            BlockBehaviour::can_place_at(&AmethystBlock, CanPlaceAtArgs {
-                server: None,
-                world: None,
-                block_accessor: &accessor_supported,
-                block: &Block::AMETHYST_CLUSTER,
-                state,
-                position: &pos,
-                direction: Some(BlockDirection::Down),
-                player: None,
-                use_item_on: None,
-            }),
+            BlockBehaviour::can_place_at(
+                &AmethystBlock,
+                CanPlaceAtArgs {
+                    server: None,
+                    world: None,
+                    block_accessor: &accessor_supported,
+                    block: &Block::AMETHYST_CLUSTER,
+                    state,
+                    position: &pos,
+                    direction: Some(BlockDirection::Down),
+                    player: None,
+                    use_item_on: None,
+                }
+            ),
             "stone directly below an up-facing cluster must count as support"
         );
 
@@ -267,17 +287,20 @@ mod tests {
         let above = BlockPos::new(0, 2, 0);
         let accessor_unsupported = FakeAccessor { solid_pos: above };
         assert!(
-            !BlockBehaviour::can_place_at(&AmethystBlock, CanPlaceAtArgs {
-                server: None,
-                world: None,
-                block_accessor: &accessor_unsupported,
-                block: &Block::AMETHYST_CLUSTER,
-                state,
-                position: &pos,
-                direction: Some(BlockDirection::Down),
-                player: None,
-                use_item_on: None,
-            }),
+            !BlockBehaviour::can_place_at(
+                &AmethystBlock,
+                CanPlaceAtArgs {
+                    server: None,
+                    world: None,
+                    block_accessor: &accessor_unsupported,
+                    block: &Block::AMETHYST_CLUSTER,
+                    state,
+                    position: &pos,
+                    direction: Some(BlockDirection::Down),
+                    player: None,
+                    use_item_on: None,
+                }
+            ),
             "stone above an up-facing cluster is not its support and must not satisfy canSurvive"
         );
     }

@@ -492,8 +492,8 @@ so they must not be used to reconstruct audit completion.
      nested loot-table entries, quality weights, fishing/open-water and biome
      predicates, and all required item functions. Replacing the fishing helper
      with the current engine would silently remove valid catches.
-   - Brush archaeology still advances from click handling rather than vanilla's
-     continuous-use tick cadence; offhand use and loot context need a full port.
+   - Brush continuous-use ticks, offhand wear, progress decay and table selection
+     are ported above; shared ray geometry, loot functions and NPC users remain open.
    - Spawn-egg offspring still use generic entity construction/baby metadata,
      rather than the ageable offspring factory and eligibility checks.
    - Sweep damage scaling, enchantment effects, knockback, and movement gating
@@ -503,3 +503,30 @@ so they must not be used to reconstruct audit completion.
      component/interaction pipeline still need comparison.
 7. The earlier regression/gameplay comparison remains unperformed. Compilation and
    testing remain prohibited unless the user changes that instruction.
+
+## Continued source port: inherited block effects and placement
+
+- Amethyst buds/clusters and budding amethyst inherit projectile chimes; bud
+  support uses the stored facing, placement uses source water, and growth accepts
+  full falling water without incorrectly waterlogging the new bud. Cactus lava
+  adjacency now reads the fluid state.
+- Added the shared spawn-after-break callback with normal/explosion ordering.
+  Infested variants spawn silverfish through this callback (including explosions),
+  respecting block drops and the prevents-infested-spawns enchantment tag. Block
+  loot positions and experience providers now draw from the level random stream.
+- Redstone ore activates on attack/use/uncautious steps, consumes the server's
+  exposed-face random draws, and allows adjacent block placement/merging. Removed
+  activation from mere entity overlap. Placement queries now expose cursor and
+  clicked-position context without requiring a fabricated protocol packet.
+- Snow layers use ordinary placement/consumption and merge only to eight layers;
+  removed the incorrect ninth-layer conversion to a snow block. Neighbor survival
+  returns air immediately, and melting uses drop-resources then removal. Slab
+  merging distinguishes adjacent targets, handles the exact 0.5 boundary, and
+  reads source water for waterlogging.
+- Note block attack is dispatched through the shared Java/Bedrock hook, with
+  vibration source attribution. Top-instrument items pass to placement; pling and
+  all trumpet instruments use base-block/tunable rules. Custom skull sound is
+  read from the skull entity, and playback uses the block center.
+- Source review and standalone formatting only; no compilation or tests. Sound
+  packet seed/range delivery, complete placement contexts, loot random sequences,
+  and inherited behavior across all remaining families are still open.

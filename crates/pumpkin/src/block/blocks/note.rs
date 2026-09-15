@@ -1,15 +1,18 @@
 use crate::block::registry::BlockActionResult;
 use crate::block::{
-    GetStateForNeighborUpdateArgs, NormalUseArgs, OnNeighborUpdateArgs, OnPlaceArgs,
+    AttackArgs, GetStateForNeighborUpdateArgs, NormalUseArgs, OnNeighborUpdateArgs, OnPlaceArgs,
     UseWithItemArgs,
 };
+use crate::entity::EntityBase;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::{Axis, NoteblockInstrument};
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::tag::Taggable;
 use pumpkin_data::{Block, block_properties::NoteBlockLikeProperties};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::BlockFlags;
+use std::sync::Arc;
 
 use crate::{
     block::{BlockBehaviour, OnSyncedBlockEventArgs},
@@ -22,7 +25,12 @@ use super::redstone::block_receives_redstone_power;
 pub struct NoteBlock;
 
 impl NoteBlock {
-    pub fn play_note(props: &NoteBlockLikeProperties, world: &World, pos: &BlockPos) {
+    fn play_note(
+        props: &NoteBlockLikeProperties,
+        world: &Arc<World>,
+        pos: &BlockPos,
+        source: Option<&dyn EntityBase>,
+    ) {
         if !is_base_block(props.instrument) || world.get_block_state(&pos.up()).is_air() {
             let mut event = crate::plugin::api::events::block::note_play::NotePlayEvent::new(
                 *pos,
@@ -36,6 +44,12 @@ impl NoteBlock {
                 return;
             }
             world.add_synced_block_event(*pos, 0, 0);
+            world.emit_game_event_from_entity(
+                "minecraft:note_block_play",
+                pos.to_centered_f64(),
+                source,
+                None,
+            );
         }
     }
     fn get_note_pitch(note: u16) -> f32 {
@@ -74,7 +88,7 @@ impl BlockBehaviour for NoteBlock {
         // check if powered state changed
         if note_props.powered != powered {
             if powered {
-                Self::play_note(&note_props, args.world, args.position);
+                Self::play_note(&note_props, args.world, args.position, None);
             }
             note_props.powered = powered;
             args.world.set_block_state(
@@ -94,7 +108,12 @@ impl BlockBehaviour for NoteBlock {
             note_props.to_state_id(args.block),
             BlockFlags::NOTIFY_ALL,
         );
-        Self::play_note(&note_props, args.world, args.position);
+        Self::play_note(
+            &note_props,
+            args.world,
+            args.position,
+            Some(args.player.as_ref()),
+        );
 
         args.player.increment_stat(
             pumpkin_data::statistic::StatisticCategory::Custom,
@@ -105,9 +124,28 @@ impl BlockBehaviour for NoteBlock {
         BlockActionResult::Success
     }
 
-    fn use_with_item(&self, _args: UseWithItemArgs<'_>) -> BlockActionResult {
-        // TODO
-        BlockActionResult::PassToDefaultBlockAction
+    fn attacked(&self, args: AttackArgs<'_>) {
+        let props = NoteBlockLikeProperties::from_state_id(args.state_id);
+        Self::play_note(&props, args.world, args.position, Some(args.player));
+        args.player.increment_stat(
+            pumpkin_data::statistic::StatisticCategory::Custom,
+            pumpkin_data::statistic::CustomStatistic::PlayNoteblock as i32,
+            1,
+        );
+    }
+
+    fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
+        if *args.hit.face == pumpkin_data::BlockDirection::Up
+            && args
+                .item_stack
+                .item
+                .is_tagged_with("#minecraft:note_block_top_instruments")
+                .unwrap_or(false)
+        {
+            BlockActionResult::Pass
+        } else {
+            BlockActionResult::PassToDefaultBlockAction
+        }
     }
 
     fn on_synced_block_event(&self, args: OnSyncedBlockEventArgs<'_>) -> bool {
@@ -120,14 +158,40 @@ impl BlockBehaviour for NoteBlock {
         } else {
             1.0 // default pitch
         };
-        // check hasCustomSound
-        args.world.play_sound_raw(
-            convert_instrument_to_sound(instrument) as u16,
-            SoundCategory::Records,
-            &args.position.to_f64(),
-            3.0,
-            pitch,
-        );
+        if instrument == NoteblockInstrument::CustomHead {
+            let Some(entity) = args.world.get_block_entity(&args.position.up()) else {
+                return false;
+            };
+            let Some(skull) = entity
+                .as_any()
+                .downcast_ref::<crate::block::entities::skull::SkullBlockEntity>()
+            else {
+                return false;
+            };
+            let sound = skull
+                .note_block_sound
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            let Some(sound) = sound else {
+                return false;
+            };
+            args.world.play_custom_sound(
+                &sound,
+                SoundCategory::Records,
+                &args.position.to_centered_f64(),
+                3.0,
+                pitch,
+            );
+        } else {
+            args.world.play_sound_raw(
+                convert_instrument_to_sound(instrument) as u16,
+                SoundCategory::Records,
+                &args.position.to_centered_f64(),
+                3.0,
+                pitch,
+            );
+        }
         true
     }
 
@@ -206,5 +270,10 @@ const fn is_base_block(instrument: NoteblockInstrument) -> bool {
             | NoteblockInstrument::Didgeridoo
             | NoteblockInstrument::Bit
             | NoteblockInstrument::Banjo
+            | NoteblockInstrument::Pling
+            | NoteblockInstrument::Trumpet
+            | NoteblockInstrument::TrumpetExposed
+            | NoteblockInstrument::TrumpetOxidized
+            | NoteblockInstrument::TrumpetWeathered
     )
 }

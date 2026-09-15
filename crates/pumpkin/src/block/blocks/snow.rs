@@ -1,18 +1,12 @@
 use pumpkin_data::tag::Taggable;
-use pumpkin_data::{
-    Block, BlockState, BlockStateId, block_properties::SnowLikeProperties, item::Item, tag,
-};
-use pumpkin_inventory::screen_handler::InventoryPlayer;
+use pumpkin_data::{Block, BlockState, BlockStateId, block_properties::SnowLikeProperties, tag};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_world::{
-    tick::TickPriority,
-    world::{BlockAccessor, BlockFlags},
-};
+use pumpkin_world::world::{BlockAccessor, BlockFlags};
 
 use crate::block::{
-    BlockBehaviour, GetStateForNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs,
-    PathComputationType, RandomTickArgs, UseWithItemArgs, registry::BlockActionResult,
+    BlockBehaviour, BlockIsReplacing, CanPlaceAtArgs, CanUpdateAtArgs,
+    GetStateForNeighborUpdateArgs, OnPlaceArgs, PathComputationType, RandomTickArgs, drop_loot,
 };
 
 #[pumpkin_block("minecraft:snow")]
@@ -20,80 +14,42 @@ pub struct LayeredSnowBlock;
 
 impl BlockBehaviour for LayeredSnowBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        if !can_place_at(args.world, args.position) {
-            return Block::AIR.default_state.id;
-        }
         let mut props = SnowLikeProperties::default(args.block);
-        props.layers = 1;
-        props.to_state_id(&Block::SNOW)
+        if let BlockIsReplacing::Itself(state_id) = args.replacing {
+            props = SnowLikeProperties::from_state_id(state_id);
+            props.layers = (props.layers + 1).min(8);
+        }
+        props.to_state_id(args.block)
     }
 
-    fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
-        {
-            let item = args.item_stack.item;
-
-            if item == &Item::SNOW {
-                let pos = if args.hit.face.is_horizontal() {
-                    &args.position.offset(args.hit.face.to_offset())
-                } else {
-                    args.position
-                };
-                if !can_place_at(args.world.as_ref(), pos) {
-                    return BlockActionResult::Pass;
-                }
-                let (block, state_id) = args.world.get_block_and_state_id(pos);
-
-                if block != &Block::SNOW {
-                    return BlockActionResult::Pass;
-                }
-
-                let mut props = SnowLikeProperties::from_state_id(state_id);
-                // Vanilla stacks a snow layer via SnowLayerBlock's `canBeReplaced`/
-                // `getStateForPlacement` combine path, the ordinary BlockItem placement
-                // flow that consumes through `BlockItem.place` -> `ItemStack.consume`
-                // (BlockItem.java:89, ItemStack.java:1082-1086: shrinks by 1 unless the
-                // player `hasInfiniteMaterials()`). This `use_with_item` arm returns
-                // `Success`, which short-circuits before Pumpkin's own
-                // placement-decrement logic in `use_item_on.rs` ever runs, so the
-                // decrement has to happen here instead.
-                if props.layers >= 8 {
-                    args.world.set_block_state(
-                        pos,
-                        Block::SNOW_BLOCK.default_state.id,
-                        BlockFlags::NOTIFY_ALL,
-                    );
-                    if !args.player.has_infinite_materials() {
-                        args.item_stack.decrement(1);
-                    }
-                    return BlockActionResult::Success;
-                }
-                props.layers += 1;
-
-                let state_id = props.to_state_id(&Block::SNOW);
-                args.world
-                    .set_block_state(pos, state_id, BlockFlags::NOTIFY_ALL);
-                if !args.player.has_infinite_materials() {
-                    args.item_stack.decrement(1);
-                }
-                return BlockActionResult::Success;
-            }
-            BlockActionResult::Pass
-        }
+    fn can_update_at(&self, args: CanUpdateAtArgs<'_>) -> bool {
+        SnowLikeProperties::from_state_id(args.state_id).layers < 8
+            && (!args.replacing_clicked || args.direction == pumpkin_data::BlockDirection::Up)
     }
 
-    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        if !can_place_at(args.world.as_ref(), args.position) {
-            args.world
-                .break_block(args.position, None, BlockFlags::empty());
-        }
+    fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
+        can_place_at(args.block_accessor, args.position)
     }
 
     fn random_tick(&self, args: RandomTickArgs<'_>) {
-        // Snow layers melt when lit by block light above level 11,
-        // e.g. from a nearby torch.
         if args.world.get_block_light_level(args.position).unwrap_or(0) > 11 {
-            args.world
-                .break_block(args.position, None, BlockFlags::empty());
+            let state = args.world.get_block_state(args.position);
+            drop_loot(
+                args.world,
+                args.block,
+                args.position,
+                false,
+                &crate::world::loot::LootContextParameters {
+                    block_state: Some(state),
+                    position: Some(args.position.to_centered_f64()),
+                    ..Default::default()
+                },
+            );
+            args.world.set_block_state(
+                args.position,
+                Block::AIR.default_state.id,
+                BlockFlags::NOTIFY_ALL,
+            );
         }
     }
 
@@ -101,11 +57,11 @@ impl BlockBehaviour for LayeredSnowBlock {
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        if !can_place_at(args.world, args.position) {
-            args.world
-                .schedule_block_tick(args.block, *args.position, 1, TickPriority::Normal);
+        if can_place_at(args.world, args.position) {
+            args.state_id
+        } else {
+            Block::AIR.default_state.id
         }
-        args.state_id
     }
 
     fn is_pathfindable(&self, state: &BlockState, computation_type: PathComputationType) -> bool {
