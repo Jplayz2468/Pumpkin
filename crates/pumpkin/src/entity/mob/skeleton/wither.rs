@@ -9,6 +9,7 @@ use crate::entity::{
         Mob, MobEntity,
         skeleton::{DEFAULT_BOW_ATTACK_INTERVAL, SkeletonEntityBase},
     },
+    projectile::arrow::ArrowEntity,
 };
 
 pub struct WitherSkeletonEntity {
@@ -53,5 +54,14 @@ impl WitherSkeletonEntity {
 impl Mob for WitherSkeletonEntity {
     fn get_mob_entity(&self) -> &MobEntity {
         &self.entity.mob_entity
+    }
+
+    /// WitherSkeleton.java:106-110 `getArrow`: `arrow.igniteForSeconds(100.0F)`,
+    /// unconditionally - not gated on whether this skeleton itself is on fire (that's a
+    /// separate, generic shooter-on-fire check already handled in `BowAttackGoal::shoot`
+    /// before this hook runs). `ArrowEntity::set_flame` is the same "burn for 100s" call
+    /// that check uses, so this just forces it on regardless.
+    fn customize_arrow(&self, arrow: &ArrowEntity) {
+        arrow.set_flame(true);
     }
 }

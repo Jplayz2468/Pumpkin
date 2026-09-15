@@ -5,6 +5,7 @@ use crate::entity::ai::control::look_control::LookControl;
 use crate::entity::ai::control::move_control::MoveControl;
 use crate::entity::ai::goal::goal_selector::GoalSelector;
 use crate::entity::player::Player;
+use crate::entity::projectile::arrow::ArrowEntity;
 use crate::server::Server;
 use crate::world::World;
 use crossbeam::atomic::AtomicCell;
@@ -759,6 +760,15 @@ pub trait Mob: EntityBase + Send + Sync {
     }
 
     fn get_mob_entity(&self) -> &MobEntity;
+
+    /// Per-mob arrow customization hook, called from `BowAttackGoal::shoot`
+    /// (`bow_attack.rs`) right after the arrow is constructed. Mirrors vanilla
+    /// `AbstractSkeleton::getArrow` (`AbstractSkeleton.java:177-179`), which
+    /// `Stray`/`Bogged`/`Parched`/`WitherSkeleton` override to attach their arrow's
+    /// signature effect (`Stray.java:59-67`, `Bogged.java:106-114`,
+    /// `Parched.java:22-30`) or, for `WitherSkeleton`, to set it ablaze
+    /// (`WitherSkeleton.java:106-110`). Default: no extra customization.
+    fn customize_arrow(&self, _arrow: &ArrowEntity) {}
 
     /// Preserve observer state when another entity leaves this world. The
     /// notification carries no Arc, so remembering suspects cannot retain mobs.

@@ -101,6 +101,11 @@ impl BowAttackGoal {
             arrow.set_flame(true);
         }
 
+        // AbstractSkeleton.java:163 `this.getArrow(projectile, power, bowItem)`: gives each
+        // skeleton variant a chance to customize the arrow it just built (Stray/Bogged/
+        // Parched's signature potion effects, WitherSkeleton's unconditional ignite).
+        mob.customize_arrow(&arrow);
+
         let mob_pos = entity.pos.load();
         let target_entity = target.get_entity();
         let target_pos = target_entity.pos.load();

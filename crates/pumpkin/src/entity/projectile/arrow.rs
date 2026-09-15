@@ -9,7 +9,10 @@ use crate::{
 };
 use bytes::BufMut;
 use pumpkin_data::damage::DamageType;
-use pumpkin_data::data_component_impl::PotionDurationScaleImpl;
+use pumpkin_data::data_component::DataComponent;
+use pumpkin_data::data_component_impl::{
+    DataComponentImpl, PotionContentsImpl, PotionDurationScaleImpl, StatusEffectInstance,
+};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
@@ -168,6 +171,64 @@ impl ArrowEntity {
     #[must_use]
     pub fn get_weapon_item(&self) -> Option<ItemStack> {
         self.weapon.read().ok().and_then(|w| w.clone())
+    }
+
+    /// Adds a bonus potion effect straight to this arrow's own `PotionContents`, matching
+    /// vanilla `Arrow::addEffect` (`Arrow.java:64-66`):
+    /// `setPotionContents(getPotionContents().withEffectAdded(effect))`. This is what
+    /// `Stray`/`Bogged`/`Parched` call from their `getArrow` overrides to attach their
+    /// signature effect to every arrow they fire.
+    ///
+    /// Because this writes into the same `PotionContents` component a tipped arrow carries,
+    /// no second effect-delivery path is needed: the existing on-hit handling in
+    /// [`EntityBase::on_hit`] (`PotionContents::read_potion_effects` /
+    /// `PotionContents::apply_effects_to`, further down this file) applies it exactly like a
+    /// tipped-arrow potion, and the existing particle-color tracking (`get_effect_color`)
+    /// picks it up too, matching vanilla's `Arrow::updateColor`.
+    ///
+    /// `effect_id` must be a full `"minecraft:<name>"` id (e.g. `StatusEffect::SLOWNESS.
+    /// minecraft_name`), matching what `PotionContents::read_potion_effects` expects.
+    pub fn add_effect(&self, effect_id: &'static str, amplifier: i32, duration: i32) {
+        let mut item_stack = self
+            .item_stack
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        Self::merge_effect_into_item_stack(&mut item_stack, effect_id, amplifier, duration);
+    }
+
+    /// The `ItemStack`-only half of [`Self::add_effect`], split out so it can be unit
+    /// tested without needing a real `Entity`/`World` (this crate's tests never build one;
+    /// see `entity/mod.rs`'s `get_entity_dimensions_eye_height_matches_vanilla_avatar_poses`
+    /// test for the same rationale).
+    fn merge_effect_into_item_stack(
+        item_stack: &mut ItemStack,
+        effect_id: &'static str,
+        amplifier: i32,
+        duration: i32,
+    ) {
+        let mut contents = item_stack
+            .get_data_component::<PotionContentsImpl>()
+            .cloned()
+            .unwrap_or(PotionContentsImpl {
+                potion_id: None,
+                custom_color: None,
+                custom_effects: Vec::new(),
+                custom_name: None,
+            });
+        contents.custom_effects.push(StatusEffectInstance {
+            effect_id: std::borrow::Cow::Borrowed(effect_id),
+            amplifier,
+            duration,
+            ambient: false,
+            show_particles: true,
+            show_icon: true,
+        });
+        item_stack
+            .patch
+            .retain(|(id, _)| *id != DataComponent::PotionContents);
+        item_stack
+            .patch
+            .push((DataComponent::PotionContents, Some(contents.to_dyn())));
     }
 
     /// Applies projectile-spawned enchantment effects matching vanilla `Projectile::applyOnProjectileSpawned`.
@@ -1218,6 +1279,41 @@ mod tests {
         let normal = ItemStack::new(1, &Item::ARROW);
         let normal_color = ArrowEntity::get_effect_color(&normal);
         assert_eq!(normal_color, -1);
+    }
+
+    /// Pins the skeleton-variant arrow-effect table each of `Stray`/`Bogged`/`Parched`
+    /// attaches from its `Mob::customize_arrow` override (`stray.rs`, `bogged.rs`,
+    /// `parched.rs`), sourced from vanilla `AbstractSkeleton::getArrow` overrides:
+    /// `Stray.java:59-67` (`Slowness`, 600 ticks), `Bogged.java:106-114` (`Poison`, 100
+    /// ticks), `Parched.java:22-30` (`Weakness`, 600 ticks) - all amplifier 0.
+    ///
+    /// Calls the real production merge function (`ArrowEntity::merge_effect_into_item_stack`,
+    /// the same one `ArrowEntity::add_effect` - and so every variant's `customize_arrow` -
+    /// calls) and the real on-hit reader (`PotionContents::read_potion_effects`), so this
+    /// fails if either the merge or the read-back ever drifts from the table.
+    #[test]
+    fn skeleton_variant_arrow_effects_match_vanilla_table() {
+        use crate::item::potion::PotionContents;
+        use pumpkin_data::effect::StatusEffect;
+
+        let cases: &[(&'static str, i32, i32)] = &[
+            (StatusEffect::SLOWNESS.minecraft_name, 0, 600), // Stray.java:63
+            (StatusEffect::POISON.minecraft_name, 0, 100),   // Bogged.java:110
+            (StatusEffect::WEAKNESS.minecraft_name, 0, 600), // Parched.java:26
+        ];
+
+        for (effect_id, amplifier, duration) in cases.iter().copied() {
+            let mut stack = ItemStack::new(1, &Item::ARROW);
+            ArrowEntity::merge_effect_into_item_stack(&mut stack, effect_id, amplifier, duration);
+
+            let effects = PotionContents::read_potion_effects(&stack);
+            assert_eq!(effects.len(), 1, "effect {effect_id} did not round-trip");
+            let (effect_type, read_duration, read_amplifier, ambient, _, _) = effects[0];
+            assert_eq!(effect_type.minecraft_name, effect_id);
+            assert_eq!(read_duration, duration);
+            assert_eq!(read_amplifier, amplifier as u8);
+            assert!(!ambient);
+        }
     }
 
     #[test]
