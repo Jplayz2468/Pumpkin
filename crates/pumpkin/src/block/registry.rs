@@ -91,6 +91,7 @@ use crate::block::blocks::plant::eyeblossom::EyeblossomBlock;
 use crate::block::blocks::plant::flower::FlowerBlock;
 use crate::block::blocks::plant::flowerbed::FlowerbedBlock;
 use crate::block::blocks::plant::fungus::FungusBlock;
+use crate::block::blocks::plant::hanging_moss::HangingMossBlock;
 use crate::block::blocks::plant::hanging_roots::HangingRootsBlock;
 use crate::block::blocks::plant::kelp::KelpBlock;
 use crate::block::blocks::plant::leaf_litter::LeafLitterBlock;
@@ -329,6 +330,7 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(CaveVinesBlock);
     manager.register(AzaleaBlock);
     manager.register(HangingRootsBlock);
+    manager.register(HangingMossBlock);
     manager.register(CarrotBlock);
     manager.register(SweetBerryBushBlock);
     manager.register(SeaGrassBlock);
