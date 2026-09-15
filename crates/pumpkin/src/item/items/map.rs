@@ -6,6 +6,7 @@ use pumpkin_data::data_component_impl::DataComponentImpl;
 use pumpkin_data::data_component_impl::MapIdImpl;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
+use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_util::GameMode;
 use std::any::Any;
 
@@ -45,6 +46,13 @@ impl ItemBehaviour for MapItem {
                 player.position().x as i32,
                 player.position().z as i32,
                 0, // Default scale
+            );
+
+            // EmptyMapItem.java:22 plays this sound before handing back the filled map.
+            player.world().play_sound(
+                Sound::UiCartographyTableTakeResult,
+                SoundCategory::Players,
+                &player.position(),
             );
 
             let mut filled_map = ItemStack::new(1, &Item::FILLED_MAP);
