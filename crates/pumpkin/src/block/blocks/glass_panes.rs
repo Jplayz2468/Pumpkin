@@ -44,11 +44,12 @@ pub fn compute_pane_state(
         let other_block_pos = block_pos.offset(direction.to_offset());
         let (other_block, other_block_state) = world.get_block_and_state(&other_block_pos);
 
-        let connected = other_block == block
-            || other_block_state.is_side_solid(direction.opposite().to_block_direction())
-            || other_block.has_tag(&tag::Block::C_GLASS_PANES)
-            || other_block == &Block::IRON_BARS
-            || other_block.has_tag(&tag::Block::MINECRAFT_WALLS);
+        let connected = is_connected(
+            block,
+            direction.to_block_direction(),
+            other_block,
+            other_block_state,
+        );
 
         match direction {
             HorizontalFacing::North => pane_props.north = connected,
@@ -59,4 +60,136 @@ pub fn compute_pane_state(
     }
 
     pane_props.to_state_id(block)
+}
+
+/// Whether a pane placed at the origin connects towards `other_block` in the direction
+/// `towards` (`towards` points from the pane to the neighbour).
+///
+/// Vanilla: `IronBarsBlock.attachsTo` (`IronBarsBlock.java:101-103`) is
+/// `!isExceptionForConnection(state) && faceSolid || instanceof IronBarsBlock || WALLS tag`.
+/// `c:glass_panes` + `IRON_BARS` together stand in for `instanceof IronBarsBlock`
+/// (every vanilla pane, colored or not, extends it, per `StainedGlassPaneBlock.java:8`).
+/// The exception list (`Block.java:251-259`) matters: without it a pane would visually
+/// connect to pumpkins, melons, leaves, barriers and shulker boxes just because those
+/// happen to have a sturdy face.
+fn is_connected(
+    pane_block: &Block,
+    towards: BlockDirection,
+    other_block: &Block,
+    other_block_state: &BlockState,
+) -> bool {
+    other_block == pane_block
+        || (!is_exception_for_connection(other_block)
+            && other_block_state.is_side_solid(towards.opposite()))
+        || other_block.has_tag(&tag::Block::C_GLASS_PANES)
+        || other_block == &Block::IRON_BARS
+        || other_block.has_tag(&tag::Block::MINECRAFT_WALLS)
+}
+
+/// `Block.isExceptionForConnection` (Block.java:251-259): these blocks are excluded from
+/// the generic "sturdy face" connection rule used by panes, fences and walls even though
+/// several of them (pumpkins, melons, leaves, barriers, closed shulker boxes) do have a
+/// sturdy face on every side.
+fn is_exception_for_connection(block: &Block) -> bool {
+    block.has_tag(&tag::Block::MINECRAFT_LEAVES)
+        || block == &Block::BARRIER
+        || block == &Block::CARVED_PUMPKIN
+        || block == &Block::JACK_O_LANTERN
+        || block == &Block::MELON
+        || block == &Block::PUMPKIN
+        || block.has_tag(&tag::Block::MINECRAFT_SHULKER_BOXES)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Two panes side by side always connect (`instanceof IronBarsBlock` in vanilla,
+    /// IronBarsBlock.java:102) regardless of face sturdiness.
+    #[test]
+    fn panes_connect_to_each_other_and_to_iron_bars() {
+        for pane in [&Block::GLASS_PANE, &Block::WHITE_STAINED_GLASS_PANE] {
+            assert!(is_connected(
+                pane,
+                BlockDirection::North,
+                &Block::WHITE_STAINED_GLASS_PANE,
+                Block::WHITE_STAINED_GLASS_PANE.default_state,
+            ));
+            assert!(is_connected(
+                pane,
+                BlockDirection::North,
+                &Block::GLASS_PANE,
+                Block::GLASS_PANE.default_state,
+            ));
+            assert!(is_connected(
+                pane,
+                BlockDirection::North,
+                &Block::IRON_BARS,
+                Block::IRON_BARS.default_state,
+            ));
+        }
+    }
+
+    /// Walls are an explicit `state.is(BlockTags.WALLS)` case (IronBarsBlock.java:102),
+    /// independent of face sturdiness.
+    #[test]
+    fn panes_connect_to_walls() {
+        assert!(is_connected(
+            &Block::WHITE_STAINED_GLASS_PANE,
+            BlockDirection::North,
+            &Block::COBBLESTONE_WALL,
+            Block::COBBLESTONE_WALL.default_state,
+        ));
+    }
+
+    /// A plain solid block (stone) has a sturdy face and is not in the exception list,
+    /// so `faceSolid` alone is enough to connect (IronBarsBlock.java:102).
+    #[test]
+    fn panes_connect_to_a_solid_block() {
+        assert!(is_connected(
+            &Block::WHITE_STAINED_GLASS_PANE,
+            BlockDirection::North,
+            &Block::STONE,
+            Block::STONE.default_state,
+        ));
+    }
+
+    /// Air is neither solid nor tagged/typed as anything a pane connects to.
+    #[test]
+    fn panes_do_not_connect_to_air() {
+        assert!(!is_connected(
+            &Block::WHITE_STAINED_GLASS_PANE,
+            BlockDirection::North,
+            &Block::AIR,
+            Block::AIR.default_state,
+        ));
+    }
+
+    /// `Block.isExceptionForConnection` (Block.java:251-259) explicitly excludes leaves,
+    /// pumpkins, melons, barriers and shulker boxes even though several of them have a
+    /// sturdy face on every side. This is the bug this change fixes: previously the pane
+    /// would connect to all of these because it only checked `is_side_solid`.
+    #[test]
+    fn panes_do_not_connect_to_exception_blocks_despite_sturdy_faces() {
+        for exception in [
+            &Block::OAK_LEAVES,
+            &Block::PUMPKIN,
+            &Block::CARVED_PUMPKIN,
+            &Block::JACK_O_LANTERN,
+            &Block::MELON,
+            &Block::BARRIER,
+            &Block::SHULKER_BOX,
+        ] {
+            assert!(
+                !is_connected(
+                    &Block::WHITE_STAINED_GLASS_PANE,
+                    BlockDirection::North,
+                    exception,
+                    exception.default_state,
+                ),
+                "pane should not connect to {}",
+                exception.name
+            );
+        }
+    }
 }
