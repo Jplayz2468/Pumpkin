@@ -29,6 +29,7 @@ use crate::block::blocks::creaking_heart::CreakingHeartBlock;
 use crate::block::blocks::decorated_pot::DecoratedPotBlock;
 use crate::block::blocks::dirt_path::DirtPathBlock;
 use crate::block::blocks::doors::DoorBlock;
+use crate::block::blocks::dried_ghast::DriedGhastBlock;
 use crate::block::blocks::dripstone::DripstoneBlock;
 use crate::block::blocks::end_gateway::EndGatewayBlock;
 use crate::block::blocks::end_portal::EndPortalBlock;
@@ -318,6 +319,7 @@ pub fn default_registry() -> Arc<BlockRegistry> {
     manager.register(CreakingHeartBlock);
     manager.register(SnifferEggBlock);
     manager.register(TurtleEggBlock);
+    manager.register(DriedGhastBlock);
     manager.register(BrushableBlock);
     manager.register(BushBlock);
     manager.register(FlowerBlock);
