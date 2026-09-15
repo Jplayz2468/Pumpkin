@@ -16,6 +16,7 @@ use crate::entity::{
     Entity, EntityBase,
     ai::control::{Control, MoveControlTrait},
     ai::goal::{Goal, active_target::ActiveTargetGoal},
+    living::LivingEntity,
     mob::{Mob, MobEntity},
 };
 use crate::world::World;
@@ -71,14 +72,31 @@ impl SlimeEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // AbstractCubeMob.java:61-63 (registerGoals): float(1), randomDirection(4),
+            // keepOnJumping(5). Slime.java:38 (addBehaviourGoals) inserts the attack goal at 2.
             goal_selector.add_goal(1, Box::new(SlimeFloatGoal::new(mob_arc.clone())));
             goal_selector.add_goal(2, Box::new(SlimeAttackGoal::new(mob_arc.clone())));
-            goal_selector.add_goal(3, Box::new(SlimeRandomDirectionGoal::new(mob_arc.clone())));
+            goal_selector.add_goal(4, Box::new(SlimeRandomDirectionGoal::new(mob_arc.clone())));
             goal_selector.add_goal(5, Box::new(SlimeKeepOnJumpingGoal::new(mob_arc.clone())));
 
+            // Slime.java:43-45 (addTargetingGoals): player target is restricted to
+            // |targetY - selfY| <= 4.0, which `with_default` cannot express.
+            let target_weak = Arc::downgrade(&mob_arc);
             target_selector.add_goal(
                 1,
-                ActiveTargetGoal::with_default(&mob_arc.entity, &EntityType::PLAYER, true),
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.entity,
+                    &EntityType::PLAYER,
+                    10,
+                    true,
+                    false,
+                    Some(move |target: &LivingEntity, _world: &World| {
+                        target_weak.upgrade().is_none_or(|slime| {
+                            let my_y = slime.entity.living_entity.entity.pos.load().y;
+                            (target.entity.pos.load().y - my_y).abs() <= 4.0
+                        })
+                    }),
+                )),
             );
             target_selector.add_goal(
                 3,
