@@ -28,7 +28,12 @@ impl MeleeAttackGoal {
     pub fn new(speed: f64, pause_when_mob_idle: bool) -> Self {
         Self {
             goal_control: Controls::MOVE | Controls::LOOK,
-            speed: speed.max(0.23), // Ensure minimum visible speed
+            // MeleeAttackGoal.java:27: `this.speedModifier = speedModifier;` — stored untouched,
+            // no floor. Checked every MeleeAttackGoal/ZombieAttackGoal construction site in the
+            // tree: all built-in mobs pass >=1.0 (e.g. zombie 1.0, skeleton 1.2, bee 1.4), so the
+            // old 0.23 clamp never actually fired for any of them; it was a Pumpkin-only
+            // invention with no vanilla basis, so it is removed rather than kept as a floor.
+            speed,
             pause_when_mob_idle,
             target_location: Vector3::new(0.0, 0.0, 0.0),
             update_countdown_ticks: 0,
