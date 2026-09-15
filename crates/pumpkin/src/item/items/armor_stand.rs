@@ -7,6 +7,7 @@ use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::server::Server;
 use pumpkin_data::entity::EntityType;
+use pumpkin_data::game_event::GameEvent;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
@@ -40,7 +41,17 @@ impl ItemBehaviour for ArmorStandItem {
         }
 
         let world = player.world();
-        let target_pos = location.offset(face.to_offset());
+        // ArmorStandItem.java:35-36 builds a BlockPlaceContext, whose getClickedPos() returns
+        // the clicked position itself when the clicked block is replaceable (tall grass, snow
+        // layers, fluids, ...) instead of always offsetting by the clicked face. Mirrors the
+        // same replaceable check block placement uses (see
+        // `can_replace_with_other_block` in block/registry.rs).
+        let clicked_state = world.get_block_state(&location);
+        let target_pos = if clicked_state.replaceable() {
+            location
+        } else {
+            location.offset(face.to_offset())
+        };
         let bottom_center = Vector3::new(
             f64::from(target_pos.0.x) + 0.5,
             f64::from(target_pos.0.y),
@@ -73,11 +84,16 @@ impl ItemBehaviour for ArmorStandItem {
 
             entity.set_rotation(rotation, 0.0);
 
-            world.play_sound(
+            // ArmorStandItem.java:51: volume 0.75, pitch 0.8 (not the default 1.0/1.0).
+            world.play_sound_fine(
                 Sound::EntityArmorStandPlace,
                 SoundCategory::Blocks,
                 &entity.pos.load(),
+                0.75,
+                0.8,
             );
+            // ArmorStandItem.java:52: entity.gameEvent(GameEvent.ENTITY_PLACE, ...)
+            world.emit_game_event(GameEvent::EntityPlace.name(), entity.pos.load());
 
             let armor_stand = ArmorStandEntity::new(entity);
 

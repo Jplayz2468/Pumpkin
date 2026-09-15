@@ -5,7 +5,6 @@ use crate::block::entities::{
     sign::{DyeColor, Text},
 };
 use pumpkin_data::tag;
-use pumpkin_util::GameMode;
 
 use crate::{
     block::{UseWithItemArgs, registry::BlockActionResult},
@@ -26,28 +25,30 @@ impl ItemMetadata for DyeItem {
 
 impl ItemBehaviour for DyeItem {
     fn use_on_entity(&self, item: &mut ItemStack, player: &Player, entity: Arc<dyn EntityBase>) {
+        // DyeItem.java:21: `target instanceof Sheep sheep && sheep.isAlive() && !sheep.isSheared()`
         if let Some(sheep) = entity
             .cast_any()
             .downcast_ref::<crate::entity::passive::sheep::SheepEntity>()
+            && entity.get_entity().is_alive()
+            && !sheep.is_sheared()
             && let Some(color) =
                 crate::entity::passive::animal::get_dye_color_from_item(item.get_item())
-            && !sheep.is_sheared()
             && color != sheep.get_color()
         {
-            sheep.set_color(color);
             let ent = entity.get_entity();
             let world = ent.world.load();
-            world.play_sound(
+            // DyeItem.java:24: `sheep.level().playSound(player, sheep, SoundEvents.DYE_USE, ...)`
+            // — the `player` argument excludes that player from hearing the broadcast sound,
+            // since their own client already plays it locally.
+            world.play_sound_expect(
+                player,
                 pumpkin_data::sound::Sound::ItemDyeUse,
                 pumpkin_data::sound::SoundCategory::Players,
                 &ent.pos.load(),
             );
+            sheep.set_color(color);
             item.decrement_unless_creative(player.gamemode.load(), 1);
         }
-    }
-
-    fn can_mine(&self, player: &Player) -> bool {
-        player.gamemode.load() != GameMode::Creative
     }
 
     fn as_any(&self) -> &dyn std::any::Any {
