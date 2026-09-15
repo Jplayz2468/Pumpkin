@@ -4,6 +4,7 @@ use crate::entity::EntityBase;
 use crate::entity::mob::Mob;
 use crate::entity::passive::bee::BeeEntity;
 use crate::world::World;
+use rand::RngExt;
 use pumpkin_data::block_properties::{BeeNestLikeProperties, CampfireLikeProperties};
 use pumpkin_data::tag::{self, Taggable};
 use pumpkin_data::{Block, BlockId, BlockState};
@@ -85,7 +86,7 @@ pub fn anger_nearby_bees(world: &World, pos: &BlockPos) {
         if bee.mob_entity.get_target().is_some() {
             continue;
         }
-        let target = players[rand::random::<usize>() % players.len()].clone();
+        let target = players[rand::rng().random_range(0..players.len())].clone();
         bee.set_mob_target(Some(target as Arc<dyn EntityBase>));
     }
 }
