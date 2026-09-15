@@ -7,8 +7,10 @@ use pumpkin_nbt::compound::NbtCompound;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, swim::SwimGoal,
+        active_target::ActiveTargetGoal,
+        climb_on_top_of_powder_snow::ClimbOnTopOfPowderSnowGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        melee_attack::MeleeAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
         wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
@@ -40,8 +42,13 @@ impl EndermiteEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, true)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            // Endermite.java:42.
+            goal_selector.add_goal(1, Box::new(ClimbOnTopOfPowderSnowGoal));
+            // Endermite.java:43: `new MeleeAttackGoal(this, 1.0, false)` -- pauseWhenIdle
+            // is `false`, not `true`.
+            goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, false)));
+            // Endermite.java:44: `WaterAvoidingRandomStrollGoal`, not the plain variant.
+            goal_selector.add_goal(5, Box::new(WanderAroundGoal::water_avoiding(1.0)));
             goal_selector.add_goal(
                 6,
                 LookAtEntityGoal::with_default(mob_weak.clone(), &EntityType::PLAYER, 8.0),
@@ -53,8 +60,12 @@ impl EndermiteEntity {
                 .target_selector
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
+            // Endermite.java:47: `new HurtByTargetGoal(this).setAlertOthers()` at priority
+            // 1, ahead of the Player target goal at priority 2 -- previously missing
+            // entirely.
+            target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
             target_selector.add_goal(
-                1,
+                2,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
             );
         };

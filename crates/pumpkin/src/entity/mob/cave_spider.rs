@@ -7,9 +7,10 @@ use pumpkin_data::potion::Effect;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, revenge::RevengeGoal,
-        swim::SwimGoal, wander_around::WanderAroundGoal,
+        active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal,
+        leap_at_target::LeapAtTargetGoal, look_around::RandomLookAroundGoal,
+        look_at_entity::LookAtEntityGoal, revenge::RevengeGoal, spider_attack::SpiderAttackGoal,
+        spider_target::SpiderTargetGoal, swim::SwimGoal, wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
 };
@@ -40,9 +41,21 @@ impl CaveSpiderEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // CaveSpider.java does not override `registerGoals`, so it inherits
+            // `Spider.registerGoals()` (Spider.java:57-68) unchanged.
             goal_selector.add_goal(1, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(3, Box::new(MeleeAttackGoal::new(1.0, false)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(0.8)));
+            // Spider.java:59: flees Armadillos (6 block trigger range, 1.0 walk / 1.2
+            // sprint speed multipliers). Vanilla also gates this on `!isScared()`
+            // (Armadillo.java), but `AvoidEntityGoal` (avoid_entity.rs) has no predicate
+            // hook, so this flees any nearby Armadillo, scared or not.
+            goal_selector.add_goal(
+                2,
+                Box::new(AvoidEntityGoal::new(&EntityType::ARMADILLO, 6.0, 1.0, 1.2)),
+            );
+            goal_selector.add_goal(3, Box::new(LeapAtTargetGoal::new(0.4)));
+            goal_selector.add_goal(4, Box::new(SpiderAttackGoal::new()));
+            // Spider.java:62: `WaterAvoidingRandomStrollGoal`, not the plain variant.
+            goal_selector.add_goal(5, Box::new(WanderAroundGoal::water_avoiding(0.8)));
             goal_selector.add_goal(
                 6,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
@@ -52,11 +65,19 @@ impl CaveSpiderEntity {
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
             target_selector.add_goal(
                 2,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
+                SpiderTargetGoal::new(ActiveTargetGoal::with_default(
+                    &mob_arc.mob_entity,
+                    &EntityType::PLAYER,
+                    true,
+                )),
             );
             target_selector.add_goal(
                 3,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::IRON_GOLEM, true),
+                SpiderTargetGoal::new(ActiveTargetGoal::with_default(
+                    &mob_arc.mob_entity,
+                    &EntityType::IRON_GOLEM,
+                    true,
+                )),
             );
         };
 
