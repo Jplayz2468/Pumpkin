@@ -13,10 +13,12 @@ use pumpkin_nbt::tag::NbtTag;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, ranged_crossbow_attack::RangedCrossbowAttackGoal,
-        swim::SwimGoal, wander_around::WanderAroundGoal,
+        active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        ranged_crossbow_attack::RangedCrossbowAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
     },
+    living::LivingEntity,
     mob::{
         Mob, MobEntity,
         crossbow_attack_mob::CrossbowAttackMob,
@@ -27,6 +29,7 @@ use crate::entity::{
         },
     },
 };
+use crate::world::World;
 
 pub struct PillagerEntity {
     pub mob_entity: MobEntity,
@@ -59,34 +62,74 @@ impl PillagerEntity {
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
 
+            // Pillager.java:71 `FloatGoal` -> SwimGoal
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, Box::new(ObtainRaidLeaderBannerGoal));
-            goal_selector.add_goal(2, Box::new(HoldGroundAttackGoal::new(10.0)));
-            goal_selector.add_goal(3, Box::new(RangedCrossbowAttackGoal::new(1.0, 8.0)));
-            goal_selector.add_goal(4, Box::new(LongDistancePatrolGoal::new(0.7, 0.595)));
-            goal_selector.add_goal(4, Box::new(RaiderMoveThroughVillageGoal::new(1.05)));
-            goal_selector.add_goal(4, Box::new(PathfindToRaidGoal::default()));
-            goal_selector.add_goal(5, Box::new(RaiderCelebrationGoal));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            // Pillager.java:72 `AvoidEntityGoal<>(this, Creaking.class, 8.0F, 1.0, 1.2)`
             goal_selector.add_goal(
-                6,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 8.0),
+                1,
+                Box::new(AvoidEntityGoal::new(&EntityType::CREAKING, 8.0, 1.0, 1.2)),
             );
-            goal_selector.add_goal(7, Box::new(RandomLookAroundGoal::default()));
+            // Raider.java:64 `ObtainRaidLeaderBannerGoal` priority 1
+            goal_selector.add_goal(1, Box::new(ObtainRaidLeaderBannerGoal));
+            // Pillager.java:73 `Raider.HoldGroundAttackGoal(this, 10.0F)`
+            goal_selector.add_goal(2, Box::new(HoldGroundAttackGoal::new(10.0)));
+            // Pillager.java:74 `RangedCrossbowAttackGoal<>(this, 1.0, 8.0F)`
+            goal_selector.add_goal(3, Box::new(RangedCrossbowAttackGoal::new(1.0, 8.0)));
+            // Raider.java:65 `PathfindToRaidGoal<>(this)` priority 3
+            goal_selector.add_goal(3, Box::new(PathfindToRaidGoal::default()));
+            // PatrollingMonster.java:40 `LongDistancePatrolGoal<>(this, 0.7, 0.595)` priority 4
+            goal_selector.add_goal(4, Box::new(LongDistancePatrolGoal::new(0.7, 0.595)));
+            // Raider.java:66 `RaiderMoveThroughVillageGoal(this, 1.05F, 1)` priority 4
+            goal_selector.add_goal(4, Box::new(RaiderMoveThroughVillageGoal::new(1.05)));
+            // Raider.java:67 `RaiderCelebration(this)` priority 5
+            goal_selector.add_goal(5, Box::new(RaiderCelebrationGoal));
+            // Pillager.java:75 `RandomStrollGoal(this, 0.6)` priority 8
+            goal_selector.add_goal(8, Box::new(WanderAroundGoal::new(0.6)));
+            // Pillager.java:76 `LookAtPlayerGoal(this, Player.class, 15.0F, 1.0F)` priority 9
+            goal_selector.add_goal(
+                9,
+                Box::new(LookAtEntityGoal::new(
+                    mob_weak,
+                    &EntityType::PLAYER,
+                    15.0,
+                    1.0,
+                    false,
+                )),
+            );
+            // Pillager.java:77 `LookAtPlayerGoal(this, Mob.class, 15.0F)` priority 10 wants
+            // "look at any nearby Mob", but LookAtEntityGoal (ai/goal/look_at_entity.rs, not
+            // ours to modify) only supports a single concrete EntityType, not a wildcard class.
+            // Kept as the closest available idle-look behaviour; not a faithful port.
+            goal_selector.add_goal(10, Box::new(RandomLookAroundGoal::default()));
 
             let mut target_selector = mob_arc
                 .mob_entity
                 .target_selector
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            target_selector.add_goal(
-                1,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
-            );
+            // Pillager.java:78 `HurtByTargetGoal(this, Raider.class).setAlertOthers()` priority 1.
+            // RevengeGoal (ai/goal/revenge.rs) is the closest existing type but its
+            // "alert nearby raiders" behaviour is an explicit TODO in that file (not ours to
+            // extend), so struck raiders will retaliate themselves but won't call in allies.
+            target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
+            // Pillager.java:79 `NearestAttackableTargetGoal<>(this, Player.class, true)`
             target_selector.add_goal(
                 2,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::VILLAGER, true),
+                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::PLAYER, true),
             );
+            // Pillager.java:80 `NearestAttackableTargetGoal<>(this, AbstractVillager.class, false)`
+            target_selector.add_goal(
+                3,
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::VILLAGER,
+                    10,
+                    false,
+                    false,
+                    Some(|_target: &LivingEntity, _world: &World| true),
+                )),
+            );
+            // Pillager.java:81 `NearestAttackableTargetGoal<>(this, IronGolem.class, true)`
             target_selector.add_goal(
                 3,
                 ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::IRON_GOLEM, true),
