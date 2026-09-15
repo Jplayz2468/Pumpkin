@@ -10,8 +10,6 @@ use pumpkin_data::entity::EntityType;
 use rand::RngExt;
 use std::sync::Arc;
 
-const DEFAULT_RECIPROCAL_CHANCE: i32 = 10;
-
 /// A target goal that, unlike [`super::active_target::ActiveTargetGoal`], is not restricted to a
 /// single `EntityType`. It looks at every nearby living entity (players included) and attacks the
 /// closest one that is not one of `excluded_types` and passes the attackability predicate.

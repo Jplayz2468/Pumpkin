@@ -10,9 +10,10 @@ use pumpkin_util::math::vector3::Vector3;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, revenge::RevengeGoal,
-        swim::SwimGoal, wander_around::WanderAroundGoal,
+        active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        melee_attack::MeleeAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
     },
     mob::{Mob, MobEntity},
 };
@@ -83,6 +84,20 @@ impl HoglinEntity {
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(4, Box::new(MeleeAttackGoal::new(1.0, true)));
+            // HoglinAi.java:74: adult hoglins keep DESIRED_DISTANCE_FROM_PIGLIN_WHEN_IDLING
+            // (8 blocks) from the nearest visible adult piglin while idle
+            // (`SetWalkTargetAwayFrom.entity(NEAREST_VISIBLE_ADULT_PIGLIN, 0.4F, 8, false)`).
+            // Vanilla's activity priority list is `[FIGHT, AVOID, IDLE]`
+            // (HoglinAi.java:122), so an active fight always beats this passive spacing —
+            // hence the higher priority *number* (lower precedence) than MeleeAttackGoal
+            // above, so an in-progress attack is never interrupted by it. This port does not
+            // gate the goal to adults only (see report); vanilla's separate "flee when
+            // outnumbered after being hit" panic response (HoglinAi.java:131-140) is brain
+            // broadcast/counting logic and is not reproduced here.
+            goal_selector.add_goal(
+                5,
+                Box::new(AvoidEntityGoal::new(&EntityType::PIGLIN, 8.0, 0.4, 0.4)),
+            );
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
             goal_selector.add_goal(
                 6,

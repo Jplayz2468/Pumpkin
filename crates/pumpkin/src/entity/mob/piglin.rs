@@ -20,8 +20,9 @@ use crate::entity::player::Player;
 use crate::entity::{
     Entity, EntityBase,
     ai::goal::{
-        active_target::ActiveTargetGoal, look_around::RandomLookAroundGoal,
-        look_at_entity::LookAtEntityGoal, melee_attack::MeleeAttackGoal, open_door::OpenDoorGoal,
+        active_target::ActiveTargetGoal, avoid_entity::AvoidEntityGoal,
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal,
+        melee_attack::MeleeAttackGoal, open_door::OpenDoorGoal,
         ranged_crossbow_attack::RangedCrossbowAttackGoal, revenge::RevengeGoal, swim::SwimGoal,
         wander_around::WanderAroundGoal,
     },
@@ -98,6 +99,27 @@ impl PiglinEntity {
 
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(1, Box::new(OpenDoorGoal::new(true)));
+            // PiglinAi.java:106,285-293: `avoidZombified` (CORE activity, so it runs
+            // regardless of age or current activity) copies the nearest visible zombified
+            // piglin/zoglin into AVOID_TARGET whenever one is within
+            // DESIRED_DISTANCE_FROM_ZOMBIFIED (6 blocks), and PiglinAi.java:184's
+            // `EraseMemoryIf.create(PiglinAi::isNearZombified, ATTACK_TARGET)` erases an
+            // in-progress fight the same tick, so this fear response overrides melee/ranged
+            // combat. Placed at a lower priority number (= higher precedence) than the
+            // combat goals below so it can preempt them the same way.
+            goal_selector.add_goal(
+                1,
+                Box::new(AvoidEntityGoal::new(
+                    &EntityType::ZOMBIFIED_PIGLIN,
+                    6.0,
+                    1.0,
+                    1.0,
+                )),
+            );
+            goal_selector.add_goal(
+                1,
+                Box::new(AvoidEntityGoal::new(&EntityType::ZOGLIN, 6.0, 1.0, 1.0)),
+            );
             goal_selector.add_goal(2, Box::new(MeleeAttackGoal::new(1.0, true)));
             goal_selector.add_goal(3, Box::new(RangedCrossbowAttackGoal::new(1.0, 8.0)));
             goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
@@ -115,34 +137,55 @@ impl PiglinEntity {
 
             target_selector.add_goal(1, Box::new(RevengeGoal::new(true)));
 
+            // PiglinAi.java:159,501-526: `findNearestValidAttackTarget` is only consulted
+            // for adults (`initIdleActivity` gates the whole `StartAttacking` behavior on
+            // `piglin.isAdult()`); babies flee instead via `babyAvoidNemesis`
+            // (PiglinAi.java:285-287), which this goal-based port does not reproduce — see
+            // report. Within that lookup, NEAREST_VISIBLE_NEMESIS (wither / wither skeleton,
+            // PiglinAi.java:519-522) is checked *before* the not-wearing-gold player memory
+            // (PiglinAi.java:524-525), so nemesis targeting must outrank player targeting
+            // here (lower priority number = higher precedence).
+            let piglin_nemesis = mob_arc.clone();
             target_selector.add_goal(
                 2,
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::WITHER_SKELETON,
+                    10,
+                    true,
+                    false,
+                    Some(move |_target: &LivingEntity, _world: &World| piglin_nemesis.is_adult()),
+                )),
+            );
+            let piglin_nemesis = mob_arc.clone();
+            target_selector.add_goal(
+                2,
+                Box::new(ActiveTargetGoal::new(
+                    &mob_arc.mob_entity,
+                    &EntityType::WITHER,
+                    10,
+                    true,
+                    false,
+                    Some(move |_target: &LivingEntity, _world: &World| piglin_nemesis.is_adult()),
+                )),
+            );
+
+            let piglin_clone = mob_arc.clone();
+            target_selector.add_goal(
+                3,
                 Box::new(ActiveTargetGoal::new(
                     &mob_arc.mob_entity,
                     &EntityType::PLAYER,
                     10,
                     true,
                     false,
-                    Some(|target: &LivingEntity, _world: &World| {
-                        !PiglinAi::is_wearing_safe_armor(target)
+                    Some(move |target: &LivingEntity, _world: &World| {
+                        piglin_clone.is_adult() && !PiglinAi::is_wearing_safe_armor(target)
                     }),
                 )),
             );
 
-            target_selector.add_goal(
-                3,
-                ActiveTargetGoal::with_default(
-                    &mob_arc.mob_entity,
-                    &EntityType::WITHER_SKELETON,
-                    true,
-                ),
-            );
-            target_selector.add_goal(
-                3,
-                ActiveTargetGoal::with_default(&mob_arc.mob_entity, &EntityType::WITHER, true),
-            );
-
-            let piglin_clone = mob_arc.clone();
+            let piglin_hunt = mob_arc.clone();
             target_selector.add_goal(
                 4,
                 Box::new(ActiveTargetGoal::new(
@@ -152,7 +195,7 @@ impl PiglinEntity {
                     true,
                     false,
                     Some(move |_target: &LivingEntity, _world: &World| {
-                        piglin_clone.is_adult() && piglin_clone.can_hunt()
+                        piglin_hunt.is_adult() && piglin_hunt.can_hunt()
                     }),
                 )),
             );
