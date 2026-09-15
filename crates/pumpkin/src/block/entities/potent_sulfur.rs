@@ -335,5 +335,5 @@ fn geyser_positional_random(world: &Arc<World>, pos: &BlockPos) -> RandomGenerat
     let seed = world.level.seed.0 ^ GEYSER_SALT;
     let mut base = Xoroshiro::from_seed(seed);
     let deriver = base.next_splitter();
-    deriver.split_pos(pos.0.x, pos.0.y, pos.0.z)
+    RandomGenerator::Xoroshiro(deriver.split_pos(pos.0.x, pos.0.y, pos.0.z))
 }

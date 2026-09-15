@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use crate::block::registry::BlockActionResult;
 use crate::entity::area_effect_cloud::AreaEffectCloudEntity;
+use crate::entity::EntityBase;
 use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::server::Server;
