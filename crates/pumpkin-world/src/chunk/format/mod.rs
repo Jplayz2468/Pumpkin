@@ -1,6 +1,5 @@
 use std::{
     path::PathBuf,
-    str::FromStr,
     sync::{
         RwLock,
         atomic::{AtomicBool, AtomicU64, Ordering},
@@ -10,7 +9,7 @@ use std::{
 use bytes::Bytes;
 use pumpkin_data::{Block, BlockStateId, chunk::ChunkStatus, fluid::Fluid};
 use pumpkin_nbt::compound::NbtCompound;
-use pumpkin_util::resource_location::{FromResourceLocation, ResourceLocation, ToResourceLocation};
+use pumpkin_util::resource_location::{FromResourceLocation, ToResourceLocation};
 use rustc_hash::FxHashMap;
 
 use crate::{
@@ -21,7 +20,7 @@ use crate::{
     },
     generation::section_coords,
     level::LevelFolder,
-    tick::{ScheduledTick, TickPriority, scheduler::ChunkTickScheduler},
+    tick::{ScheduledTick, scheduler::ChunkTickScheduler},
 };
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector2::Vector2;
@@ -66,7 +65,11 @@ impl Dirtiable for ChunkData {
 
     #[inline]
     fn is_dirty(&self) -> bool {
+        // Relative saved delays change as game time advances, even without a
+        // block-state mutation. Pending work must be included in later saves.
         self.dirty.load(Ordering::Relaxed)
+            || self.block_ticks.has_ticks()
+            || self.fluid_ticks.has_ticks()
     }
 }
 
@@ -146,22 +149,7 @@ fn parse_scheduled_tick<T>(nbt: &pumpkin_nbt::compound::NbtCompound) -> Option<S
 where
     T: FromResourceLocation,
 {
-    let x = nbt.get_int("x")?;
-    let y = nbt.get_int("y")?;
-    let z = nbt.get_int("z")?;
-    // Vanilla stores a relative delay as an int (`SavedTick.codec`, key "t").
-    // Negative would mean "already due"; clamp rather than wrap.
-    let delay = nbt.get_int("t")?.max(0) as u32;
-    let priority = TickPriority::try_from(nbt.get_int("p")?).ok()?;
-    let res_loc_str = nbt.get_string("i")?;
-    let res_loc = ResourceLocation::from_str(res_loc_str).ok()?;
-    let value = T::from_resource_location(&res_loc)?;
-    Some(ScheduledTick {
-        delay,
-        priority,
-        position: BlockPos::new(x, y, z),
-        value,
-    })
+    ScheduledTick::from_nbt_compound(nbt)
 }
 
 impl ChunkData {
@@ -337,6 +325,7 @@ impl ChunkData {
             for tag in list {
                 if let pumpkin_nbt::tag::NbtTag::Compound(compound) = tag
                     && let Some(tick) = parse_scheduled_tick::<&'static Block>(compound)
+                    && tick.position.chunk_position() == position
                 {
                     block_ticks.push(tick);
                 }
@@ -348,6 +337,7 @@ impl ChunkData {
             for tag in list {
                 if let pumpkin_nbt::tag::NbtTag::Compound(compound) = tag
                     && let Some(tick) = parse_scheduled_tick::<&'static Fluid>(compound)
+                    && tick.position.chunk_position() == position
                 {
                     fluid_ticks.push(tick);
                 }

@@ -792,3 +792,40 @@ whole inside-effect pipeline matches Java yet.
   Shared clock/scheduled-time restoration, chunk-holder readiness, broader payloads,
   plugin cancellation/concurrency and the remaining D01–D06/block gates remain open.
   Full mob passes remain paused.
+
+
+## World clocks and saved scheduled work
+
+- World loading restores level.dat Time and the overworld clock rather than
+  starting both at zero. Clock persistence includes total_ticks, partial_tick,
+  rate and paused; DataVersion is written at the saved-data root, with compatibility
+  for Pumpkin's older nested version field. Loaded custom clock entries retain
+  these fields. Manual/server saves, shutdown and overworld autosave capture the
+  current clock state; portal ticket expiry starts from the restored game time.
+- Block/fluid queues bind to the level's absolute game clock when full chunks are
+  published. Empty queues and inactive queues use the same clock, and block/fluid
+  collection observes the same game tick. Restored relative delays are unpacked
+  once at publication; time spent unloaded does not consume that stored delay.
+- Both chunk-publication paths register existing scheduled work in the level's
+  pending-work index. Restored ticks therefore run without needing a fresh schedule
+  request in the same chunk. Index removal rechecks current storage so concurrent
+  publication/scheduling does not lose a newly queued chunk.
+- Saved delays stay signed, preserving the trigger order of overdue work. Chunk
+  readers filter ticks outside the containing chunk and clamp saved priorities to
+  Java's supported endpoints. Scheduling/draining marks chunks dirty, and pending
+  queues keep changing relative-delay snapshots eligible for saving.
+- Evidence: 64 unmodified Java LevelChunkTicks pack/unpack/restart traces, including
+  negative delays, priority/order, budgets and a later reload time. A storage test
+  writes a completed chunk, starts a fresh Level, fetches it through the actual
+  chunk pipeline, then checks restored indexing, eligibility, signed NBT delays,
+  out-of-chunk filtering, fluid timing and serialization after draining. A real
+  World/level.dat restart checks game age, fractional rate, pause/advance-time rules,
+  custom clock preservation and saved-data envelope placement.
+- Final background run 6: **511 engine and 235 world tests passed**, with the
+  same two previously separately passing localhost socket tests excluded. No full
+  mob pass or live client session was performed.
+- Remaining: one shared server-wide clock manager with dynamic clock definitions,
+  exact cross-dimension activation/clock behavior, all malformed numeric codec
+  cases, equal restored order ties across chunks, chunk-holder readiness/portal
+  expiry pausing, save error propagation and snapshot/plugin concurrency. The
+  broader D01–D06 and individual block-system integration gates remain open.

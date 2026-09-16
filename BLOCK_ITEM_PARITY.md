@@ -1468,3 +1468,13 @@ Shared vehicles remain chunk-owned. Ordered player writes reject older queued
 snapshots and replace files after compression completes. ENGINE_GAPS.md records
 helper/storage evidence and remaining actual-client and lifecycle-concurrency gates.
 No full mob pass was started.
+
+
+### Restored clocks and pending block/fluid work
+
+Game age and fractional/paused clock state now survive restart. Full-chunk loading
+registers saved block/fluid ticks, binds queues to game time, preserves overdue
+delay ordering and resumes unloaded delays on publication. Scheduling and draining
+also persist queue changes. ENGINE_GAPS.md records Java trace, disk-backed chunk
+and World restart checks, with remaining shared-clock, readiness and broader engine
+gates. Full mob passes remain paused.

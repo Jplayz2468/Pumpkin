@@ -67,6 +67,20 @@ pub type EntitySaver = LevelFileIO<
     PumpFile<ChunkEntityData>,
 >;
 
+/// Shared by both full-chunk publication paths. Restored ticks must enter the
+/// level index even when no fresh tick is ever scheduled in their chunk.
+pub(crate) fn register_tick_chunk(
+    chunk: &ChunkData,
+    clock: &Arc<AtomicI64>,
+    index: &dashmap::DashSet<Vector2<i32>>,
+) {
+    chunk.block_ticks.bind_clock(clock);
+    chunk.fluid_ticks.bind_clock(clock);
+    if chunk.block_ticks.has_ticks() || chunk.fluid_ticks.has_ticks() {
+        index.insert(Vector2::new(chunk.x, chunk.z));
+    }
+}
+
 /// The `Level` module provides functionality for working with chunks within or outside a Minecraft world.
 ///
 /// Key features include:
@@ -96,6 +110,7 @@ pub struct Level {
     pub loaded_chunks: Arc<DashMap<Vector2<i32>, SyncChunk>>,
     pub(crate) loaded_chunk_changes: Arc<SegQueue<LoadedChunkChange>>,
     loaded_entity_chunks: Arc<DashMap<Vector2<i32>, SyncEntityChunk>>,
+    pub game_time: Arc<AtomicI64>,
     pub chunks_with_scheduled_ticks: Arc<dashmap::DashSet<Vector2<i32>>>,
     pub chunk_loading: Mutex<ChunkLoading>,
 
@@ -289,6 +304,7 @@ impl Level {
             loaded_chunks: Arc::new(DashMap::new()),
             loaded_chunk_changes: Arc::new(SegQueue::new()),
             loaded_entity_chunks: Arc::new(DashMap::new()),
+            game_time: Arc::new(AtomicI64::new(0)),
             chunks_with_scheduled_ticks: Arc::new(dashmap::DashSet::new()),
             chunk_loading: Mutex::new(ChunkLoading::new(level_channel.clone())),
             chunk_watchers: Arc::new(DashMap::new()),
@@ -572,6 +588,17 @@ impl Level {
         self.collect_scheduled_ticks_if(eligible, |chunk| &chunk.fluid_ticks)
     }
 
+    fn refresh_scheduled_tick_index(&self, pos: Vector2<i32>) {
+        // Remove before rechecking: scheduling/publication may have raced the
+        // collector's empty snapshot and already inserted a new index entry.
+        self.chunks_with_scheduled_ticks.remove(&pos);
+        if let Some(current) = self.loaded_chunks.get(&pos)
+            && (current.block_ticks.has_ticks() || current.fluid_ticks.has_ticks())
+        {
+            self.chunks_with_scheduled_ticks.insert(pos);
+        }
+    }
+
     fn collect_scheduled_ticks_if<T: std::hash::Hash + Eq + 'static>(
         &self,
         eligible: impl Fn(&Vector2<i32>) -> bool,
@@ -588,17 +615,31 @@ impl Level {
             if let Some(chunk) = self.loaded_chunks.get(&pos) {
                 chunks.push((pos, chunk.value().clone()));
             } else {
-                self.chunks_with_scheduled_ticks.remove(&pos);
+                self.refresh_scheduled_tick_index(pos);
             }
         }
         let queues: Vec<_> = chunks
             .iter()
             .map(|(pos, chunk)| (queue(chunk), eligible(pos)))
             .collect();
-        let ticks = crate::tick::scheduler::collect_ticks(&queues, 65536);
+        for (queue, _) in &queues {
+            queue.bind_clock(&self.game_time);
+        }
+        let ticks = crate::tick::scheduler::collect_ticks_at(
+            &queues,
+            65536,
+            self.game_time.load(Ordering::SeqCst),
+        );
+        let changed: FxHashSet<_> = ticks
+            .iter()
+            .map(|tick| tick.position.chunk_position())
+            .collect();
         for (pos, chunk) in chunks {
+            if changed.contains(&pos) {
+                chunk.mark_dirty(true);
+            }
             if !chunk.block_ticks.has_ticks() && !chunk.fluid_ticks.has_ticks() {
-                self.chunks_with_scheduled_ticks.remove(&pos);
+                self.refresh_scheduled_tick_index(pos);
             }
         }
         ticks
@@ -740,7 +781,9 @@ impl Level {
             return res;
         }
         let chunk = self.fetch_chunk(pos).await;
-        if self.loaded_chunks.insert(pos, chunk.clone()).is_none() {
+        let newly_loaded = self.loaded_chunks.insert(pos, chunk.clone()).is_none();
+        register_tick_chunk(&chunk, &self.game_time, &self.chunks_with_scheduled_ticks);
+        if newly_loaded {
             self.loaded_chunk_changes
                 .push(LoadedChunkChange::Loaded(pos));
         }
@@ -1043,7 +1086,7 @@ impl Level {
     ) {
         let tick_order = self.schedule_tick_counts.fetch_add(1, Ordering::Relaxed);
         let scheduled_tick = ScheduledTick {
-            delay,
+            delay: delay as i32,
             position: block_pos,
             priority,
             // SAFETY: `block` is a valid reference that outlives this function call for scheduling.
@@ -1053,7 +1096,9 @@ impl Level {
         let chunk_pos = block_pos.chunk_position();
         if self
             .read_chunk_sync(&chunk_pos, |chunk| {
+                chunk.block_ticks.bind_clock(&self.game_time);
                 chunk.block_ticks.schedule_tick(&scheduled_tick, tick_order);
+                chunk.mark_dirty(true);
             })
             .is_some()
         {
@@ -1070,7 +1115,7 @@ impl Level {
     ) {
         let tick_order = self.schedule_tick_counts.fetch_add(1, Ordering::Relaxed);
         let scheduled_tick = ScheduledTick {
-            delay,
+            delay: delay as i32,
             position: block_pos,
             priority,
             // SAFETY: `fluid` is a valid reference that outlives this function call for scheduling.
@@ -1080,7 +1125,9 @@ impl Level {
         let chunk_pos = block_pos.chunk_position();
         if self
             .read_chunk_sync(&chunk_pos, |chunk| {
+                chunk.fluid_ticks.bind_clock(&self.game_time);
                 chunk.fluid_ticks.schedule_tick(&scheduled_tick, tick_order);
+                chunk.mark_dirty(true);
             })
             .is_some()
         {
@@ -1108,6 +1155,95 @@ mod tests {
     use super::*;
     use pumpkin_config::world::LevelConfig;
     use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn restored_chunk_ticks_are_indexed_and_keep_signed_delays_through_nbt() {
+        use crate::chunk::format::anvil::SingleChunkDataSerializer;
+        let dir = TempDir::new().unwrap();
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        level.game_time.store(1000, Ordering::SeqCst);
+        let mut chunk = ChunkData::empty(0, 0);
+        // A completed chunk must not request unrelated terrain relighting.
+        chunk.light_populated.store(true, Ordering::Relaxed);
+        chunk.block_ticks = [
+            (-9, TickPriority::Low, 0),
+            (-1, TickPriority::High, 1),
+            (-50, TickPriority::ExtremelyHigh, 32),
+        ]
+        .map(|(delay, priority, x)| ScheduledTick {
+            delay,
+            priority,
+            position: BlockPos::new(x, 64, 0),
+            value: &Block::STONE,
+        })
+        .into_iter()
+        .collect();
+        chunk.fluid_ticks = [ScheduledTick {
+            delay: 5,
+            priority: TickPriority::Normal,
+            position: BlockPos::new(2, 64, 0),
+            value: &Fluid::WATER,
+        }]
+        .into_iter()
+        .collect();
+        let pos = Vector2::new(0, 0);
+        level.write_chunks(vec![(pos, Arc::new(chunk))]).await;
+        level.shutdown().await;
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        level.game_time.store(1000, Ordering::SeqCst);
+        let loaded = tokio::time::timeout(
+            std::time::Duration::from_secs(30),
+            level.get_or_fetch_chunk(pos, Arc::clone),
+        )
+        .await
+        .unwrap();
+        assert!(level.chunks_with_scheduled_ticks.contains(&pos));
+        loaded.mark_dirty(false);
+        assert!(level.get_scheduled_block_ticks_if(|_| false).is_empty());
+        level.game_time.store(1003, Ordering::SeqCst);
+        assert_eq!(
+            loaded
+                .block_ticks
+                .to_vec()
+                .iter()
+                .map(|tick| tick.delay)
+                .collect::<Vec<_>>(),
+            [-12, -4]
+        );
+        let due = level.get_scheduled_block_ticks_if(|_| true);
+        assert_eq!(
+            due.iter().map(|tick| tick.position.0.x).collect::<Vec<_>>(),
+            [0, 1]
+        );
+        assert!(loaded.is_dirty());
+        assert!(level.get_scheduled_fluid_ticks_if(|_| true).is_empty());
+        let saved = loaded.to_bytes().unwrap();
+        level.game_time.store(80_000, Ordering::SeqCst);
+        let reloaded = Arc::new(ChunkData::from_bytes(&saved, pos).unwrap());
+        level.loaded_chunks.insert(pos, reloaded.clone());
+        register_tick_chunk(
+            &reloaded,
+            &level.game_time,
+            &level.chunks_with_scheduled_ticks,
+        );
+        level.game_time.store(80_001, Ordering::SeqCst);
+        assert!(level.get_scheduled_fluid_ticks_if(|_| true).is_empty());
+        level.game_time.store(80_002, Ordering::SeqCst);
+        assert_eq!(level.get_scheduled_fluid_ticks_if(|_| true).len(), 1);
+        assert!(!level.chunks_with_scheduled_ticks.contains(&pos));
+        assert!(reloaded.is_dirty());
+        level.shutdown().await;
+    }
 
     #[tokio::test]
     async fn renewed_tickets_keep_cached_entity_storage_after_an_unload_write() {

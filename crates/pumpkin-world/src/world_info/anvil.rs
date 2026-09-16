@@ -279,6 +279,7 @@ fn level_data_from_nbt(data: &NbtCompound, seed: i64) -> LevelData {
     if let Some(map_id) = data.get_int("map_id") {
         level_data.map_id = map_id;
     }
+    level_data.game_time = data.get_long("Time").unwrap_or(0);
     if let Some(day_time) = data.get_long("DayTime") {
         level_data.day_time = day_time;
     }
@@ -319,6 +320,7 @@ fn level_data_to_nbt(info: &LevelData, data: &mut NbtCompound) {
     data.put_byte("Difficulty", info.difficulty as i8);
     data.put_bool("DifficultyLocked", info.difficulty_locked);
     data.put_long("LastPlayed", info.last_played);
+    data.put_long("Time", info.game_time);
     data.put_string("LevelName", info.level_name.clone());
 
     // 26.2 spawn
@@ -398,6 +400,7 @@ impl WorldInfoReader for AnvilLevelInfo {
             if let Some(overworld) = clocks.clocks.get("minecraft:overworld") {
                 level_data.day_time = overworld.total_ticks;
             }
+            level_data.world_clocks = clocks;
         }
 
         // weather.dat
@@ -464,6 +467,7 @@ impl WorldInfoWriter for AnvilLevelInfo {
 
         // world_clocks.dat – persist the overworld day_time; preserve other
         let mut clocks = read_world_clocks(level_folder);
+        clocks.clocks.extend(info.world_clocks.clocks.clone());
         clocks.data_version = data_version;
         clocks
             .clocks
@@ -471,6 +475,7 @@ impl WorldInfoWriter for AnvilLevelInfo {
             .and_modify(|c| c.total_ticks = info.day_time)
             .or_insert(crate::world_info::data_files::DimensionClock {
                 total_ticks: info.day_time,
+                ..Default::default()
             });
 
         if let Err(e) = write_world_clocks(level_folder, &clocks) {
@@ -779,6 +784,17 @@ mod test {
         original.border_size = 2048.0;
         original.border_center_x = 8.0;
         original.day_time = 12_345;
+        original.game_time = 9_000_123;
+        original.world_clocks.data_version = MAXIMUM_SUPPORTED_WORLD_DATA_VERSION;
+        original.world_clocks.clocks.insert(
+            "minecraft:overworld".into(),
+            crate::world_info::data_files::DimensionClock {
+                total_ticks: original.day_time,
+                partial_tick: 0.75,
+                rate: 0.5,
+                paused: true,
+            },
+        );
         original.map_id = 3;
 
         AnvilLevelInfo
@@ -858,6 +874,8 @@ mod test {
             },
             data_version: 4189,
             day_time: 1727,
+            game_time: 0,
+            world_clocks: Default::default(),
             difficulty: Difficulty::Normal,
             difficulty_locked: false,
             game_rules: GameRuleRegistry {

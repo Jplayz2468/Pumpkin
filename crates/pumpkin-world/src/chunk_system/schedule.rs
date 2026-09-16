@@ -56,6 +56,8 @@ pub struct GenerationSchedule {
     send_level: Arc<LevelChannel>,
 
     public_chunk_map: Arc<DashMap<Vector2<i32>, SyncChunk>>,
+    game_time: Arc<std::sync::atomic::AtomicI64>,
+    scheduled_tick_chunks: Arc<dashmap::DashSet<Vector2<i32>>>,
     loaded_chunk_changes: Arc<crossbeam::queue::SegQueue<LoadedChunkChange>>,
     chunk_map: HashMap<ChunkPos, ChunkHolder>,
     unload_chunks: HashSetType<ChunkPos>,
@@ -81,7 +83,8 @@ pub struct GenerationSchedule {
 
 impl GenerationSchedule {
     fn publish_chunk(&self, pos: ChunkPos, chunk: SyncChunk) -> Option<SyncChunk> {
-        let previous = self.public_chunk_map.insert(pos, chunk);
+        let previous = self.public_chunk_map.insert(pos, chunk.clone());
+        crate::level::register_tick_chunk(&chunk, &self.game_time, &self.scheduled_tick_chunks);
         if previous.is_none() {
             self.loaded_chunk_changes
                 .push(LoadedChunkChange::Loaded(pos));
@@ -155,6 +158,8 @@ impl GenerationSchedule {
                     last_high_priority: Vec::new(),
                     send_level: level_channel,
                     public_chunk_map: level_sched.loaded_chunks.clone(),
+                    game_time: level_sched.game_time.clone(),
+                    scheduled_tick_chunks: level_sched.chunks_with_scheduled_ticks.clone(),
                     loaded_chunk_changes: level_sched.loaded_chunk_changes.clone(),
                     unload_chunks: HashSetType::default(),
                     waiting_for_chunks: HashSetType::default(),

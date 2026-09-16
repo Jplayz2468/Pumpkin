@@ -91,7 +91,7 @@ pub trait GenerationCache: HeightLimitView + BlockAccessor {
     fn schedule_block_tick(&mut self, pos: BlockPos, block: &'static Block, delay: u32) {
         if let Some(chunk) = self.get_chunk_mut(pos.0.x >> 4, pos.0.z >> 4) {
             chunk.block_ticks.push(ScheduledTick {
-                delay,
+                delay: delay as i32,
                 priority: TickPriority::Normal,
                 position: pos,
                 value: block,

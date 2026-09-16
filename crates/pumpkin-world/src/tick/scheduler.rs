@@ -1,6 +1,6 @@
 use std::sync::{
-    Mutex,
-    atomic::{AtomicU64, Ordering},
+    Arc, Mutex, OnceLock,
+    atomic::{AtomicI64, Ordering},
 };
 use std::{
     cmp::Reverse,
@@ -28,16 +28,49 @@ use crate::tick::{OrderedTick, ScheduledTick};
 /// ahead of an earlier trigger time. Unprocessed ticks remain queued at the budget.
 pub struct ChunkTickScheduler<T> {
     inner: Mutex<Option<Box<ChunkTickSchedulerInner<T>>>>,
-    /// Absolute tick this chunk's queue has advanced to. Monotonic; never wraps.
-    current_tick: AtomicU64,
+    /// Local clock for standalone queues. Published chunks use their level clock.
+    current_tick: AtomicI64,
+    world_clock: OnceLock<Arc<AtomicI64>>,
 }
 
 struct ChunkTickSchedulerInner<T> {
-    tick_queue: BTreeMap<u64, BinaryHeap<Reverse<OrderedTick<T>>>>,
+    tick_queue: BTreeMap<i64, BinaryHeap<Reverse<OrderedTick<T>>>>,
     queued_ticks: FxHashSet<(BlockPos, T)>,
 }
 
 impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
+    /// Unpack relative saved/generated delays when the full chunk is published.
+    /// Binding once keeps empty/inactive queues on the same clock as their level.
+    pub fn bind_clock(&self, clock: &Arc<AtomicI64>) {
+        if self.world_clock.get().is_some() {
+            return;
+        }
+        let mut guard = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if self.world_clock.get().is_some() {
+            return;
+        }
+        let offset = clock
+            .load(Ordering::SeqCst)
+            .wrapping_sub(self.current_tick.load(Ordering::SeqCst));
+        if let Some(inner) = guard.as_mut() {
+            inner.tick_queue = std::mem::take(&mut inner.tick_queue)
+                .into_iter()
+                .map(|(trigger, ticks)| (trigger.wrapping_add(offset), ticks))
+                .collect();
+        }
+        let _ = self.world_clock.set(clock.clone());
+    }
+
+    fn now(&self) -> i64 {
+        self.world_clock.get().map_or_else(
+            || self.current_tick.load(Ordering::SeqCst),
+            |clock| clock.load(Ordering::SeqCst),
+        )
+    }
+
     pub fn step_tick(&self) -> Vec<OrderedTick<&'a T>> {
         let due_at = self.advance_tick();
         let mut due = Vec::new();
@@ -47,11 +80,11 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
         due
     }
 
-    fn advance_tick(&self) -> u64 {
+    fn advance_tick(&self) -> i64 {
         self.current_tick.fetch_add(1, Ordering::SeqCst)
     }
 
-    fn peek_due(&self, due_at: u64) -> Option<(crate::tick::TickPriority, i64)> {
+    fn peek_due(&self, due_at: i64) -> Option<(crate::tick::TickPriority, i64)> {
         let guard = self
             .inner
             .lock()
@@ -65,7 +98,7 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
         Some((tick.priority, tick.sub_tick_order))
     }
 
-    fn poll_due(&self, due_at: u64) -> Option<OrderedTick<&'a T>> {
+    fn poll_due(&self, due_at: i64) -> Option<OrderedTick<&'a T>> {
         let mut guard = self
             .inner
             .lock()
@@ -87,14 +120,11 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
     }
 
     pub fn schedule_tick(&self, tick: &ScheduledTick<&'a T>, sub_tick_order: i64) {
-        let trigger = self
-            .current_tick
-            .load(Ordering::SeqCst)
-            .saturating_add(u64::from(tick.delay));
         let mut inner_guard = self
             .inner
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let trigger = self.now().wrapping_add(i64::from(tick.delay));
         let inner = inner_guard.get_or_insert_with(|| {
             Box::new(ChunkTickSchedulerInner {
                 tick_queue: BTreeMap::new(),
@@ -165,11 +195,11 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
 
     #[must_use]
     pub fn to_vec(&self) -> Vec<ScheduledTick<&'a T>> {
-        let now = self.current_tick.load(Ordering::SeqCst);
         let inner_guard = self
             .inner
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let now = self.now();
         let Some(inner) = inner_guard.as_ref() else {
             return Vec::new();
         };
@@ -177,7 +207,7 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
         let mut ordered = Vec::with_capacity(inner.queued_ticks.len());
         for (trigger, queue) in &inner.tick_queue {
             // Saved delays are relative to now, as `ScheduledTick.toSavedTick` does.
-            let delay = trigger.saturating_sub(now) as u32;
+            let delay = trigger.wrapping_sub(now) as i32;
             ordered.extend(queue.iter().map(|Reverse(tick)| (tick, delay)));
         }
         // Java LevelChunkTicks::pack saves by sequence, not by trigger time.
@@ -233,7 +263,8 @@ impl<T> Default for ChunkTickScheduler<T> {
     fn default() -> Self {
         Self {
             inner: Mutex::new(None),
-            current_tick: AtomicU64::new(0),
+            current_tick: AtomicI64::new(0),
+            world_clock: OnceLock::new(),
         }
     }
 }
@@ -244,11 +275,30 @@ pub fn collect_ticks<T: std::hash::Hash + Eq + 'static>(
     queues: &[(&ChunkTickScheduler<&'static T>, bool)],
     limit: usize,
 ) -> Vec<OrderedTick<&'static T>> {
+    let cutoffs: Vec<_> = queues
+        .iter()
+        .map(|(queue, _)| queue.advance_tick())
+        .collect();
+    collect_due(queues, limit, &cutoffs)
+}
+
+/// Production collection uses one absolute game time for blocks and fluids.
+pub fn collect_ticks_at<T: std::hash::Hash + Eq + 'static>(
+    queues: &[(&ChunkTickScheduler<&'static T>, bool)],
+    limit: usize,
+    now: i64,
+) -> Vec<OrderedTick<&'static T>> {
+    collect_due(queues, limit, &vec![now; queues.len()])
+}
+
+fn collect_due<T: std::hash::Hash + Eq + 'static>(
+    queues: &[(&ChunkTickScheduler<&'static T>, bool)],
+    limit: usize,
+    cutoffs: &[i64],
+) -> Vec<OrderedTick<&'static T>> {
     let mut ready = BinaryHeap::new();
-    let mut cutoffs = Vec::with_capacity(queues.len());
     for (index, (queue, active)) in queues.iter().enumerate() {
-        let cutoff = queue.advance_tick();
-        cutoffs.push(cutoff);
+        let cutoff = cutoffs[index];
         if *active && let Some((priority, order)) = queue.peek_due(cutoff) {
             ready.push(Reverse((priority, order, index)));
         }
@@ -275,6 +325,87 @@ mod tests {
     use crate::tick::TickPriority;
 
     #[test]
+    fn java_saved_tick_restart_and_overdue_traces() {
+        let cases: serde_json::Value =
+            serde_json::from_str(include_str!("saved_tick_cases.json")).unwrap();
+        for (case_index, case) in cases.as_array().unwrap().iter().enumerate() {
+            let clock = Arc::new(AtomicI64::new(case["initial"].as_i64().unwrap()));
+            let mut queue: ChunkTickScheduler<&u8> = case["ticks"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|row| {
+                    let id = row[0].as_i64().unwrap() as i32;
+                    ScheduledTick {
+                        position: BlockPos::new(id % 16, 64 + id, 0),
+                        value: &0u8,
+                        delay: row[1].as_i64().unwrap() as i32,
+                        priority: TickPriority::try_from(row[2].as_i64().unwrap() as i32).unwrap(),
+                    }
+                })
+                .collect();
+            queue.bind_clock(&clock);
+            for step in case["steps"].as_array().unwrap() {
+                if step["reload"].as_bool().unwrap() {
+                    let saved = queue.to_vec();
+                    clock.store(step["now"].as_i64().unwrap(), Ordering::SeqCst);
+                    queue = saved.into_iter().collect();
+                    queue.bind_clock(&clock);
+                } else {
+                    clock.store(step["now"].as_i64().unwrap(), Ordering::SeqCst);
+                }
+                let packed: Vec<_> = queue
+                    .to_vec()
+                    .iter()
+                    .map(|t| vec![t.position.0.y - 64, t.delay, t.priority as i32])
+                    .collect();
+                assert_eq!(
+                    serde_json::json!(packed),
+                    step["saved"],
+                    "saved case {case_index}"
+                );
+                let due = collect_ticks_at(
+                    &[(&queue, true)],
+                    step["budget"].as_u64().unwrap() as usize,
+                    clock.load(Ordering::SeqCst),
+                );
+                let ids: Vec<_> = due.iter().map(|t| t.position.0.y - 64).collect();
+                assert_eq!(serde_json::json!(ids), step["due"], "due case {case_index}");
+            }
+        }
+    }
+
+    #[test]
+    fn empty_queues_use_current_game_time_for_new_work() {
+        let clock = Arc::new(AtomicI64::new(100));
+        let queue = ChunkTickScheduler::default();
+        queue.bind_clock(&clock);
+        clock.store(5000, Ordering::SeqCst);
+        queue.schedule_tick(
+            &ScheduledTick {
+                delay: 2,
+                position: BlockPos::new(0, 64, 0),
+                value: &0u8,
+                priority: TickPriority::Normal,
+            },
+            0,
+        );
+        assert!(collect_ticks_at(&[(&queue, true)], 10, 5001).is_empty());
+        assert_eq!(collect_ticks_at(&[(&queue, true)], 10, 5002).len(), 1);
+        clock.store(9000, Ordering::SeqCst);
+        queue.schedule_tick(
+            &ScheduledTick {
+                delay: 0,
+                position: BlockPos::new(0, 64, 0),
+                value: &0u8,
+                priority: TickPriority::Normal,
+            },
+            1,
+        );
+        assert_eq!(collect_ticks_at(&[(&queue, true)], 10, 9000).len(), 1);
+    }
+
+    #[test]
     fn java_container_merge_activation_and_budget_traces() {
         // Unmodified 26.2 LevelTicks: 128 seeded cases, 48 scheduled ticks,
         // four chunks and 25 activation/budget changes per case.
@@ -288,7 +419,7 @@ mod tests {
                 queues[number(0) as usize].schedule_tick(
                     &ScheduledTick {
                         position: BlockPos::new(number(1) as i32, number(2) as i32, 0),
-                        delay: number(3) as u32,
+                        delay: number(3) as i32,
                         priority: TickPriority::try_from(number(4) as i32).unwrap(),
                         value: &0u8,
                     },

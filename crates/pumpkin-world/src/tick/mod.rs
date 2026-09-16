@@ -56,7 +56,7 @@ impl TryFrom<i32> for TickPriority {
 
 #[derive(Clone)]
 pub struct ScheduledTick<T> {
-    pub delay: u32,
+    pub delay: i32,
     pub priority: TickPriority,
     pub position: BlockPos,
     pub value: T,
@@ -114,7 +114,7 @@ where
         nbt.put_int("x", self.position.0.x);
         nbt.put_int("y", self.position.0.y);
         nbt.put_int("z", self.position.0.z);
-        nbt.put_int("t", self.delay as i32);
+        nbt.put_int("t", self.delay);
         nbt.put_int("p", self.priority as i32);
         nbt.put_string("i", self.value.to_resource_location());
         nbt
@@ -131,9 +131,9 @@ where
         let y = nbt.get_int("y")?;
         let z = nbt.get_int("z")?;
         // Vanilla writes a relative delay as an int (`SavedTick.codec`, key "t").
-        // Negative values would mean "already due"; clamp rather than wrap.
-        let delay = nbt.get_int("t")?.max(0) as u32;
-        let priority = TickPriority::try_from(nbt.get_int("p")?).ok()?;
+        // Keep overdue delays: their signed trigger times determine drain order.
+        let delay = nbt.get_int("t")?;
+        let priority = TickPriority::try_from(nbt.get_int("p")?.clamp(-3, 3)).ok()?;
         let res_loc_str = nbt.get_string("i")?;
         let res_loc = ResourceLocation::from_str(res_loc_str).ok()?;
         let value = T::from_resource_location(&res_loc)?;
@@ -144,5 +144,33 @@ where
             position: BlockPos::new(x, y, z),
             value,
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn saved_tick_codec_keeps_overdue_delay_and_java_priority_bounds() {
+        let mut nbt = NbtCompound::new();
+        for key in ["x", "y", "z"] {
+            nbt.put_int(key, 0);
+        }
+        nbt.put_string("i", "minecraft:stone".into());
+        nbt.put_int("t", -100);
+        for (value, expected) in [
+            (i32::MIN, TickPriority::ExtremelyHigh),
+            (-3, TickPriority::ExtremelyHigh),
+            (0, TickPriority::Normal),
+            (3, TickPriority::ExtremelyLow),
+            (i32::MAX, TickPriority::ExtremelyLow),
+        ] {
+            nbt.put_int("p", value);
+            let tick =
+                ScheduledTick::<&'static pumpkin_data::Block>::from_nbt_compound(&nbt).unwrap();
+            assert_eq!(tick.delay, -100);
+            assert_eq!(tick.priority, expected);
+            assert_eq!(tick.to_nbt_compound().get_int("t"), Some(-100));
+        }
     }
 }

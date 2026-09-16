@@ -532,6 +532,9 @@ impl Server {
     }
 
     pub fn save_world_info(&self) -> Result<(), WorldInfoError> {
+        for world in self.worlds.load().iter() {
+            world.sync_time_to_level_info();
+        }
         let level_data = self.level_info.load();
         self.world_info_writer
             .write_world_info(&level_data, &self.basic_config.get_world_path())

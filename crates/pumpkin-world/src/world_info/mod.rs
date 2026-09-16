@@ -87,6 +87,14 @@ pub struct LevelData {
     #[serde(skip_serializing, default)]
     pub world_gen_settings: WorldGenSettings,
 
+    /// Absolute game tick, independent of the daylight clock.
+    #[serde(rename = "Time", default)]
+    pub game_time: i64,
+
+    /// Loaded clock states, including fractional progress, rate and pause state.
+    #[serde(skip)]
+    pub world_clocks: data_files::WorldClocksData,
+
     /// In-game time of day (overworld dimension clock).
     /// Persisted to `data/minecraft/world_clocks.dat`.
     #[serde(skip_serializing, default)]
@@ -528,6 +536,8 @@ impl LevelData {
             // fields now in data/minecraft/*.dat
             game_rules: GameRuleRegistry::default(),
             world_gen_settings: WorldGenSettings::new(seed),
+            game_time: 0,
+            world_clocks: data_files::WorldClocksData::default(),
             day_time: 0,
             clear_weather_time: -1,
         }

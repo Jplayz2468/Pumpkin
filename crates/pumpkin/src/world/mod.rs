@@ -422,8 +422,14 @@ impl World {
         };
 
         let worldborder = Worldborder::load(&level.level_folder.dim_folder, &level_info.load());
-        let (portal_tickets, forced_chunks) =
-            portal::tickets::PortalTickets::load(&level.level_folder.dim_folder, 0);
+        let level_time = LevelTime::from_level_data(&level_info.load());
+        level
+            .game_time
+            .store(level_time.world_age, std::sync::atomic::Ordering::SeqCst);
+        let (portal_tickets, forced_chunks) = portal::tickets::PortalTickets::load(
+            &level.level_folder.dim_folder,
+            level_time.world_age,
+        );
         Arc::new_cyclic(|self_reference| Self {
             self_reference: self_reference.clone(),
             sound_random: std::sync::Mutex::new(
@@ -440,7 +446,7 @@ impl World {
             scoreboard: std::sync::Mutex::new(Scoreboard::default()),
             handling_tick: std::sync::atomic::AtomicBool::new(false),
             worldborder: std::sync::Mutex::new(worldborder),
-            level_time: std::sync::Mutex::new(LevelTime::new()),
+            level_time: std::sync::Mutex::new(level_time),
             dimension,
             weather: std::sync::Mutex::new(Weather::new()),
             block_registry,
@@ -631,6 +637,7 @@ impl World {
     }
 
     pub async fn shutdown(&self) {
+        self.sync_time_to_level_info();
         self.save_chunk_tickets();
         self.save_entity_snapshots().await;
 
@@ -2132,6 +2139,9 @@ impl World {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             let advance_time = self.level_info.load().game_rules.advance_time;
             level_time.tick(advance_time);
+            self.level
+                .game_time
+                .store(level_time.world_age, std::sync::atomic::Ordering::SeqCst);
 
             let autosave_due = self.level.autosave_ticks > 0
                 && self.level.save_enabled.load(Relaxed)
@@ -2170,6 +2180,13 @@ impl World {
         }
         // Saving tickets reads world age; release the time lock before saving.
         if autosave_due {
+            self.sync_time_to_level_info();
+            if self.dimension.minecraft_name == Dimension::OVERWORLD.minecraft_name
+                && let Some(server) = self.server.upgrade()
+                && let Err(error) = server.save_world_info()
+            {
+                error!("Failed to autosave world info: {error}");
+            }
             self.save_world_border();
             self.save_chunk_tickets();
             let handle = self
@@ -7867,6 +7884,7 @@ impl World {
     }
 
     pub async fn save(&self) {
+        self.sync_time_to_level_info();
         self.save_chunk_tickets();
         self.save_world_border();
         self.save_entity_snapshots().await;
