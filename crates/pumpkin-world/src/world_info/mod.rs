@@ -572,6 +572,8 @@ impl LevelData {
 
 #[derive(Error, Debug)]
 pub enum WorldInfoError {
+    #[error("Failed saving world data: {0}")]
+    SaveError(String),
     #[error("Io error: {0}")]
     IoError(std::io::ErrorKind),
     #[error("Info not found!")]

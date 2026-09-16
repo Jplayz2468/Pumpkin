@@ -49,6 +49,7 @@ use tokio_util::task::TaskTracker;
 
 pub type SyncChunk = Arc<ChunkData>;
 pub type SyncEntityChunk = Arc<ChunkEntityData>;
+pub(crate) type SaveCompletion = oneshot::Sender<Result<(), String>>;
 type EntityLoadWaiters = Vec<oneshot::Sender<Result<SyncEntityChunk, String>>>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -110,6 +111,7 @@ pub struct Level {
     pub loaded_chunks: Arc<DashMap<Vector2<i32>, SyncChunk>>,
     pub(crate) loaded_chunk_changes: Arc<SegQueue<LoadedChunkChange>>,
     loaded_entity_chunks: Arc<DashMap<Vector2<i32>, SyncEntityChunk>>,
+    pub(crate) save_requests: Mutex<Vec<SaveCompletion>>,
     pub game_time: Arc<AtomicI64>,
     pub chunks_with_scheduled_ticks: Arc<dashmap::DashSet<Vector2<i32>>>,
     pub chunk_loading: Mutex<ChunkLoading>,
@@ -304,6 +306,7 @@ impl Level {
             loaded_chunks: Arc::new(DashMap::new()),
             loaded_chunk_changes: Arc::new(SegQueue::new()),
             loaded_entity_chunks: Arc::new(DashMap::new()),
+            save_requests: Mutex::new(Vec::new()),
             game_time: Arc::new(AtomicI64::new(0)),
             chunks_with_scheduled_ticks: Arc::new(dashmap::DashSet::new()),
             chunk_loading: Mutex::new(ChunkLoading::new(level_channel.clone())),
@@ -424,7 +427,9 @@ impl Level {
 
         // TODO: I think the chunk_saver should be at the server level
         self.entity_saver.clear_watched_chunks().await;
-        self.write_entity_chunks(chunks_to_write).await;
+        if let Err(error) = self.write_entity_chunks(chunks_to_write).await {
+            error!("Failed to save entities on shutdown: {error}");
+        }
     }
 
     pub fn loaded_chunk_count(&self) -> usize {
@@ -506,7 +511,7 @@ impl Level {
         let written = self.queue_entity_chunks(chunks.clone());
         let level = self.clone();
         self.spawn_task(async move {
-            if written.await != Ok(true) {
+            if written.await != Ok(Ok(())) {
                 return;
             }
             for (pos, chunk) in chunks {
@@ -682,7 +687,8 @@ impl Level {
                         }
                         let y_base = min_y + (i as i32 * 16);
                         for _ in 0..samples_per_section {
-                            let pos = self.get_block_random_pos(chunk_x_base, y_base, chunk_z_base, 15);
+                            let pos =
+                                self.get_block_random_pos(chunk_x_base, y_base, chunk_z_base, 15);
                             let x_offset = (pos.0.x - chunk_x_base) as usize;
                             let y_in_section = (pos.0.y - y_base) as usize;
                             let z_offset = (pos.0.z - chunk_z_base) as usize;
@@ -1005,7 +1011,7 @@ impl Level {
     pub fn queue_entity_chunks(
         &self,
         chunks: Vec<(Vector2<i32>, SyncEntityChunk)>,
-    ) -> oneshot::Receiver<bool> {
+    ) -> oneshot::Receiver<Result<(), String>> {
         self.entity_writes.enqueue(
             chunks,
             self.entity_saver.clone(),
@@ -1014,8 +1020,32 @@ impl Level {
         )
     }
 
-    pub async fn write_entity_chunks(&self, chunks: Vec<(Vector2<i32>, SyncEntityChunk)>) {
-        let _ = self.queue_entity_chunks(chunks).await;
+    pub async fn write_entity_chunks(
+        &self,
+        chunks: Vec<(Vector2<i32>, SyncEntityChunk)>,
+    ) -> Result<(), String> {
+        self.queue_entity_chunks(chunks)
+            .await
+            .map_err(|error| format!("Entity writer stopped before completion: {error}"))?
+    }
+
+    /// Submit through the same FIFO as autosave/unload and await disk completion.
+    pub async fn save_chunks(&self) -> Result<(), String> {
+        let (tx, rx) = oneshot::channel();
+        {
+            let mut requests = self
+                .save_requests
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if self.shut_down_chunk_system.load(Ordering::Relaxed) {
+                return Err("Chunk scheduler is shutting down".into());
+            }
+            requests.push(tx);
+            self.should_save.store(true, Ordering::Relaxed);
+        }
+        self.level_channel.notify();
+        rx.await
+            .map_err(|error| format!("Chunk writer stopped before completion: {error}"))?
     }
 
     pub fn is_chunk_loaded(&self, coordinates: &Vector2<i32>) -> bool {
@@ -1156,6 +1186,112 @@ mod tests {
     use pumpkin_config::world::LevelConfig;
     use tempfile::TempDir;
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn manual_save_flushes_watched_chunks_and_retries_failed_writes() {
+        let dir = TempDir::new().unwrap();
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let pos = Vector2::new(0, 0);
+        let chunk = ChunkData::empty_sync(0, 0);
+        chunk.set_block_absolute_y(0, 64, 0, Block::STONE.default_state.id);
+        chunk.mark_dirty(true);
+        level.loaded_chunks.insert(pos, chunk.clone());
+        level
+            .chunk_saver
+            .watch_chunks(&level.level_folder, &[pos])
+            .await;
+        level.save_chunks().await.unwrap();
+        assert!(!chunk.is_dirty());
+        // A fresh file manager must see the save while the original stays watched.
+        let reader = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let (tx, mut rx) = mpsc::channel(1);
+        reader
+            .chunk_saver
+            .fetch_chunks(&reader.level_folder, &[pos], tx)
+            .await;
+        let Some(LoadedData::Loaded(saved)) = rx.recv().await else {
+            panic!("save was not persisted")
+        };
+        assert_eq!(
+            saved.section.get_block_absolute_y(0, 64, 0),
+            Some(Block::STONE.default_state.id)
+        );
+        reader.shutdown().await;
+        let region = &level.level_folder.region_folder;
+        let backup = region.with_extension("backup");
+        std::fs::rename(region, &backup).unwrap();
+        std::fs::write(region, b"not a directory").unwrap();
+        chunk.set_block_absolute_y(0, 64, 0, Block::GOLD_BLOCK.default_state.id);
+        chunk.mark_dirty(true);
+        assert!(level.save_chunks().await.is_err());
+        assert!(chunk.is_dirty());
+        // Model a failed unload: the retry still owns the chunk without a holder.
+        level.loaded_chunks.remove(&pos);
+        std::fs::remove_file(region).unwrap();
+        std::fs::rename(&backup, region).unwrap();
+        level.save_chunks().await.unwrap();
+        let reader = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let (tx, mut rx) = mpsc::channel(1);
+        reader
+            .chunk_saver
+            .fetch_chunks(&reader.level_folder, &[pos], tx)
+            .await;
+        let Some(LoadedData::Loaded(saved)) = rx.recv().await else {
+            panic!("retry was not persisted")
+        };
+        assert_eq!(
+            saved.section.get_block_absolute_y(0, 64, 0),
+            Some(Block::GOLD_BLOCK.default_state.id)
+        );
+        reader.shutdown().await;
+        level.shutdown().await;
+        assert!(level.save_chunks().await.is_err());
+    }
+
+    #[tokio::test]
+    async fn entity_write_failure_is_returned_and_retained_for_retry() {
+        let dir = TempDir::new().unwrap();
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let pos = Vector2::new(0, 0);
+        let chunk = level.try_load_entity_chunk(pos).await.unwrap();
+        let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
+        nbt.put_int("value", 42);
+        chunk.data.lock().unwrap().push(nbt);
+        let folder = &level.level_folder.entities_folder;
+        let backup = folder.with_extension("backup");
+        std::fs::rename(folder, &backup).unwrap();
+        std::fs::write(folder, b"not a directory").unwrap();
+        let error = level
+            .write_entity_chunks(vec![(pos, chunk.clone())])
+            .await
+            .unwrap_err();
+        assert!(!error.is_empty());
+        assert_eq!(chunk.data.lock().unwrap()[0].get_int("value"), Some(42));
+        std::fs::remove_file(folder).unwrap();
+        std::fs::rename(backup, folder).unwrap();
+        level.write_entity_chunks(vec![(pos, chunk)]).await.unwrap();
+        level.shutdown().await;
+    }
+
     #[tokio::test]
     async fn restored_chunk_ticks_are_indexed_and_keep_signed_delays_through_nbt() {
         use crate::chunk::format::anvil::SingleChunkDataSerializer;
@@ -1264,7 +1400,7 @@ mod tests {
             .lock()
             .unwrap()
             .add_ticket(pos, ChunkLoading::FULL_CHUNK_LEVEL);
-        assert_eq!(level.queue_entity_chunks(Vec::new()).await, Ok(true));
+        assert_eq!(level.queue_entity_chunks(Vec::new()).await, Ok(Ok(())));
         tokio::task::yield_now().await;
         assert!(Arc::ptr_eq(
             &original,
@@ -1312,8 +1448,8 @@ mod tests {
         set_value(2);
         let second = level.queue_entity_chunks(vec![(pos, chunk.clone())]);
         set_value(3);
-        assert_eq!(first.await, Ok(true));
-        assert_eq!(second.await, Ok(true));
+        assert_eq!(first.await, Ok(Ok(())));
+        assert_eq!(second.await, Ok(Ok(())));
         let (disk, _) = level.load_single_entity_chunk(pos).await.unwrap();
         assert_eq!(disk.data.lock().unwrap()[0].get_int("value"), Some(2));
         assert_eq!(chunk.data.lock().unwrap()[0].get_int("value"), Some(3));

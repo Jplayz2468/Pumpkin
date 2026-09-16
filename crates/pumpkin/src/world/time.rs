@@ -306,7 +306,7 @@ mod tests {
         world.tick_environment();
         assert_eq!(world.get_world_age(), 1_000_004);
         assert_eq!(world.level_time.lock().unwrap().time_of_day, 17_001);
-        world.save().await;
+        world.save().await.unwrap();
         AnvilLevelInfo
             .write_world_info(&world.level_info.load(), dir.path())
             .unwrap();

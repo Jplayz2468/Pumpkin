@@ -177,14 +177,30 @@ pub async fn io_read_work(
     debug!("io read thread stop");
 }
 
-pub async fn io_write_work(
-    mut recv: tokio::sync::mpsc::Receiver<Vec<(ChunkPos, Chunk)>>,
+pub(crate) struct ChunkWrite {
+    pub chunks: Vec<(ChunkPos, Chunk)>,
+    pub completion: Vec<crate::level::SaveCompletion>,
+}
+
+impl From<Vec<(ChunkPos, Chunk)>> for ChunkWrite {
+    fn from(chunks: Vec<(ChunkPos, Chunk)>) -> Self {
+        Self {
+            chunks,
+            completion: Vec::new(),
+        }
+    }
+}
+
+pub(crate) async fn io_write_work(
+    mut recv: tokio::sync::mpsc::Receiver<ChunkWrite>,
     level: Arc<Level>,
     lock: IOLock,
 ) {
+    let mut failed_chunks = std::collections::HashMap::new();
     loop {
         // Don't check cancel_token here (keep saving chunks)
-        let Some(data) = recv.recv().await else { break };
+        let Some(job) = recv.recv().await else { break };
+        let data = job.chunks;
         // debug!("io write thread receive chunks size {}", data.len());
         let positions = data.iter().map(|(pos, _)| *pos).collect::<Vec<_>>();
         let level_for_upgrade = level.clone();
@@ -207,19 +223,32 @@ pub async fn io_write_work(
             vec
         })
         .await;
-        let upgrade_failed = match upgrade_result {
+        let result = match upgrade_result {
             Ok(vec) => {
-                if let Err(e) = level
+                // Retain failed unloads too: they may no longer have a live holder.
+                // A newer submission for a position replaces its older failed image.
+                failed_chunks.extend(vec);
+                let pending = failed_chunks
+                    .iter()
+                    .map(|(pos, chunk)| (*pos, chunk.clone()))
+                    .collect();
+                match level
                     .chunk_saver
-                    .save_chunks(&level.level_folder, vec)
+                    .save_chunks(&level.level_folder, pending)
                     .await
                 {
-                    error!("Failed to save chunks: {:?}", e);
+                    Ok(()) => {
+                        failed_chunks.clear();
+                        Ok(())
+                    }
+                    Err(error) => Err(error.to_string()),
                 }
-                false
             }
-            Err(_) => true,
+            Err(error) => Err(format!("Failed to upgrade chunks for saving: {error}")),
         };
+        if let Err(error) = &result {
+            error!("Failed to save chunks: {error}");
+        }
 
         {
             let mut data = lock
@@ -246,10 +275,8 @@ pub async fn io_write_work(
             }
         }
         lock.1.notify_waiters();
-
-        if upgrade_failed {
-            error!("Failed to upgrade chunks for saving");
-            break;
+        for completion in job.completion {
+            let _ = completion.send(result.clone());
         }
     }
 }

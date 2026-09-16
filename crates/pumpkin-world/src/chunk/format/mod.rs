@@ -58,6 +58,12 @@ impl PathFromLevelFolder for ChunkData {
 }
 
 impl Dirtiable for ChunkData {
+    fn take_dirty(&self) -> bool {
+        self.dirty.swap(false, Ordering::Relaxed)
+            || self.block_ticks.has_ticks()
+            || self.fluid_ticks.has_ticks()
+    }
+
     #[inline]
     fn mark_dirty(&self, flag: bool) {
         self.dirty.store(flag, Ordering::Relaxed);
@@ -677,6 +683,10 @@ impl PathFromLevelFolder for ChunkEntityData {
 }
 
 impl Dirtiable for ChunkEntityData {
+    fn take_dirty(&self) -> bool {
+        self.dirty.swap(false, Ordering::Relaxed)
+    }
+
     #[inline]
     fn mark_dirty(&self, flag: bool) {
         self.dirty.store(flag, Ordering::Relaxed);

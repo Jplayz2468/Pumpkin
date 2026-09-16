@@ -1478,3 +1478,12 @@ delay ordering and resumes unloaded delays on publication. Scheduling and draini
 also persist queue changes. ENGINE_GAPS.md records Java trace, disk-backed chunk
 and World restart checks, with remaining shared-clock, readiness and broader engine
 gates. Full mob passes remain paused.
+
+
+### Save completion and failure handling
+
+World saves now await the chunk writer and report storage failures. Watched regions
+flush before success; failed writes keep dirty state and retained payloads for retry.
+Errors from entities, tickets, POI, custom data and world metadata reach server and
+plugin save callers. ENGINE_GAPS.md records failure/retry evidence and the remaining
+command-result, crash-recovery and lifecycle gates. Full mob passes remain paused.

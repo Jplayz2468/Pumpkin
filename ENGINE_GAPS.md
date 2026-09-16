@@ -829,3 +829,37 @@ whole inside-effect pipeline matches Java yet.
   cases, equal restored order ties across chunks, chunk-holder readiness/portal
   expiry pausing, save error propagation and snapshot/plugin concurrency. The
   broader D01–D06 and individual block-system integration gates remain open.
+
+
+## Save completion, errors and write retries
+
+- Region writes now flush before reporting success even while a player watches
+  the region. Serialization and file writes share an exclusive region lock.
+  Dirty state is claimed atomically; write/serialization errors mark affected chunks
+  dirty again so an unsuccessful save cannot silently remove retry eligibility.
+- Manual chunk saves submit through the existing scheduler/writer FIFO and await a
+  completion result. Empty requests still wait behind prior jobs and retry pending
+  failures. The writer retains failed chunk payloads even after their live holder
+  disappears; newer submissions replace older failed payloads at the same position.
+  Save requests reject shutdown rather than treating a closed writer as success.
+- Entity writes return their actual errors through snapshot saving. World.save
+  collects ticket, border, entity, POI, custom-data and chunk errors while attempting
+  the remaining work. Server.save_all collects failures across worlds; the plugin
+  API returns World.save's result. Success feedback in the existing asynchronous
+  save command therefore follows completed writes, including watched regions.
+- level.dat replacement/backup failures and auxiliary saved-data failures now reach
+  the caller. Independent auxiliary files are still attempted when one fails.
+- Evidence: a watched region is readable through a fresh file manager before the
+  original watcher leaves; a filesystem failure returns an error and leaves dirty
+  state, and a later request retries the payload after its holder is removed.
+  Entity write errors preserve cached data for retry. A real World save reports
+  multiple file errors while still saving blocks. Metadata tests cover auxiliary
+  file and level.dat backup/replacement errors. Final background run 4 passed
+  **512 engine and 238 world tests**, excluding the same two previously separately
+  passing localhost socket tests. No live client session was performed.
+- Limits: ordinary save-all and flush still share one async executor, whose command
+  result is returned before completion; synchronous command-result parity and
+  distinct Java flush behavior remain open. Full crash recovery, fatal scheduler
+  failures, read-after-failed-unload coordination, proto-chunk recovery, atomic
+  multi-file snapshots and broader plugin/save concurrency are not certified here.
+  The other shared engine/block gates remain open; full mob passes remain paused.

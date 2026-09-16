@@ -11,7 +11,10 @@ use std::{
 use tokio::sync::oneshot;
 use tokio_util::task::TaskTracker;
 
-type Job = (Vec<(Vector2<i32>, SyncEntityChunk)>, oneshot::Sender<bool>);
+type Job = (
+    Vec<(Vector2<i32>, SyncEntityChunk)>,
+    oneshot::Sender<Result<(), String>>,
+);
 #[derive(Default)]
 struct Queue {
     jobs: VecDeque<Job>,
@@ -27,7 +30,7 @@ impl EntityWrites {
         saver: Arc<EntitySaver>,
         folder: Arc<LevelFolder>,
         tasks: &TaskTracker,
-    ) -> oneshot::Receiver<bool> {
+    ) -> oneshot::Receiver<Result<(), String>> {
         let (tx, rx) = oneshot::channel();
         let mut queue = self
             .0
@@ -77,7 +80,7 @@ impl EntityWrites {
                     if let Err(error) = &result {
                         tracing::error!("Failed writing entity snapshot: {error}");
                     }
-                    let _ = job.1.send(result.is_ok());
+                    let _ = job.1.send(result.map_err(|error| error.to_string()));
                 }
             });
         }

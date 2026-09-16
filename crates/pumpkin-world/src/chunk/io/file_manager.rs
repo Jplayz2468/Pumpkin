@@ -10,7 +10,7 @@ use tokio::{
     join,
     sync::{OnceCell, RwLock, mpsc},
 };
-use tracing::{debug, error, trace};
+use tracing::trace;
 
 use crate::{
     chunk::{ChunkReadingError, ChunkWritingError, io::Dirtiable},
@@ -28,8 +28,7 @@ use super::{ChunkSerializer, FileIO, LoadedData, run_blocking};
 ///   All readers/writers for the same region file share this lock, so there
 ///   are never two concurrent writers for the same file.
 /// * `watchers` — a ref-count per path.  While a path has active watchers the
-///   serializer is **not** evicted from the cache and the file is **not**
-///   flushed to disk (the caller owns the flush lifecycle).
+///   serializer stays cached. Saves still flush it before returning success.
 ///
 /// ### Lock ordering (must never be violated to avoid deadlocks)
 ///
@@ -335,75 +334,39 @@ where
         let tasks = regions_chunks
             .into_iter()
             .map(|(file_name, chunk_locks)| async move {
-                let path = P::file_path(folder, &file_name);
-                trace!("Saving chunks into {}", path.display());
-
-                let chunk_serializer = match self.get_serializer(&path).await {
-                    Ok(s) => s,
-                    Err(ChunkReadingError::ChunkNotExist) => {
-                        return Err(ChunkWritingError::IoError(std::io::Error::other(
-                            "get_serializer returned ChunkNotExist",
-                        )));
-                    }
-                    Err(ChunkReadingError::IoError(err)) => {
-                        error!("I/O error reading region before write: {err}");
-                        return Err(ChunkWritingError::IoError(err));
-                    }
-                    Err(err) => {
-                        return Err(ChunkWritingError::IoError(std::io::Error::other(
-                            err.to_string(),
-                        )));
-                    }
-                };
-
-                {
-                    let mut writer = chunk_serializer.write().await;
-                    for chunk in &chunk_locks {
-                        // Atomically snapshot and clear the dirty flag before we
-                        // write so that any mutation that races in *during* this
-                        // serialisation round will mark dirty again correctly.
-                        let was_dirty = chunk.is_dirty();
-                        chunk.mark_dirty(false);
-
-                        if was_dirty {
-                            writer
-                                .update_chunk(chunk.clone(), &self.chunk_config)
-                                .await?;
-                        }
-                    }
-                    // Write-lock released here — flush can proceed under a read-lock.
-                }
-
-                trace!("Chunk data updated for {}", path.display());
-
-                // We check watchers *after* releasing the write-lock to honour
-                // lock ordering (serializer lock → watchers, never the reverse).
-                let is_watched = {
-                    let watchers = self.watchers.read().await;
-                    watchers.get(&path).is_some_and(|&c| c > 0)
-                };
-
-                if !is_watched {
-                    // A read-lock suffices for `write()` since we have already
-                    // applied all mutations above.
+                let result = async {
+                    let path = P::file_path(folder, &file_name);
+                    let serializer = self.get_serializer(&path).await.map_err(|error| {
+                        ChunkWritingError::IoError(std::io::Error::other(error.to_string()))
+                    })?;
                     {
-                        let serializer = chunk_serializer.read().await;
-                        debug!("Flushing {} to disk", path.display());
-                        serializer
+                        // Updating and flushing share an exclusive lock. Watchers
+                        // keep the cache alive; they must not defer persistence.
+                        let mut writer = serializer.write().await;
+                        for chunk in &chunk_locks {
+                            if chunk.take_dirty() {
+                                writer
+                                    .update_chunk(chunk.clone(), &self.chunk_config)
+                                    .await?;
+                            }
+                        }
+                        writer
                             .write(&path)
                             .await
                             .map_err(ChunkWritingError::IoError)?;
-                        // Read-lock released here.
-                    };
-
-                    // Drop our handle so `can_remove` may succeed.
-                    drop(chunk_serializer);
-
-                    // Evict the cache entry when no longer needed.
+                    }
+                    drop(serializer);
                     self.maybe_evict(&path).await;
+                    Ok(())
                 }
-
-                Ok(())
+                .await;
+                if result.is_err() {
+                    // Failed serialization/flush must remain eligible for retry.
+                    for chunk in &chunk_locks {
+                        chunk.mark_dirty(true);
+                    }
+                }
+                result
             });
 
         // Collect all region results; surface the first error encountered.

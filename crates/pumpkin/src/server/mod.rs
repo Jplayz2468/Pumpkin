@@ -586,14 +586,15 @@ impl Server {
     }
 
     pub async fn save_all(&self) -> Result<(), String> {
+        let mut errors = Vec::new();
         if let Err(err) = self.save_world_info() {
             error!("Failed to save world info: {err}");
-            return Err(format!("Failed to save world info: {err}"));
+            errors.push(format!("Failed to save world info: {err}"));
         }
 
         if let Err(err) = self.player_data_storage.save_all_players(self) {
             error!("Failed to save player data: {err}");
-            return Err(format!("Failed to save player data: {err}"));
+            errors.push(format!("Failed to save player data: {err}"));
         }
 
         if let Err(err) = self
@@ -602,14 +603,20 @@ impl Server {
             .await
         {
             error!("Failed to save player advancements: {err}");
-            return Err(format!("Failed to save player advancements: {err}"));
+            errors.push(format!("Failed to save player advancements: {err}"));
         }
 
         for world in self.worlds.load().iter() {
-            world.save().await;
+            if let Err(error) = world.save().await {
+                errors.push(format!("World {}: {error}", world.dimension.minecraft_name));
+            }
         }
 
-        Ok(())
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("; "))
+        }
     }
 
     /// Adds a new player to the server.

@@ -202,6 +202,9 @@ mod tests {
     }
 
     impl Dirtiable for MockChunk {
+        fn take_dirty(&self) -> bool {
+            true
+        }
         fn is_dirty(&self) -> bool {
             true
         }

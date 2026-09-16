@@ -639,7 +639,9 @@ impl World {
     pub async fn shutdown(&self) {
         self.sync_time_to_level_info();
         self.save_chunk_tickets();
-        self.save_entity_snapshots().await;
+        if let Err(error) = self.save_entity_snapshots().await {
+            error!("Failed to save entity snapshots: {error}");
+        }
 
         let chunks: Vec<Vector2<i32>> = self
             .block_entities
@@ -7883,11 +7885,23 @@ impl World {
         }
     }
 
-    pub async fn save(&self) {
+    pub async fn save(&self) -> Result<(), String> {
+        let mut errors = Vec::new();
         self.sync_time_to_level_info();
-        self.save_chunk_tickets();
-        self.save_world_border();
-        self.save_entity_snapshots().await;
+        if let Err(error) = self.try_save_chunk_tickets() {
+            errors.push(format!("Chunk tickets: {error}"));
+        }
+        if let Err(error) = self
+            .worldborder
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .save(&self.level.level_folder.dim_folder)
+        {
+            errors.push(format!("World border: {error}"));
+        }
+        if let Err(error) = self.save_entity_snapshots().await {
+            errors.push(format!("Entities: {error}"));
+        }
 
         let chunks: Vec<Vector2<i32>> = self
             .block_entities
@@ -7898,8 +7912,14 @@ impl World {
             self.save_block_entities(chunk_pos);
         }
 
-        if let Ok(mut portal_poi) = self.portal_poi.try_lock() {
-            let _ = portal_poi.save_all();
+        {
+            let mut portal_poi = self
+                .portal_poi
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Err(error) = portal_poi.save_all() {
+                errors.push(format!("Portal POI: {error}"));
+            }
         }
 
         {
@@ -7914,14 +7934,18 @@ impl World {
                     .root_folder
                     .join("pumpkin_custom_data.nbt");
                 let nbt = pumpkin_nbt::Nbt::from(custom_data.clone());
-                let _ = std::fs::write(custom_data_path, nbt.write());
+                if let Err(error) = std::fs::write(custom_data_path, nbt.write()) {
+                    errors.push(format!("Custom data: {error}"));
+                }
             }
         }
 
-        self.level
-            .should_save
-            .store(true, std::sync::atomic::Ordering::Relaxed);
-        self.level.level_channel.notify();
+        if let Err(error) = self.level.save_chunks().await {
+            errors.push(format!("Chunks: {error}"));
+        }
+        if !errors.is_empty() {
+            return Err(errors.join("; "));
+        }
 
         let mut save_event = crate::plugin::api::events::world::world_save::WorldSaveEvent::new(
             format!("{:?}", self.dimension),
@@ -7929,6 +7953,7 @@ impl World {
         if let Some(server) = self.server.upgrade() {
             server.plugin_manager.fire(&server, &mut save_event).await;
         }
+        Ok(())
     }
 
     pub fn set_custom_data(&self, namespace: &str, key: &str, value: pumpkin_nbt::tag::NbtTag) {

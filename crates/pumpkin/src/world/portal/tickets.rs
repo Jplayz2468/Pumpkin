@@ -278,20 +278,22 @@ impl World {
     }
 
     pub(crate) fn save_chunk_tickets(&self) {
+        if let Err(error) = self.try_save_chunk_tickets() {
+            tracing::warn!("Failed to save chunk tickets: {error}");
+        }
+    }
+
+    pub(crate) fn try_save_chunk_tickets(&self) -> Result<(), String> {
         let forced = self
             .forced_chunks
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
         let now = self.get_world_age();
-        if let Err(error) = self
-            .portal_tickets
+        self.portal_tickets
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .save(&self.level.level_folder.dim_folder, now, &forced)
-        {
-            tracing::warn!("Failed to save chunk tickets: {error}");
-        }
     }
 }
 

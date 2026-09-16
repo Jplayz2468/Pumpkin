@@ -445,24 +445,25 @@ impl WorldInfoWriter for AnvilLevelInfo {
             .map_err(|e| WorldInfoError::SerializationError(e.to_string()))?;
 
         if path.exists() {
-            let _ = std::fs::copy(&path, &path_old);
+            std::fs::copy(&path, &path_old)?;
         }
-        let _ = std::fs::rename(&path_new, &path);
+        std::fs::rename(&path_new, &path)?;
 
         let data_version = level_data.data_version;
 
         // ── Write data/minecraft/*.dat files ─────────────────────────────────
 
+        let mut errors = Vec::new();
         // game_rules.dat
         if let Err(e) = write_game_rules(level_folder, &info.game_rules, data_version) {
-            error!("Failed to write game_rules.dat: {e}");
+            errors.push(format!("Failed to write game_rules.dat: {e}"));
         }
 
         // world_gen_settings.dat
         if let Err(e) =
             write_world_gen_settings(level_folder, &info.world_gen_settings, data_version)
         {
-            error!("Failed to write world_gen_settings.dat: {e}");
+            errors.push(format!("Failed to write world_gen_settings.dat: {e}"));
         }
 
         // world_clocks.dat – persist the overworld day_time; preserve other
@@ -479,7 +480,7 @@ impl WorldInfoWriter for AnvilLevelInfo {
             });
 
         if let Err(e) = write_world_clocks(level_folder, &clocks) {
-            error!("Failed to write world_clocks.dat: {e}");
+            errors.push(format!("Failed to write world_clocks.dat: {e}"));
         }
 
         // weather.dat
@@ -487,42 +488,46 @@ impl WorldInfoWriter for AnvilLevelInfo {
         weather.clear_weather_time = info.clear_weather_time;
         weather.data_version = data_version;
         if let Err(e) = write_weather(level_folder, &weather) {
-            error!("Failed to write weather.dat: {e}");
+            errors.push(format!("Failed to write weather.dat: {e}"));
         }
 
         // wandering_trader.dat (stub / load-save)
         let mut wandering_trader = read_wandering_trader(level_folder);
         wandering_trader.data_version = data_version;
         if let Err(e) = write_wandering_trader(level_folder, &wandering_trader) {
-            error!("Failed to write wandering_trader.dat: {e}");
+            errors.push(format!("Failed to write wandering_trader.dat: {e}"));
         }
 
         // custom_boss_events.dat
         if let Err(e) = write_custom_boss_events_stub(level_folder, data_version) {
-            error!("Failed to write custom_boss_events.dat: {e}");
+            errors.push(format!("Failed to write custom_boss_events.dat: {e}"));
         }
 
         // scheduled_events.dat
         if let Err(e) = write_scheduled_events_stub(level_folder, data_version) {
-            error!("Failed to write scheduled_events.dat: {e}");
+            errors.push(format!("Failed to write scheduled_events.dat: {e}"));
         }
 
         // random_sequences.dat
         if let Err(e) = write_random_sequences_stub(level_folder, data_version) {
-            error!("Failed to write random_sequences.dat: {e}");
+            errors.push(format!("Failed to write random_sequences.dat: {e}"));
         }
 
         // scoreboard.dat
         if let Err(e) = write_scoreboard_stub(level_folder, data_version) {
-            error!("Failed to write scoreboard.dat: {e}");
+            errors.push(format!("Failed to write scoreboard.dat: {e}"));
         }
 
         // stopwatches.dat
         if let Err(e) = write_stopwatches_stub(level_folder, data_version) {
-            error!("Failed to write stopwatches.dat: {e}");
+            errors.push(format!("Failed to write stopwatches.dat: {e}"));
         }
 
-        Ok(())
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(WorldInfoError::SaveError(errors.join("; ")))
+        }
     }
 }
 
@@ -606,6 +611,31 @@ mod test {
     fn read_level_dat(level_folder: &Path) -> NbtCompound {
         let file = File::open(level_folder.join(LEVEL_DAT_FILE_NAME)).unwrap();
         read_gzip_compound_tag(file).unwrap()
+    }
+
+    #[test]
+    fn world_info_reports_auxiliary_and_replacement_failures() {
+        let dir = TempDir::new().unwrap();
+        let mut data = LevelData::default(Seed(262));
+        data.game_time = 42;
+        let weather = dir.path().join("data/minecraft/weather.dat");
+        std::fs::create_dir_all(&weather).unwrap();
+        let error = AnvilLevelInfo
+            .write_world_info(&data, dir.path())
+            .unwrap_err();
+        assert!(error.to_string().contains("weather.dat"));
+        assert!(dir.path().join("data/minecraft/world_clocks.dat").is_file());
+        std::fs::remove_dir(weather).unwrap();
+        std::fs::create_dir(dir.path().join("level.dat_old")).unwrap();
+        data.game_time = 99;
+        assert!(AnvilLevelInfo.write_world_info(&data, dir.path()).is_err());
+        assert_eq!(
+            read_level_dat(dir.path())
+                .get_compound("Data")
+                .unwrap()
+                .get_long("Time"),
+            Some(42)
+        );
     }
 
     #[test]

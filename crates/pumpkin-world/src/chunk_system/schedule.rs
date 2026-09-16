@@ -73,7 +73,7 @@ pub struct GenerationSchedule {
     queue_dirty: bool,
     recv_chunk: crossbeam::channel::Receiver<(ChunkPos, RecvChunk)>,
     io_read: tokio::sync::mpsc::Sender<Vec<ChunkPos>>,
-    io_write: tokio::sync::mpsc::Sender<Vec<(ChunkPos, Chunk)>>,
+    io_write: tokio::sync::mpsc::Sender<super::worker_logic::ChunkWrite>,
     send_chunk: crossbeam::channel::Sender<(ChunkPos, RecvChunk)>,
     listener: Arc<ChunkListener>,
     lighting_config: LightingEngineConfig,
@@ -914,7 +914,7 @@ impl GenerationSchedule {
             *data.entry(*pos).or_insert(0) += 1;
         }
         drop(data);
-        if let Err(e) = self.io_write.blocking_send(chunks) {
+        if let Err(e) = self.io_write.blocking_send(chunks.into()) {
             error!(
                 "Failed to send chunks to io write thread during save (may have shut down): {:?}",
                 e
@@ -923,12 +923,20 @@ impl GenerationSchedule {
     }
 
     fn save_all_chunk(&mut self, save_proto_chunk: bool) {
+        self.save_all_chunk_with_completion(save_proto_chunk, Vec::new());
+    }
+
+    fn save_all_chunk_with_completion(
+        &mut self,
+        save_proto_chunk: bool,
+        completion: Vec<crate::level::SaveCompletion>,
+    ) {
         let mut chunks = Vec::with_capacity(self.chunk_map.len());
 
         for (pos, holder) in &mut self.chunk_map {
             if let Some(chunk) = &holder.chunk {
                 let should_save = match chunk {
-                    Chunk::Level(sync_chunk) => sync_chunk.is_dirty(),
+                    Chunk::Level(sync_chunk) => !completion.is_empty() || sync_chunk.is_dirty(),
                     Chunk::Proto(proto) => {
                         save_proto_chunk
                             && !matches!(
@@ -949,9 +957,15 @@ impl GenerationSchedule {
             }
         }
 
-        if chunks.is_empty() {
-            return;
+        // Include full chunks installed through the synchronous/public path too.
+        let mut included: HashSetType<_> = chunks.iter().map(|(pos, _)| *pos).collect();
+        for entry in self.public_chunk_map.iter() {
+            if (!completion.is_empty() || entry.value().is_dirty()) && included.insert(*entry.key())
+            {
+                chunks.push((*entry.key(), Chunk::Level(entry.value().clone())));
+            }
         }
+        // Even an empty job retries earlier failed/unloaded writes in the worker.
 
         info!(
             "Saving {} chunks (collected from {} holders)...",
@@ -969,8 +983,12 @@ impl GenerationSchedule {
         }
         drop(data);
 
-        if let Err(e) = self.io_write.blocking_send(chunks) {
-            error!("Failed to send chunks to io write thread: {:?}", e);
+        let job = super::worker_logic::ChunkWrite { chunks, completion };
+        if let Err(error) = self.io_write.blocking_send(job) {
+            for completion in error.0.completion {
+                let _ = completion.send(Err("Chunk writer is closed".into()));
+            }
+            error!("Failed to send chunks to io write thread");
         }
     }
 
@@ -1266,13 +1284,19 @@ impl GenerationSchedule {
                 self.process_unload_queue();
             }
             if level.should_save.swap(false, Relaxed) {
-                self.save_all_chunk(false);
+                let completion = std::mem::take(
+                    &mut *level.save_requests.lock().unwrap_or_else(std::sync::PoisonError::into_inner),
+                );
+                self.save_all_chunk_with_completion(false, completion);
             }
             if level.shut_down_chunk_system.load(Relaxed) {
                 info!("Saving chunks before shutdown...");
                 self.garbage_collect_dependencies();
                 self.process_unload_queue();
-                self.save_all_chunk(true);
+                let completion = std::mem::take(
+                    &mut *level.save_requests.lock().unwrap_or_else(std::sync::PoisonError::into_inner),
+                );
+                self.save_all_chunk_with_completion(true, completion);
                 break;
             }
 

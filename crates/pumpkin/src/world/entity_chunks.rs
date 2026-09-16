@@ -255,6 +255,41 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn manual_world_save_returns_multiple_file_errors_and_still_saves_blocks() {
+        let dir = tempfile::tempdir().unwrap();
+        let world = empty_world(dir.path());
+        let custom = world
+            .level
+            .level_folder
+            .root_folder
+            .join("pumpkin_custom_data.nbt");
+        std::fs::create_dir(&custom).unwrap();
+        world.set_custom_data("test", "value", pumpkin_nbt::tag::NbtTag::Int(42));
+        let tickets = pumpkin_world::world_info::data_files::minecraft_data_dir(
+            &world.level.level_folder.dim_folder,
+        )
+        .join("chunk_tickets.dat");
+        std::fs::create_dir_all(&tickets).unwrap();
+        let chunk = pumpkin_world::chunk::ChunkData::empty_sync(0, 0);
+        chunk.mark_dirty(true);
+        world
+            .level
+            .loaded_chunks
+            .insert(Vector2::new(0, 0), chunk.clone());
+        let error = world.save().await.unwrap_err();
+        assert!(error.contains("Custom data:"), "{error}");
+        assert!(error.contains("Chunk tickets:"), "{error}");
+        assert!(
+            !chunk.is_dirty(),
+            "block writes still finish when other files fail"
+        );
+        std::fs::remove_dir(custom).unwrap();
+        std::fs::remove_dir(tickets).unwrap();
+        world.save().await.unwrap();
+        world.shutdown().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn periodic_autosave_writes_live_residents_before_shutdown() {
         let dir = tempfile::tempdir().unwrap();
         let world = empty_world(dir.path());
@@ -274,7 +309,10 @@ mod tests {
         world.add_entity_silent(entity);
         world.level_time.lock().unwrap().world_age = world.level.autosave_ticks as i64 - 1;
         world.tick_environment();
-        assert_eq!(world.level.queue_entity_chunks(Vec::new()).await, Ok(true));
+        assert_eq!(
+            world.level.queue_entity_chunks(Vec::new()).await,
+            Ok(Ok(()))
+        );
         // Open a fresh storage reader before World::shutdown can write anything.
         let reader = Level::from_root_folder(
             &pumpkin_config::world::LevelConfig::default(),
@@ -555,7 +593,7 @@ mod tests {
         assert_eq!(world.entities.load().len(), 3);
         // Two snapshots must not append duplicate roots or save riders as roots.
         for _ in 0..2 {
-            world.save_entity_snapshots().await;
+            world.save_entity_snapshots().await.unwrap();
         }
         let storage = world.level.get_entity_chunk_sync(&center).unwrap();
         let saved = storage.data.lock().unwrap().clone();
@@ -670,7 +708,8 @@ impl World {
         }
     }
 
-    pub(crate) async fn save_entity_snapshots(&self) {
+    pub(crate) async fn save_entity_snapshots(&self) -> Result<(), String> {
+        let mut errors = Vec::new();
         let positions: FxHashSet<_> = self
             .entities
             .load()
@@ -682,11 +721,20 @@ impl World {
             .collect();
         for pos in positions {
             if let Err(error) = self.level.try_load_entity_chunk(pos).await {
-                tracing::error!("Cannot snapshot unreadable entity storage {pos:?}: {error}");
+                errors.push(format!(
+                    "Cannot snapshot unreadable entity storage {pos:?}: {error}"
+                ));
             }
         }
         let chunks = self.snapshot_entity_chunks();
-        self.level.write_entity_chunks(chunks).await;
+        if let Err(error) = self.level.write_entity_chunks(chunks).await {
+            errors.push(error);
+        }
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors.join("; "))
+        }
     }
 
     pub(crate) fn unload_entity_chunks(&self, positions: impl IntoIterator<Item = Vector2<i32>>) {

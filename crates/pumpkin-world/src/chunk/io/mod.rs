@@ -42,6 +42,8 @@ impl<D: Send, E: error::Error> LoadedData<D, E> {
 }
 
 pub trait Dirtiable {
+    /// Atomically claim dirty work so a concurrent mutation cannot be cleared.
+    fn take_dirty(&self) -> bool;
     fn is_dirty(&self) -> bool;
     fn mark_dirty(&self, flag: bool);
 }
