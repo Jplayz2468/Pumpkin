@@ -469,3 +469,10 @@ RNG selection now cover block/container/shared drop paths. The actual Java probe
 cover sequence state and raw generation/fill draw order. D02 functions, contexts,
 composite entries and reloads remain, alongside the other engine/block gates in
 ENGINE_GAPS.md. Full mob passes remain paused.
+
+
+Shared loot checkpoint: source entry trees, nested calls and ordered numeric/decay
+functions are implemented and compared through the production generator with Java.
+D02 still includes 292 other built-in function declarations, full contexts/predicates,
+reloads and live integration; other engine/block gates remain. Full mob passes stay
+paused. See ENGINE_GAPS.md for the exact evidence and limits.

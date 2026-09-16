@@ -936,3 +936,46 @@ whole inside-effect pipeline matches Java yet.
   execution, luck/quality/bonus rolls, table reloads and component handling. Named
   sequence selection across a live server session and multi-file crash consistency
   remain unverified. Other D01–D06/block gates also remain open; mobs stay paused.
+
+
+## Structured loot entries and ordered numeric functions
+
+- Replaced the flattened generated loot list with the source entry tree. Nested
+  named/inline tables keep their own pools and rolls, execute with the existing
+  context/random source, and use a path-scoped recursion guard. Alternatives stop
+  on the first successful expansion, including zero-weight/empty outcomes;
+  sequences retain earlier candidates when a later child fails. Groups preserve
+  Java's empty/one-child/multiple-child expansion behavior. Tags retain expand vs
+  emit-all behavior, and dynamic entries consume supplied drops.
+- Functions now execute in source order at entry, pool and table levels. Enclosing
+  functions run immediately on each nested result before the next nested draw.
+  Implemented constant/uniform/binomial providers, quality/luck weights, bonus rolls,
+  conditional/additive set-count, count limits, explosion decay and enchantment
+  count/bonus formulas. Java 26.2 NumberProvider integer conversion uses Math.round;
+  weight and bonus-roll conversion uses floor. Integer counts stay wide through
+  functions and split into maximum-sized item stacks at the final output boundary.
+- Generic any-of/inverted conditions preserve their evaluation order. Unsupported
+  entry conditions now fail instead of becoming unconditional; missing predicate
+  implementations still need work. Item/tag tool matching covers the actual
+  amethyst harvest tag. Decorated pots supply sherds through the shared dynamic
+  entry path; their handwritten alternative branch is removed. `/loot kill` supplies
+  attacker and target type facts used by the shared evaluator.
+- Source inventory: all **1,356** built-in tables preserve all **2,578** entry nodes;
+  every built-in table reference resolves. **1,124** numeric/decay function
+  declarations now map to executable function types. The other **292** declarations
+  remain explicit unsupported function records, including component/enchantment,
+  smelting, map and metadata work. This inventory is not an exhaustive behavior proof.
+- Evidence: `LootTreeOracle` uses the real Java 26.2 codec/evaluator on 12 JSON tables.
+  The production Rust code generator compiles those exact inputs. **576 cases**
+  compare raw items/counts and the next random value across both RNGs, nested
+  function order, alternatives/sequences/groups, luck, conditional numeric functions,
+  binomial counts, explosion decay, dynamic drops, empty/zero-weight candidates and
+  counts above 255. Rust checks cover recursion scope, stack splitting, the actual
+  generated decorated-pot table and the amethyst tool tag. Final background run 5:
+  **522 engine, 241 world, 66 utility tests passed**, with the same two previously
+  separately passing localhost tests excluded. No live client or full mob pass.
+- Remaining D02: the 292 other function declarations, full predicates and entity/item/
+  block-entity contexts, reloadable tables/tags and end-to-end server comparisons.
+  Enchanted-count handling currently uses the supplied attacker/tool facts rather
+  than a complete equipment/context model. Tag expansion is source-ported but not
+  covered by the new Java fixture matrix. The other D01–D06/block gates remain open.

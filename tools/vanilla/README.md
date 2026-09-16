@@ -230,3 +230,20 @@ javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/RandomSequ
 java -cp '/tmp:../comparison/downloads/classpath/*' RandomSequenceOracle crates/pumpkin/src/world/random_sequence_cases.json
 java -cp '/tmp:../comparison/downloads/classpath/*' LootRandomOracle crates/pumpkin/src/world/loot_random_cases.json
 ```
+
+
+## Structured loot tables and ordered functions
+
+`LootTreeOracle.java` writes 12 table JSON inputs plus 576 raw-output/random-state
+cases using the actual Java 26.2 LootTable codec and evaluator. The production
+`pumpkin-codegen` loot emitter compiles the same JSON into Rust test tables, so the
+comparison exercises source parsing as well as evaluation. Fixtures bind the
+stack-size component of their few item types and construct the minimal loot context;
+this is not a running ServerLevel, full component or reload test. Named-reference
+resolution, recursion guards and tag behavior have separate source/Rust checks.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/LootTreeOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' LootTreeOracle crates/pumpkin/src/world/loot_tree_tables.json crates/pumpkin/src/world/loot_tree_cases.json
+cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_tree_test_tables
+```

@@ -171,6 +171,7 @@ pub fn main() {
         ),
         (carver::build, "carver.rs"),
         (loot_table::build, "loot_table.rs"),
+        (loot_table::build_fixtures, "../../../pumpkin/src/world/loot_tree_test_tables.rs"),
         (map_color::build, "map_color.rs"),
         (map_decoration::build, "map_decoration.rs"),
         (dye_color::build, "dye_color.rs"),
@@ -190,7 +191,7 @@ pub fn main() {
         build_functions
             .into_iter()
             .filter(|(_, file)| {
-                let stem = file.trim_end_matches(".rs");
+                let stem = Path::new(file).file_stem().and_then(|stem| stem.to_str()).unwrap_or(file);
                 filters.iter().any(|f| f == stem || f == *file)
             })
             .collect()

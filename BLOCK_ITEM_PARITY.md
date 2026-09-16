@@ -1505,3 +1505,13 @@ sequence or level RNG and keep it through filling. Named streams survive saves a
 restarts; generated empty outcomes keep their conditions and order. ENGINE_GAPS.md
 records the Java comparisons and the remaining loot/context/reload gates. This
 closes the bounded random-stream work, not the full block or loot parity gate.
+
+
+### Structured block loot and count functions
+
+Loot alternatives and nested tables now preserve their real tree and draw order.
+Count/bonus functions, binomial providers and explosion decay execute at entry,
+pool and table levels; large counts split without wrapping. Decorated pots use the
+shared dynamic sherd path, and amethyst checks its item tag. ENGINE_GAPS.md records
+576 additional Java cases and the remaining functions/context/reload work. Full
+block certification and mob passes remain separate, unfinished gates.

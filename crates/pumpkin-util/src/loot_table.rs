@@ -22,6 +22,9 @@ pub enum LootCondition {
         chances: &'static [f32],
     },
     AllOf(&'static [Self]),
+    AnyOf(&'static [Self]),
+    Not(&'static Self),
+    ToolItems(&'static [&'static str]),
 
     /// `minecraft:entity_properties` on `this` with `flags.is_baby`.
     ThisIsBaby(bool),
@@ -79,43 +82,85 @@ pub enum LootBonusFormula {
     BinomialWithBonusCount { extra: i32, probability: f32 },
 }
 
-/// A single item entry inside a loot pool.
+/// Number providers preserve both integer and float sampling semantics.
+#[derive(Clone, Copy, Debug)]
+pub enum LootNumberProvider {
+    Constant(f32),
+    Uniform(&'static Self, &'static Self),
+    Binomial(&'static Self, &'static Self),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum LootEntryKind {
+    Item(&'static str),
+    Empty,
+    Alternatives(&'static [LootEntry]),
+    Sequence(&'static [LootEntry]),
+    Group(&'static [LootEntry]),
+    TableReference(&'static str),
+    InlineTable(&'static LootTable),
+    Tag {
+        items: &'static [&'static str],
+        expand: bool,
+    },
+    Dynamic(&'static str),
+    Unsupported(&'static str),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum LootFunctionKind {
+    SetCount {
+        count: LootNumberProvider,
+        add: bool,
+    },
+    LimitCount {
+        min: Option<LootNumberProvider>,
+        max: Option<LootNumberProvider>,
+    },
+    ApplyBonus {
+        enchantment: &'static str,
+        formula: LootBonusFormula,
+    },
+    EnchantedCountIncrease {
+        enchantment: &'static str,
+        count: LootNumberProvider,
+        limit: i32,
+    },
+    ExplosionDecay,
+    /// Retain unsupported functions explicitly for the remaining component/function work.
+    Unsupported(&'static str),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct LootFunction {
+    pub condition: LootCondition,
+    pub kind: LootFunctionKind,
+}
+
+/// An entry container. Composite entries expand into weighted singleton candidates.
 #[derive(Clone, Copy, Debug)]
 pub struct LootEntry {
-    /// Registry name of the item (e.g. `"minecraft:diamond"`), or empty for a
-    /// `minecraft:empty` outcome. Empty outcomes retain their condition and order.
-    pub item: &'static str,
-    /// Relative probability weight; higher values are more likely.
+    pub kind: LootEntryKind,
     pub weight: i32,
-    /// Minimum stack size (inclusive).
-    pub min_count: i32,
-    /// Maximum stack size (inclusive).
-    pub max_count: i32,
-    /// Condition required for this entry to be eligible.
+    pub quality: i32,
     pub condition: LootCondition,
-    /// Bonus formula to apply with fortune / looting (if any).
-    pub bonus_formula: Option<LootBonusFormula>,
+    pub functions: &'static [LootFunction],
 }
 
-/// One roll pool inside a loot table.
 #[derive(Clone, Copy, Debug)]
 pub struct LootPool {
-    /// Item entries eligible for selection each roll.
     pub entries: &'static [LootEntry],
-    /// Minimum number of roll attempts (inclusive).
-    pub min_rolls: i32,
-    /// Maximum number of roll attempts (inclusive).
-    pub max_rolls: i32,
-    /// Condition required for this entire pool to run.
+    pub rolls: LootNumberProvider,
+    pub bonus_rolls: LootNumberProvider,
     pub condition: LootCondition,
+    pub functions: &'static [LootFunction],
 }
 
-/// A complete loot table consisting of one or more pools.
 #[derive(Clone, Copy, Debug)]
 pub struct LootTable {
     pub random_sequence: Option<&'static str>,
-    /// All pools to roll when generating loot for this table.
     pub pools: &'static [LootPool],
+    pub functions: &'static [LootFunction],
 }
 
 pub type ChestLootEntry = LootEntry;

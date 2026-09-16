@@ -3,7 +3,10 @@ use pumpkin_data::damage::DamageType;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_util::loot_table::{LootBonusFormula, LootCondition, LootEntry, LootTable};
+use pumpkin_util::loot_table::{
+    LootBonusFormula, LootCondition, LootEntry, LootEntryKind, LootFunction, LootFunctionKind,
+    LootNumberProvider, LootTable,
+};
 use pumpkin_util::random::legacy_rand::LegacyRand;
 #[cfg(test)]
 use pumpkin_util::random::xoroshiro128::Xoroshiro;
@@ -68,6 +71,7 @@ pub fn generate_loot_in_world(
 #[derive(Default, Clone)]
 pub struct LootContextParameters {
     pub explosion_radius: Option<f32>,
+    pub dynamic_drops: std::collections::HashMap<String, Vec<ItemStack>>,
     pub block_state: Option<&'static BlockState>,
     pub killed_by_player: Option<bool>,
     pub luck: f32,
@@ -118,6 +122,17 @@ fn damage_type_has_tag(damage: &DamageType, tag: &str) -> bool {
     damage.is_tagged_with(&tag).unwrap_or(false)
 }
 
+fn condition_known(condition: LootCondition) -> bool {
+    match condition {
+        LootCondition::Unsupported => false,
+        LootCondition::AllOf(terms) | LootCondition::AnyOf(terms) => {
+            terms.iter().all(|term| condition_known(*term))
+        }
+        LootCondition::Not(term) => condition_known(*term),
+        _ => true,
+    }
+}
+
 fn check_condition(
     cond: LootCondition,
     has_silk_touch: bool,
@@ -157,6 +172,34 @@ fn check_condition(
                 .get(index)
                 .is_some_and(|chance| rng.next_f32() < *chance)
         }
+        LootCondition::AnyOf(conditions) => conditions
+            .iter()
+            .any(|c| check_condition(*c, has_silk_touch, has_shears, fortune_level, params, rng)),
+        LootCondition::Not(condition) => {
+            condition_known(*condition)
+                && !check_condition(
+                    *condition,
+                    has_silk_touch,
+                    has_shears,
+                    fortune_level,
+                    params,
+                    rng,
+                )
+        }
+        LootCondition::ToolItems(items) => params.tool.as_ref().is_some_and(|tool| {
+            use pumpkin_data::tag::Taggable;
+            items.iter().any(|name| {
+                if name.starts_with('#') {
+                    tool.item.is_tagged_with(name).unwrap_or(false)
+                } else {
+                    tool.item
+                        .registry_key
+                        .strip_prefix("minecraft:")
+                        .unwrap_or(tool.item.registry_key)
+                        == name.strip_prefix("minecraft:").unwrap_or(name)
+                }
+            })
+        }),
         LootCondition::AllOf(conditions) => conditions
             .iter()
             .all(|c| check_condition(*c, has_silk_touch, has_shears, fortune_level, params, rng)),
@@ -217,15 +260,15 @@ fn apply_bonus_formula(
         LootBonusFormula::OreDrops => {
             if fortune_level > 0 {
                 let bonus = (rng.next_bounded_i32(fortune_level + 2) - 1).max(0);
-                base_count * (bonus + 1)
+                base_count.wrapping_mul(bonus.wrapping_add(1))
             } else {
                 base_count
             }
         }
         LootBonusFormula::UniformBonusCount(bonus_multiplier) => {
-            let max_bonus = fortune_level * bonus_multiplier;
+            let max_bonus = fortune_level.wrapping_mul(bonus_multiplier);
             let extra = rng.next_bounded_i32(max_bonus + 1);
-            base_count + extra
+            base_count.wrapping_add(extra)
         }
         LootBonusFormula::BinomialWithBonusCount { extra, probability } => {
             let n = fortune_level + extra;
@@ -235,7 +278,7 @@ fn apply_bonus_formula(
                     bonus_count += 1;
                 }
             }
-            base_count + bonus_count
+            base_count.wrapping_add(bonus_count)
         }
     }
 }
@@ -254,120 +297,395 @@ pub fn generate_loot_with_context(
     generate_loot_with_rng(table, params, &mut LegacyRand::from_seed(seed as u64))
 }
 
-fn generate_loot_with_rng(
-    table: &LootTable,
+fn java_floor(value: f32) -> i32 {
+    let integer = value as i32;
+    if value < integer as f32 {
+        integer.wrapping_sub(1)
+    } else {
+        integer
+    }
+}
+
+fn java_round(value: f32) -> i32 {
+    // Use a double for the addition so values just below 0.5 do not round up
+    // during float addition before Java Math.round's rounding step.
+    (f64::from(value) + 0.5).floor() as i32
+}
+
+fn number_int(provider: LootNumberProvider, rng: &mut dyn LootRandom) -> i32 {
+    match provider {
+        LootNumberProvider::Constant(value) => java_round(value),
+        LootNumberProvider::Uniform(min, max) => {
+            let min = number_int(*min, rng);
+            let max = number_int(*max, rng);
+            if min >= max {
+                min
+            } else {
+                rng.next_bounded_i32(max.wrapping_sub(min).wrapping_add(1))
+                    .wrapping_add(min)
+            }
+        }
+        LootNumberProvider::Binomial(n, p) => {
+            let n = number_int(*n, rng);
+            let p = number_float(*p, rng);
+            (0..n).filter(|_| rng.next_f32() < p).count() as i32
+        }
+    }
+}
+
+fn number_float(provider: LootNumberProvider, rng: &mut dyn LootRandom) -> f32 {
+    match provider {
+        LootNumberProvider::Constant(value) => value,
+        LootNumberProvider::Uniform(min, max) => {
+            let min = number_float(*min, rng);
+            let max = number_float(*max, rng);
+            if min >= max {
+                min
+            } else {
+                rng.next_f32() * (max - min) + min
+            }
+        }
+        LootNumberProvider::Binomial(_, _) => number_int(provider, rng) as f32,
+    }
+}
+
+fn tool_enchantment(params: &LootContextParameters, name: &str) -> i32 {
+    params.tool.as_ref().map_or(0, |tool| {
+        pumpkin_data::Enchantment::from_name(name.strip_prefix("minecraft:").unwrap_or(name))
+            .map_or(0, |enchantment| tool.get_enchantment_level(enchantment))
+    })
+}
+
+#[derive(Clone, Copy)]
+struct LootFacts {
+    silk: bool,
+    shears: bool,
+    fortune: i32,
+}
+impl LootFacts {
+    fn from_params(params: &LootContextParameters) -> Self {
+        Self {
+            silk: tool_enchantment(params, "silk_touch") > 0,
+            shears: params
+                .tool
+                .as_ref()
+                .is_some_and(|tool| tool.item == &Item::SHEARS),
+            fortune: tool_enchantment(params, "fortune").max(tool_enchantment(params, "looting")),
+        }
+    }
+    fn check(
+        self,
+        condition: LootCondition,
+        params: &LootContextParameters,
+        rng: &mut dyn LootRandom,
+    ) -> bool {
+        check_condition(condition, self.silk, self.shears, self.fortune, params, rng)
+    }
+}
+
+// Keep counts as Java ints until all nested functions have run. Narrowing before
+// enclosing functions or splitting used to wrap counts above 255.
+struct LootOutput {
+    stack: ItemStack,
+    count: i32,
+}
+impl LootOutput {
+    fn visible_count(&self) -> i32 {
+        if self.stack.item == &Item::AIR {
+            0
+        } else {
+            self.count.max(0)
+        }
+    }
+}
+type LootConsumer<'a> = dyn FnMut(LootOutput, &mut dyn LootRandom) + 'a;
+
+fn apply_functions(
+    mut output: LootOutput,
+    functions: &[LootFunction],
     params: &LootContextParameters,
+    facts: LootFacts,
     rng: &mut dyn LootRandom,
-) -> Vec<ItemStack> {
-    let mut items_to_place: Vec<ItemStack> = Vec::new();
-
-    let has_silk_touch = params.tool.as_ref().is_some_and(|tool| {
-        pumpkin_data::Enchantment::from_name("silk_touch")
-            .is_some_and(|e| tool.get_enchantment_level(e) > 0)
-    });
-
-    let has_shears = params.tool.as_ref().is_some_and(|tool| {
-        let name = tool
-            .item
-            .registry_key
-            .strip_prefix("minecraft:")
-            .unwrap_or(tool.item.registry_key);
-        name == "shears"
-    });
-
-    let fortune_level = params.tool.as_ref().map_or(0, |tool| {
-        let fortune = pumpkin_data::Enchantment::from_name("fortune")
-            .map_or(0, |e| tool.get_enchantment_level(e));
-        let looting = pumpkin_data::Enchantment::from_name("looting")
-            .map_or(0, |e| tool.get_enchantment_level(e));
-        fortune.max(looting)
-    });
-
-    for pool in table.pools {
-        if !check_condition(
-            pool.condition,
-            has_silk_touch,
-            has_shears,
-            fortune_level,
-            params,
-            rng,
-        ) {
+) -> LootOutput {
+    for function in functions {
+        if !facts.check(function.condition, params, rng) {
             continue;
         }
-
-        let range = pool.max_rolls - pool.min_rolls;
-        let rolls = pool.min_rolls
-            + if range > 0 {
-                rng.next_bounded_i32(range + 1)
-            } else {
-                0
-            };
-
-        for _ in 0..rolls {
-            let eligible_entries: Vec<&LootEntry> = pool
-                .entries
-                .iter()
-                .filter(|e| {
-                    check_condition(
-                        e.condition,
-                        has_silk_touch,
-                        has_shears,
-                        fortune_level,
-                        params,
+        let current = output.visible_count();
+        match function.kind {
+            LootFunctionKind::SetCount { count, add } => {
+                output.count = number_int(count, rng).wrapping_add(if add { current } else { 0 });
+            }
+            LootFunctionKind::LimitCount { min, max } => {
+                output.count = current;
+                let min = min.map(|min| number_int(min, rng));
+                let max = max.map(|max| number_int(max, rng));
+                if let Some(min) = min {
+                    output.count = output.count.max(min);
+                }
+                if let Some(max) = max {
+                    output.count = output.count.min(max);
+                }
+            }
+            LootFunctionKind::ApplyBonus {
+                enchantment,
+                formula,
+            } => {
+                if params.tool.is_some() {
+                    output.count = apply_bonus_formula(
+                        current,
+                        formula,
+                        tool_enchantment(params, enchantment),
                         rng,
-                    ) && e.weight > 0
-                })
-                .collect();
+                    );
+                }
+            }
+            LootFunctionKind::EnchantedCountIncrease {
+                enchantment,
+                count,
+                limit,
+            } => {
+                let level = if params.killer_entity.is_some() {
+                    tool_enchantment(params, enchantment)
+                } else {
+                    0
+                };
+                if level > 0 {
+                    let addition = level as f32 * number_float(count, rng);
+                    output.count = current.wrapping_add(java_round(addition));
+                    if limit > 0 {
+                        output.count = output.count.min(limit);
+                    }
+                }
+            }
+            LootFunctionKind::ExplosionDecay => {
+                if let Some(radius) = params.explosion_radius {
+                    output.count = (0..current)
+                        .filter(|_| rng.next_f32() <= 1.0 / radius)
+                        .count() as i32;
+                }
+            }
+            LootFunctionKind::Unsupported(_) => {}
+        }
+    }
+    output
+}
 
-            if eligible_entries.is_empty() {
+struct ExpandedEntry<'a> {
+    entry: &'a LootEntry,
+    item: Option<&'static str>,
+    weight: i32,
+}
+
+fn expand_entry<'a>(
+    entry: &'a LootEntry,
+    params: &LootContextParameters,
+    facts: LootFacts,
+    rng: &mut dyn LootRandom,
+    out: &mut Vec<ExpandedEntry<'a>>,
+) -> bool {
+    if !facts.check(entry.condition, params, rng) {
+        return false;
+    }
+    match entry.kind {
+        LootEntryKind::Alternatives(children) => children
+            .iter()
+            .any(|child| expand_entry(child, params, facts, rng, out)),
+        LootEntryKind::Sequence(children) => children
+            .iter()
+            .all(|child| expand_entry(child, params, facts, rng, out)),
+        LootEntryKind::Group(children) => {
+            // Java optimizes a one-child group to that child's expansion result.
+            if children.len() == 1 {
+                return expand_entry(&children[0], params, facts, rng, out);
+            }
+            for child in children {
+                expand_entry(child, params, facts, rng, out);
+            }
+            true
+        }
+        LootEntryKind::Unsupported(_) => false,
+        kind => {
+            let weight =
+                java_floor(entry.weight as f32 + entry.quality as f32 * params.luck).max(0);
+            if weight > 0 {
+                if let LootEntryKind::Tag {
+                    items,
+                    expand: true,
+                } = kind
+                {
+                    for item in items {
+                        out.push(ExpandedEntry {
+                            entry,
+                            item: Some(item),
+                            weight,
+                        });
+                    }
+                } else {
+                    out.push(ExpandedEntry {
+                        entry,
+                        item: None,
+                        weight,
+                    });
+                }
+            }
+            // A successful zero-weight or empty tag expansion still stops alternatives.
+            true
+        }
+    }
+}
+
+fn emit_item(name: &str, rng: &mut dyn LootRandom, output: &mut LootConsumer<'_>) {
+    if let Some(item) = Item::from_registry_key(name.strip_prefix("minecraft:").unwrap_or(name)) {
+        output(
+            LootOutput {
+                stack: ItemStack::new(1, item),
+                count: 1,
+            },
+            rng,
+        );
+    }
+}
+
+fn run_entry(
+    candidate: &ExpandedEntry<'_>,
+    params: &LootContextParameters,
+    facts: LootFacts,
+    rng: &mut dyn LootRandom,
+    visiting: &mut Vec<*const LootTable>,
+    output: &mut LootConsumer<'_>,
+) {
+    if let Some(item) = candidate.item {
+        // Expanded Java tag entries emit the item directly, bypassing tag functions.
+        emit_item(item, rng, output);
+        return;
+    }
+    let entry = candidate.entry;
+    let mut decorated = |item, rng: &mut dyn LootRandom| {
+        output(
+            apply_functions(item, entry.functions, params, facts, rng),
+            rng,
+        )
+    };
+    match entry.kind {
+        LootEntryKind::Item(name) => emit_item(name, rng, &mut decorated),
+        LootEntryKind::TableReference(key) => {
+            if let Some(table) = pumpkin_data::loot_table::get_loot_table(key) {
+                run_table(table, params, facts, rng, visiting, &mut decorated);
+            }
+        }
+        LootEntryKind::InlineTable(table) => {
+            run_table(table, params, facts, rng, visiting, &mut decorated)
+        }
+        LootEntryKind::Tag { items, .. } => {
+            for item in items {
+                emit_item(item, rng, &mut decorated);
+            }
+        }
+        LootEntryKind::Dynamic(name) => {
+            if let Some(items) = params.dynamic_drops.get(name) {
+                for stack in items {
+                    decorated(
+                        LootOutput {
+                            count: i32::from(stack.item_count),
+                            stack: stack.clone(),
+                        },
+                        rng,
+                    );
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn run_table(
+    table: &LootTable,
+    params: &LootContextParameters,
+    facts: LootFacts,
+    rng: &mut dyn LootRandom,
+    visiting: &mut Vec<*const LootTable>,
+    output: &mut LootConsumer<'_>,
+) {
+    let pointer = std::ptr::from_ref(table);
+    if visiting.contains(&pointer) {
+        tracing::warn!("Detected infinite loop in loot tables");
+        return;
+    }
+    visiting.push(pointer);
+    let mut table_output = |item, rng: &mut dyn LootRandom| {
+        output(
+            apply_functions(item, table.functions, params, facts, rng),
+            rng,
+        )
+    };
+    for pool in table.pools {
+        if !facts.check(pool.condition, params, rng) {
+            continue;
+        }
+        let rolls = number_int(pool.rolls, rng).wrapping_add(java_floor(
+            number_float(pool.bonus_rolls, rng) * params.luck,
+        ));
+        let mut pool_output = |item, rng: &mut dyn LootRandom| {
+            table_output(
+                apply_functions(item, pool.functions, params, facts, rng),
+                rng,
+            )
+        };
+        for _ in 0..rolls {
+            let mut candidates = Vec::new();
+            for entry in pool.entries {
+                expand_entry(entry, params, facts, rng, &mut candidates);
+            }
+            let total_weight = candidates.iter().fold(0_i32, |total, candidate| {
+                total.wrapping_add(candidate.weight)
+            });
+            if total_weight == 0 || candidates.is_empty() {
                 continue;
             }
-
-            let total_weight: i32 = eligible_entries.iter().map(|e| e.weight).sum();
-            if total_weight == 0 {
-                continue;
-            }
-
-            // Java skips the weighted draw when there is only one expanded entry.
-            let mut pick = if eligible_entries.len() == 1 {
+            let mut pick = if candidates.len() == 1 {
                 0
             } else {
                 rng.next_bounded_i32(total_weight)
             };
-
-            for entry in &eligible_entries {
-                pick -= entry.weight;
+            for candidate in candidates {
+                pick = pick.wrapping_sub(candidate.weight);
                 if pick < 0 {
-                    if entry.item.is_empty() {
-                        break;
-                    }
-                    let count_range = entry.max_count - entry.min_count;
-                    let base_count = entry.min_count
-                        + if count_range > 0 {
-                            rng.next_bounded_i32(count_range + 1)
-                        } else {
-                            0
-                        };
-
-                    let mut final_count = base_count;
-                    if let Some(bonus) = entry.bonus_formula {
-                        final_count = apply_bonus_formula(final_count, bonus, fortune_level, rng);
-                    }
-
-                    if final_count > 0 {
-                        let item_key = entry.item.strip_prefix("minecraft:").unwrap_or(entry.item);
-
-                        if let Some(item) = Item::from_registry_key(item_key) {
-                            items_to_place.push(ItemStack::new(final_count as u8, item));
-                        }
-                    }
+                    run_entry(&candidate, params, facts, rng, visiting, &mut pool_output);
                     break;
                 }
             }
         }
     }
+    visiting.pop();
+}
 
-    items_to_place
+fn generate_loot_with_rng(
+    table: &LootTable,
+    params: &LootContextParameters,
+    rng: &mut dyn LootRandom,
+) -> Vec<ItemStack> {
+    let mut items = Vec::new();
+    run_table(
+        table,
+        params,
+        LootFacts::from_params(params),
+        rng,
+        &mut Vec::new(),
+        &mut |mut output, _| {
+            if output.stack.item == &Item::AIR {
+                return;
+            }
+            let max = i32::from(output.stack.get_max_stack_size()).max(1);
+            while output.count > 0 {
+                let count = output.count.min(max);
+                output.stack.item_count = count as u8;
+                items.push(output.stack.clone());
+                output.count -= count;
+            }
+        },
+    );
+    items
 }
 
 pub use generate_loot as generate_chest_loot;
@@ -624,54 +942,74 @@ mod random_tests {
     use pumpkin_util::loot_table::LootPool;
     use serde_json::{Value, json};
 
+    fn item_entry(
+        name: &'static str,
+        weight: i32,
+        condition: LootCondition,
+        count: LootNumberProvider,
+    ) -> LootEntry {
+        LootEntry {
+            kind: LootEntryKind::Item(name),
+            weight,
+            quality: 0,
+            condition,
+            functions: Box::leak(
+                vec![LootFunction {
+                    condition: LootCondition::None,
+                    kind: LootFunctionKind::SetCount { count, add: false },
+                }]
+                .into_boxed_slice(),
+            ),
+        }
+    }
     fn table(mode: i64) -> LootTable {
-        let mut entries = vec![LootEntry {
-            item: "minecraft:diamond",
-            weight: 3,
-            min_count: 1,
-            max_count: 9,
-            condition: LootCondition::RandomChance {
+        use LootNumberProvider::{Constant, Uniform};
+        let mut entries = vec![item_entry(
+            "minecraft:diamond",
+            3,
+            LootCondition::RandomChance {
                 chance: if mode == 0 { 1.0 } else { 0.65 },
             },
-            bonus_formula: None,
-        }];
+            Uniform(&Constant(1.0), &Constant(9.0)),
+        )];
         if mode > 0 {
-            entries.push(LootEntry {
-                item: "minecraft:coal",
-                weight: 1,
-                min_count: 2,
-                max_count: 2,
-                condition: LootCondition::None,
-                bonus_formula: None,
-            });
+            entries.push(item_entry(
+                "minecraft:coal",
+                1,
+                LootCondition::None,
+                Constant(2.0),
+            ));
         }
         if mode == 1 {
-            entries.push(LootEntry {
-                item: "minecraft:stick",
-                weight: 0,
-                min_count: 1,
-                max_count: 1,
-                condition: LootCondition::RandomChance { chance: 0.2 },
-                bonus_formula: None,
-            });
+            entries.push(item_entry(
+                "minecraft:stick",
+                0,
+                LootCondition::RandomChance { chance: 0.2 },
+                Constant(1.0),
+            ));
         }
         if mode == 2 {
             entries.push(LootEntry {
-                item: "",
+                kind: LootEntryKind::Empty,
                 weight: 2,
-                min_count: 0,
-                max_count: 0,
+                quality: 0,
                 condition: LootCondition::RandomChance { chance: 0.5 },
-                bonus_formula: None,
+                functions: &[],
             });
         }
         LootTable {
             random_sequence: None,
+            functions: &[],
             pools: Box::leak(
                 vec![LootPool {
                     entries: Box::leak(entries.into_boxed_slice()),
-                    min_rolls: if mode == 0 { 1 } else { 2 },
-                    max_rolls: if mode == 0 { 1 } else { 5 },
+                    rolls: if mode == 0 {
+                        Constant(1.0)
+                    } else {
+                        Uniform(&Constant(2.0), &Constant(5.0))
+                    },
+                    bonus_rolls: Constant(0.0),
+                    functions: &[],
                     condition: if mode == 3 {
                         LootCondition::RandomChance { chance: 0.25 }
                     } else {
@@ -798,5 +1136,193 @@ mod random_tests {
             pumpkin_util::random::RandomImpl::next_i64(&mut *world.random.lock().unwrap()),
             pumpkin_util::random::RandomImpl::next_i64(&mut expected)
         );
+    }
+}
+
+#[cfg(test)]
+mod tree_tests {
+    use super::*;
+    use pumpkin_util::loot_table::{LootNumberProvider::Constant, LootPool};
+    use serde_json::{Value, json};
+    mod compiled {
+        include!("loot_tree_test_tables.rs");
+    }
+
+    fn compare<R: pumpkin_util::random::RandomImpl>(case: &Value, mut rng: R) {
+        let mut params = LootContextParameters {
+            luck: case["luck"].as_f64().unwrap() as f32,
+            ..Default::default()
+        };
+        let radius = case["radius"].as_f64().unwrap() as f32;
+        if radius > 0.0 {
+            params.explosion_radius = Some(radius);
+        }
+        if case["dynamic"].as_bool().unwrap() {
+            params.dynamic_drops.insert(
+                "minecraft:sherds".to_owned(),
+                vec![
+                    ItemStack::new(2, &Item::DIAMOND),
+                    ItemStack::new(3, &Item::COAL),
+                ],
+            );
+        }
+        let mut output = Vec::new();
+        run_table(
+            &compiled::TABLES[case["table"].as_u64().unwrap() as usize],
+            &params,
+            LootFacts::from_params(&params),
+            &mut rng,
+            &mut Vec::new(),
+            &mut |item, _| {
+                let count = item.visible_count();
+                let name = if count == 0 {
+                    "minecraft:air"
+                } else {
+                    item.stack.item.registry_key
+                };
+                output.push(json!([
+                    if name.contains(':') {
+                        name.to_owned()
+                    } else {
+                        format!("minecraft:{name}")
+                    },
+                    count
+                ]));
+            },
+        );
+        assert_eq!(json!(output), case["output"], "{case}");
+        assert_eq!(
+            rng.next_i64(),
+            case["next"].as_i64().unwrap(),
+            "random consumption: {case}"
+        );
+    }
+
+    #[test]
+    fn generated_tree_matches_java_codec_and_evaluator() {
+        let cases: Vec<Value> = serde_json::from_str(include_str!("loot_tree_cases.json")).unwrap();
+        assert_eq!(compiled::TABLES.len(), 12);
+        assert_eq!(cases.len(), 576);
+        for case in cases {
+            let seed = case["seed"].as_i64().unwrap() as u64;
+            if case["kind"] == 0 {
+                compare(&case, LegacyRand::from_seed(seed));
+            } else {
+                compare(&case, Xoroshiro::from_seed(seed));
+            }
+        }
+    }
+
+    #[test]
+    fn final_stack_splitting_does_not_wrap_large_counts() {
+        let items = generate_loot(&compiled::TABLES[11], 262);
+        assert_eq!(
+            items
+                .iter()
+                .map(|stack| stack.item_count)
+                .collect::<Vec<_>>(),
+            vec![64, 64, 64, 64, 44]
+        );
+        assert!(items.iter().all(|stack| stack.item == &Item::DIAMOND));
+    }
+
+    const fn entry(kind: LootEntryKind) -> LootEntry {
+        LootEntry {
+            kind,
+            weight: 1,
+            quality: 0,
+            condition: LootCondition::None,
+            functions: &[],
+        }
+    }
+    const fn pool(entries: &'static [LootEntry]) -> LootPool {
+        LootPool {
+            entries,
+            rolls: Constant(1.0),
+            bonus_rolls: Constant(0.0),
+            condition: LootCondition::None,
+            functions: &[],
+        }
+    }
+    static RECURSIVE: LootTable = LootTable {
+        random_sequence: None,
+        functions: &[],
+        pools: &[
+            pool(&[entry(LootEntryKind::InlineTable(&RECURSIVE))]),
+            pool(&[entry(LootEntryKind::Item("minecraft:diamond"))]),
+        ],
+    };
+    static REPEAT: LootTable = LootTable {
+        random_sequence: None,
+        functions: &[],
+        pools: &[
+            pool(&[entry(LootEntryKind::InlineTable(&RECURSIVE))]),
+            pool(&[entry(LootEntryKind::InlineTable(&RECURSIVE))]),
+            pool(&[entry(LootEntryKind::TableReference(
+                "minecraft:missing_fixture",
+            ))]),
+        ],
+    };
+    #[test]
+    fn recursion_guard_is_scoped_to_the_active_table_path() {
+        let items = generate_loot(&REPEAT, 262);
+        assert_eq!(items.len(), 2);
+        assert!(
+            items
+                .iter()
+                .all(|stack| stack.item == &Item::DIAMOND && stack.item_count == 1)
+        );
+    }
+
+    #[test]
+    fn builtin_pot_uses_its_dynamic_branch_and_amethyst_requires_the_tool_tag() {
+        use pumpkin_data::block_properties::DecoratedPotLikeProperties;
+        let table =
+            pumpkin_data::loot_table::get_loot_table("minecraft:blocks/decorated_pot").unwrap();
+        let mut properties = DecoratedPotLikeProperties::from_state_id(
+            pumpkin_data::Block::DECORATED_POT.default_state.id,
+        );
+        let mut params = LootContextParameters::default();
+        params.dynamic_drops.insert(
+            "minecraft:sherds".to_owned(),
+            vec![
+                ItemStack::new(1, &Item::BRICK),
+                ItemStack::new(1, &Item::ANGLER_POTTERY_SHERD),
+            ],
+        );
+        for cracked in [false, true] {
+            properties.cracked = cracked;
+            params.block_state = Some(
+                properties
+                    .to_state_id(&pumpkin_data::Block::DECORATED_POT)
+                    .to_state(),
+            );
+            let items = generate_loot_with_context(table, 262, &params);
+            if cracked {
+                assert_eq!(
+                    items.iter().map(|stack| stack.item.id).collect::<Vec<_>>(),
+                    vec![Item::BRICK.id, Item::ANGLER_POTTERY_SHERD.id]
+                );
+            } else {
+                assert_eq!(items.len(), 1);
+                assert_eq!(items[0].item, &Item::DECORATED_POT);
+            }
+        }
+        let condition = LootCondition::ToolItems(&["#minecraft:cluster_max_harvestables"]);
+        for (item, expected) in [
+            (&Item::DIAMOND_PICKAXE, true),
+            (&Item::WOODEN_PICKAXE, true),
+            (&Item::SHEARS, false),
+        ] {
+            params.tool = Some(ItemStack::new(1, item));
+            assert_eq!(
+                LootFacts::from_params(&params).check(
+                    condition,
+                    &params,
+                    &mut LegacyRand::from_seed(0)
+                ),
+                expected
+            );
+        }
     }
 }

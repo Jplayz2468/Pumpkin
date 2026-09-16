@@ -600,37 +600,34 @@ fn drop_loot_inner(
     let is_hive = matches!(block.id, BlockId::BEEHIVE | BlockId::BEE_NEST);
     let key = format!("minecraft:blocks/{}", block.name);
     if let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(&key) {
-        let mut items = if block == &Block::DECORATED_POT {
-            // This table's alternatives contain a dynamic sherd supplier, which
-            // the flat loot representation cannot express. Preserve its exact
-            // built-in alternatives while sharing the normal drop/plugin path.
-            let cracked = params.block_state.is_some_and(|state| {
-                pumpkin_data::block_properties::DecoratedPotLikeProperties::from_state_id(state.id)
-                    .cracked
-            });
-            if cracked {
-                world
-                    .get_block_entity(pos)
-                    .and_then(|entity| {
-                        entity
-                            .as_any()
-                            .downcast_ref::<entities::decorated_pot::DecoratedPotBlockEntity>()
-                            .map(|pot| {
-                                pot.decorations()
-                                    .sherds
-                                    .into_iter()
-                                    .filter_map(pumpkin_data::item::Item::from_id)
-                                    .map(|item| ItemStack::new(1, item))
-                                    .collect()
-                            })
-                    })
-                    .unwrap_or_default()
-            } else {
-                vec![ItemStack::new(1, &pumpkin_data::item::Item::DECORATED_POT)]
-            }
+        let mut dynamic_context;
+        let params = if block == &Block::DECORATED_POT {
+            dynamic_context = params.clone();
+            let sherds = world
+                .get_block_entity(pos)
+                .and_then(|entity| {
+                    entity
+                        .as_any()
+                        .downcast_ref::<entities::decorated_pot::DecoratedPotBlockEntity>()
+                        .map(|pot| {
+                            pot.decorations()
+                                .sherds
+                                .into_iter()
+                                .filter_map(pumpkin_data::item::Item::from_id)
+                                .map(|item| ItemStack::new(1, item))
+                                .collect()
+                        })
+                })
+                .unwrap_or_default();
+            dynamic_context
+                .dynamic_drops
+                .insert("minecraft:sherds".to_owned(), sherds);
+            &dynamic_context
         } else {
-            crate::world::loot::generate_loot_in_world(world, loot_table, 0, params)
+            params
         };
+        let mut items =
+            crate::world::loot::generate_loot_in_world(world, loot_table, 0, params);
         // Java applies the `copy_components` loot function with the
         // `block_entity` source here, while the block entity is still present.
         // Only the stack for this block itself receives them.

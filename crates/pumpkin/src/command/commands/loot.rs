@@ -399,8 +399,14 @@ impl CommandExecutor for LootExecutor {
                     p.inventory()
                         .get_stack(p.inventory().get_selected_slot() as usize)
                 });
-                let params = LootContextParameters {
+                let mut params = LootContextParameters {
                     killed_by_player: Some(killer.is_some()),
+                    killer_entity: killer
+                        .as_ref()
+                        .map(|player| player.living_entity.entity.entity_type),
+                    direct_killer_entity: killer
+                        .as_ref()
+                        .map(|player| player.living_entity.entity.entity_type),
                     tool: killer_tool,
                     position: killer.as_ref().map(|p| p.position()),
                     ..Default::default()
@@ -408,6 +414,7 @@ impl CommandExecutor for LootExecutor {
 
                 let mut last_key = None;
                 for entity in &target_entities {
+                    params.this_entity = Some(entity.get_entity().entity_type);
                     let resource_name = entity.get_entity().entity_type.resource_name;
                     let key = format!("minecraft:entities/{resource_name}");
                     if let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(&key) {
