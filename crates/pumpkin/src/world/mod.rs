@@ -18,6 +18,7 @@ use std::{
 use tracing::{debug, error, info, trace, warn};
 
 mod active_chunks;
+mod block_ray;
 pub mod chunker;
 pub mod explosion;
 pub mod generation_cache;
@@ -7725,6 +7726,52 @@ impl World {
             })
             .min_by(|a, b| a.0.total_cmp(&b.0));
         (hit.is_some(), hit.map(|(_, direction, _)| direction))
+    }
+
+    /// Entity.move's FALLDAMAGE_RESETTING / WATER ray, capped by the caller at
+    /// eight blocks. Block resetting shapes are full cubes; water keeps its height.
+    pub(crate) fn ray_resets_fall_distance(
+        &self,
+        from: Vector3<f64>,
+        to: Vector3<f64>,
+        player: bool,
+    ) -> bool {
+        let instant_portal = player
+            && self
+                .level_info
+                .load()
+                .game_rules
+                .players_nether_portal_default_delay
+                == 0;
+        block_ray::traverse(from, to, |pos| {
+            let (block, state) = self.get_block_and_state(&pos);
+            let resets = block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_FALL_DAMAGE_RESETTING)
+                || (player && (block == &Block::END_GATEWAY || block == &Block::END_PORTAL))
+                || (instant_portal && block == &Block::NETHER_PORTAL);
+            let min = pos.0.to_f64();
+            if resets
+                && block_ray::intersects_box(
+                    from,
+                    to,
+                    BoundingBox::new(min, min.add_raw(1.0, 1.0, 1.0)),
+                )
+            {
+                return Some(());
+            }
+            let (fluid, fluid_state) = Self::fluid_state_from_block_state(state.id);
+            if !fluid_state.is_empty && fluid.matches_type(&Fluid::WATER) {
+                let height = f64::from(self.get_fluid_height(&pos, fluid, &fluid_state));
+                if block_ray::intersects_box(
+                    from,
+                    to,
+                    BoundingBox::new(min, min.add_raw(1.0, height, 1.0)),
+                ) {
+                    return Some(());
+                }
+            }
+            None
+        })
+        .is_some()
     }
 
     /// Falling concrete uses collision shapes and source-fluid surfaces along

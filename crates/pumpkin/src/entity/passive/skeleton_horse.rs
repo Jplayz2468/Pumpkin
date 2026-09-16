@@ -144,6 +144,10 @@ impl Animal for SkeletonHorseEntity {
 }
 
 impl Mob for SkeletonHorseEntity {
+    fn is_saddled(&self) -> bool {
+        SkeletonHorseEntity::is_saddled(self)
+    }
+
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }

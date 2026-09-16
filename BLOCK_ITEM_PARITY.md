@@ -1327,3 +1327,14 @@ Ordinary and piston movement share landing/restitution/velocity effects, includi
 non-living block bounce and stuck-block reset. 800 Java restitution reference cases
 match. Ridden-vehicle authority and full world integration remain open; this is a
 shared-engine checkpoint, not a mob pass or a claim of complete block parity.
+
+
+### Movement authority and fall-reset paths
+
+Shared controller selection now determines server/client movement authority and
+ridden step height. Fast movement checks its path for fall-resetting blocks, water
+and qualifying player portals. Added collision flags and unified ordinary/controlled
+air input and friction math. 600 Java ray cases and the 474-test background library
+run passed; two socket tests were excluded as documented in ENGINE_GAPS.md.
+Full mob passes remain paused. Double fall-distance persistence, general ray APIs,
+vehicle/portal integration and the other engine/block gates still need work.

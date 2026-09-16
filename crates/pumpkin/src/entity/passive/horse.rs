@@ -180,6 +180,10 @@ impl Animal for HorseEntity {
 }
 
 impl Mob for HorseEntity {
+    fn is_saddled(&self) -> bool {
+        HorseEntity::is_saddled(self)
+    }
+
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }

@@ -88,6 +88,10 @@ impl ParrotEntity {
 }
 
 impl Mob for ParrotEntity {
+    fn mob_omnidirectional_air_mover(&self) -> bool {
+        true
+    }
+
     fn get_mob_entity(&self) -> &MobEntity {
         &self.mob_entity
     }

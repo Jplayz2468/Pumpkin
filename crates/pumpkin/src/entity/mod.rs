@@ -1,6 +1,7 @@
 pub mod baby_dimensions;
 mod inside_blocks;
 mod climbing;
+mod vehicle_control;
 pub mod inside_effects;
 pub(crate) mod support;
 mod baby_dimensions_data;
@@ -313,6 +314,102 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         0.0
     }
 
+    /// Entity/Mob/AbstractBoat.getControllingPassenger. Only the first rider
+    /// participates; specialized equipment rules retain Mob's controller fallback.
+    fn get_controlling_passenger(&self) -> Option<Arc<dyn EntityBase>> {
+        use vehicle_control::{Control, Facts};
+        let entity = self.get_entity();
+        let passenger = entity
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .first()?
+            .clone();
+        let mob = self.get_mob();
+        let control = if self.cast_any().is::<vehicle::boat::BoatEntity>() {
+            Control::Boat
+        } else if mob.is_none() {
+            Control::None
+        } else {
+            match entity.entity_type.resource_name {
+                "horse" | "donkey" | "mule" | "skeleton_horse" | "zombie_horse" | "camel"
+                | "camel_husk" | "nautilus" | "zombie_nautilus" => Control::Saddled,
+                "pig" | "strider" => Control::Steered,
+                "happy_ghast" => Control::Harness,
+                _ => Control::Mob,
+            }
+        };
+        let steering_item = match entity.entity_type.resource_name {
+            "pig" => Some(&pumpkin_data::item::Item::CARROT_ON_A_STICK),
+            "strider" => Some(&pumpkin_data::item::Item::WARPED_FUNGUS_ON_A_STICK),
+            _ => None,
+        };
+        let holding = steering_item.is_some_and(|item| {
+            passenger.get_living_entity().is_some_and(|living| {
+                [pumpkin_util::Hand::Left, pumpkin_util::Hand::Right]
+                    .into_iter()
+                    .any(|hand| {
+                        let stack = living.get_stack_in_hand(passenger.as_ref(), hand);
+                        !stack.is_empty() && stack.item == item
+                    })
+            })
+        });
+        let ghast = self
+            .cast_any()
+            .downcast_ref::<passive::happy_ghast::HappyGhastEntity>();
+        let harness = matches!(control, Control::Harness)
+            && self.get_living_entity().is_some_and(|living| {
+                !living
+                    .entity_equipment
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .get(&EquipmentSlot::BODY)
+                    .is_empty()
+            });
+        let accepted = vehicle_control::accepts(
+            control,
+            Facts {
+                no_ai: mob.is_some_and(|mob| mob.get_mob_entity().is_no_ai()),
+                saddled: mob.is_some_and(|mob| mob.is_saddled()),
+                harness,
+                still_timeout: ghast
+                    .is_some_and(passive::happy_ghast::HappyGhastEntity::is_on_still_timeout),
+                player: passenger.get_player().is_some(),
+                living: passenger.get_living_entity().is_some(),
+                mob: passenger.get_mob().is_some(),
+                can_control: !passenger
+                    .get_entity()
+                    .entity_type
+                    .has_tag(&tag::EntityType::MINECRAFT_NON_CONTROLLING_RIDER),
+                steering_item: holding,
+            },
+        );
+        accepted.then_some(passenger)
+    }
+
+    /// Server-side authority follows the controlling-rider chain, not any rider.
+    fn is_client_authoritative(&self) -> bool {
+        if self.get_player().is_some() {
+            return true;
+        }
+        let mut seen = std::collections::HashSet::from([self.get_entity().entity_id]);
+        let mut controller = self.get_controlling_passenger();
+        while let Some(passenger) = controller {
+            if !seen.insert(passenger.get_entity().entity_id) {
+                return false;
+            }
+            if passenger.get_player().is_some() {
+                return true;
+            }
+            controller = passenger.get_controlling_passenger();
+        }
+        false
+    }
+
+    fn can_simulate_movement(&self) -> bool {
+        self.get_player().is_some() || !self.is_client_authoritative()
+    }
+
     fn get_mob(&self) -> Option<&dyn mob::Mob> {
         None
     }
@@ -453,6 +550,24 @@ pub trait EntityBase: Send + Sync + std::any::Any {
 
     /// Custom Y-axis velocity drag multiplier applied during `travel_in_air`.
     /// Bats return `Some(0.6)` to match vanilla's `travel()` override.
+    fn omnidirectional_air_mover(&self) -> bool {
+        false
+    }
+
+    fn get_air_drag(&self) -> f32 {
+        self.get_living_entity().map_or(0.98, |living| {
+            crate::entity::ai::control::travel_input::modified_friction(
+                if self.omnidirectional_air_mover() {
+                    0.91
+                } else {
+                    0.98
+                },
+                living.get_attribute_value(&pumpkin_data::attributes::Attributes::AIR_DRAG_MODIFIER)
+                    as f32,
+            )
+        })
+    }
+
     fn get_y_velocity_drag(&self) -> Option<f64> {
         None
     }
@@ -982,6 +1097,9 @@ pub struct Entity {
     pub velocity: AtomicCell<Vector3<f64>>,
     /// Tracks a horizontal collision
     pub horizontal_collision: AtomicBool,
+    pub vertical_collision: AtomicBool,
+    pub vertical_collision_below: AtomicBool,
+    pub minor_horizontal_collision: AtomicBool,
     /// Indicates whether the entity is on the ground (may not always be accurate).
     pub on_ground: AtomicBool,
     /// Entity.applyMovementEmissionAndPlaySound accumulates distance, rather
@@ -1145,6 +1263,9 @@ impl Entity {
             touching_lava: AtomicBool::new(false),
             lava_height: AtomicCell::new(0.0),
             horizontal_collision: AtomicBool::new(false),
+            vertical_collision: AtomicBool::new(false),
+            vertical_collision_below: AtomicBool::new(false),
+            minor_horizontal_collision: AtomicBool::new(false),
             pos: AtomicCell::new(position),
             last_pos: AtomicCell::new(position),
             movement: AtomicCell::new(Vector3::default()),
@@ -1650,7 +1771,17 @@ impl Entity {
         let (mut adjusted, _) =
             collision_shapes::collide_voxels(motion, bounds_data, &boxes(bounds.stretch(movement)));
         let max_step = caller.get_living_entity().map_or(0.0, |living| {
-            living.get_attribute_value(&pumpkin_data::attributes::Attributes::STEP_HEIGHT) as f32
+            let step = living
+                .get_attribute_value(&pumpkin_data::attributes::Attributes::STEP_HEIGHT)
+                as f32;
+            if caller
+                .get_controlling_passenger()
+                .is_some_and(|passenger| passenger.get_player().is_some())
+            {
+                step.max(1.0)
+            } else {
+                step
+            }
         });
         if let Some((feet, query)) =
             collision_shapes::step_query(motion, adjusted, bounds_data, grounded, max_step)
@@ -2342,42 +2473,6 @@ impl Entity {
         }
     }
 
-    // Entity.updateVelocity in yarn
-
-    fn update_velocity_from_input(&self, movement_input: Vector3<f64>, speed: f64) {
-        let final_input = self.movement_input_to_velocity(movement_input, speed);
-
-        self.velocity.store(self.velocity.load() + final_input);
-    }
-
-    // Entity.movementInputToVelocity in yarn
-
-    fn movement_input_to_velocity(&self, movement_input: Vector3<f64>, speed: f64) -> Vector3<f64> {
-        let yaw = f64::from(self.yaw.load()).to_radians();
-
-        let dist = movement_input.length_squared();
-
-        if dist < 1.0e-7 {
-            return Vector3::default();
-        }
-
-        let input = if dist > 1.0 {
-            movement_input.normalize() * speed
-        } else {
-            movement_input * speed
-        };
-
-        let sin = yaw.sin();
-
-        let cos = yaw.cos();
-
-        Vector3::new(
-            input.x.mul_add(cos, -(input.z * sin)),
-            input.y,
-            input.z.mul_add(cos, input.x * sin),
-        )
-    }
-
     #[must_use]
     pub fn get_block_pos_below_that_affects_my_movement(&self) -> BlockPos {
         self.get_pos_with_y_offset(f64::from(0.500_001_f32)).0
@@ -2536,10 +2631,18 @@ impl Entity {
                 adjusted.length_squared(),
             )
         {
+            if !self.no_physics.load(Ordering::Relaxed) {
+                self.reset_fall_distance_along_movement(caller, adjusted);
+            }
             self.move_pos(adjusted);
         }
         if self.no_physics.load(Ordering::Relaxed) {
             self.horizontal_collision.store(false, Ordering::Relaxed);
+            self.vertical_collision.store(false, Ordering::Relaxed);
+            self.vertical_collision_below
+                .store(false, Ordering::Relaxed);
+            self.minor_horizontal_collision
+                .store(false, Ordering::Relaxed);
         } else {
             self.finish_movement(caller, motion, adjusted);
         }
@@ -2564,6 +2667,9 @@ impl Entity {
         if self.no_physics.load(Ordering::Relaxed) {
             self.move_pos(motion);
             self.horizontal_collision.store(false, Ordering::Relaxed);
+            self.vertical_collision.store(false, Ordering::Relaxed);
+            self.vertical_collision_below.store(false, Ordering::Relaxed);
+            self.minor_horizontal_collision.store(false, Ordering::Relaxed);
             return;
         }
         let movement_multiplier = self.movement_multiplier.swap(Vector3::default());
@@ -2582,24 +2688,57 @@ impl Entity {
             motion.length_squared(),
             final_move.length_squared(),
         ) {
+            self.reset_fall_distance_along_movement(caller, final_move);
             self.record_inside_movement(from, from + final_move, Some(motion));
             self.move_pos(final_move);
         }
         self.finish_movement(caller, motion, final_move);
     }
 
+    fn reset_fall_distance_along_movement(&self, caller: &dyn EntityBase, motion: Vector3<f64>) {
+        let living = caller.get_living_entity();
+        let falling = caller.cast_any().downcast_ref::<falling::FallingEntity>();
+        let distance = living.map_or_else(
+            || falling.map_or(0.0, falling::FallingEntity::fall_distance),
+            |living| f64::from(living.fall_distance.load()),
+        );
+        if distance == 0.0 || motion.length_squared() < 1.0 {
+            return;
+        }
+        let from = self.pos.load();
+        let length = motion.length();
+        let to = from + motion.normalize() * length.min(8.0);
+        if self
+            .world
+            .load()
+            .ray_resets_fall_distance(from, to, caller.get_player().is_some())
+        {
+            if let Some(living) = living {
+                living.fall_distance.store(0.0);
+            }
+            if let Some(falling) = falling {
+                falling.reset_fall_distance();
+            }
+        }
+    }
+
     /// Shared rest phase of Entity.move for ordinary travel and piston displacement.
     /// Collision response modifies the entity's travel velocity, not the external push.
     fn finish_movement(&self, caller: &dyn EntityBase, motion: Vector3<f64>, actual: Vector3<f64>) {
-        use crate::entity::ai::control::{collision_response, travel_input};
+        use crate::entity::ai::control::collision_response;
         use pumpkin_data::attributes::Attributes;
         let collision_x = collision_response::clipped(motion.x, actual.x);
         let collision_z = collision_response::clipped(motion.z, actual.z);
         self.horizontal_collision
             .store(collision_x || collision_z, Ordering::Relaxed);
         let vertical = motion.y != actual.y;
-        let server_controls = caller.get_player().is_none();
+        let server_controls = !caller.is_client_authoritative();
+        self.minor_horizontal_collision
+            .store(false, Ordering::Relaxed);
         if motion.y != 0.0 || server_controls {
+            self.vertical_collision.store(vertical, Ordering::Relaxed);
+            self.vertical_collision_below
+                .store(vertical && motion.y < 0.0, Ordering::Relaxed);
             self.set_on_ground_with_movement(caller, motion.y < 0.0 && vertical, Some(actual));
         }
         let living = caller.get_living_entity();
@@ -2616,19 +2755,15 @@ impl Entity {
         }
         // Server players also simulate restitution (Player.canSimulateMovement),
         // although their fall/ground authority differs for horizontal pushes.
-        if vertical || collision_x || collision_z {
+        if caller.can_simulate_movement() && (vertical || collision_x || collision_z) {
             let block = self.get_block_with_y_offset(0.2).1;
             let velocity = self.velocity.load();
-            let (bounce, gravity, drag) = living.map_or_else(
-                || (0.0, caller.get_gravity(), 0.98_f32),
+            let (bounce, gravity) = living.map_or_else(
+                || (0.0, caller.get_gravity()),
                 |living| {
                     (
                         living.get_attribute_value(&Attributes::BOUNCINESS),
                         living.get_effective_gravity(caller),
-                        travel_input::modified_friction(
-                            0.98,
-                            living.get_attribute_value(&Attributes::AIR_DRAG_MODIFIER) as f32,
-                        ),
                     )
                 },
             );
@@ -2648,7 +2783,7 @@ impl Entity {
                 bounce,
                 block_bounce,
                 gravity,
-                drag,
+                drag: caller.get_air_drag(),
             });
             self.velocity
                 .store(Vector3::new(velocity[0], velocity[1], velocity[2]));

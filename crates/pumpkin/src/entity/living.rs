@@ -1669,10 +1669,9 @@ impl LivingEntity {
 
         // Strider is the only entity that has canWalkOnFluid = false
 
-        let simulate_movement = self.controlled_speed.load().is_none()
-            || caller
-                .get_mob()
-                .is_none_or(|mob| !mob.get_mob_entity().is_no_ai());
+        let simulate_movement = caller.can_simulate_movement()
+            && (self.controlled_speed.load().is_none()
+                || caller.get_mob().is_none_or(|mob| !mob.get_mob_entity().is_no_ai()));
         if !simulate_movement {
             // Java NoAI disables travel; block effects and collision processing
             // still run below. Preserve existing velocity instead of adding gravity.
@@ -1769,71 +1768,49 @@ impl LivingEntity {
     }
 
     fn apply_movement_input(&self, input: Vector3<f64>, speed: f64) {
-        if self.controlled_speed.load().is_some() {
-            let [x, y, z] = crate::entity::ai::control::travel_input::velocity(
-                [input.x, input.y, input.z],
-                speed as f32,
-                self.entity.yaw.load(),
-            );
-            self.entity
-                .velocity
-                .store(self.entity.velocity.load() + Vector3::new(x, y, z));
-        } else {
-            self.entity.update_velocity_from_input(input, speed);
-        }
+        let [x, y, z] = crate::entity::ai::control::travel_input::velocity(
+            [input.x, input.y, input.z],
+            speed as f32,
+            self.entity.yaw.load(),
+        );
+        self.entity
+            .velocity
+            .store(self.entity.velocity.load() + Vector3::new(x, y, z));
     }
 
     fn travel_in_air(&self, caller: &dyn EntityBase) {
-        // applyMovementInput
-
-        let effective_speed = self.get_attribute_value(&Attributes::MOVEMENT_SPEED);
-
-        let (speed, friction) = if self.entity.on_ground.load(Relaxed) {
-            // getVelocityAffectingPos
-
-            let slipperiness = f64::from(
+        use crate::entity::ai::control::travel_input;
+        let base_speed = self
+            .controlled_speed
+            .load()
+            .unwrap_or_else(|| self.get_attribute_value(&Attributes::MOVEMENT_SPEED) as f32);
+        let ground = self.entity.on_ground.load(Relaxed);
+        let slipperiness = if ground {
+            travel_input::modified_friction(
                 self.entity
-                    .get_block_with_y_offset(0.500_001)
-                    .1
+                    .world
+                    .load()
+                    .get_block(&self.entity.get_block_pos_below_that_affects_my_movement())
                     .slipperiness,
-            );
-
-            let speed =
-                effective_speed * 0.216_000_02 / (slipperiness * slipperiness * slipperiness);
-
-            (speed, slipperiness * 0.91)
+                self.get_attribute_value(&Attributes::FRICTION_MODIFIER) as f32,
+            )
         } else {
-            let speed = caller
-                .get_player()
-                .map_or(0.02, super::player::Player::get_off_ground_speed);
-
-            (speed, 0.91)
+            1.0
         };
-
-        let (speed, friction) = if let Some(controlled) = self.controlled_speed.load() {
-            use crate::entity::ai::control::travel_input;
-            let ground = self.entity.on_ground.load(Relaxed);
-            let slipperiness = if ground {
-                travel_input::modified_friction(
-                    self.entity
-                        .get_block_with_y_offset(0.500_001)
-                        .1
-                        .slipperiness,
-                    self.get_attribute_value(&Attributes::FRICTION_MODIFIER) as f32,
-                )
-            } else {
-                1.0
-            };
-            let speed = travel_input::air_speed(controlled, ground, slipperiness, false);
-            let drag = travel_input::modified_friction(
-                0.91,
-                self.get_attribute_value(&Attributes::AIR_DRAG_MODIFIER) as f32,
-            );
-            (f64::from(speed), f64::from(slipperiness * drag))
+        let player_passenger = caller
+            .get_controlling_passenger()
+            .is_some_and(|passenger| passenger.get_player().is_some());
+        let speed = if !ground && let Some(player) = caller.get_player() {
+            player.get_off_ground_speed() as f32
         } else {
-            (speed, friction)
+            travel_input::air_speed(base_speed, ground, slipperiness, player_passenger)
         };
-        self.apply_movement_input(self.movement_input.load(), speed);
+        let air_drag = travel_input::modified_friction(
+            0.91,
+            self.get_attribute_value(&Attributes::AIR_DRAG_MODIFIER) as f32,
+        );
+        let friction = f64::from(slipperiness * air_drag);
+        self.apply_movement_input(self.movement_input.load(), f64::from(speed));
 
         self.apply_climbing_speed();
 
@@ -1856,7 +1833,7 @@ impl LivingEntity {
         let levitation = self.get_effect(&StatusEffect::LEVITATION);
 
         if let Some(lev) = levitation {
-            velo.y += 0.05f64.mul_add(f64::from(lev.amplifier + 1), -velo.y) * 0.2;
+            velo.y += (0.05 * f64::from(lev.amplifier + 1) - velo.y) * 0.2;
         } else {
             velo.y -= self.get_effective_gravity(caller);
 
@@ -1871,18 +1848,13 @@ impl LivingEntity {
 
         velo.z *= friction;
 
-        velo.y *= caller.get_y_velocity_drag().unwrap_or_else(|| {
-            if caller.is_flutterer() {
-                friction
-            } else {
-                self.controlled_speed.load().map_or(0.98, |_| {
-                    f64::from(crate::entity::ai::control::travel_input::modified_friction(
-                        0.98,
-                        self.get_attribute_value(&Attributes::AIR_DRAG_MODIFIER) as f32,
-                    ))
-                })
-            }
-        });
+        velo.y *= if caller.omnidirectional_air_mover() {
+            f64::from(caller.get_air_drag())
+        } else {
+            caller
+                .get_y_velocity_drag()
+                .unwrap_or_else(|| f64::from(caller.get_air_drag()))
+        };
 
         self.entity.velocity.store(velo);
     }

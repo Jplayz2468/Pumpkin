@@ -197,20 +197,43 @@ whole inside-effect pipeline matches Java yet.
   the two previously separately passing socket tests. Final call-site and item
   friction run 5 also passed **471 tests** with the same exclusions.
 
-Next D01 work: shared controlling-passenger/client-authority API, large-movement
-fall-distance-reset ray checks, minor collision flags, omnidirectional air drag,
-remaining contextual shape probes and live world integration. The current shared
-post-move path treats non-player vehicles as server-authoritative; ridden vehicles
-need the source controlling-passenger override before parity can be claimed.
-Other direct movement and portal/passenger paths also remain to be reconciled.
+## Vehicle authority, fall-reset rays and shared air movement
 
-The remaining D02–D06 and block-system gates above remain open. Do not treat this
-bounded collision/climbing checkpoint as full engine or block parity.
+- Added first-passenger controller selection with Java's Mob fallback, boats,
+  saddled equines/camels/nautiluses, steering-item checks and happy-ghast harness/
+  timeout checks. Existing equine saddle state is now exposed through Mob's hook.
+- Client authority follows the controlling-rider chain with cycle protection;
+  collision ground/fall handling and restitution use the new predicates. Players
+  retain Java's server-side canSimulateMovement override. Living travel skips
+  client-authoritative vehicles and player-controlled living vehicles step at least
+  one block. Full ridden AI/packet integration remains unproven.
+- Added Java's block-ray traversal and boolean voxel-box clipping for the movement
+  fall-reset ray. A movement of at least one block checks up to eight blocks ahead
+  against full resetting-block cubes and water height, including flowing water.
+  Player-only portal exceptions respect the instant nether-portal gamerule.
+  Living/falling-block counters reset before movement is applied.
+- Vertical, below and minor collision state are now retained alongside horizontal
+  state. The server's default minor-collision predicate is false; no-physics moves
+  clear collision flags while leaving ground state alone.
+- Shared air-drag hook connects bee/parrot omnidirectional movement and restitution.
+  Ordinary living air movement now uses the same float speed/friction/input-vector
+  helpers as controlled living movement, including friction/air-drag attributes.
+  Levitation arithmetic no longer fuses Java's separate multiplication/addition.
+- Verification: controller-policy branch checks and **600 Java ray traversal/clip
+  cases** passed. Background library run 5 passed **474 tests**, with the same two
+  previously separately passing socket tests excluded. No full mob pass or live
+  server/client comparison was performed.
 
-Controlling-passenger source map for the next shared-engine pass: Entity defaults
-null; Mob accepts its first Mob passenger only when AI is enabled and the passenger
-canControlVehicle; AbstractBoat accepts its first LivingEntity. AbstractHorse and
-AbstractNautilus accept a saddled first Player; Pig/Strider also require the matching
-steering item; HappyGhast requires body armor and no still timeout. Player overrides
-canSimulateMovement to true on the server even though it is client-authoritative.
-These are shared control hooks, not authorization for full per-mob passes.
+## Next shared-engine work
+
+1. Fall distance: LivingEntity still stores f32 and writes legacy FallDistance,
+   while Java 26.2 stores a double under fall_distance. Migrate the shared counter,
+   landing callbacks, combat records and NBT without narrowing intermediate values.
+2. General ray APIs still use older slab clipping/empty-outline fallbacks; the new
+   source-verified traversal/clip path currently serves the fall-reset query only.
+3. Complete ridden vehicle integration (controlled vehicle/navigation/packet paths),
+   direct movement and portal/passenger transitions, remaining contextual shapes and
+   live gameplay verification. The SulfurCube omnidirectional override belongs to
+   its still-missing entity implementation; the shared hook is now present.
+4. Continue D02–D06 and remaining block-system gates listed above. Do not treat this
+   bounded movement checkpoint as full engine or block parity.

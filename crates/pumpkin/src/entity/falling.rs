@@ -71,6 +71,10 @@ impl FallingEntity {
         }
     }
 
+    pub(crate) fn fall_distance(&self) -> f64 {
+        self.fall_distance.load()
+    }
+
     pub fn reset_fall_distance(&self) {
         self.fall_distance.store(0.0);
     }

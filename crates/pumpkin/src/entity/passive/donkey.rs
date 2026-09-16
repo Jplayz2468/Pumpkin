@@ -166,6 +166,10 @@ impl Animal for DonkeyEntity {
 }
 
 impl Mob for DonkeyEntity {
+    fn is_saddled(&self) -> bool {
+        DonkeyEntity::is_saddled(self)
+    }
+
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }

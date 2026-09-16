@@ -1035,6 +1035,10 @@ pub trait Mob: EntityBase + Send + Sync {
         self.get_mob_entity().living_entity.get_default_gravity()
     }
 
+    fn mob_omnidirectional_air_mover(&self) -> bool {
+        false
+    }
+
     fn get_mob_y_velocity_drag(&self) -> Option<f64> {
         None
     }
@@ -1825,6 +1829,10 @@ impl<T: Mob + Send + 'static> EntityBase for T {
 
     fn get_default_gravity(&self) -> f64 {
         self.get_mob_gravity()
+    }
+
+    fn omnidirectional_air_mover(&self) -> bool {
+        self.mob_omnidirectional_air_mover()
     }
 
     fn get_y_velocity_drag(&self) -> Option<f64> {

@@ -113,3 +113,18 @@ java -cp '/tmp:../comparison/downloads/classpath/*' CollisionRestitutionOracle >
 
 This verifies restitution math, not movement authority, fall damage, vehicle
 control or full world dispatch. Those integration gates remain in ENGINE_GAPS.md.
+
+
+## Block rays
+
+`BlockRayOracle.java` calls Java 26.2 `BlockGetter.traverseBlocks` and
+`VoxelShape.clip` for 600 fixed-seed rays, including zero-length, axis-aligned,
+very short and exact block-boundary rays. Shapes include full blocks and water-like
+heights. Fixtures retain input double bits, the exact visited-cell sequence and
+whether the shape was hit. This proves the shared ray algorithm, not live world
+selection of resetting blocks, fluid state or portal gamerules.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/BlockRayOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' BlockRayOracle > crates/pumpkin/src/world/block_ray_cases.json
+```

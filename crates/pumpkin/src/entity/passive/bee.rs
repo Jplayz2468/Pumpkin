@@ -207,6 +207,10 @@ impl Animal for BeeEntity {
 }
 
 impl Mob for BeeEntity {
+    fn mob_omnidirectional_air_mover(&self) -> bool {
+        true
+    }
+
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }

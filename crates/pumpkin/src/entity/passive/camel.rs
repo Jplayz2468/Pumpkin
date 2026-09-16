@@ -148,6 +148,10 @@ impl Animal for CamelEntity {
 }
 
 impl Mob for CamelEntity {
+    fn is_saddled(&self) -> bool {
+        CamelEntity::is_saddled(self)
+    }
+
     fn as_ageable(&self) -> Option<&dyn AgeableMob> {
         Some(self)
     }
