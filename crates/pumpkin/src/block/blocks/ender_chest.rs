@@ -65,7 +65,7 @@ impl BlockBehaviour for EnderChestBlock {
             .world
             .get_fluid_and_fluid_state(args.position)
             .0
-            .matches_type(&pumpkin_data::Fluid::WATER);
+            .matches_type(&pumpkin_data::fluid::Fluid::WATER);
         props.to_state_id(args.block)
     }
 
@@ -124,7 +124,7 @@ impl BlockBehaviour for EnderChestBlock {
     ) -> BlockStateId {
         if LadderLikeProperties::from_state_id(args.state_id).waterlogged {
             args.world.schedule_fluid_tick(
-                &pumpkin_data::Fluid::WATER,
+                &pumpkin_data::fluid::Fluid::WATER,
                 *args.position,
                 5,
                 pumpkin_world::tick::TickPriority::Normal,

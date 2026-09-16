@@ -12,6 +12,7 @@ use pumpkin_util::{
     math::{position::BlockPos, vector2::Vector2, vector3::Vector3},
     random::RandomImpl,
 };
+use pumpkin_world::chunk::io::Dirtiable;
 use pumpkin_world::{
     tick::TickPriority,
     world::{BlockAccessor, BlockFlags},

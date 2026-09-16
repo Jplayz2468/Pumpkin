@@ -1,3 +1,5 @@
+use crate::entity::EntityBase;
+use pumpkin_data::fluid::Fluid;
 use std::sync::Arc;
 
 use crate::{
@@ -9,7 +11,7 @@ use crate::{
     world::World,
 };
 use pumpkin_data::{
-    Block, BlockDirection, BlockId, BlockState, BlockStateId, Fluid,
+    Block, BlockDirection, BlockId, BlockState, BlockStateId,
     block_properties::{
         PointedDripstoneLikeProperties, SpeleothemThickness, SulfurSpikeProperties,
         VerticalDirection,

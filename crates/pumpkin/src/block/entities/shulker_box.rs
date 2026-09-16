@@ -1,5 +1,6 @@
 use crate::entity::player::Player;
 use pumpkin_data::BlockStateId;
+use pumpkin_data::FacingExt;
 use pumpkin_data::data_component_impl::DataComponentImpl;
 use pumpkin_data::data_component_impl::{ContainerImpl, ContainerLootImpl, CustomNameImpl};
 use pumpkin_data::item_stack::ItemStack;
@@ -379,6 +380,7 @@ impl ShulkerBoxBlockEntity {
     pub fn progress_box(state: BlockStateId, from: f32, to: f32) -> BoundingBox {
         let facing = pumpkin_data::block_properties::EndRodLikeProperties::from_state_id(state)
             .facing
+            .to_block_direction()
             .to_offset();
         let low = f64::from(from.min(to));
         let high = f64::from(from.max(to));
@@ -452,6 +454,7 @@ impl ShulkerBoxBlockEntity {
             let bounds = Self::progress_box(state, old, progress).at_pos(self.position);
             let facing = pumpkin_data::block_properties::EndRodLikeProperties::from_state_id(state)
                 .facing
+                .to_block_direction()
                 .to_offset();
             for entity in world.get_all_at_box(&bounds) {
                 let base = entity.get_entity();

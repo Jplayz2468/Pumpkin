@@ -15,6 +15,7 @@
 //! listeners as chunks and block entities come and go is a large amount of bookkeeping
 //! for no observable difference, so it is not reproduced.
 
+use pumpkin_world::chunk::io::Dirtiable;
 use std::sync::Arc;
 
 use pumpkin_data::game_event::GameEvent;
@@ -649,7 +650,9 @@ fn send_vibration_particle(
     destination: BlockPos,
     ticks: i32,
 ) -> bool {
-    use pumpkin_protocol::{VarInt, java::client::play::CParticle, ser::NetworkWriteExt};
+    use pumpkin_protocol::{
+        codec::var_int::VarInt, java::client::play::CParticle, ser::NetworkWriteExt,
+    };
     let mut bytes = Vec::new();
     if bytes.write_var_int(&VarInt(0)).is_err()
         || bytes.write_i64_be(destination.as_long()).is_err()

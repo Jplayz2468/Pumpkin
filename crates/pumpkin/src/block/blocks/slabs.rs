@@ -25,7 +25,7 @@ impl BlockBehaviour for SlabBlock {
             args.world.get_block_state_id(args.position),
         );
         slab_props.waterlogged =
-            fluid.matches_type(&pumpkin_data::Fluid::WATER) && fluid_state.is_source;
+            fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER) && fluid_state.is_source;
         slab_props.r#type = match args.direction {
             BlockDirection::Up => SlabType::Top,
             BlockDirection::Down => SlabType::Bottom,

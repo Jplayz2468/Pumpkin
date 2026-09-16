@@ -50,7 +50,9 @@ impl BlockBehaviour for BeehiveBlock {
             .id
             == BlockId::FIRE
         {
-            release_bees(args.world, args.position, args.state_id.to_state(), None);
+            if let Some(world) = args.world.as_arc() {
+                release_bees(&world, args.position, args.state_id.to_state(), None);
+            }
         }
         args.state_id
     }

@@ -84,7 +84,7 @@ fn on_place_chest_impl(args: &OnPlaceArgs<'_>) -> BlockStateId {
         .world
         .get_fluid_and_fluid_state(args.position)
         .0
-        .matches_type(&pumpkin_data::Fluid::WATER);
+        .matches_type(&pumpkin_data::fluid::Fluid::WATER);
 
     let (r#type, facing) = compute_chest_props(
         args.world,

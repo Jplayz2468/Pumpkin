@@ -7,7 +7,9 @@ use pumpkin_data::{
     particle::Particle,
     sound::{Sound, SoundCategory},
 };
-use pumpkin_protocol::{VarInt, java::client::play::CParticle, ser::NetworkWriteExt};
+use pumpkin_protocol::{
+    codec::var_int::VarInt, java::client::play::CParticle, ser::NetworkWriteExt,
+};
 use pumpkin_util::{
     Difficulty,
     math::{position::BlockPos, vector3::Vector3},

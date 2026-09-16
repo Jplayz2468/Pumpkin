@@ -16,6 +16,7 @@ use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::{math::vector3::Vector3, random::RandomImpl};
+use pumpkin_world::chunk::io::Dirtiable;
 use pumpkin_world::world::BlockFlags;
 use std::sync::Mutex;
 use std::sync::{Arc, atomic::Ordering::Relaxed};

@@ -47,15 +47,15 @@ pub(super) fn can_place_rail_at(world: &dyn BlockAccessor, pos: &BlockPos) -> bo
 
 pub(super) fn source_water(world: &World, pos: &BlockPos) -> bool {
     let (fluid, state) = World::fluid_state_from_block_state(world.get_block_state_id(pos));
-    fluid.matches_type(&pumpkin_data::Fluid::WATER) && state.is_source
+    fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER) && state.is_source
 }
 
 pub(super) fn water_update(args: crate::block::GetStateForNeighborUpdateArgs<'_>) -> BlockStateId {
     if args.state_id.to_state().is_waterlogged() {
         args.world.schedule_fluid_tick(
-            &pumpkin_data::Fluid::WATER,
+            &pumpkin_data::fluid::Fluid::WATER,
             *args.position,
-            pumpkin_data::Fluid::WATER.flow_speed as u32,
+            pumpkin_data::fluid::Fluid::WATER.flow_speed as u32,
             pumpkin_world::tick::TickPriority::Normal,
         );
     }

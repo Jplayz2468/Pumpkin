@@ -110,7 +110,7 @@ impl BlockBehaviour for CauldronBlock {
             args.world,
             *args.position,
             i32::from(old_level),
-            if fluid == &pumpkin_data::Fluid::LAVA {
+            if fluid == &pumpkin_data::fluid::Fluid::LAVA {
                 3
             } else {
                 i32::from(old_level + 1)
@@ -120,7 +120,7 @@ impl BlockBehaviour for CauldronBlock {
         ) {
             return;
         }
-        let (next, event) = if fluid == &pumpkin_data::Fluid::LAVA {
+        let (next, event) = if fluid == &pumpkin_data::fluid::Fluid::LAVA {
             (
                 Block::LAVA_CAULDRON.default_state.id,
                 pumpkin_data::world::WorldEvent::SoundDripLavaIntoCauldron,

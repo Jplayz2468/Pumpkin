@@ -106,7 +106,7 @@ impl BlockBehaviour for MultifaceBlock {
         }
 
         let mut new_directions = active_directions(old_props);
-        if !can_attach(args.world.as_ref(), *args.position, args.direction) {
+        if !can_attach(args.world, *args.position, args.direction) {
             new_directions.remove(&args.direction);
         }
 

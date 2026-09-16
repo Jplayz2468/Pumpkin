@@ -1509,11 +1509,7 @@ impl HostBeehiveBlockEntity for PluginHostState {
             .as_any()
             .downcast_ref::<InternalBeehiveBlockEntity>()
             .map_or(0, |b| {
-                b.bees
-                    .try_lock()
-                    .ok()
-                    .and_then(|g| g.as_ref().map(|v| v.len() as u32))
-                    .unwrap_or(0)
+                b.bees.try_lock().ok().map(|g| g.len() as u32).unwrap_or(0)
             }))
     }
 
@@ -1646,6 +1642,7 @@ impl HostChiseledBookshelfBlockEntity for PluginHostState {
             .map_or(-1, |b| {
                 b.last_interacted_slot
                     .load(std::sync::atomic::Ordering::Relaxed)
+                    .clamp(i32::from(i8::MIN), i32::from(i8::MAX)) as i8
             }))
     }
 

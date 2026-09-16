@@ -1585,6 +1585,20 @@ impl World {
             .next_i32()
     }
 
+    /// Recover the owning Arc for callbacks that need to construct entities.
+    pub(crate) fn as_arc(&self) -> Option<Arc<Self>> {
+        self.self_reference.upgrade()
+    }
+
+    /// Vanilla `random.nextLong()` on the same level random stream.
+    pub fn rand_i64(&self) -> i64 {
+        use pumpkin_util::random::RandomImpl;
+        self.random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_i64()
+    }
+
     /// Vanilla `random.nextFloat()`.
     pub fn rand_f32(&self) -> f32 {
         use pumpkin_util::random::RandomImpl;
@@ -7648,7 +7662,7 @@ impl World {
         let min = pos.0.to_f64();
         let max = min.add_raw(
             1.0,
-            f64::from(self.get_fluid_height(pos, fluid, state)),
+            f64::from(self.get_fluid_height(pos, fluid, &state)),
             1.0,
         );
         let hit = Self::intersects_aabb_with_hit(from, to, min, max);

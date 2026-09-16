@@ -42,8 +42,8 @@ impl BlockBehaviour for AzaleaBlock {
             && crate::world::World::fluid_state_from_block_state(
                 args.world.get_block_state_id(&args.position.up()),
             )
-            .0
-            .is_empty()
+            .1
+            .is_empty
     }
 
     fn is_bonemeal_success(&self, args: BonemealArgs<'_>) -> bool {

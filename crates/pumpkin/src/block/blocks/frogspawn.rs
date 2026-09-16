@@ -48,8 +48,8 @@ impl FrogspawnBlock {
         (tag_fluid.has_tag(&tag::Fluid::MINECRAFT_SUPPORTS_FROGSPAWN)
             || block.has_tag(&tag::Block::MINECRAFT_SUPPORTS_FROGSPAWN))
             && World::fluid_state_from_block_state(world.get_block_state_id(&pos.up()))
-                .0
-                .is_empty()
+                .1
+                .is_empty
     }
 
     /// `FrogspawnBlock#getFrogspawnHatchDelay` (`FrogspawnBlock.java:64-66`).

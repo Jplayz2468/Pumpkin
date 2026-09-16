@@ -1,4 +1,5 @@
 use crate::entity::EntityBase;
+use pumpkin_data::FacingExt;
 use pumpkin_data::{
     Block, BlockDirection, BlockStateId, HorizontalFacingExt,
     block_properties::{AttachFace, HorizontalFacing},

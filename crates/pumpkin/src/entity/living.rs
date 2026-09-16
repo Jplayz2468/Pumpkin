@@ -1124,10 +1124,8 @@ impl LivingEntity {
         // potions and commands (EnderDragon.addEffect / Wither*.canBeAffected).
         if entity_type == &EntityType::ENDER_DRAGON
             || (effect.effect_type == &StatusEffect::WITHER
-                && matches!(
-                    *entity_type,
-                    EntityType::WITHER | EntityType::WITHER_SKELETON
-                ))
+                && (entity_type == &EntityType::WITHER
+                    || entity_type == &EntityType::WITHER_SKELETON))
         {
             return false;
         }

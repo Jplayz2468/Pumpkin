@@ -25,7 +25,7 @@ use crate::entity::{
 
 mod goals;
 
-use pumpkin_data::{attributes::Attributes, damage_type::DamageType};
+use pumpkin_data::{attributes::Attributes, damage::DamageType};
 use pumpkin_util::math::position::BlockPos;
 use rand::RngExt;
 
@@ -34,10 +34,8 @@ pub const FLAG_HAS_STUNG: u8 = 4;
 pub const FLAG_HAS_NECTAR: u8 = 8;
 
 pub struct BeeEntity {
-    pub hive_pos:
-        crossbeam_utils::atomic::AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
-    pub flower_pos:
-        crossbeam_utils::atomic::AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
+    pub hive_pos: crossbeam::atomic::AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
+    pub flower_pos: crossbeam::atomic::AtomicCell<Option<pumpkin_util::math::position::BlockPos>>,
     pub mob_entity: MobEntity,
     pub ageable_data: AgeableData,
     pub flags: AtomicU8,
@@ -47,7 +45,7 @@ pub struct BeeEntity {
     pub time_since_sting: AtomicI32,
     underwater_ticks: AtomicI32,
     anger_end_time: AtomicI64,
-    angry_at: crossbeam_utils::atomic::AtomicCell<Option<uuid::Uuid>>,
+    angry_at: crossbeam::atomic::AtomicCell<Option<uuid::Uuid>>,
     pub(super) flower_cooldown: AtomicI32,
     pub(super) hive_cooldown: AtomicI32,
     pub(super) pollinating: AtomicBool,
@@ -62,8 +60,8 @@ impl BeeEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
         let mob_entity = MobEntity::new(entity);
         let bee = Self {
-            hive_pos: crossbeam_utils::atomic::AtomicCell::new(None),
-            flower_pos: crossbeam_utils::atomic::AtomicCell::new(None),
+            hive_pos: crossbeam::atomic::AtomicCell::new(None),
+            flower_pos: crossbeam::atomic::AtomicCell::new(None),
             mob_entity,
             ageable_data: AgeableData::default(),
             flags: AtomicU8::new(0),
@@ -73,7 +71,7 @@ impl BeeEntity {
             time_since_sting: AtomicI32::new(0),
             underwater_ticks: AtomicI32::new(0),
             anger_end_time: AtomicI64::new(-1),
-            angry_at: crossbeam_utils::atomic::AtomicCell::new(None),
+            angry_at: crossbeam::atomic::AtomicCell::new(None),
             flower_cooldown: AtomicI32::new(rand::random_range(20..=60)),
             hive_cooldown: AtomicI32::new(0),
             pollinating: AtomicBool::new(false),

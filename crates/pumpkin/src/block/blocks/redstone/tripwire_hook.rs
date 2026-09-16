@@ -1,3 +1,4 @@
+use crate::entity::EntityBase;
 use std::sync::Arc;
 
 use pumpkin_data::{

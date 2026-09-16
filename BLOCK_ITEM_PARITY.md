@@ -1074,3 +1074,11 @@ so they must not be used to reconstruct audit completion.
   DoublePlantBlock families. Compilation now reaches the main crate and reports
   prior import/API/type integration failures. D07 tracks these separately; tests
   have not passed.
+
+## D07: background compiler integration repairs
+
+- Fixed stale module/trait imports, fluid-state access, entity-type comparisons,
+  callback Arc access, level nextLong support and narrowed plugin ABI adapters
+  across the earlier block/bee ports. No plugin submodule edits.
+- Focused block-entity tests are rebuilding in the background. The previous
+  attempt failed during compilation; no passing test result is claimed.

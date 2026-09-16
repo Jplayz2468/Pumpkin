@@ -1,7 +1,7 @@
 use crate::block::{GetStateForNeighborUpdateArgs, blocks::plant::PlantBlockBase};
 use pumpkin_data::BlockStateId;
 use pumpkin_data::{
-    damage_type::DamageType,
+    damage::DamageType,
     effect::StatusEffect,
     tag::{self, Taggable},
 };

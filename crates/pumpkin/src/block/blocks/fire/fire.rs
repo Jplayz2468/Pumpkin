@@ -256,7 +256,7 @@ impl BlockBehaviour for FireBlock {
                         .pos
                         .load()
                         .squared_distance_to_vec(&pos.to_f64())
-                        < f64::from(spread_radius).powi(2)
+                        < (spread_radius as f64).powi(2)
                     && spread_radius > 0
             })
         {

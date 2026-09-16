@@ -733,7 +733,7 @@ impl Goal for GrowCrops {
                     block.from_properties(&props).to_state_id(block)
                 };
                 world.sync_world_event(
-                    pumpkin_data::world_event::WorldEvent::ParticlesBeeGrowth,
+                    pumpkin_data::world::WorldEvent::ParticlesBeeGrowth,
                     pos,
                     15,
                 );

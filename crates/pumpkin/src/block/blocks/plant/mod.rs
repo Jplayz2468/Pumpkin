@@ -190,9 +190,9 @@ fn harvest_loot(
             harvested_items: drops,
             cancelled: false,
         };
-    args.server
-        .plugin_manager
-        .fire_blocking(args.server, &mut event);
+    if let Some(server) = args.world.server.upgrade() {
+        server.plugin_manager.fire_blocking(&server, &mut event);
+    }
     if event.cancelled {
         return false;
     }
