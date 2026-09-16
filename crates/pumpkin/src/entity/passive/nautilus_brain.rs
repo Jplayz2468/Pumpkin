@@ -16,6 +16,7 @@
 //! player or charge a target. Recorded in SURVIVAL_PARITY_BACKLOG.md.
 
 use crate::entity::ai::brain::behavior::BehaviorSlot;
+use crate::entity::ai::brain::behaviors::animal_make_love::AnimalMakeLove;
 use crate::entity::ai::brain::behaviors::animal_panic::AnimalPanic;
 use crate::entity::ai::brain::behaviors::charge_attack::ChargeAttack;
 use crate::entity::ai::brain::behaviors::count_down_cooldown_ticks::CountDownCooldownTicks;
@@ -50,6 +51,7 @@ const MEMORIES: &[MemoryModuleType] = &[
     MemoryModuleType::AttackTarget,
     MemoryModuleType::ChargeCooldownTicks,
     MemoryModuleType::CantReachWalkTargetSince,
+    MemoryModuleType::VisibleMobs,
 ];
 
 #[must_use]
@@ -102,6 +104,14 @@ pub fn build() -> MobBrain {
     brain.add_activity(
         Activity::Idle,
         vec![(
+            // `AnimalMakeLove(NAUTILUS, 0.4, 2)`.
+            1,
+            BehaviorSlot::new(Box::new(AnimalMakeLove::new(
+                &pumpkin_data::entity::EntityType::NAUTILUS,
+                0.4,
+                2,
+            ))),
+        ), (
             // `FollowTemptation(1.3, baby ? 2.5 : 3.5)`; the adult distance is used, since
             // the brain has no handle on the mob's age here.
             2,

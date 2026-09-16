@@ -966,12 +966,35 @@ pub trait Mob: EntityBase + Send + Sync {
                 world.rand_bounded_i32(bound)
             }
         };
-        brain.tick(&actor, time, &mut rng);
+        let deferred = brain.tick(&actor, time, &mut rng);
 
         *mob_entity
             .brain
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(brain);
+
+        // Applied only now, with this mob's brain lock released, so two mobs that write
+        // into each other on the same tick cannot deadlock. See `DeferredWrite`.
+        for write in deferred {
+            let Some(target) = world.get_entity_by_id(write.mob_id) else {
+                continue;
+            };
+            let Some(target_mob) = target.get_mob() else {
+                continue;
+            };
+            let mut guard = target_mob
+                .get_mob_entity()
+                .brain
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let Some(target_brain) = guard.as_mut() else {
+                continue;
+            };
+            match write.value {
+                Some(value) => target_brain.memories_mut().set(write.memory, value),
+                None => target_brain.memories_mut().erase(write.memory),
+            }
+        }
     }
 
     /// Brain-driven mobs can reserve melee through their own attack cooldown memory.

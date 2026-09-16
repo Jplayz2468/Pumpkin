@@ -3,6 +3,7 @@
 //! These are the behaviours every brain mob shares. A species brain is then mostly a
 //! list of these plus a handful of its own, which is how vanilla composes them.
 
+pub mod animal_make_love;
 pub mod animal_panic;
 pub mod charge_attack;
 pub mod count_down_cooldown_ticks;

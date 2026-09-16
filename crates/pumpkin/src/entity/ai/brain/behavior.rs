@@ -24,11 +24,55 @@ pub enum BehaviorStatus {
 /// The actor arrives by shared reference for the same reason `GoalSelector::tick` takes
 /// `&dyn Mob`: the brain lives in a `Mutex` on the mob, so the guard already holds the mob
 /// borrowed and a second shared handle coexists with the `&mut` on the memories inside it.
+/// A memory write aimed at another mob's brain.
+///
+/// Some vanilla behaviours write into a second mob: `AnimalMakeLove` sets `breed_target`
+/// on both partners. A behaviour cannot reach another brain directly -- it holds only its
+/// own memories, and taking a second brain's lock mid-tick invites a deadlock when two
+/// mobs target each other on the same tick. Instead the write is queued here and applied
+/// after this brain's tick has finished and its lock is released.
+///
+/// The cost is that the write lands a tick later than vanilla's.
+#[derive(Debug, Clone)]
+pub struct DeferredWrite {
+    pub mob_id: i32,
+    pub memory: MemoryModuleType,
+    /// `None` erases the memory instead of setting it.
+    pub value: Option<crate::entity::ai::brain::memory::MemoryValue>,
+}
+
 pub struct BehaviorContext<'a, A: ?Sized> {
     pub actor: &'a A,
     pub memories: &'a mut MemoryMap,
     /// Vanilla's `timestamp` -- the level game time, not a per-behaviour counter.
     pub time: i64,
+    /// Memory writes for *other* mobs, drained once this brain's tick is over.
+    pub deferred: &'a mut Vec<DeferredWrite>,
+}
+
+impl<A: ?Sized> BehaviorContext<'_, A> {
+    /// Queues a memory write on another mob, applied after this tick.
+    pub fn defer_set(
+        &mut self,
+        mob_id: i32,
+        memory: MemoryModuleType,
+        value: crate::entity::ai::brain::memory::MemoryValue,
+    ) {
+        self.deferred.push(DeferredWrite {
+            mob_id,
+            memory,
+            value: Some(value),
+        });
+    }
+
+    /// Queues erasing a memory on another mob, applied after this tick.
+    pub fn defer_erase(&mut self, mob_id: i32, memory: MemoryModuleType) {
+        self.deferred.push(DeferredWrite {
+            mob_id,
+            memory,
+            value: None,
+        });
+    }
 }
 
 /// Port of vanilla `BehaviorControl`.

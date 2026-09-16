@@ -150,10 +150,14 @@ fn behavior_does_not_start_without_its_required_memories() {
     let mut memories = MemoryMap::new();
     memories.register(MemoryModuleType::AttackTarget);
 
+    let mut deferred = Vec::new();
+
     let mut ctx = BehaviorContext {
         actor: &(),
         memories: &mut memories,
         time: 0,
+
+        deferred: &mut deferred,
     };
     assert!(!slot.try_start(&mut ctx, 10));
     assert_eq!(slot.status(), BehaviorStatus::Stopped);
@@ -170,10 +174,12 @@ fn extra_start_conditions_can_veto_a_start() {
     let entries = log();
     let mut slot = BehaviorSlot::new(Box::new(Recorder::new("b", entries.clone()).blocked()));
     let mut memories = MemoryMap::new();
+    let mut deferred = Vec::new();
     let mut ctx = BehaviorContext {
         actor: &(),
         memories: &mut memories,
         time: 0,
+        deferred: &mut deferred,
     };
     assert!(!slot.try_start(&mut ctx, 10));
     assert!(entries.lock().unwrap().is_empty());
@@ -186,10 +192,12 @@ fn behavior_stops_after_one_tick_by_default() {
     let entries = log();
     let mut slot = BehaviorSlot::new(Box::new(Recorder::new("b", entries.clone())));
     let mut memories = MemoryMap::new();
+    let mut deferred = Vec::new();
     let mut ctx = BehaviorContext {
         actor: &(),
         memories: &mut memories,
         time: 0,
+        deferred: &mut deferred,
     };
     slot.try_start(&mut ctx, 100);
     slot.tick_or_stop(&mut ctx);
@@ -208,26 +216,32 @@ fn behavior_times_out_even_while_it_wants_to_continue() {
     let mut memories = MemoryMap::new();
 
     {
+        let mut deferred = Vec::new();
         let mut ctx = BehaviorContext {
             actor: &(),
             memories: &mut memories,
             time: 0,
+            deferred: &mut deferred,
         };
         slot.try_start(&mut ctx, 2);
     }
     for time in [1, 2] {
+        let mut deferred = Vec::new();
         let mut ctx = BehaviorContext {
             actor: &(),
             memories: &mut memories,
             time,
+            deferred: &mut deferred,
         };
         slot.tick_or_stop(&mut ctx);
         assert_eq!(slot.status(), BehaviorStatus::Running, "stopped at {time}");
     }
+    let mut deferred = Vec::new();
     let mut ctx = BehaviorContext {
         actor: &(),
         memories: &mut memories,
         time: 3,
+        deferred: &mut deferred,
     };
     slot.tick_or_stop(&mut ctx);
     assert_eq!(slot.status(), BehaviorStatus::Stopped);
@@ -484,6 +498,62 @@ fn generated_registries_match_the_jar_counts() {
 // `Behavior<MobActor>` and need a live world to resolve the mob, so they are
 // exercised on the server rather than in unit tests.
 
+mod deferred {
+    use super::*;
+    use crate::entity::ai::brain::behavior::DeferredWrite;
+    use crate::entity::ai::brain::memory::MemoryValue;
+
+    /// Queues a write for another mob on start.
+    struct Matchmaker {
+        partner: i32,
+    }
+
+    impl Behavior<()> for Matchmaker {
+        fn start(&mut self, ctx: &mut BehaviorContext<'_, ()>) {
+            ctx.defer_set(
+                self.partner,
+                MemoryModuleType::BreedTarget,
+                MemoryValue::EntityId(7),
+            );
+        }
+        fn debug_name(&self) -> &'static str {
+            "matchmaker"
+        }
+    }
+
+    /// The point of the whole mechanism: a behaviour cannot touch another brain during
+    /// the tick, so the write comes back out of `tick` for the caller to apply once the
+    /// lock is released.
+    #[test]
+    fn a_write_for_another_mob_comes_back_out_of_tick() {
+        let mut brain: Brain<()> = Brain::new(Activity::Idle);
+        brain.register_memory(MemoryModuleType::BreedTarget);
+        brain.add_activity(
+            Activity::Idle,
+            vec![(0, BehaviorSlot::new(Box::new(Matchmaker { partner: 42 })))],
+            vec![],
+            vec![],
+        );
+        brain.set_active_activity_if_possible(Activity::Idle);
+
+        let mut rng = |_: i32| 0;
+        let deferred: Vec<DeferredWrite> = brain.tick(&(), 0, &mut rng);
+
+        assert_eq!(deferred.len(), 1, "the queued write must survive the tick");
+        assert_eq!(deferred[0].mob_id, 42);
+        assert_eq!(deferred[0].memory, MemoryModuleType::BreedTarget);
+        assert!(
+            deferred[0].value.is_some(),
+            "a set carries a value; an erase would not"
+        );
+        // And it must not have been applied to our own memories.
+        assert!(
+            !brain.memories_mut().has(MemoryModuleType::BreedTarget),
+            "a deferred write is for the other mob, not this one"
+        );
+    }
+}
+
 mod behaviors {
     use super::*;
     use crate::entity::ai::brain::behaviors::count_down_cooldown_ticks::CountDownCooldownTicks;
@@ -510,18 +580,24 @@ mod behaviors {
             MemoryValue::Int(3),
         );
 
+        let mut deferred = Vec::new();
+
         let mut ctx = BehaviorContext {
             actor: &(),
             memories: &mut memories,
             time: 0,
+
+            deferred: &mut deferred,
         };
         assert!(slot.try_start(&mut ctx, 100));
 
         for expected in [2, 1, 0] {
+            let mut deferred = Vec::new();
             let mut ctx = BehaviorContext {
                 actor: &(),
                 memories: &mut memories,
                 time: 0,
+                deferred: &mut deferred,
             };
             slot.tick_or_stop(&mut ctx);
             assert_eq!(
@@ -532,10 +608,12 @@ mod behaviors {
         }
 
         // At zero the behaviour stops, and stopping erases the memory.
+        let mut deferred = Vec::new();
         let mut ctx = BehaviorContext {
             actor: &(),
             memories: &mut memories,
             time: 0,
+            deferred: &mut deferred,
         };
         slot.tick_or_stop(&mut ctx);
         assert_eq!(slot.status(), BehaviorStatus::Stopped);
@@ -564,10 +642,12 @@ mod behaviors {
                 ],
             )));
             let mut memories = MemoryMap::new();
+            let mut deferred = Vec::new();
             let mut ctx = BehaviorContext {
                 actor: &(),
                 memories: &mut memories,
                 time: 0,
+                deferred: &mut deferred,
             };
             assert!(slot.try_start(&mut ctx, 100));
             assert_eq!(*entries.lock().unwrap(), expected);
@@ -589,18 +669,22 @@ mod behaviors {
             )))],
         )));
         let mut memories = MemoryMap::new();
+        let mut deferred = Vec::new();
         let mut ctx = BehaviorContext {
             actor: &(),
             memories: &mut memories,
             time: 0,
+            deferred: &mut deferred,
         };
         assert!(slot.try_start(&mut ctx, 100));
 
         // The child runs a single tick by default, so the gate has nothing left.
+        let mut deferred = Vec::new();
         let mut ctx = BehaviorContext {
             actor: &(),
             memories: &mut memories,
             time: 0,
+            deferred: &mut deferred,
         };
         slot.tick_or_stop(&mut ctx);
         assert_eq!(slot.status(), BehaviorStatus::Stopped);

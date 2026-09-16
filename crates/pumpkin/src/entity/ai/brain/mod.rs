@@ -29,7 +29,7 @@ use std::collections::BTreeMap;
 
 use crate::world::World;
 
-use behavior::{BehaviorContext, BehaviorSlot, BehaviorStatus};
+use behavior::{BehaviorContext, BehaviorSlot, BehaviorStatus, DeferredWrite};
 use memory::{MemoryMap, MemoryStatus};
 use registry::{Activity, MemoryModuleType};
 use sensor::{SensorContext, SensorSlot};
@@ -201,11 +201,20 @@ impl<A: ?Sized> Brain<A> {
     /// pass, a behaviour started this tick is *also* ticked this tick -- which is why a
     /// behaviour whose `can_still_use` is the default `false` starts and stops within a
     /// single brain tick rather than lasting until the next one.
-    pub fn tick(&mut self, actor: &A, time: i64, rng: &mut impl FnMut(i32) -> i32) {
+    /// Returns any [`DeferredWrite`]s the behaviours queued for *other* mobs. The caller
+    /// applies them once this brain's lock is released -- see `DeferredWrite`.
+    pub fn tick(
+        &mut self,
+        actor: &A,
+        time: i64,
+        rng: &mut impl FnMut(i32) -> i32,
+    ) -> Vec<DeferredWrite> {
+        let mut deferred = Vec::new();
         self.memories.tick();
         self.tick_sensors(actor, time);
-        self.start_each_non_running_behavior(actor, time, rng);
-        self.tick_each_running_behavior(actor, time);
+        self.start_each_non_running_behavior(actor, time, rng, &mut deferred);
+        self.tick_each_running_behavior(actor, time, &mut deferred);
+        deferred
     }
 
     fn tick_sensors(&mut self, actor: &A, time: i64) {
@@ -225,6 +234,7 @@ impl<A: ?Sized> Brain<A> {
         actor: &A,
         time: i64,
         rng: &mut impl FnMut(i32) -> i32,
+        deferred: &mut Vec<DeferredWrite>,
     ) {
         let active = self.active_activities.clone();
         for by_activity in self.behaviors.values_mut() {
@@ -243,6 +253,7 @@ impl<A: ?Sized> Brain<A> {
                         actor,
                         memories: &mut self.memories,
                         time,
+                        deferred,
                     };
                     slot.try_start(&mut ctx, duration);
                 }
@@ -251,7 +262,7 @@ impl<A: ?Sized> Brain<A> {
     }
 
     /// Vanilla `Brain.tickEachRunningBehavior`.
-    fn tick_each_running_behavior(&mut self, actor: &A, time: i64) {
+    fn tick_each_running_behavior(&mut self, actor: &A, time: i64, deferred: &mut Vec<DeferredWrite>) {
         for by_activity in self.behaviors.values_mut() {
             for slots in by_activity.values_mut() {
                 for slot in slots.iter_mut() {
@@ -262,6 +273,7 @@ impl<A: ?Sized> Brain<A> {
                         actor,
                         memories: &mut self.memories,
                         time,
+                        deferred,
                     };
                     slot.tick_or_stop(&mut ctx);
                 }
@@ -271,6 +283,10 @@ impl<A: ?Sized> Brain<A> {
 
     /// Vanilla `Brain.stopAll`.
     pub fn stop_all(&mut self, actor: &A, time: i64) {
+        // A brain being torn down has no tick to hand deferred writes back to, so any a
+        // stopping behaviour queues are dropped.
+        let mut deferred = Vec::new();
+        let deferred = &mut deferred;
         for by_activity in self.behaviors.values_mut() {
             for slots in by_activity.values_mut() {
                 for slot in slots.iter_mut() {
@@ -281,6 +297,7 @@ impl<A: ?Sized> Brain<A> {
                         actor,
                         memories: &mut self.memories,
                         time,
+                        deferred,
                     };
                     slot.do_stop(&mut ctx);
                 }
