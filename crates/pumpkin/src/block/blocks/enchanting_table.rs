@@ -4,9 +4,10 @@ use std::sync::Mutex;
 use crate::block::entities::enchanting_table::EnchantingTableBlockEntity;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
-    BlockBehaviour, GetScreenHandlerFactoryArgs, NormalUseArgs, PathComputationType, PlacedArgs,
+    BlockBehaviour, GetScreenHandlerFactoryArgs, NormalUseArgs, PathComputationType,
 };
-use pumpkin_data::{Block, BlockState, BlockStateId, translation};
+use pumpkin_data::BlockState;
+use pumpkin_data::tag::Taggable;
 use pumpkin_inventory::enchanting::enchanting_screen_handler::EnchantingTableScreenHandler;
 use pumpkin_inventory::player::player_inventory::PlayerInventory;
 use pumpkin_inventory::screen_handler::{
@@ -21,11 +22,6 @@ use pumpkin_util::text::TextComponent;
 pub struct EnchantingTableBlock;
 
 impl BlockBehaviour for EnchantingTableBlock {
-    fn placed(&self, args: PlacedArgs<'_>) {
-        let entity = EnchantingTableBlockEntity::new(*args.position);
-        args.world.add_block_entity(Arc::new(entity));
-    }
-
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
         if let Some(factory) = self.get_screen_handler_factory(GetScreenHandlerFactoryArgs {
             server: args.server,
@@ -44,54 +40,18 @@ impl BlockBehaviour for EnchantingTableBlock {
         &self,
         args: GetScreenHandlerFactoryArgs<'_>,
     ) -> Option<Box<dyn ScreenHandlerFactory>> {
-        let mut bookshelf_count = 0;
-
-        for off_z in -1..=1 {
-            for off_x in -1..=1 {
-                if (off_z != 0 || off_x != 0)
-                    && args
-                        .world
-                        .get_block_state(&args.position.add(off_x, 0, off_z))
-                        .id
-                        == BlockStateId::AIR
-                    && args
-                        .world
-                        .get_block_state(&args.position.add(off_x, 1, off_z))
-                        .id
-                        == BlockStateId::AIR
-                // Air
-                {
-                    for off_y in 0..=1 {
-                        if Self::is_bookshelf(
-                            args.world,
-                            &args.position.add(off_x * 2, off_y, off_z * 2),
-                        ) {
-                            bookshelf_count += 1;
-                        }
-                        if off_x != 0 && off_z != 0 {
-                            if Self::is_bookshelf(
-                                args.world,
-                                &args.position.add(off_x * 2, off_y, off_z),
-                            ) {
-                                bookshelf_count += 1;
-                            }
-                            if Self::is_bookshelf(
-                                args.world,
-                                &args.position.add(off_x, off_y, off_z * 2),
-                            ) {
-                                bookshelf_count += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        let bookshelf_count = bookshelf_count.min(15);
+        let entity = args.world.get_block_entity(args.position)?;
+        let table = entity
+            .as_any()
+            .downcast_ref::<EnchantingTableBlockEntity>()?;
+        let title = table.display_name();
+        let bookshelf_count = Self::bookshelf_count(args.world, args.position).min(15);
 
         let seed = args.player.enchantment_seed();
         Some(Box::new(EnchantingTableScreenFactory {
             bookshelf_count,
             seed,
+            title,
         }))
     }
 
@@ -101,16 +61,35 @@ impl BlockBehaviour for EnchantingTableBlock {
 }
 
 impl EnchantingTableBlock {
-    fn is_bookshelf(world: &Arc<crate::world::World>, pos: &BlockPos) -> bool {
-        let state = world.get_block_state(pos);
-        let block = pumpkin_data::Block::from_state_id(state.id);
-        block == &Block::BOOKSHELF
+    /// EnchantingTableBlock.BOOKSHELF_OFFSETS and isValidBookShelf (X-fastest order).
+    pub(crate) fn bookshelf_count(world: &crate::world::World, pos: &BlockPos) -> i32 {
+        let mut count = 0;
+        for z in -2_i32..=2 {
+            for y in 0..=1 {
+                for x in -2_i32..=2 {
+                    if (x.abs() == 2 || z.abs() == 2)
+                        && world
+                            .get_block(&pos.add(x, y, z))
+                            .is_tagged_with("minecraft:enchantment_power_provider")
+                            == Some(true)
+                        && world
+                            .get_block(&pos.add(x / 2, y, z / 2))
+                            .is_tagged_with("minecraft:enchantment_power_transmitter")
+                            == Some(true)
+                    {
+                        count += 1;
+                    }
+                }
+            }
+        }
+        count
     }
 }
 
 struct EnchantingTableScreenFactory {
     bookshelf_count: i32,
     seed: i32,
+    title: TextComponent,
 }
 
 impl ScreenHandlerFactory for EnchantingTableScreenFactory {
@@ -133,9 +112,6 @@ impl ScreenHandlerFactory for EnchantingTableScreenFactory {
     }
 
     fn get_display_name(&self) -> TextComponent {
-        pumpkin_macros::translate_cross!(
-            translation::java::CONTAINER_ENCHANT,
-            translation::bedrock::CONTAINER_ENCHANT
-        )
+        self.title.clone()
     }
 }

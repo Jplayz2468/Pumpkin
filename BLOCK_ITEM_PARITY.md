@@ -18,6 +18,13 @@ This checkpoint records source changes, not a passing parity result.
   Do not commit to the hosting repository's `main` or merge the four unfinished
   `agent/mob/*` branches.
 
+## Current execution plan
+
+The user approved a bounded block-first batch pass with a separate shared-dependency
+queue, followed by items. [PARITY_PLAN.md](PARITY_PLAN.md) is the current checklist;
+this file remains the historical implementation log. Background tests are now
+authorized as long as implementation continues without waiting for them.
+
 ## Latest continuation: falling blocks, sponges and bubble columns
 
 - Falling blocks now retain fluid at takeoff while clearing carried waterlogging,
@@ -1045,3 +1052,25 @@ so they must not be used to reconstruct audit completion.
   RNG, nonplayer opener accounting, shared update/effect order and client protocol
   details. Source inspection, rustfmt and diff whitespace review only; no build,
   compilation, test or gameplay commands were run.
+
+
+## B01: bounded workstation source pass
+
+- Reviewed eight workstation handlers; fixed menu-before-stat order, horizontal
+  loom placement and enchanting provider/transmitter tag geometry. Enchanting
+  names now survive placement, NBT, block drops and menu titles; no click-time
+  entity is fabricated and no placement-time entity is replaced.
+- Fletching remains a plain pass-through block. Grindstone survival/placement and
+  the existing stonecutter facing/path behavior match the inspected local methods.
+- Menu algorithms and live enchanting bookshelf refresh are explicitly queued in
+  I02, shared shapes/registry coverage in B14. This is a first source pass, not a
+  claim of 1:1 completion.
+- Background focused block-entity tests were authorized and launched. The first
+  build exposed a prior PotDecorations NBT string conversion error, now fixed.
+  A second attempt is running; there is no passing test result yet.
+
+- Background verification update: regenerated stale absolute asset includes left by
+  an old worktree cache; replaced the removed tall-flower tag with the actual
+  DoublePlantBlock families. Compilation now reaches the main crate and reports
+  prior import/API/type integration failures. D07 tracks these separately; tests
+  have not passed.

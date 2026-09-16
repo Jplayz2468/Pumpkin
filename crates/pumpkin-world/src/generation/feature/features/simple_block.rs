@@ -1,4 +1,4 @@
-use pumpkin_data::{Block, BlockId, tag, tag::Taggable};
+use pumpkin_data::{Block, BlockId};
 use pumpkin_util::{
     math::position::BlockPos,
     random::{RandomGenerator, RandomImpl},
@@ -37,16 +37,19 @@ impl SimpleBlockFeature {
 
         let flags = crate::world::BlockFlags::NOTIFY_LISTENERS;
         let properties = block.properties(state.id).map(|p| p.to_props());
-        if block.has_tag(&tag::Block::MINECRAFT_TALL_FLOWERS)
-            || matches!(
-                block.id,
-                BlockId::TALL_GRASS
-                    | BlockId::LARGE_FERN
-                    | BlockId::TALL_SEAGRASS
-                    | BlockId::SMALL_DRIPLEAF
-                    | BlockId::PITCHER_CROP
-            )
-        {
+        if matches!(
+            block.id,
+            BlockId::SUNFLOWER
+                | BlockId::LILAC
+                | BlockId::ROSE_BUSH
+                | BlockId::PEONY
+                | BlockId::PITCHER_PLANT
+                | BlockId::TALL_GRASS
+                | BlockId::LARGE_FERN
+                | BlockId::TALL_SEAGRASS
+                | BlockId::SMALL_DRIPLEAF
+                | BlockId::PITCHER_CROP
+        ) {
             if !chunk.is_air(&pos.up().0) {
                 return false;
             }

@@ -558,7 +558,7 @@ impl DataComponentImpl for PotDecorationsImpl {
                 .iter()
                 .map(|id| {
                     let item = crate::item::Item::from_id(*id).unwrap_or(&crate::item::Item::BRICK);
-                    NbtTag::String(item.registry_key.to_string())
+                    NbtTag::String(item.registry_key.into())
                 })
                 .collect(),
         )
