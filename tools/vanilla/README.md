@@ -423,8 +423,9 @@ The separate book oracle exports 42 accepted/rejected codec cases and valid NBT,
 network and CRC32C states, including filtered values, styled pages, generations,
 resolution, Unicode and length boundaries. Network comparison is byte-for-byte
 for string-only pages and semantic for text compounds whose field order may differ.
-Predicate fixtures do not yet cover attribute/jukebox codecs or malformed lock
-fallback. They are not live menu, packet feedback or all-component certification.
+The separate attribute and jukebox fixtures below cover those components.
+Malformed lock fallback, live menus, packet feedback and all-component
+certification remain open.
 
 ### Jukebox holders and persistence failures
 
@@ -449,3 +450,31 @@ component playback, named/empty/direct predicates, item persistence failure,
 nested item rejection, actual jukebox save omission and registered-song reloads.
 This does not certify live sound delivery, registry reloads, every save caller,
 arbitrary inline identifiers or raw comparator propagation outside u8.
+
+### Attribute components and computed values
+
+`AttributeComponentOracle.java` exports 1,688 component states (including every
+built-in item prototype), 11 predicates / 18,568 evaluations, malformed codec
+cases and 96 network enum/identifier edge cases. Tests compare canonical NBT,
+hashes, network round trips and generated item prototypes. Override text network
+encoding is compared semantically; simple/hidden displays are byte-exact.
+
+`AttributeValueOracle.java` exports all 40 registered attribute ranges to
+`assets/attributes.json`, 1,600 actual Java `AttributeInstance` values as raw bits,
+and all 88 equipment slot/group decisions. Values include finite extremes,
+infinity, NaN and signed zero, with up to one modifier per operation. It deliberately
+does not certify hash-map iteration order for multiple same-operation modifiers.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*:/tmp' -d /tmp tools/vanilla/AttributeComponentOracle.java tools/vanilla/AttributeValueOracle.java
+java -cp '../comparison/downloads/classpath/*:/tmp' AttributeComponentOracle
+java -cp '../comparison/downloads/classpath/*:/tmp' AttributeValueOracle
+cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- attributes
+cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- item
+```
+
+Rust integration tests use actual equipment notifications, effects, saved permanent
+bonuses, slot filtering and armor absorption. These are not live player attack,
+Bedrock packet or complete entity behavior certification. Item code generation
+currently accepts default/hidden prototype displays; runtime override displays
+are supported, but generating new prototype override text is still open.

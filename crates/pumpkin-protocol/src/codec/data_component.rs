@@ -1583,46 +1583,71 @@ impl DataComponentCodec<Self> for CanBreakImpl {
 
 impl DataComponentCodec<Self> for AttributeModifiersImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_var_int(&VarInt::from(self.attribute_modifiers.len() as i32))?;
-        for modifier in self.attribute_modifiers.iter() {
-            seq.write_var_int(&VarInt::from(modifier.r#type.id as i32))?;
-            seq.write_string(modifier.id)?;
-            seq.write_f64(modifier.amount)?;
-            seq.write_var_int(&VarInt::from(modifier.operation as i32))?;
-            let slot_id = match modifier.slot {
-                pumpkin_data::enchantment::AttributeModifierSlot::Any => 0,
-                pumpkin_data::enchantment::AttributeModifierSlot::MainHand => 1,
-                pumpkin_data::enchantment::AttributeModifierSlot::OffHand => 2,
-                pumpkin_data::enchantment::AttributeModifierSlot::Hand => 3,
-                pumpkin_data::enchantment::AttributeModifierSlot::Feet => 4,
-                pumpkin_data::enchantment::AttributeModifierSlot::Legs => 5,
-                pumpkin_data::enchantment::AttributeModifierSlot::Chest => 6,
-                pumpkin_data::enchantment::AttributeModifierSlot::Head => 7,
-                pumpkin_data::enchantment::AttributeModifierSlot::Armor => 8,
-                pumpkin_data::enchantment::AttributeModifierSlot::Body => 9,
-                pumpkin_data::enchantment::AttributeModifierSlot::Saddle => 10,
-            };
-            seq.write_var_int(&VarInt(slot_id))?;
-            seq.write_var_int(&VarInt(0))?;
+        seq.write_var_int(&VarInt(
+            i32::try_from(self.attribute_modifiers.len())
+                .map_err(|_| WritingError::Message("Too many attribute modifiers".into()))?,
+        ))?;
+        for m in self.attribute_modifiers.iter() {
+            seq.write_var_int(&VarInt(i32::from(m.r#type.id)))?;
+            let id = pumpkin_util::resource_location::normalize_identifier(&m.id)
+                .ok_or_else(|| WritingError::Message("Invalid modifier identifier".into()))?;
+            seq.write_string(&id)?;
+            seq.write_f64(m.amount)?;
+            seq.write_var_int(&VarInt(m.operation as i32))?;
+            seq.write_var_int(&VarInt(m.slot.network_id()))?;
+            seq.write_var_int(&VarInt(m.display.network_id()))?;
+            if let AttributeModifierDisplay::Override(text) = &m.display {
+                seq.write_slice(&text.encode_for_version(&JavaMinecraftVersion::V_26_2))?;
+            }
         }
         Ok(())
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let len = seq.get_var_int()?.0 as usize;
+        let len = seq.get_var_int()?.0;
+        if len < 0 {
+            return Err(ReadingError::Message(
+                "Negative attribute modifier count".into(),
+            ));
+        }
+        let mut modifiers = Vec::new();
         for _ in 0..len {
-            let _attr_id = seq.get_var_int()?;
-            let _id = seq.get_str()?;
-            let _amount = seq.get_f64()?;
-            let _operation = seq.get_var_int()?;
-            let _slot = seq.get_var_int()?;
-            let display_type = seq.get_var_int()?.0;
-            if display_type == 2 {
-                let _ = seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?;
-            }
+            let id = seq.get_var_int()?.0;
+            let attr = pumpkin_data::attributes::Attributes::ALL
+                .iter()
+                .find(|attr| i32::from(attr.id) == id)
+                .ok_or_else(|| ReadingError::Message(format!("Invalid attribute id {id}")))?;
+            let id = pumpkin_util::resource_location::normalize_identifier(&seq.get_str()?)
+                .ok_or_else(|| ReadingError::Message("Invalid modifier identifier".into()))?;
+            let amount = seq.get_f64()?;
+            let operation = Operation::from_network_id(seq.get_var_int()?.0);
+            let slot = pumpkin_data::AttributeModifierSlot::from_network_id(seq.get_var_int()?.0);
+            let display = match seq.get_var_int()?.0 {
+                1 => AttributeModifierDisplay::Hidden,
+                2 => {
+                    let tag = seq
+                        .get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?
+                        .ok_or_else(|| {
+                            ReadingError::Message("Missing attribute display text".into())
+                        })?;
+                    AttributeModifierDisplay::Override(
+                        pumpkin_util::text::TextComponent::try_from_nbt(&tag).ok_or_else(|| {
+                            ReadingError::Message("Invalid attribute display text".into())
+                        })?,
+                    )
+                }
+                _ => AttributeModifierDisplay::Default,
+            };
+            modifiers.push(Modifier {
+                r#type: attr,
+                id: id.into(),
+                amount,
+                operation,
+                slot,
+                display,
+            });
         }
         Ok(Self {
-            attribute_modifiers: Cow::Borrowed(&[]),
+            attribute_modifiers: modifiers.into(),
         })
     }
 }

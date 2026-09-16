@@ -266,14 +266,26 @@ impl ToTokens for ItemComponents {
                 let amount = modifier.amount;
                 let operation = Ident::new(&format!("{:?}", modifier.operation), Span::call_site());
                 let slot = modifier.slot.to_tokens();
+                let display = match modifier
+                    .display
+                    .as_ref()
+                    .and_then(|v| v.get("type"))
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("default")
+                {
+                    "default" => quote! { AttributeModifierDisplay::Default },
+                    "hidden" => quote! { AttributeModifierDisplay::Hidden },
+                    other => panic!("Unsupported generated attribute display: {other}"),
+                };
 
                 quote! {
                     Modifier {
                         r#type: &Attributes::#r#type,
-                        id: #id,
+                        id: Cow::Borrowed(#id),
                         amount: #amount,
                         operation: Operation::#operation,
                         slot: #slot,
+                        display: #display,
                     }
                 }
             });
@@ -1166,6 +1178,8 @@ pub struct Modifier {
     // TODO: Make this an enum
     /// Equipment slot in which this modifier is active.
     pub slot: AttributeModifierSlot,
+    #[serde(default)]
+    pub display: Option<serde_json::Value>,
 }
 
 /// Serde default helper returning `true`.

@@ -75,11 +75,11 @@ fn range(value: Option<&NbtTag>, number: f64) -> bool {
     value.is_none_or(|value| match value {
         NbtTag::Compound(c) => {
             c.get("min")
-                .is_none_or(|v| self::number(v).is_some_and(|v| number >= v))
+                .is_none_or(|v| self::number(v).is_some_and(|v| !(number < v)))
                 && c.get("max")
-                    .is_none_or(|v| self::number(v).is_some_and(|v| number <= v))
+                    .is_none_or(|v| self::number(v).is_some_and(|v| !(number > v)))
         }
-        value => self::number(value) == Some(number),
+        value => self::number(value).is_some_and(|v| !(number < v || number > v)),
     })
 }
 fn collection<T>(predicate: &NbtTag, values: &[T], test: impl Fn(&NbtTag, &T) -> bool) -> bool {

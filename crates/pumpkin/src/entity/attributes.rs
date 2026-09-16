@@ -42,6 +42,14 @@ impl AttributeInstance {
         }
     }
 
+    pub fn set_base_value(&mut self, value: f64) {
+        // Java's equality check keeps the existing sign when replacing +0 with -0.
+        if self.base_value != value {
+            self.base_value = value;
+            self.dirty.store(true, Ordering::Relaxed);
+        }
+    }
+
     pub fn value(&self) -> f64 {
         if !self.dirty.load(Ordering::Relaxed) {
             return f64::from_bits(self.cached_value.load(Ordering::Relaxed));
@@ -49,23 +57,23 @@ impl AttributeInstance {
 
         let mut value = self.base_value;
 
-        let mut add_sum = 0.0;
-        let mut mul_base = 0.0;
-        let mut mul_total = 1.0;
-        for m in &self.modifiers {
-            match m.operation {
-                ModifierOperation::Add => add_sum += m.amount,
-                ModifierOperation::MultiplyBase => mul_base += m.amount,
-                ModifierOperation::MultiplyTotal => mul_total *= 1.0 + m.amount,
+        // Java applies each operation in sequence; collecting sums/products first
+        // changes floating-point rounding and overflow behavior.
+        for modifier in &self.modifiers {
+            if modifier.operation == ModifierOperation::Add {
+                value += modifier.amount;
             }
         }
-
-        value += add_sum;
-        value *= 1.0 + mul_base;
-        value *= mul_total;
-
-        if value.is_nan() || value.is_infinite() {
-            value = self.base_value;
+        let base = value;
+        for modifier in &self.modifiers {
+            if modifier.operation == ModifierOperation::MultiplyBase {
+                value += base * modifier.amount;
+            }
+        }
+        for modifier in &self.modifiers {
+            if modifier.operation == ModifierOperation::MultiplyTotal {
+                value *= 1.0 + modifier.amount;
+            }
         }
 
         self.cached_value.store(value.to_bits(), Ordering::Relaxed);

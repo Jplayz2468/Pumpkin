@@ -1302,8 +1302,46 @@ whole inside-effect pipeline matches Java yet.
   separately passing localhost tests excluded. The final targeted run passed both
   jukebox tests, including the explicit Java `TagValueOutput` assertion added
   after the full run.
-- Remaining: attribute component/predicate codecs; malformed lock codec fallback;
+- Remaining at that checkpoint: attribute component/predicate codecs (addressed
+  in the continuation below); malformed lock codec fallback;
   dynamic registry reloads; complete fallible persistence/hash plumbing and error
   reporting; arbitrary inline sound identifier validation; raw comparator outputs
   outside the engine's u8 interface; and live client/Bedrock integration. The other
   D01–D06 and block gates remain open. No full mob pass was started.
+
+## Attribute components and shared equipment calculations
+
+- Attribute components now retain modifier IDs, operations, slots and display
+  settings through NBT, network and hashes. Dynamic modifier IDs are owned rather
+  than leaked. All built-in item prototypes preserve their 184 modifiers,
+  including eight hidden displays across the 93 nonempty item definitions.
+- `AttributeComponentOracle` covers 1,688 component states, all 40 registered
+  attributes, 11 slot groups, three operations and three display variants. Tests
+  compare canonical NBT, hashes, network decoding, prototype components and
+  18,568 exact/partial item-predicate evaluations. Another 96 network cases cover
+  Java's default enum fallback and identifier normalization. Override text wire
+  comparison is semantic because compound field order can differ.
+- Imported all 40 Java attribute ranges. Computed values now use sequential
+  operation arithmetic and Java bounds/NaN handling. Base-value replacement
+  preserves Java's signed-zero equality behavior. `AttributeValueOracle` provides
+  1,600 exact-bit computed values and all 88 slot-group/slot decisions. The armor
+  group now includes animal body armor.
+- Removed the second held-weapon update that replaced complete attack modifier
+  lists, erasing effects and permanent bonuses. Ordinary melee and spear jabs
+  now consume computed attack damage/speed without adding equipment or Strength/
+  Weakness twice. Empty-hand attack speed uses the attribute default. Armor damage
+  now uses computed armor/toughness, with Java's integer floor for armor.
+- Production integration tests exercise repeated weapon changes, permanent bonuses,
+  Strength application/removal, slot filtering, unarmed speed and armor absorption.
+  Java arithmetic fixtures run through the real living-entity attribute accessor.
+- Background full six-package run 4 passed **1,087 tests**: 566 engine,
+  74 data, 23 inventory, 117 protocol, 66 utility and 241 world. The same two
+  previously separately passing localhost tests were excluded. The final focused
+  run passed all three production attribute integration tests after adding the
+  animal-armor slot correction and all 88 Java slot/group expectations.
+- Remaining attribute limits: Java hash-map iteration ordering for multiple
+  modifiers in the same operation, shared modifier IDs across simultaneous slots,
+  arbitrary prototype override-text code generation, and full live combat/client
+  packet validation. This checkpoint does not certify all combat/enchantment paths,
+  dynamic registry reloads, every malformed component, or the other D01–D06/block
+  gates. Full mob passes remain paused.

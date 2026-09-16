@@ -11,10 +11,8 @@ use crate::world::World;
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::data_component_impl::{
-    AttackRangeImpl, AttributeModifiersImpl, EnchantmentsImpl, KineticWeaponImpl, Operation,
-    PiercingWeaponImpl,
+    AttackRangeImpl, EnchantmentsImpl, KineticWeaponImpl, PiercingWeaponImpl,
 };
-use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::{EntityStatus, EntityType};
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
@@ -79,13 +77,13 @@ impl ItemBehaviour for SpearItem {
         };
 
         let tps = f64::from(server.basic_config.tps);
-        let attack_delay = tps / Self::attack_speed(player, stack);
+        let attack_delay = tps / Self::attack_speed(player);
         let elapsed = f64::from(player.last_attacked_ticks.load(Ordering::Acquire));
         if elapsed + 5.0 < attack_delay {
             return;
         }
 
-        let damage = Self::attack_damage(player, stack) as f32;
+        let damage = Self::attack_damage(player) as f32;
         let mut hit_something = false;
         for target in Self::targets_in_range(player, &server, stack) {
             hit_something |= Self::stab_attack(
@@ -165,8 +163,7 @@ impl SpearItem {
         if !Self::is_using_hand(player, hand) {
             let tps = f64::from(server.basic_config.tps);
             let charge =
-                player.get_attack_cooldown_progress(tps, 0.5, Self::attack_speed(player, stack))
-                    as f32;
+                player.get_attack_cooldown_progress(tps, 0.5, Self::attack_speed(player)) as f32;
             magic_boost *= charge;
             base_damage *= charge.mul_add(charge * 0.8, 0.2);
         }
@@ -335,64 +332,16 @@ impl SpearItem {
                 == Some(hand)
     }
 
-    fn attack_damage(player: &Player, stack: &ItemStack) -> f64 {
-        let mut damage = Self::attribute_with_item_modifier(
-            player,
-            stack,
-            &Attributes::ATTACK_DAMAGE,
-            "minecraft:base_attack_damage",
-        );
-        if let Some(strength) = player.living_entity.get_effect(&StatusEffect::STRENGTH) {
-            damage += 3.0 * (f64::from(strength.amplifier) + 1.0);
-        }
-        if let Some(weakness) = player.living_entity.get_effect(&StatusEffect::WEAKNESS) {
-            damage -= 4.0 * (f64::from(weakness.amplifier) + 1.0);
-        }
-        damage.max(0.0)
+    fn attack_damage(player: &Player) -> f64 {
+        player
+            .living_entity
+            .get_attribute_value(&Attributes::ATTACK_DAMAGE)
     }
 
-    fn attack_speed(player: &Player, stack: &ItemStack) -> f64 {
-        Self::attribute_with_item_modifier(
-            player,
-            stack,
-            &Attributes::ATTACK_SPEED,
-            "minecraft:base_attack_speed",
-        )
-        .max(f64::EPSILON)
-    }
-
-    fn attribute_with_item_modifier(
-        player: &Player,
-        stack: &ItemStack,
-        attribute: &Attributes,
-        modifier_id: &str,
-    ) -> f64 {
-        let living = &player.living_entity;
-        let value = living.get_attribute_value(attribute);
-        let already_applied = living
-            .attributes
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .get(&attribute.id)
-            .is_some_and(|instance| {
-                instance
-                    .modifiers
-                    .iter()
-                    .any(|modifier| modifier.id == modifier_id)
-            });
-        if already_applied {
-            return value;
-        }
-        let Some(modifiers) = stack.get_data_component::<AttributeModifiersImpl>() else {
-            return value;
-        };
-        modifiers
-            .attribute_modifiers
-            .iter()
-            .filter(|modifier| {
-                modifier.id == modifier_id && modifier.operation == Operation::AddValue
-            })
-            .fold(value, |value, modifier| value + modifier.amount)
+    fn attack_speed(player: &Player) -> f64 {
+        player
+            .living_entity
+            .get_attribute_value(&Attributes::ATTACK_SPEED)
     }
 
     fn enchantment_damage(stack: &ItemStack, target: &Entity) -> f64 {

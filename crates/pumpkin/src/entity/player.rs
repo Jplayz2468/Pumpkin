@@ -233,7 +233,7 @@ impl BedrockPlayer<'_> {
 use pumpkin_data::attributes::Attributes;
 use pumpkin_data::block_properties::HorizontalFacing;
 use pumpkin_data::damage::DamageType;
-use pumpkin_data::data_component_impl::{AttributeModifiersImpl, EnchantmentsImpl, Operation};
+use pumpkin_data::data_component_impl::EnchantmentsImpl;
 use pumpkin_data::data_component_impl::{EquipmentSlot, EquippableImpl, ToolImpl, WeaponImpl};
 use pumpkin_data::effect::StatusEffect;
 use pumpkin_data::entity::{EntityPose, EntityStatus, EntityType};
@@ -1210,29 +1210,11 @@ impl Player {
         let base_damage = self
             .living_entity
             .get_attribute_value(&Attributes::ATTACK_DAMAGE);
-        let base_attack_speed = 4.0;
-
-        let mut add_damage = 0.0;
-        let mut add_speed = 0.0;
         let mut extra_ench_damage = 0.0;
         let mut knockback_level = 0u32;
 
         {
             let stack = &item_stack;
-            if stack.is_empty() {
-                // Vanilla fist: base_attack_speed = -2.4
-                add_speed = -2.4;
-            } else if let Some(modifiers) = stack.get_data_component::<AttributeModifiersImpl>() {
-                for item_mod in modifiers.attribute_modifiers.iter() {
-                    if item_mod.operation == Operation::AddValue {
-                        if item_mod.id == "minecraft:base_attack_damage" {
-                            add_damage = item_mod.amount;
-                        } else if item_mod.id == "minecraft:base_attack_speed" {
-                            add_speed = item_mod.amount;
-                        }
-                    }
-                }
-            }
             if let Some(enchantments) = stack.get_data_component::<EnchantmentsImpl>() {
                 for (enchantment, level) in enchantments.enchantment.iter() {
                     if **enchantment == Enchantment::SHARPNESS {
@@ -1273,12 +1255,9 @@ impl Player {
             }
         }
 
-        let attack_speed = if spin_weapon.is_some() {
-            self.living_entity
-                .get_attribute_value(&Attributes::ATTACK_SPEED)
-        } else {
-            base_attack_speed + add_speed
-        };
+        let attack_speed = self
+            .living_entity
+            .get_attribute_value(&Attributes::ATTACK_SPEED);
 
         let is_bedrock = matches!(self.client.as_ref(), ClientPlatform::Bedrock(_));
         let attack_cooldown_progress = if is_bedrock {
@@ -1291,29 +1270,14 @@ impl Player {
         // Vanilla `Player.baseDamageScaleFactor` (Player.java:1207-1210) is applied
         // unconditionally; at `attack_cooldown_progress == 1.0` it evaluates to
         // exactly `1.0`, so this is equivalent to the old "only if in cooldown" gate.
-        // TODO: Enchantments are reduced in the same way, just without the square.
         let damage_multiplier = combat::base_damage_scale_factor(attack_cooldown_progress);
 
-        // Modify the added damage based on the multiplier.
+        // Equipment and effects are already included in the computed attribute.
         let mut damage = spin_weapon
             .as_ref()
-            .map_or(base_damage + add_damage, |(damage, _)| f64::from(*damage))
+            .map_or(base_damage, |(damage, _)| f64::from(*damage))
             * damage_multiplier;
 
-        if spin_weapon.is_none()
-            && let Some(strength) = self
-                .living_entity
-                .get_effect(&pumpkin_data::effect::StatusEffect::STRENGTH)
-        {
-            damage += 3.0 * (f64::from(strength.amplifier) + 1.0);
-        }
-        if spin_weapon.is_none()
-            && let Some(weakness) = self
-                .living_entity
-                .get_effect(&pumpkin_data::effect::StatusEffect::WEAKNESS)
-        {
-            damage -= 4.0 * (f64::from(weakness.amplifier) + 1.0);
-        }
         damage = damage.max(0.0);
 
         let pos = victim_entity.pos.load();

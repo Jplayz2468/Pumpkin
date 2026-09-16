@@ -1609,3 +1609,13 @@ holders through nested containers. Java coverage includes all 22 registered song
 suite: 1,082 passed with the established two socket-test exclusions. Remaining
 codec, persistence-caller and live-integration limits are in ENGINE_GAPS.md.
 Full mob passes remain paused; engine/block parity is not yet complete.
+
+### Attribute components / equipment checkpoint
+
+Attribute codecs, hashes, generated prototypes and exact/partial predicates now
+preserve IDs, operations, slots and display settings. Java fixtures cover 1,688
+component states, 18,568 predicates and 96 wire edge cases. Shared attribute values
+use all 40 Java ranges, with 1,600 exact-bit cases and 88 slot-group decisions.
+Equipment changes preserve effects/permanent bonuses; melee/spear damage and armor
+absorption use computed attributes. Detailed limits and verification are recorded
+in ENGINE_GAPS.md. Full mob passes remain paused; engine/block parity is still open.

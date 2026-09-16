@@ -465,9 +465,6 @@ impl LivingEntity {
 
         let mut sent_editioned = false;
         for (slot, stack) in equipment {
-            if *slot == EquipmentSlot::MAIN_HAND {
-                self.update_weapon_attributes(stack);
-            }
             if *slot == EquipmentSlot::MAIN_HAND || *slot == EquipmentSlot::OFF_HAND {
                 let window_id = if *slot == EquipmentSlot::OFF_HAND {
                     120
@@ -498,64 +495,6 @@ impl LivingEntity {
                 .world
                 .load()
                 .send_to_tracking_players(&self.entity, &je_packet);
-        }
-    }
-
-    /// Applies the held item's attack attribute modifiers to this entity's
-    /// attribute map and sends the changed attributes to clients. Without this
-    /// the client never sees the reduced attack speed and does not show the
-    /// crosshair attack indicator.
-    fn update_weapon_attributes(&self, stack: &ItemStack) {
-        let component = stack.get_data_component::<AttributeModifiersImpl>();
-
-        // Single pass over the item's modifiers, split by attribute.
-        let mut speed_modifiers: Vec<Modifier> = Vec::new();
-        let mut damage_modifiers: Vec<Modifier> = Vec::new();
-        for modifier in component
-            .into_iter()
-            .flat_map(|c| c.attribute_modifiers.iter())
-        {
-            let target = if modifier.r#type == &Attributes::ATTACK_SPEED {
-                &mut speed_modifiers
-            } else if modifier.r#type == &Attributes::ATTACK_DAMAGE {
-                &mut damage_modifiers
-            } else {
-                continue;
-            };
-            target.push(Modifier {
-                id: modifier.id.to_string(),
-                amount: modifier.amount,
-                operation: match modifier.operation {
-                    Operation::AddValue => ModifierOperation::Add,
-                    Operation::AddMultipliedBase => ModifierOperation::MultiplyBase,
-                    Operation::AddMultipliedTotal => ModifierOperation::MultiplyTotal,
-                },
-            });
-        }
-
-        let mut changed: Vec<Attributes> = Vec::new();
-        {
-            let mut attributes = self
-                .attributes
-                .write()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for (attribute, modifiers) in [
-                (Attributes::ATTACK_SPEED, speed_modifiers),
-                (Attributes::ATTACK_DAMAGE, damage_modifiers),
-            ] {
-                let instance = attributes
-                    .entry(attribute.id)
-                    .or_insert_with(|| AttributeInstance::new(attribute.default_value));
-                if instance.modifiers == modifiers {
-                    continue;
-                }
-                instance.modifiers = modifiers;
-                instance.dirty.store(true, Ordering::Relaxed);
-                changed.push(attribute);
-            }
-        }
-        if !changed.is_empty() {
-            crate::entity::attributes::send_attribute_updates_for_living(self, changed);
         }
     }
 
@@ -1143,8 +1082,10 @@ impl LivingEntity {
             .attributes
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        map.get(&attribute.id)
-            .map_or(attribute.default_value, AttributeInstance::value)
+        attribute.sanitize_value(
+            map.get(&attribute.id)
+                .map_or(attribute.default_value, AttributeInstance::value),
+        )
     }
 
     /// Returns the base attribute value for `attribute` for this entity's type.
@@ -1174,14 +1115,9 @@ impl LivingEntity {
             .attributes
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some(inst) = map.get_mut(&attribute.id) {
-            inst.base_value = new_base;
-            inst.dirty.store(true, Ordering::Relaxed);
-        } else {
-            let ai = AttributeInstance::new(new_base);
-            ai.dirty.store(true, Ordering::Relaxed);
-            map.insert(attribute.id, ai);
-        }
+        let instance = map.entry(attribute.id)
+            .or_insert_with(|| AttributeInstance::new(attribute.default_value));
+        instance.set_base_value(new_base);
     }
 
     pub fn reset_effects_and_attributes(&self) {
@@ -3250,33 +3186,8 @@ impl LivingEntity {
         // override it either, so this hook is a genuine no-op for them, matching vanilla.
         caller.hurt_armor(*damage_type, damage);
 
-        let mut armor = 0.0f32;
-        let mut toughness = 0.0f32;
-        {
-            let equipment_lock = self
-                .entity_equipment
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            for slot in [
-                EquipmentSlot::HEAD,
-                EquipmentSlot::CHEST,
-                EquipmentSlot::LEGS,
-                EquipmentSlot::FEET,
-            ] {
-                if let Some(stack) = equipment_lock.equipment.get(&slot)
-                    && !stack.is_empty()
-                    && let Some(modifiers) = stack.get_data_component::<AttributeModifiersImpl>()
-                {
-                    for modifier in modifiers.attribute_modifiers.iter() {
-                        if modifier.r#type == &Attributes::ARMOR {
-                            armor += modifier.amount as f32;
-                        } else if modifier.r#type == &Attributes::ARMOR_TOUGHNESS {
-                            toughness += modifier.amount as f32;
-                        }
-                    }
-                }
-            }
-        }
+        let armor = self.get_attribute_value(&Attributes::ARMOR).floor() as i32 as f32;
+        let toughness = self.get_attribute_value(&Attributes::ARMOR_TOUGHNESS) as f32;
 
         let breach_level = attacker
             .and_then(|att| {
@@ -4444,6 +4355,7 @@ const fn attribute_modifier_slot_matches(
                 | EquipmentSlot::Legs(_)
                 | EquipmentSlot::Chest(_)
                 | EquipmentSlot::Head(_)
+                | EquipmentSlot::Body(_)
         ),
         AttributeModifierSlot::Body => matches!(equipment_slot, EquipmentSlot::Body(_)),
         AttributeModifierSlot::Saddle => matches!(equipment_slot, EquipmentSlot::Saddle(_)),
@@ -4828,3 +4740,7 @@ mod swing_tests {
         assert!(should_restart_swing(true, 2, hasted));
     }
 }
+
+#[cfg(test)]
+#[path = "attribute_integration_tests.rs"]
+mod attribute_integration_tests;

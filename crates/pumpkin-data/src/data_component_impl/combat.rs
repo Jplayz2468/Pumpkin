@@ -25,37 +25,253 @@ pub enum Operation {
     AddMultipliedBase,
     AddMultipliedTotal,
 }
-
-#[derive(Clone, Debug, PartialEq)]
+impl Operation {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::AddValue => "add_value",
+            Self::AddMultipliedBase => "add_multiplied_base",
+            Self::AddMultipliedTotal => "add_multiplied_total",
+        }
+    }
+    pub fn from_name(name: &str) -> Option<Self> {
+        match name {
+            "add_value" => Some(Self::AddValue),
+            "add_multiplied_base" => Some(Self::AddMultipliedBase),
+            "add_multiplied_total" => Some(Self::AddMultipliedTotal),
+            _ => None,
+        }
+    }
+    pub fn from_network_id(id: i32) -> Self {
+        match id {
+            1 => Self::AddMultipliedBase,
+            2 => Self::AddMultipliedTotal,
+            _ => Self::AddValue,
+        }
+    }
+}
+impl crate::AttributeModifierSlot {
+    pub const NAMES: [&'static str; 11] = [
+        "any", "mainhand", "offhand", "hand", "feet", "legs", "chest", "head", "armor", "body",
+        "saddle",
+    ];
+    pub fn network_id(&self) -> i32 {
+        match self {
+            Self::Any => 0,
+            Self::MainHand => 1,
+            Self::OffHand => 2,
+            Self::Hand => 3,
+            Self::Feet => 4,
+            Self::Legs => 5,
+            Self::Chest => 6,
+            Self::Head => 7,
+            Self::Armor => 8,
+            Self::Body => 9,
+            Self::Saddle => 10,
+        }
+    }
+    pub fn name(&self) -> &'static str {
+        Self::NAMES[self.network_id() as usize]
+    }
+    pub fn from_name(name: &str) -> Option<Self> {
+        Self::NAMES
+            .iter()
+            .position(|v| *v == name)
+            .map(|id| Self::from_network_id(id as i32))
+    }
+    pub fn from_network_id(id: i32) -> Self {
+        match id {
+            1 => Self::MainHand,
+            2 => Self::OffHand,
+            3 => Self::Hand,
+            4 => Self::Feet,
+            5 => Self::Legs,
+            6 => Self::Chest,
+            7 => Self::Head,
+            8 => Self::Armor,
+            9 => Self::Body,
+            10 => Self::Saddle,
+            _ => Self::Any,
+        }
+    }
+}
+#[derive(Clone, Debug, Default, Hash, PartialEq, Eq)]
+pub enum AttributeModifierDisplay {
+    #[default]
+    Default,
+    Hidden,
+    Override(pumpkin_util::text::TextComponent),
+}
+impl AttributeModifierDisplay {
+    pub fn network_id(&self) -> i32 {
+        match self {
+            Self::Default => 0,
+            Self::Hidden => 1,
+            Self::Override(_) => 2,
+        }
+    }
+    fn read(tag: &NbtTag) -> Option<Self> {
+        let c = tag.extract_compound()?;
+        match c.get_string("type")? {
+            "default" => Some(Self::Default),
+            "hidden" => Some(Self::Hidden),
+            "override" => Some(Self::Override(
+                pumpkin_util::text::TextComponent::try_from_nbt(c.get("value")?)?,
+            )),
+            _ => None,
+        }
+    }
+    fn write(&self) -> NbtTag {
+        let mut c = NbtCompound::new();
+        c.put_string(
+            "type",
+            match self {
+                Self::Default => "default",
+                Self::Hidden => "hidden",
+                Self::Override(_) => "override",
+            }
+            .into(),
+        );
+        if let Self::Override(text) = self {
+            c.put(
+                "value",
+                text.to_nbt_tag_for_version(&pumpkin_util::version::JavaMinecraftVersion::V_26_2),
+            );
+        }
+        NbtTag::Compound(c)
+    }
+    fn component_hash(&self) -> u32 {
+        let name = match self {
+            Self::Default => "default",
+            Self::Hidden => "hidden",
+            Self::Override(_) => "override",
+        };
+        let mut fields = vec![(get_str_hash("type"), get_str_hash(name))];
+        if let Self::Override(text) = self {
+            fields.push((get_str_hash("value"), crate::component_hash::text(text)));
+        }
+        crate::component_hash::map(fields)
+    }
+}
+#[derive(Clone, Debug)]
 pub struct Modifier {
     pub r#type: &'static Attributes,
-    pub id: &'static str,
+    pub id: Cow<'static, str>,
     pub amount: f64,
     pub operation: Operation,
     pub slot: crate::AttributeModifierSlot,
+    pub display: AttributeModifierDisplay,
+}
+fn java_double_bits(value: f64) -> u64 {
+    if value.is_nan() {
+        f64::NAN.to_bits()
+    } else {
+        value.to_bits()
+    }
+}
+impl PartialEq for Modifier {
+    fn eq(&self, other: &Self) -> bool {
+        self.r#type == other.r#type
+            && self.id == other.id
+            && java_double_bits(self.amount) == java_double_bits(other.amount)
+            && self.operation == other.operation
+            && self.slot == other.slot
+            && self.display == other.display
+    }
 }
 impl Hash for Modifier {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.r#type.hash(state);
         self.id.hash(state);
-        unsafe { (*(&raw const self.amount).cast::<u64>()).hash(state) };
+        java_double_bits(self.amount).hash(state);
         self.operation.hash(state);
         self.slot.hash(state);
+        self.display.hash(state);
     }
 }
-
 #[derive(Clone, Debug, Hash, PartialEq)]
 pub struct AttributeModifiersImpl {
     pub attribute_modifiers: Cow<'static, [Modifier]>,
 }
 impl AttributeModifiersImpl {
-    pub const fn read_data(_data: &NbtTag) -> Option<Self> {
+    pub fn read_data(data: &NbtTag) -> Option<Self> {
+        let mut modifiers = Vec::new();
+        for tag in data.extract_list()? {
+            let c = tag.extract_compound()?;
+            let name =
+                pumpkin_util::resource_location::normalize_identifier(c.get_string("type")?)?;
+            let attr = Attributes::ALL.iter().find(|attr| attr.name == name)?;
+            let id = pumpkin_util::resource_location::normalize_identifier(c.get_string("id")?)?;
+            let amount = match c.get("amount")? {
+                NbtTag::Byte(v) => f64::from(*v),
+                NbtTag::Short(v) => f64::from(*v),
+                NbtTag::Int(v) => f64::from(*v),
+                NbtTag::Long(v) => *v as f64,
+                NbtTag::Float(v) => f64::from(*v),
+                NbtTag::Double(v) => *v,
+                _ => return None,
+            };
+            modifiers.push(Modifier {
+                r#type: attr,
+                id: id.into(),
+                amount,
+                operation: Operation::from_name(c.get_string("operation")?)?,
+                slot: match c.get("slot") {
+                    Some(v) => crate::AttributeModifierSlot::from_name(v.extract_string()?)?,
+                    None => crate::AttributeModifierSlot::Any,
+                },
+                display: match c.get("display") {
+                    Some(v) => AttributeModifierDisplay::read(v)?,
+                    None => AttributeModifierDisplay::Default,
+                },
+            });
+        }
         Some(Self {
-            attribute_modifiers: Cow::Borrowed(&[]),
+            attribute_modifiers: modifiers.into(),
         })
     }
 }
 impl DataComponentImpl for AttributeModifiersImpl {
+    fn write_data(&self) -> NbtTag {
+        NbtTag::List(
+            self.attribute_modifiers
+                .iter()
+                .map(|m| {
+                    let mut c = NbtCompound::new();
+                    c.put_string("type", m.r#type.name.into());
+                    c.put_string("id", m.id.to_string());
+                    c.put_double("amount", m.amount);
+                    c.put_string("operation", m.operation.name().into());
+                    if m.slot != crate::AttributeModifierSlot::Any {
+                        c.put_string("slot", m.slot.name().into());
+                    }
+                    if m.display != AttributeModifierDisplay::Default {
+                        c.put("display", m.display.write());
+                    }
+                    NbtTag::Compound(c)
+                })
+                .collect(),
+        )
+    }
+    fn get_hash(&self) -> i32 {
+        crate::component_hash::list(self.attribute_modifiers.iter().map(|m| {
+            let mut d = Digest::new(Crc32Iscsi);
+            d.update(&[11]);
+            d.update(&m.amount.to_bits().to_le_bytes());
+            let mut fields = vec![
+                (get_str_hash("type"), get_str_hash(m.r#type.name)),
+                (get_str_hash("id"), get_str_hash(&m.id)),
+                (get_str_hash("amount"), d.finalize() as u32),
+                (get_str_hash("operation"), get_str_hash(m.operation.name())),
+            ];
+            if m.slot != crate::AttributeModifierSlot::Any {
+                fields.push((get_str_hash("slot"), get_str_hash(m.slot.name())));
+            }
+            if m.display != AttributeModifierDisplay::Default {
+                fields.push((get_str_hash("display"), m.display.component_hash()));
+            }
+            crate::component_hash::map(fields)
+        })) as i32
+    }
     default_impl!(AttributeModifiers);
 }
 

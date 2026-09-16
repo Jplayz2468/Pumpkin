@@ -120,3 +120,6 @@ pub mod predicate;
 
 #[cfg(test)]
 mod jukebox_component_tests;
+
+#[cfg(test)]
+mod attribute_component_tests;
