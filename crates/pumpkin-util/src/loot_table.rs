@@ -117,7 +117,28 @@ pub enum LootEntryKind {
 }
 
 #[derive(Clone, Copy, Debug)]
+pub enum LootRegistrySet {
+    All,
+    Tag(&'static str),
+    Values(&'static [&'static str]),
+}
+
+#[derive(Clone, Copy, Debug)]
 pub enum LootFunctionKind {
+    EnchantRandomly {
+        options: LootRegistrySet,
+        only_compatible: bool,
+        include_additional_cost: bool,
+    },
+    EnchantWithLevels {
+        levels: LootNumberProvider,
+        options: LootRegistrySet,
+        include_additional_cost: bool,
+    },
+    SetEnchantments {
+        enchantments: &'static [(&'static str, LootNumberProvider)],
+        add: bool,
+    },
     SetCount {
         count: LootNumberProvider,
         add: bool,

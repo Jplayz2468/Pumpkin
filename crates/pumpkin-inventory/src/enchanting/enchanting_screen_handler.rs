@@ -9,7 +9,6 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::screen::WindowType;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::statistic::{CustomStatistic, StatisticCategory};
-use pumpkin_data::tag::{Enchantment as EnchantmentTag, Taggable};
 use pumpkin_util::random::{RandomImpl, legacy_rand::LegacyRand};
 
 use crate::{
@@ -18,6 +17,26 @@ use crate::{
     slot::{NormalSlot, Slot},
     window_property::{EnchantmentTable, WindowProperty},
 };
+
+struct EnchantingSlot(NormalSlot);
+
+impl Slot for EnchantingSlot {
+    fn get_inventory(&self) -> Arc<dyn Inventory> {
+        self.0.get_inventory()
+    }
+    fn get_index(&self) -> usize {
+        self.0.get_index()
+    }
+    fn set_id(&self, id: usize) {
+        self.0.set_id(id);
+    }
+    fn get_max_item_count(&self) -> u8 {
+        1
+    }
+    fn mark_dirty(&self) {
+        self.0.mark_dirty();
+    }
+}
 
 struct LapisSlot(NormalSlot);
 
@@ -82,7 +101,10 @@ impl EnchantingTableScreenHandler {
         };
 
         // Enchanting slots: 0 is item, 1 is lapis
-        handler.add_slot(Arc::new(NormalSlot::new(inventory.clone(), 0)));
+        handler.add_slot(Arc::new(EnchantingSlot(NormalSlot::new(
+            inventory.clone(),
+            0,
+        ))));
         handler.add_slot(Arc::new(LapisSlot::new(inventory.clone())));
 
         let player_inventory: Arc<dyn Inventory> = player_inventory.clone();
@@ -94,18 +116,16 @@ impl EnchantingTableScreenHandler {
     pub fn update_enchantments(&mut self, player: &dyn InventoryPlayer) {
         let item = self.inventory.get_stack(0);
 
-        if item.is_empty() || item.has_enchantments() {
+        if !item.is_enchantable() {
             for i in 0..3 {
                 self.level_requirements[i] = 0;
                 self.enchantment_id[i] = -1;
                 self.enchantment_level[i] = -1;
             }
         } else {
-            let enchantability = item
-                .get_data_component::<EnchantableImpl>()
-                .map_or(0, |e| e.value);
+            let enchantable = item.get_data_component::<EnchantableImpl>();
 
-            if enchantability <= 0 {
+            if enchantable.is_none() {
                 for i in 0..3 {
                     self.level_requirements[i] = 0;
                     self.enchantment_id[i] = -1;
@@ -115,8 +135,13 @@ impl EnchantingTableScreenHandler {
                 let mut random = LegacyRand::from_seed(self.enchantment_seed as u64);
 
                 for i in 0..3 {
-                    let level = self.calculate_level_requirement(&mut random, i);
-                    self.level_requirements[i] = level;
+                    let level = pumpkin_data::enchantment_helper::table_cost(
+                        &mut random,
+                        i,
+                        self.bookshelf_count,
+                        &item,
+                    );
+                    self.level_requirements[i] = if level < i as i32 + 1 { 0 } else { level };
                 }
 
                 for i in 0..3 {
@@ -161,18 +186,6 @@ impl EnchantingTableScreenHandler {
         self.send_property_updates();
     }
 
-    fn calculate_level_requirement(&self, random: &mut LegacyRand, slot: usize) -> i32 {
-        let b = self.bookshelf_count;
-        let level = random.next_bounded_i32(8) + 1 + (b >> 1) + random.next_bounded_i32(b + 1);
-
-        match slot {
-            0 => (level / 3).max(1),
-            1 => (level * 2 / 3 + 7).max(1),
-            2 => level.max(b * 2).max(1),
-            _ => 0,
-        }
-    }
-
     const fn create_enchantment_random(&self, slot: usize) -> LegacyRand {
         LegacyRand::from_seed(self.enchantment_seed.wrapping_add(slot as i32) as u64)
     }
@@ -182,86 +195,7 @@ impl EnchantingTableScreenHandler {
         item: &ItemStack,
         level: i32,
     ) -> Vec<(&'static Enchantment, i32)> {
-        let enchantability = item
-            .get_data_component::<EnchantableImpl>()
-            .map_or(0, |e| e.value);
-        let mut enchant_level = level
-            + 1
-            + random.next_bounded_i32(enchantability / 4 + 1)
-            + random.next_bounded_i32(enchantability / 4 + 1);
-        let bonus = (random.next_f32() + random.next_f32() - 1.0) * 0.15;
-        enchant_level = (enchant_level as f32 * (1.0 + bonus)).round() as i32;
-        enchant_level = enchant_level.max(1);
-
-        let mut available = Vec::new();
-        for enchant in Enchantment::all() {
-            if enchant.has_tag(&EnchantmentTag::MINECRAFT_IN_ENCHANTING_TABLE)
-                && enchant.can_enchant(item.item)
-            {
-                for l in (1..=enchant.max_level).rev() {
-                    if enchant_level >= enchant.min_cost.calculate(l)
-                        && enchant_level <= enchant.max_cost.calculate(l)
-                    {
-                        available.push((*enchant, l));
-                        break;
-                    }
-                }
-            }
-        }
-
-        if available.is_empty() {
-            return Vec::new();
-        }
-
-        let total_weight: i32 = available.iter().map(|(e, _)| e.weight).sum();
-        if total_weight <= 0 {
-            return Vec::new();
-        }
-
-        let mut weight = random.next_bounded_i32(total_weight);
-        let mut selected = None;
-        for (e, l) in &available {
-            weight -= e.weight;
-            if weight < 0 {
-                selected = Some((*e, *l));
-                break;
-            }
-        }
-
-        let mut result = Vec::new();
-        if let Some(s) = selected {
-            result.push(s);
-
-            // Add more?
-            let mut current_level = enchant_level;
-            while random.next_bounded_i32(50) <= (current_level + 1) / 2 {
-                available.retain(|(e, _)| {
-                    for (se, _) in &result {
-                        if !e.are_compatible(se) {
-                            return false;
-                        }
-                    }
-                    true
-                });
-
-                if available.is_empty() {
-                    break;
-                }
-
-                let total_weight: i32 = available.iter().map(|(e, _)| e.weight).sum();
-                let mut weight = random.next_bounded_i32(total_weight);
-                for (e, l) in &available {
-                    weight -= e.weight;
-                    if weight < 0 {
-                        result.push((*e, *l));
-                        break;
-                    }
-                }
-                current_level /= 2;
-            }
-        }
-
-        result
+        pumpkin_data::enchantment_helper::table_enchantments(random, item, level)
     }
 
     fn send_property_updates(&self) {
@@ -334,7 +268,9 @@ impl ScreenHandler for EnchantingTableScreenHandler {
         }
 
         let level_req = self.level_requirements[id as usize];
-        if player.experience_level() < level_req && !player.is_creative() {
+        if level_req <= 0
+            || (!player.is_creative() && player.experience_level() < level_req.max(id + 1))
+        {
             return false;
         }
 
@@ -375,8 +311,11 @@ impl ScreenHandler for EnchantingTableScreenHandler {
             self.inventory.set_stack(1, lapis_stack);
         }
 
+        if item_stack.item == &Item::BOOK {
+            item_stack.item = &Item::ENCHANTED_BOOK;
+        }
         for (enchant, level) in enchantments {
-            item_stack.add_enchantment(enchant, level as u16);
+            item_stack.enchant(enchant, level);
         }
         self.inventory.set_stack(0, item_stack);
 

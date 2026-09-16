@@ -588,12 +588,46 @@ fn property_lookup_tokens() -> TokenStream {
     } }
 }
 
+fn registry_set_tokens(value: &serde_json::Value) -> TokenStream {
+    match value {
+        serde_json::Value::Null => quote! { LootRegistrySet::All },
+        serde_json::Value::String(name) if name.starts_with('#') => {
+            let name = &name[1..]; quote! { LootRegistrySet::Tag(#name) }
+        }
+        serde_json::Value::String(name) => quote! { LootRegistrySet::Values(&[#name]) },
+        serde_json::Value::Array(values) => {
+            let names: Vec<_> = values.iter().map(|value| value.as_str().expect("registry identifier")).collect();
+            quote! { LootRegistrySet::Values(&[#(#names),*]) }
+        }
+        _ => panic!("invalid registry set"),
+    }
+}
+
 fn functions_tokens(functions: &[EntryFunctionStruct]) -> TokenStream {
     let functions: Vec<_> = functions.iter().map(|function| {
         let condition = condition_to_tokens(combine_conditions(&function.conditions));
         let f = &function.fields;
         let field = |key: &str| f.get(key).unwrap_or(&serde_json::Value::Null);
         let kind = match function.function.as_str() {
+            "minecraft:enchant_randomly" => {
+                let options = registry_set_tokens(field("options"));
+                let only_compatible = field("only_compatible").as_bool().unwrap_or(true);
+                let include_additional_cost = field("include_additional_cost_component").as_bool().unwrap_or(false);
+                quote! { LootFunctionKind::EnchantRandomly { options: #options, only_compatible: #only_compatible, include_additional_cost: #include_additional_cost } }
+            }
+            "minecraft:enchant_with_levels" => {
+                let options = registry_set_tokens(field("options"));
+                let levels = number_tokens(field("levels"));
+                let include_additional_cost = field("include_additional_cost_component").as_bool().unwrap_or(false);
+                quote! { LootFunctionKind::EnchantWithLevels { levels: #levels, options: #options, include_additional_cost: #include_additional_cost } }
+            }
+            "minecraft:set_enchantments" => {
+                let enchantments: Vec<_> = field("enchantments").as_object().into_iter().flatten().map(|(name, level)| {
+                    let level = number_tokens(level); quote! { (#name, #level) }
+                }).collect();
+                let add = field("add").as_bool().unwrap_or(false);
+                quote! { LootFunctionKind::SetEnchantments { enchantments: &[#(#enchantments),*], add: #add } }
+            }
             "minecraft:set_count" => {
                 let count = number_tokens(field("count")); let add = field("add").as_bool().unwrap_or(false);
                 quote! { LootFunctionKind::SetCount { count: #count, add: #add } }
@@ -896,6 +930,15 @@ pub fn build_transform_fixtures() -> TokenStream {
         &fs::read_to_string("../../crates/pumpkin/src/world/loot_transform_tables.json")
             .expect("loot transform tables"),
     ).expect("loot transform JSON");
+    let tables: Vec<_> = tables.iter().map(table_tokens).collect();
+    quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
+}
+
+pub fn build_enchantment_fixtures() -> TokenStream {
+    let tables: Vec<ChestLootTableJson> = serde_json::from_str(
+        &fs::read_to_string("../../crates/pumpkin/src/world/loot_enchantment_tables.json")
+            .expect("loot enchantment tables"),
+    ).expect("loot enchantment JSON");
     let tables: Vec<_> = tables.iter().map(table_tokens).collect();
     quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
 }

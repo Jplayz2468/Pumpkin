@@ -29,6 +29,35 @@ impl<T: pumpkin_util::random::RandomImpl> LootRandom for T {
     }
 }
 
+impl pumpkin_data::enchantment_helper::EnchantmentRandom for dyn LootRandom + '_ {
+    fn enchantment_int(&mut self, bound: i32) -> i32 {
+        self.next_bounded_i32(bound)
+    }
+    fn enchantment_float(&mut self) -> f32 {
+        self.next_f32()
+    }
+}
+
+fn enchantment_options(
+    options: pumpkin_util::loot_table::LootRegistrySet,
+) -> Vec<&'static pumpkin_data::Enchantment> {
+    use pumpkin_util::loot_table::LootRegistrySet;
+    let names = match options {
+        LootRegistrySet::All => return pumpkin_data::Enchantment::all().copied().collect(),
+        LootRegistrySet::Values(names) => names,
+        LootRegistrySet::Tag(name) => {
+            pumpkin_data::tag::get_tag_values(pumpkin_data::tag::RegistryKey::Enchantment, name)
+                .unwrap_or_default()
+        }
+    };
+    names
+        .iter()
+        .filter_map(|name| {
+            pumpkin_data::Enchantment::from_name(name.strip_prefix("minecraft:").unwrap_or(name))
+        })
+        .collect()
+}
+
 fn with_loot_random<R>(
     world: &super::World,
     table: &LootTable,
@@ -85,6 +114,7 @@ pub struct LootContextParameters {
     pub component_sources: std::collections::HashMap<String, LootComponentMap>,
     pub entities:
         std::collections::HashMap<pumpkin_util::loot_table::EntityTarget, LootEntityFacts>,
+    pub additional_cost_component_allowed: bool,
     pub explosion_radius: Option<f32>,
     pub dynamic_drops: std::collections::HashMap<String, Vec<ItemStack>>,
     pub block_state: Option<&'static BlockState>,
@@ -639,6 +669,98 @@ fn apply_functions(
                         .filter(|_| rng.next_f32() <= 1.0 / radius)
                         .count() as i32;
                 }
+            }
+            LootFunctionKind::EnchantRandomly {
+                options,
+                only_compatible,
+                include_additional_cost,
+            } => {
+                use pumpkin_data::enchantment_helper::upgrade;
+                let book = current > 0 && output.stack.item == &Item::BOOK;
+                let item = if current > 0 {
+                    output.stack.item
+                } else {
+                    &Item::AIR
+                };
+                let candidates: Vec<_> = enchantment_options(options)
+                    .into_iter()
+                    .filter(|enchantment| book || !only_compatible || enchantment.can_enchant(item))
+                    .collect();
+                if !candidates.is_empty() {
+                    let enchantment =
+                        candidates[rng.next_bounded_i32(candidates.len() as i32) as usize];
+                    let level = if enchantment.max_level <= 1 {
+                        1
+                    } else {
+                        1 + rng.next_bounded_i32(enchantment.max_level)
+                    };
+                    if book {
+                        output.stack = ItemStack::new(1, &Item::ENCHANTED_BOOK);
+                        output.count = 1;
+                    } else {
+                        output.stack.item_count = u8::from(current > 0);
+                    }
+                    upgrade(&mut output.stack, enchantment, level);
+                    if include_additional_cost && params.additional_cost_component_allowed {
+                        output.stack.set_data_component(
+                            pumpkin_data::data_component_impl::AdditionalTradeCostImpl {
+                                cost: 2 + rng.next_bounded_i32(5 + level * 10) + 3 * level,
+                            },
+                        );
+                    }
+                }
+            }
+            LootFunctionKind::EnchantWithLevels {
+                levels,
+                options,
+                include_additional_cost,
+            } => {
+                use pumpkin_data::enchantment_helper::{select, upgrade};
+                let cost = number_int(levels, rng);
+                output.stack.item_count = u8::from(current > 0);
+                let selected = select(rng, &output.stack, cost, enchantment_options(options));
+                if current > 0 && output.stack.item == &Item::BOOK {
+                    output.stack = ItemStack::new(1, &Item::ENCHANTED_BOOK);
+                    output.count = 1;
+                }
+                for (enchantment, level) in selected {
+                    upgrade(&mut output.stack, enchantment, level);
+                }
+                if include_additional_cost
+                    && params.additional_cost_component_allowed
+                    && output.visible_count() > 0
+                    && cost > 0
+                {
+                    output.stack.set_data_component(
+                        pumpkin_data::data_component_impl::AdditionalTradeCostImpl { cost },
+                    );
+                }
+            }
+            LootFunctionKind::SetEnchantments { enchantments, add } => {
+                use pumpkin_data::enchantment_helper::{set, update};
+                output.stack.item_count = u8::from(current > 0);
+                if current > 0 && output.stack.item == &Item::BOOK {
+                    output.stack.item = &Item::ENCHANTED_BOOK;
+                }
+                update(&mut output.stack, |values| {
+                    for (name, provider) in enchantments {
+                        if let Some(enchantment) = pumpkin_data::Enchantment::from_name(
+                            name.strip_prefix("minecraft:").unwrap_or(name),
+                        ) {
+                            let level = number_int(*provider, rng);
+                            let level = if add {
+                                values
+                                    .iter()
+                                    .find(|(value, _)| *value == enchantment)
+                                    .map_or(0, |(_, old)| *old)
+                                    .wrapping_add(level)
+                            } else {
+                                level
+                            };
+                            set(values, enchantment, level.clamp(0, 255));
+                        }
+                    }
+                });
             }
             LootFunctionKind::FurnaceSmelt { use_input_count } => {
                 use pumpkin_data::recipes::{
@@ -2184,5 +2306,292 @@ mod transform_tests {
             LootCondition::EntityMainhandHasEnchantments(target),
             &params
         ));
+    }
+}
+
+#[cfg(test)]
+mod enchantment_tests {
+    use super::*;
+    use pumpkin_data::{
+        Enchantment,
+        data_component::DataComponent,
+        data_component_impl::{
+            AdditionalTradeCostImpl, CustomNameImpl, EnchantmentsImpl, StoredEnchantmentsImpl,
+        },
+        enchantment_helper,
+    };
+    use pumpkin_nbt::compound::NbtCompound;
+    use pumpkin_util::{random::RandomImpl, text::TextComponent};
+    use serde_json::{Value, json};
+    mod compiled {
+        include!("loot_enchantment_test_tables.rs");
+    }
+
+    fn values(values: Option<&[(&'static Enchantment, i32)]>) -> Value {
+        values.map_or(Value::Null, |values| {
+            Value::Object(
+                values
+                    .iter()
+                    .map(|(e, level)| (e.name.to_owned(), json!(level)))
+                    .collect(),
+            )
+        })
+    }
+
+    fn compare_loot<R: RandomImpl>(case: &Value, mut rng: R) {
+        let item = Item::from_registry_key(
+            case["item"]
+                .as_str()
+                .unwrap()
+                .strip_prefix("minecraft:")
+                .unwrap(),
+        )
+        .unwrap();
+        let mode = case["mode"].as_i64().unwrap();
+        let mut stack = ItemStack::new(if mode == 4 { 7 } else { 1 }, item);
+        if mode == 1 || mode == 4 {
+            stack.set_data_component(CustomNameImpl {
+                name: TextComponent::text("input"),
+            });
+            stack.set_data_component(AdditionalTradeCostImpl { cost: 42 });
+        }
+        if mode == 2 {
+            stack.remove_data_component(DataComponent::Enchantments);
+            stack.remove_data_component(DataComponent::StoredEnchantments);
+        }
+        if mode == 3 {
+            stack.remove_data_component(DataComponent::Enchantable);
+        }
+        let mut params = LootContextParameters {
+            additional_cost_component_allowed: case["extra"].as_bool().unwrap(),
+            ..Default::default()
+        };
+        params
+            .dynamic_drops
+            .insert("minecraft:input".into(), vec![stack]);
+        let mut output = Vec::new();
+        run_table(
+            &compiled::TABLES[case["table"].as_u64().unwrap() as usize],
+            &params,
+            LootFacts::from_params(&params),
+            &mut rng,
+            &mut Vec::new(),
+            &mut |result, _| {
+                let count = result.visible_count();
+                let stack = &result.stack;
+                output.push(json!({
+                "item": format!("minecraft:{}", if count > 0 { stack.item.registry_key } else { "air" }),
+                "count": count,
+                "name": (count > 0).then(|| stack.get_custom_name().map(|v| v.clone().get_text())).flatten(),
+                "enchantments": if count > 0 { values(stack.get_data_component::<EnchantmentsImpl>().map(|v| v.enchantment.as_ref())) } else { Value::Null },
+                "stored": if count > 0 { values(stack.get_data_component::<StoredEnchantmentsImpl>().map(|v| v.enchantment.as_ref())) } else { Value::Null },
+                "extra": (count > 0).then(|| stack.get_data_component::<AdditionalTradeCostImpl>().map(|v| v.cost)).flatten(),
+            }));
+            },
+        );
+        let expected: Vec<_> = case["output"].as_array().unwrap().iter().map(|v| json!({"item":v["item"],"count":v["count"],"name":v["name"],"enchantments":v["enchantments"],"stored":v["stored"],"extra":v["extra"]})).collect();
+        assert_eq!(output, expected, "loot: {case}");
+        assert_eq!(
+            rng.next_i64(),
+            case["next"].as_i64().unwrap(),
+            "following RNG: {case}"
+        );
+    }
+
+    #[test]
+    fn enchantment_loot_matches_java_functions_and_rng() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("loot_enchantment_cases.json")).unwrap();
+        assert_eq!(cases.len(), 2200);
+        assert_eq!(compiled::TABLES.len(), 20);
+        for case in &cases {
+            let seed = case["seed"].as_i64().unwrap() as u64;
+            if case["kind"] == 0 {
+                compare_loot(case, LegacyRand::from_seed(seed));
+            } else {
+                compare_loot(case, Xoroshiro::from_seed(seed));
+            }
+        }
+    }
+
+    fn compare_selection<R: RandomImpl>(case: &Value, mut rng: R) {
+        let stack = ItemStack::new(
+            1,
+            Item::from_registry_key(
+                case["item"]
+                    .as_str()
+                    .unwrap()
+                    .strip_prefix("minecraft:")
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
+        let cost = case["cost"].as_i64().unwrap() as i32;
+        let costs: Vec<_> = (0..3)
+            .map(|slot| enchantment_helper::table_cost(&mut rng, slot, cost, &stack))
+            .collect();
+        assert_eq!(json!(costs), case["costs"], "table costs: {case}");
+        let selected: Vec<_> = enchantment_helper::table_enchantments(&mut rng, &stack, cost)
+            .iter()
+            .map(|(e, level)| json!({"id":e.name.to_owned(),"level":level}))
+            .collect();
+        assert_eq!(json!(selected), case["selected"], "selection: {case}");
+        assert_eq!(
+            rng.next_i64(),
+            case["next"].as_i64().unwrap(),
+            "following RNG: {case}"
+        );
+    }
+
+    #[test]
+    fn enchanting_table_matches_java_for_every_registered_item() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("enchantment_selection_cases.json")).unwrap();
+        assert_eq!(cases.len(), 12296);
+        for case in &cases {
+            let seed = case["seed"].as_i64().unwrap() as u64;
+            if case["kind"] == 0 {
+                compare_selection(case, LegacyRand::from_seed(seed));
+            } else {
+                compare_selection(case, Xoroshiro::from_seed(seed));
+            }
+        }
+    }
+
+    #[test]
+    fn enchantment_upgrades_use_stored_books_and_skip_removed_components() {
+        for book in [false, true] {
+            let mut stack = ItemStack::new(
+                1,
+                if book {
+                    &Item::ENCHANTED_BOOK
+                } else {
+                    &Item::DIAMOND_SWORD
+                },
+            );
+            stack.add_enchantment(&Enchantment::SHARPNESS, 4);
+            stack.enchant(&Enchantment::SHARPNESS, 1);
+            let list = if book {
+                &stack
+                    .get_data_component::<StoredEnchantmentsImpl>()
+                    .unwrap()
+                    .enchantment
+            } else {
+                &stack
+                    .get_data_component::<EnchantmentsImpl>()
+                    .unwrap()
+                    .enchantment
+            };
+            assert!(list.as_ref() == &[(&Enchantment::SHARPNESS, 4)]);
+            let component = if book {
+                DataComponent::StoredEnchantments
+            } else {
+                DataComponent::Enchantments
+            };
+            stack.patch.retain(|(id, _)| *id != component);
+            stack.patch.push((component, None));
+            stack.enchant(&Enchantment::SHARPNESS, 5);
+            assert!(
+                stack
+                    .patch
+                    .iter()
+                    .find(|(id, _)| *id == component)
+                    .unwrap()
+                    .1
+                    .is_none()
+            );
+        }
+    }
+
+    #[test]
+    fn enchanting_requires_both_components_and_removal_masks_only_prototypes() {
+        let mut stack = ItemStack::new(1, &Item::BOOK);
+        assert!(stack.is_enchantable());
+        stack.remove_data_component(DataComponent::StoredEnchantments);
+        assert!(stack.patch.is_empty());
+        stack.remove_data_component(DataComponent::Enchantments);
+        assert!(!stack.is_enchantable());
+        stack.set_data_component(AdditionalTradeCostImpl { cost: 42 });
+        stack.remove_data_component(DataComponent::AdditionalTradeCost);
+        assert!(
+            !stack
+                .patch
+                .iter()
+                .any(|(id, _)| *id == DataComponent::AdditionalTradeCost)
+        );
+    }
+
+    #[test]
+    fn trade_cost_uses_its_actual_signed_varint_on_the_network() {
+        use pumpkin_protocol::codec::data_component::{deserialize, serialize};
+        for (cost, expected) in [
+            (0, vec![0]),
+            (37, vec![37]),
+            (300, vec![172, 2]),
+            (-1, vec![255, 255, 255, 255, 15]),
+        ] {
+            let value = AdditionalTradeCostImpl { cost };
+            let mut bytes = Vec::new();
+            serialize(DataComponent::AdditionalTradeCost, &value, &mut bytes).unwrap();
+            assert_eq!(bytes, expected);
+            let mut input = std::io::Cursor::new(bytes);
+            let decoded = deserialize(DataComponent::AdditionalTradeCost, &mut input).unwrap();
+            assert_eq!(
+                pumpkin_data::data_component_impl::get::<AdditionalTradeCostImpl>(decoded.as_ref())
+                    .cost,
+                cost
+            );
+            assert_eq!(input.position(), input.get_ref().len() as u64);
+        }
+    }
+
+    #[test]
+    fn trade_cost_is_retained_in_memory_but_has_no_persistent_codec() {
+        use crate::block::entities::components::BlockEntityComponents;
+        let mut stack = ItemStack::new(1, &Item::STONE);
+        stack.set_data_component(AdditionalTradeCostImpl { cost: 37 });
+        let storage = BlockEntityComponents::new();
+        storage.apply(&stack, &[]);
+        let mut collected = ItemStack::new(1, &Item::STONE);
+        storage.collect(&mut collected);
+        assert_eq!(
+            collected
+                .get_data_component::<AdditionalTradeCostImpl>()
+                .unwrap()
+                .cost,
+            37
+        );
+        let mut item_nbt = NbtCompound::new();
+        stack.write_item_stack(&mut item_nbt);
+        let mut block_nbt = NbtCompound::new();
+        storage.write_nbt(&mut block_nbt);
+        assert!(
+            item_nbt
+                .get_compound("components")
+                .unwrap()
+                .child_tags
+                .is_empty()
+        );
+        assert!(
+            block_nbt
+                .get_compound("components")
+                .unwrap()
+                .child_tags
+                .is_empty()
+        );
+        assert!(
+            ItemStack::read_item_stack(&item_nbt)
+                .unwrap()
+                .get_data_component::<AdditionalTradeCostImpl>()
+                .is_none()
+        );
+        storage.read_nbt(&block_nbt);
+        let mut restored = ItemStack::new(1, &Item::STONE);
+        storage.collect(&mut restored);
+        assert!(
+            restored
+                .get_data_component::<AdditionalTradeCostImpl>()
+                .is_none()
+        );
     }
 }

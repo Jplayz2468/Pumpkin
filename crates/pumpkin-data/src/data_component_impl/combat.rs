@@ -1263,13 +1263,19 @@ impl DataComponentImpl for SwingAnimationImpl {
 }
 
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct AdditionalTradeCostImpl;
+pub struct AdditionalTradeCostImpl {
+    pub cost: i32,
+}
 impl AdditionalTradeCostImpl {
-    pub const fn read_data(_data: &NbtTag) -> Option<Self> {
-        Some(Self)
+    pub fn read_data(_data: &NbtTag) -> Option<Self> {
+        // Java registers only the network codec for this transient component.
+        None
     }
 }
 impl DataComponentImpl for AdditionalTradeCostImpl {
+    fn get_hash(&self) -> i32 {
+        get_i32_hash(self.cost) as i32
+    }
     default_impl!(AdditionalTradeCost);
 }
 

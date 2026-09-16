@@ -494,3 +494,13 @@ smelting's fire/equipment context predicates are implemented. The 3,265 Java cas
 cover every item as a smelting input and every registered effect's duration handling.
 110 other function declarations and the broader ENGINE_GAPS.md gates remain open.
 Full mob passes remain paused.
+
+### Enchantment engine checkpoint
+
+Shared table/loot selection now preserves Java candidate order, primary-item rules,
+weighted and additional picks, costs, book semantics and RNG draws. Implemented
+97 enchantment loot-function declarations; 13 other declarations remain unsupported.
+Java reference coverage: 2,200 loot and 12,296 table cases, with both RNG types and
+following values. Remaining gates include dynamic registries/context producers,
+process-dependent stochastic map iteration, menu/client integration and the other
+D01–D06/block dependencies. No full mob pass was started.

@@ -2206,12 +2206,13 @@ impl DataComponentCodec<Self> for KineticWeaponImpl {
 
 impl DataComponentCodec<Self> for AdditionalTradeCostImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_var_int(&VarInt(0))
+        seq.write_var_int(&VarInt(self.cost))
     }
 
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let _ = seq.get_var_int()?;
-        Ok(Self)
+        Ok(Self {
+            cost: seq.get_var_int()?.0,
+        })
     }
 }
 

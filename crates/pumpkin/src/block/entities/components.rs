@@ -22,7 +22,9 @@ impl BlockEntityComponents {
             .flat_map(|data| data.child_tags.iter())
             .filter_map(|(name, value)| {
                 let kind = DataComponent::try_from_name(name)?;
-                Some((kind, read_data(kind, value)?))
+                (kind != DataComponent::AdditionalTradeCost)
+                    .then(|| read_data(kind, value).map(|value| (kind, value)))
+                    .flatten()
             })
             .collect();
         *self
@@ -39,6 +41,9 @@ impl BlockEntityComponents {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .iter()
         {
+            if *kind == DataComponent::AdditionalTradeCost {
+                continue;
+            }
             let name = kind.to_name();
             let key = if name.contains(':') {
                 name.to_owned()

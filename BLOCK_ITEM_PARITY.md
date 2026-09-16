@@ -7,9 +7,9 @@ This checkpoint records source changes, not a passing parity result.
 
 - Work branch: `codex/vanilla-spawning`. The initial continuation is in
   `6d0f8370`; the source work below continues that checkpoint.
-- The user explicitly prohibited compilation and tests for this work. No Cargo
-  check, build, test, server restart, or gameplay comparison was performed.
-  Rustfmt was used to format the edited sources.
+- The initial source-only phase prohibited compilation/tests and used Rustfmt.
+  The user later authorized background tests while implementation continues;
+  subsequent verification results are recorded with each checkpoint below.
 - Reference: the local vanilla Java 26.2 decompile in the hosting repository's
   `comparison/vanilla-src/26.2/src/net/minecraft/` and Pumpkin's 26.2 assets.
 - The earlier handover is on the hosting repository's
@@ -1541,3 +1541,18 @@ and ominous-bottle functions preserve Java sampling and component updates. Share
 fire/direct-attacker equipment predicates now activate the built-in smelting rules.
 The Java matrix covers all 1,537 recipe inputs and all 40 effect duration types.
 Remaining functions and broader block/engine gates are recorded in ENGINE_GAPS.md.
+
+## Shared engine continuation: enchanting and enchanted loot
+
+- Added all 97 built-in random, level-based and explicit enchantment loot-function
+  declarations. Thirteen other function declarations remain unsupported.
+- Enchanting tables use the shared Java-matched selector: corrected middle-slot
+  cost, additional-enchantment chance, primary-item restrictions, ordered candidates
+  and book conversion/removal. Both stack enchant APIs preserve maximum existing
+  levels and use stored enchantments on enchanted books. Missing components,
+  item-slot count and zero-cost button handling are addressed.
+- Java codec/evaluator fixtures compare 2,200 loot cases and 12,296 table cases
+  across all registered items, including following random values. Component
+  removal, in-memory/NBT boundaries and signed network trade costs have regression
+  checks. See `ENGINE_GAPS.md` for verification and exact remaining limits.
+- Full mob passes remain paused. This is not all-block or full-engine certification.

@@ -26369,7 +26369,11 @@ pub static CHESTS_ABANDONED_MINESHAFT: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -26759,7 +26763,14 @@ pub static CHESTS_ANCIENT_CITY: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                            kind: LootFunctionKind::EnchantWithLevels {
+                                levels: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(30f32),
+                                    &LootNumberProvider::Constant(50f32),
+                                ),
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -26826,7 +26837,14 @@ pub static CHESTS_ANCIENT_CITY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(30f32),
+                                &LootNumberProvider::Constant(50f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -26836,7 +26854,11 @@ pub static CHESTS_ANCIENT_CITY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Values(&["minecraft:swift_sneak"]),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -26942,7 +26964,14 @@ pub static CHESTS_ANCIENT_CITY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -27006,7 +27035,11 @@ pub static CHESTS_ANCIENT_CITY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -27272,7 +27305,11 @@ pub static CHESTS_BASTION_BRIDGE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -27397,7 +27434,11 @@ pub static CHESTS_BASTION_BRIDGE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -27416,7 +27457,11 @@ pub static CHESTS_BASTION_BRIDGE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -27435,7 +27480,11 @@ pub static CHESTS_BASTION_BRIDGE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -27454,7 +27503,11 @@ pub static CHESTS_BASTION_BRIDGE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -27473,7 +27526,11 @@ pub static CHESTS_BASTION_BRIDGE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -27647,7 +27704,11 @@ pub static CHESTS_BASTION_HOGLIN_STABLE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -27676,7 +27737,11 @@ pub static CHESTS_BASTION_HOGLIN_STABLE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -27800,7 +27865,11 @@ pub static CHESTS_BASTION_HOGLIN_STABLE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28088,7 +28157,11 @@ pub static CHESTS_BASTION_OTHER: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28123,7 +28196,11 @@ pub static CHESTS_BASTION_OTHER: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28231,7 +28308,11 @@ pub static CHESTS_BASTION_OTHER: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Values(&["minecraft:soul_speed"]),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
             ],
@@ -28267,7 +28348,11 @@ pub static CHESTS_BASTION_OTHER: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28299,7 +28384,11 @@ pub static CHESTS_BASTION_OTHER: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Values(&["minecraft:soul_speed"]),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28318,7 +28407,11 @@ pub static CHESTS_BASTION_OTHER: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28757,7 +28850,11 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28779,7 +28876,11 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28801,7 +28902,11 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28823,7 +28928,11 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28845,7 +28954,11 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -28867,7 +28980,11 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                            kind: LootFunctionKind::EnchantRandomly {
+                                options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                                only_compatible: true,
+                                include_additional_cost: false,
+                            },
                         },
                     ],
                 },
@@ -29604,7 +29721,11 @@ pub static CHESTS_DESERT_PYRAMID: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29883,7 +30004,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29893,7 +30021,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29903,7 +30038,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29913,7 +30055,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29923,7 +30072,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29933,7 +30089,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29943,7 +30106,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29953,7 +30123,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29963,7 +30140,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29973,7 +30157,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29983,7 +30174,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -29993,7 +30191,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -30003,7 +30208,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -30013,7 +30225,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -30023,7 +30242,14 @@ pub static CHESTS_END_CITY_TREASURE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(20f32),
+                                &LootNumberProvider::Constant(39f32),
+                            ),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
             ],
@@ -30343,7 +30569,11 @@ pub static CHESTS_JUNGLE_TEMPLE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Constant(30f32),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
             ],
@@ -30773,7 +31003,11 @@ pub static CHESTS_PILLAGER_OUTPOST: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
             ],
@@ -30932,7 +31166,11 @@ pub static CHESTS_RUINED_PORTAL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -30942,7 +31180,11 @@ pub static CHESTS_RUINED_PORTAL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -30952,7 +31194,11 @@ pub static CHESTS_RUINED_PORTAL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -30962,7 +31208,11 @@ pub static CHESTS_RUINED_PORTAL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -30972,7 +31222,11 @@ pub static CHESTS_RUINED_PORTAL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -30982,7 +31236,11 @@ pub static CHESTS_RUINED_PORTAL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -30992,7 +31250,11 @@ pub static CHESTS_RUINED_PORTAL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -31002,7 +31264,11 @@ pub static CHESTS_RUINED_PORTAL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -31012,7 +31278,11 @@ pub static CHESTS_RUINED_PORTAL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -31614,7 +31884,11 @@ pub static CHESTS_SHIPWRECK_SUPPLY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -31624,7 +31898,11 @@ pub static CHESTS_SHIPWRECK_SUPPLY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -31634,7 +31912,11 @@ pub static CHESTS_SHIPWRECK_SUPPLY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -31644,7 +31926,11 @@ pub static CHESTS_SHIPWRECK_SUPPLY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
             ],
@@ -32085,7 +32371,11 @@ pub static CHESTS_SIMPLE_DUNGEON: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
             ],
@@ -32798,7 +33088,11 @@ pub static CHESTS_STRONGHOLD_CORRIDOR: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Constant(30f32),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
             ],
@@ -32949,7 +33243,11 @@ pub static CHESTS_STRONGHOLD_CROSSING: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Constant(30f32),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
         ],
@@ -33021,7 +33319,11 @@ pub static CHESTS_STRONGHOLD_LIBRARY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Constant(30f32),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     }],
                 },
             ],
@@ -33078,7 +33380,11 @@ pub static CHESTS_TRIAL_CHAMBERS_CORRIDOR: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     },
                 ],
             },
@@ -33531,7 +33837,11 @@ pub static CHESTS_TRIAL_CHAMBERS_INTERSECTION_BARREL: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     },
                 ],
             },
@@ -34141,7 +34451,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_OMINOUS_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(5f32),
+                            &LootNumberProvider::Constant(20f32),
+                        ),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34158,7 +34475,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_OMINOUS_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(10f32),
+                            &LootNumberProvider::Constant(20f32),
+                        ),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34168,7 +34492,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_OMINOUS_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(10f32),
+                            &LootNumberProvider::Constant(20f32),
+                        ),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34178,7 +34509,17 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_OMINOUS_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                    kind: LootFunctionKind::EnchantRandomly {
+                        options: LootRegistrySet::Values(&[
+                            "minecraft:knockback",
+                            "minecraft:punch",
+                            "minecraft:smite",
+                            "minecraft:looting",
+                            "minecraft:multishot",
+                        ]),
+                        only_compatible: true,
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34188,7 +34529,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_OMINOUS_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                    kind: LootFunctionKind::EnchantRandomly {
+                        options: LootRegistrySet::Values(&[
+                            "minecraft:breach",
+                            "minecraft:density",
+                        ]),
+                        only_compatible: true,
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34198,7 +34546,13 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_OMINOUS_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_enchantments"),
+                    kind: LootFunctionKind::SetEnchantments {
+                        enchantments: &[(
+                            "minecraft:wind_burst",
+                            LootNumberProvider::Constant(1f32),
+                        )],
+                        add: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34306,7 +34660,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(5f32),
+                            &LootNumberProvider::Constant(15f32),
+                        ),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34316,7 +34677,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(5f32),
+                            &LootNumberProvider::Constant(20f32),
+                        ),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34326,7 +34694,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(0f32),
+                            &LootNumberProvider::Constant(10f32),
+                        ),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34336,7 +34711,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(0f32),
+                            &LootNumberProvider::Constant(10f32),
+                        ),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34362,7 +34744,18 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                    kind: LootFunctionKind::EnchantRandomly {
+                        options: LootRegistrySet::Values(&[
+                            "minecraft:sharpness",
+                            "minecraft:bane_of_arthropods",
+                            "minecraft:efficiency",
+                            "minecraft:fortune",
+                            "minecraft:silk_touch",
+                            "minecraft:feather_falling",
+                        ]),
+                        only_compatible: true,
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34372,7 +34765,17 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                    kind: LootFunctionKind::EnchantRandomly {
+                        options: LootRegistrySet::Values(&[
+                            "minecraft:riptide",
+                            "minecraft:loyalty",
+                            "minecraft:channeling",
+                            "minecraft:impaling",
+                            "minecraft:mending",
+                        ]),
+                        only_compatible: true,
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34382,7 +34785,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(5f32),
+                            &LootNumberProvider::Constant(15f32),
+                        ),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -34392,7 +34802,14 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(5f32),
+                            &LootNumberProvider::Constant(15f32),
+                        ),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
         ],
@@ -34805,7 +35222,11 @@ pub static CHESTS_UNDERWATER_RUIN_BIG: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -34829,7 +35250,11 @@ pub static CHESTS_UNDERWATER_RUIN_BIG: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -35021,7 +35446,11 @@ pub static CHESTS_UNDERWATER_RUIN_SMALL: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -37363,7 +37792,11 @@ pub static CHESTS_WOODLAND_MANSION: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                        kind: LootFunctionKind::EnchantRandomly {
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            only_compatible: true,
+                            include_additional_cost: false,
+                        },
                     }],
                 },
             ],
@@ -42674,9 +43107,23 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_enchantments",
-                                        ),
+                                        kind: LootFunctionKind::SetEnchantments {
+                                            enchantments: &[
+                                                (
+                                                    "minecraft:fire_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:projectile_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                            ],
+                                            add: false,
+                                        },
                                     },
                                 ],
                             }],
@@ -42700,9 +43147,23 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_enchantments",
-                                        ),
+                                        kind: LootFunctionKind::SetEnchantments {
+                                            enchantments: &[
+                                                (
+                                                    "minecraft:fire_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:projectile_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                            ],
+                                            add: false,
+                                        },
                                     },
                                 ],
                             }],
@@ -42738,9 +43199,23 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_enchantments",
-                                        ),
+                                        kind: LootFunctionKind::SetEnchantments {
+                                            enchantments: &[
+                                                (
+                                                    "minecraft:fire_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:projectile_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                            ],
+                                            add: false,
+                                        },
                                     },
                                 ],
                             }],
@@ -42764,9 +43239,23 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_enchantments",
-                                        ),
+                                        kind: LootFunctionKind::SetEnchantments {
+                                            enchantments: &[
+                                                (
+                                                    "minecraft:fire_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:projectile_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                            ],
+                                            add: false,
+                                        },
                                     },
                                 ],
                             }],
@@ -42802,9 +43291,23 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_enchantments",
-                                        ),
+                                        kind: LootFunctionKind::SetEnchantments {
+                                            enchantments: &[
+                                                (
+                                                    "minecraft:fire_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:projectile_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                            ],
+                                            add: false,
+                                        },
                                     },
                                 ],
                             }],
@@ -42828,9 +43331,23 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_enchantments",
-                                        ),
+                                        kind: LootFunctionKind::SetEnchantments {
+                                            enchantments: &[
+                                                (
+                                                    "minecraft:fire_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:projectile_protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                                (
+                                                    "minecraft:protection",
+                                                    LootNumberProvider::Constant(4f32),
+                                                ),
+                                            ],
+                                            add: false,
+                                        },
                                     },
                                 ],
                             }],
@@ -42887,7 +43404,13 @@ pub static EQUIPMENT_TRIAL_CHAMBER_MELEE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_enchantments"),
+                        kind: LootFunctionKind::SetEnchantments {
+                            enchantments: &[(
+                                "minecraft:sharpness",
+                                LootNumberProvider::Constant(1f32),
+                            )],
+                            add: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -42897,7 +43420,13 @@ pub static EQUIPMENT_TRIAL_CHAMBER_MELEE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_enchantments"),
+                        kind: LootFunctionKind::SetEnchantments {
+                            enchantments: &[(
+                                "minecraft:knockback",
+                                LootNumberProvider::Constant(1f32),
+                            )],
+                            add: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -42948,7 +43477,13 @@ pub static EQUIPMENT_TRIAL_CHAMBER_RANGED: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_enchantments"),
+                        kind: LootFunctionKind::SetEnchantments {
+                            enchantments: &[(
+                                "minecraft:power",
+                                LootNumberProvider::Constant(1f32),
+                            )],
+                            add: false,
+                        },
                     }],
                 },
                 LootEntry {
@@ -42958,7 +43493,13 @@ pub static EQUIPMENT_TRIAL_CHAMBER_RANGED: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_enchantments"),
+                        kind: LootFunctionKind::SetEnchantments {
+                            enchantments: &[(
+                                "minecraft:punch",
+                                LootNumberProvider::Constant(1f32),
+                            )],
+                            add: false,
+                        },
                     }],
                 },
             ],
@@ -43326,7 +43867,11 @@ pub static GAMEPLAY_FISHING_TREASURE: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Constant(30f32),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     },
                 ],
             },
@@ -43348,7 +43893,11 @@ pub static GAMEPLAY_FISHING_TREASURE: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                        kind: LootFunctionKind::EnchantWithLevels {
+                            levels: LootNumberProvider::Constant(30f32),
+                            options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                            include_additional_cost: false,
+                        },
                     },
                 ],
             },
@@ -43359,7 +43908,11 @@ pub static GAMEPLAY_FISHING_TREASURE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_with_levels"),
+                    kind: LootFunctionKind::EnchantWithLevels {
+                        levels: LootNumberProvider::Constant(30f32),
+                        options: LootRegistrySet::Tag("minecraft:on_random_loot"),
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -44199,7 +44752,11 @@ pub static GAMEPLAY_PIGLIN_BARTERING: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                    kind: LootFunctionKind::EnchantRandomly {
+                        options: LootRegistrySet::Values(&["minecraft:soul_speed"]),
+                        only_compatible: true,
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {
@@ -44209,7 +44766,11 @@ pub static GAMEPLAY_PIGLIN_BARTERING: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:enchant_randomly"),
+                    kind: LootFunctionKind::EnchantRandomly {
+                        options: LootRegistrySet::Values(&["minecraft:soul_speed"]),
+                        only_compatible: true,
+                        include_additional_cost: false,
+                    },
                 }],
             },
             LootEntry {

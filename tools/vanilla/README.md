@@ -306,3 +306,29 @@ cargo run --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_tr
 The production generator compiles the same JSON for Rust tests. Built-in fire and
 main-hand enchantment predicates have separate source-port/integration checks;
 this oracle does not exercise entity AI, live combat or custom recipe reloads.
+
+### Enchantment loot and table selection
+
+`LootEnchantmentOracle.java` loads all 43 canonical enchantment definitions through
+Java's actual codec, preserves item/enchantment tag order and binds the compared
+item prototypes from `assets/items.json`. Registry loading uses Java's sorted
+resource-key order. An allocated level supplies registry access; no live server
+or menu is instantiated.
+
+Twenty tables produce 2,200 loot cases covering compatibility, explicit/tag/default
+options, duplicate options, removed components, books, metadata, additive/removal
+updates, oversized/temporary-zero counts and optional trade costs. An additional
+12,296 cases cover table costs and selection for every registered item. Both
+random generators and their following values are compared. The production loot
+generator compiles the fixture tables.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/LootEnchantmentOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' LootEnchantmentOracle crates/pumpkin/src/world/loot_enchantment_tables.json crates/pumpkin/src/world/loot_enchantment_cases.json crates/pumpkin/src/world/enchantment_selection_cases.json
+cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_enchantment_test_tables enchantment
+```
+
+Multi-entry `set_enchantments` fixtures use constant providers: Java's `Map.copyOf`
+iteration can vary by process, so a seeded comparison of multiple stochastic
+providers requires a separate ordering policy. Live menu, reload and per-entity
+random-source ownership remain outside these fixtures.

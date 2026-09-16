@@ -1081,3 +1081,42 @@ whole inside-effect pipeline matches Java yet.
   with the same two previously separately passing localhost tests excluded. Other
   D01–D06/block gates, full loot contexts/predicates, recipe reloads and live
   integration remain open.
+
+## Shared enchantment selection and loot functions
+
+- Added `enchant_randomly`, `enchant_with_levels` and `set_enchantments` for
+  **97 built-in declarations** (52/34/11). **13 function declarations remain
+  unsupported**: six `set_components`, three `exploration_map`, three `set_name`
+  and one `set_instrument`. Full predicate/context coverage and registry reloads
+  remain separate gates.
+- Enchanting tables and level-based loot now share Java's weighted selection,
+  primary-item restrictions, ordered tag candidates, float expression/rounding,
+  compatibility filtering and extra-enchantment probability. Fixed the middle
+  table cost (+1), bookshelf cap, book exception/removal and stored-enchantment
+  upgrades. Table eligibility requires both components; the item slot is limited
+  to one, and button handling rejects zero costs and insufficient payment levels.
+- Random-enchantment compatibility uses supported items (not the table's primary
+  restriction). Explicit options retain order and duplicates. Empty option sets,
+  absent components and single-level enchantments preserve Java's RNG consumption.
+  Loot book replacement versus copy conversion retains the appropriate count and
+  metadata. Both item enchantment APIs upgrade existing levels without duplicates.
+  Removing a non-prototype component deletes its patch entry, so it cannot mask a
+  new book prototype's component after conversion.
+- Optional additional trade costs respect context-parameter presence, carry their
+  actual signed VarInt over the protocol and have no persistent codec. Item and
+  retained block-component NBT omit them, while in-memory copying preserves them.
+- `LootEnchantmentOracle` loads all **43** canonical enchantment definitions through
+  Java's actual codec with ordered item/enchantment tags. It executes 20 loot
+  tables (**2,200 cases**) and compares table costs/selection across all **1,537
+  items** (**12,296 cases**), both random generators and subsequent random values.
+  Rust loot fixtures are compiled by the production generator. The allocated level
+  supplies registry access only; this is not live menu/gameplay verification.
+- Final background run 7 passed **539 engine, 241 world and 66 utility tests**
+  (**846 total**), with the same two previously separately passing localhost tests
+  excluded. Added regression coverage includes signed protocol bytes and component
+  removal/persistence boundaries. No full mob or live gameplay pass was run.
+- Remaining enchantment limitations: dynamic registry/tag reloads and context
+  producers, multi-entry stochastic `set_enchantments` iteration (Java's immutable
+  map order is process-dependent; built-in maps use constants), per-entity/player
+  RNG ownership and full enchanting-menu/client lifecycle comparison. This closes
+  a shared selection/function batch, not D01–D06 or the remaining block gates.

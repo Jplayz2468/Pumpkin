@@ -193,6 +193,9 @@ pub use environment_attribute::*;
 pub mod enchantment;
 
 #[cfg(feature = "enchantment")]
+pub mod enchantment_helper;
+
+#[cfg(feature = "enchantment")]
 pub use enchantment::*;
 
 #[cfg(feature = "entity")]

@@ -17,6 +17,7 @@ pub struct Enchantment {
     pub anvil_cost: u32,
     /// Tag path (prefixed with `#`) of items that support this enchantment.
     pub supported_items: String,
+    pub primary_items: Option<String>,
     /// Display name component for this enchantment (typically a translation key).
     pub description: TextComponent,
     /// Optional exclusive-set tag; enchantments in the same set are mutually incompatible.
@@ -1051,6 +1052,10 @@ pub fn build() -> TokenStream {
                 .replace([':', '/'], "_")
                 .to_uppercase()
         );
+        let primary_items = enchantment.primary_items.as_ref().map(|name| {
+            let name = format_ident!("{}", name.strip_prefix('#').expect("primary item tag").replace([':', '/'], "_").to_uppercase());
+            quote! { Some(&ItemTag::#name) }
+        }).unwrap_or_else(|| quote! { None });
         let max_level = enchantment.max_level;
         let weight = enchantment.weight;
         let min_cost_base = enchantment.min_cost.base;
@@ -1167,6 +1172,7 @@ pub fn build() -> TokenStream {
                     description: #translate,
                     anvil_cost: #anvil_cost,
                     supported_items: &ItemTag::#supported_items,
+                    primary_items: #primary_items,
                     exclusive_set: Some(&EnchantmentTag::#exclusive_set),
                     max_level: #max_level,
                     slots: &[#(#slots),*],
@@ -1191,6 +1197,7 @@ pub fn build() -> TokenStream {
                     registry_key: #raw_name,
                     anvil_cost: #anvil_cost,
                     supported_items: &ItemTag::#supported_items,
+                    primary_items: #primary_items,
                     exclusive_set: None,
                     max_level: #max_level,
                     slots: &[#(#slots),*],
@@ -1595,6 +1602,7 @@ pub fn build() -> TokenStream {
             pub description: &'static str, // TODO use TextComponent
             pub anvil_cost: u32,
             pub supported_items: &'static Tag,
+            pub primary_items: Option<&'static Tag>,
             pub exclusive_set: Option<&'static Tag>,
             pub max_level: i32,
             pub slots: &'static [AttributeModifierSlot],

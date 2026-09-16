@@ -1,5 +1,4 @@
 use crate::data_component::DataComponent;
-use crate::data_component::DataComponent::Enchantments;
 use crate::data_component_impl::{
     BlocksAttacksImpl, ConsumableImpl, CustomDataImpl, DamageImpl, DataComponentImpl,
     EnchantmentsImpl, IDSet, MaxDamageImpl, MaxStackSizeImpl, Rarity, RarityImpl,
@@ -15,7 +14,6 @@ use pumpkin_nbt::tag::NbtTag;
 use pumpkin_util::GameMode;
 use rand;
 use std::borrow::Cow;
-use std::cmp::{max, min};
 use std::num::NonZero;
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -203,23 +201,23 @@ impl ItemStack {
         false
     }
 
+    pub fn is_enchantable(&self) -> bool {
+        !self.is_empty()
+            && self
+                .get_data_component::<crate::data_component_impl::EnchantableImpl>()
+                .is_some()
+            && self
+                .get_data_component::<EnchantmentsImpl>()
+                .is_some_and(|value| value.enchantment.is_empty())
+    }
+
     pub fn has_enchantments(&self) -> bool {
         self.get_data_component::<EnchantmentsImpl>()
             .is_some_and(|e| !e.enchantment.is_empty())
     }
 
     pub fn add_enchantment(&mut self, enchantment: &'static Enchantment, level: u16) {
-        if let Some(enchantments) = self.get_data_component_mut::<EnchantmentsImpl>() {
-            let mut new_vec = enchantments.enchantment.to_vec();
-            new_vec.push((enchantment, level as i32));
-            enchantments.enchantment = Cow::Owned(new_vec);
-        } else {
-            let enchantments = EnchantmentsImpl {
-                enchantment: Cow::Owned(vec![(enchantment, level as i32)]),
-            };
-            self.patch
-                .push((DataComponent::Enchantments, Some(Box::new(enchantments))));
-        }
+        crate::enchantment_helper::upgrade(self, enchantment, i32::from(level));
     }
 
     pub fn set_lore(&mut self, lines: Vec<pumpkin_util::text::TextComponent>) {
@@ -246,6 +244,12 @@ impl ItemStack {
     }
 
     pub fn remove_data_component(&mut self, to_remove_id: DataComponent) {
+        // A removal is needed only to mask a prototype value. Removing a component
+        // absent from the prototype deletes its patch entry, including old removals.
+        if !self.item.components.iter().any(|(id, _)| *id == to_remove_id) {
+            self.patch.retain(|(id, _)| *id != to_remove_id);
+            return;
+        }
         if let Some((_, c)) = self.patch.iter_mut().find(|(id, _)| *id == to_remove_id) {
             *c = None;
         } else {
@@ -680,29 +684,7 @@ impl ItemStack {
     }
 
     pub fn enchant(&mut self, enchantment: &'static Enchantment, level: i32) {
-        if level <= 0 {
-            return;
-        }
-        let level = min(level, 255);
-        if let Some(data) = self.get_data_component_mut::<EnchantmentsImpl>() {
-            for (enc, old_level) in data.enchantment.to_mut() {
-                if *enc == enchantment {
-                    *old_level = max(*old_level, level);
-                    return;
-                }
-            }
-            data.enchantment.to_mut().push((enchantment, level));
-        } else {
-            self.patch.push((
-                Enchantments,
-                Some(
-                    EnchantmentsImpl {
-                        enchantment: Cow::Owned(vec![(enchantment, level)]),
-                    }
-                    .to_dyn(),
-                ),
-            ));
-        }
+        crate::enchantment_helper::upgrade(self, enchantment, level);
     }
 
     #[must_use]
@@ -813,6 +795,10 @@ impl ItemStack {
         let mut tag = NbtCompound::new();
 
         for (id, data) in &self.patch {
+            // This component has only a network codec in Java.
+            if *id == DataComponent::AdditionalTradeCost {
+                continue;
+            }
             if let Some(data) = data {
                 tag.put(id.to_name(), data.write_data());
             } else {
@@ -844,6 +830,11 @@ impl ItemStack {
         // Process any additional data in the components compound
         if let Some(tag) = compound.get_compound("components") {
             for (name, data) in &tag.child_tags {
+                if DataComponent::try_from_name(name.trim_start_matches('!'))
+                    == Some(DataComponent::AdditionalTradeCost)
+                {
+                    continue;
+                }
                 if let Some(name) = name.strip_prefix("!") {
                     item_stack
                         .patch
