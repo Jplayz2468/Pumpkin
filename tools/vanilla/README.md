@@ -284,3 +284,25 @@ cargo run --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_co
 
 These fixtures do not instantiate a ServerLevel or certify every component codec or
 entity source. Separate Rust tests cover storage and built-in block loot filtering.
+
+### Smelting and consumable loot transforms
+
+`LootTransformOracle.java` loads the real 73-recipe smelting manager and its three
+ingredient tags, then invokes the actual 26.2 loot codec/evaluator. The allocated
+level shim overrides only recipe access; this is not a running server. Compared
+item-component defaults are explicitly bound from `assets/items.json`.
+
+The 54 JSON tables and 3,265 cases cover every one of the 1,537 registered items as
+an input, every one of the 40 effect types, stew selection/appending/tick conversion,
+ominous-bottle bounds, count caps, empty stacks, ordered functions, metadata loss
+on recipe assembly, both RNG types and the following random value.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/LootTransformOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' LootTransformOracle crates/pumpkin/src/world/loot_transform_tables.json crates/pumpkin/src/world/loot_transform_cases.json
+cargo run --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_transform_test_tables
+```
+
+The production generator compiles the same JSON for Rust tests. Built-in fire and
+main-hand enchantment predicates have separate source-port/integration checks;
+this oracle does not exercise entity AI, live combat or custom recipe reloads.

@@ -114,7 +114,50 @@ pub static ARCHAEOLOGY_DESERT_WELL: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_stew_effect"),
+                    kind: LootFunctionKind::SetStewEffect(&[
+                        (
+                            "minecraft:night_vision",
+                            LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(7f32),
+                                &LootNumberProvider::Constant(10f32),
+                            ),
+                        ),
+                        (
+                            "minecraft:jump_boost",
+                            LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(7f32),
+                                &LootNumberProvider::Constant(10f32),
+                            ),
+                        ),
+                        (
+                            "minecraft:weakness",
+                            LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(6f32),
+                                &LootNumberProvider::Constant(8f32),
+                            ),
+                        ),
+                        (
+                            "minecraft:blindness",
+                            LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(5f32),
+                                &LootNumberProvider::Constant(7f32),
+                            ),
+                        ),
+                        (
+                            "minecraft:poison",
+                            LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(10f32),
+                                &LootNumberProvider::Constant(20f32),
+                            ),
+                        ),
+                        (
+                            "minecraft:saturation",
+                            LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(7f32),
+                                &LootNumberProvider::Constant(10f32),
+                            ),
+                        ),
+                    ]),
                 }],
             },
         ],
@@ -4661,7 +4704,10 @@ pub static BLOCKS_CHORUS_FLOWER: LootTable = LootTable {
             kind: LootEntryKind::Item("minecraft:chorus_flower"),
             weight: 1i32,
             quality: 0i32,
-            condition: LootCondition::SurvivesExplosion,
+            condition: LootCondition::AllOf(&[
+                LootCondition::SurvivesExplosion,
+                LootCondition::EntityPresent(EntityTarget::This),
+            ]),
             functions: &[],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -21240,7 +21286,7 @@ pub static BLOCKS_SNOW: LootTable = LootTable {
         }],
         rolls: LootNumberProvider::Constant(1f32),
         bonus_rolls: LootNumberProvider::Constant(0.0),
-        condition: LootCondition::None,
+        condition: LootCondition::EntityPresent(EntityTarget::This),
         functions: &[],
     }],
     functions: &[],
@@ -27080,7 +27126,22 @@ pub static CHESTS_ANCIENT_CITY_ICE_BOX: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_stew_effect"),
+                        kind: LootFunctionKind::SetStewEffect(&[
+                            (
+                                "minecraft:night_vision",
+                                LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(7f32),
+                                    &LootNumberProvider::Constant(10f32),
+                                ),
+                            ),
+                            (
+                                "minecraft:blindness",
+                                LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(5f32),
+                                    &LootNumberProvider::Constant(7f32),
+                                ),
+                            ),
+                        ]),
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -31404,7 +31465,50 @@ pub static CHESTS_SHIPWRECK_SUPPLY: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_stew_effect"),
+                        kind: LootFunctionKind::SetStewEffect(&[
+                            (
+                                "minecraft:night_vision",
+                                LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(7f32),
+                                    &LootNumberProvider::Constant(10f32),
+                                ),
+                            ),
+                            (
+                                "minecraft:jump_boost",
+                                LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(7f32),
+                                    &LootNumberProvider::Constant(10f32),
+                                ),
+                            ),
+                            (
+                                "minecraft:weakness",
+                                LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(6f32),
+                                    &LootNumberProvider::Constant(8f32),
+                                ),
+                            ),
+                            (
+                                "minecraft:blindness",
+                                LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(5f32),
+                                    &LootNumberProvider::Constant(7f32),
+                                ),
+                            ),
+                            (
+                                "minecraft:poison",
+                                LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(10f32),
+                                    &LootNumberProvider::Constant(20f32),
+                                ),
+                            ),
+                            (
+                                "minecraft:saturation",
+                                LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(7f32),
+                                    &LootNumberProvider::Constant(10f32),
+                                ),
+                            ),
+                        ]),
                     }],
                 },
                 LootEntry {
@@ -33792,8 +33896,11 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_COMMON: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported(
-                            "minecraft:set_ominous_bottle_amplifier",
+                        kind: LootFunctionKind::SetOminousBottleAmplifier(
+                            LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0f32),
+                                &LootNumberProvider::Constant(1f32),
+                            ),
                         ),
                     },
                 ],
@@ -33992,8 +34099,11 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_OMINOUS_COMMON: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported(
-                            "minecraft:set_ominous_bottle_amplifier",
+                        kind: LootFunctionKind::SetOminousBottleAmplifier(
+                            LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(2f32),
+                                &LootNumberProvider::Constant(4f32),
+                            ),
                         ),
                     },
                 ],
@@ -38239,10 +38349,23 @@ pub static ENTITIES_CHICKEN: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -38276,10 +38399,23 @@ pub static ENTITIES_COD: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::AnyOf(&[
-                        LootCondition::Unsupported,
-                        LootCondition::Unsupported,
+                        LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                            target: EntityTarget::This,
+                            expected: true,
+                        }]),
+                        LootCondition::AllOf(&[
+                            LootCondition::EntityMainhandHasEnchantments(
+                                EntityTarget::DirectKiller,
+                            ),
+                            LootCondition::EntityMainhandEnchantment {
+                                target: EntityTarget::DirectKiller,
+                                enchantment: "#minecraft:smelts_loot",
+                            },
+                        ]),
                     ]),
-                    kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                    kind: LootFunctionKind::FurnaceSmelt {
+                        use_input_count: true,
+                    },
                 }],
             }],
             rolls: LootNumberProvider::Constant(1f32),
@@ -38399,10 +38535,23 @@ pub static ENTITIES_COW: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -38495,7 +38644,7 @@ pub static ENTITIES_CREEPER: LootTable = LootTable {
             rolls: LootNumberProvider::Constant(1f32),
             bonus_rolls: LootNumberProvider::Constant(0.0),
             condition: LootCondition::EntityTypeMatches {
-                target: EntityTarget::This,
+                target: EntityTarget::Killer,
                 entity_type: "#minecraft:skeletons",
             },
             functions: &[],
@@ -38535,10 +38684,23 @@ pub static ENTITIES_DOLPHIN: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::AnyOf(&[
-                        LootCondition::Unsupported,
-                        LootCondition::Unsupported,
+                        LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                            target: EntityTarget::This,
+                            expected: true,
+                        }]),
+                        LootCondition::AllOf(&[
+                            LootCondition::EntityMainhandHasEnchantments(
+                                EntityTarget::DirectKiller,
+                            ),
+                            LootCondition::EntityMainhandEnchantment {
+                                target: EntityTarget::DirectKiller,
+                                enchantment: "#minecraft:smelts_loot",
+                            },
+                        ]),
                     ]),
-                    kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                    kind: LootFunctionKind::FurnaceSmelt {
+                        use_input_count: true,
+                    },
                 },
             ],
         }],
@@ -38708,10 +38870,23 @@ pub static ENTITIES_ELDER_GUARDIAN: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::AnyOf(&[
-                                LootCondition::Unsupported,
-                                LootCondition::Unsupported,
+                                LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                    target: EntityTarget::This,
+                                    expected: true,
+                                }]),
+                                LootCondition::AllOf(&[
+                                    LootCondition::EntityMainhandHasEnchantments(
+                                        EntityTarget::DirectKiller,
+                                    ),
+                                    LootCondition::EntityMainhandEnchantment {
+                                        target: EntityTarget::DirectKiller,
+                                        enchantment: "#minecraft:smelts_loot",
+                                    },
+                                ]),
                             ]),
-                            kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                            kind: LootFunctionKind::FurnaceSmelt {
+                                use_input_count: true,
+                            },
                         },
                     ],
                 },
@@ -38766,10 +38941,23 @@ pub static ENTITIES_ELDER_GUARDIAN: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::AnyOf(&[
-                        LootCondition::Unsupported,
-                        LootCondition::Unsupported,
+                        LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                            target: EntityTarget::This,
+                            expected: true,
+                        }]),
+                        LootCondition::AllOf(&[
+                            LootCondition::EntityMainhandHasEnchantments(
+                                EntityTarget::DirectKiller,
+                            ),
+                            LootCondition::EntityMainhandEnchantment {
+                                target: EntityTarget::DirectKiller,
+                                enchantment: "#minecraft:smelts_loot",
+                            },
+                        ]),
                     ]),
-                    kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                    kind: LootFunctionKind::FurnaceSmelt {
+                        use_input_count: true,
+                    },
                 }],
             }],
             rolls: LootNumberProvider::Constant(1f32),
@@ -39137,10 +39325,23 @@ pub static ENTITIES_GUARDIAN: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::AnyOf(&[
-                                LootCondition::Unsupported,
-                                LootCondition::Unsupported,
+                                LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                    target: EntityTarget::This,
+                                    expected: true,
+                                }]),
+                                LootCondition::AllOf(&[
+                                    LootCondition::EntityMainhandHasEnchantments(
+                                        EntityTarget::DirectKiller,
+                                    ),
+                                    LootCondition::EntityMainhandEnchantment {
+                                        target: EntityTarget::DirectKiller,
+                                        enchantment: "#minecraft:smelts_loot",
+                                    },
+                                ]),
                             ]),
-                            kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                            kind: LootFunctionKind::FurnaceSmelt {
+                                use_input_count: true,
+                            },
                         },
                     ],
                 },
@@ -39182,10 +39383,23 @@ pub static ENTITIES_GUARDIAN: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::AnyOf(&[
-                        LootCondition::Unsupported,
-                        LootCondition::Unsupported,
+                        LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                            target: EntityTarget::This,
+                            expected: true,
+                        }]),
+                        LootCondition::AllOf(&[
+                            LootCondition::EntityMainhandHasEnchantments(
+                                EntityTarget::DirectKiller,
+                            ),
+                            LootCondition::EntityMainhandEnchantment {
+                                target: EntityTarget::DirectKiller,
+                                enchantment: "#minecraft:smelts_loot",
+                            },
+                        ]),
                     ]),
-                    kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                    kind: LootFunctionKind::FurnaceSmelt {
+                        use_input_count: true,
+                    },
                 }],
             }],
             rolls: LootNumberProvider::Constant(1f32),
@@ -39230,10 +39444,23 @@ pub static ENTITIES_HOGLIN: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -39426,10 +39653,23 @@ pub static ENTITIES_HUSK: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     }],
                 },
             ],
@@ -39687,10 +39927,23 @@ pub static ENTITIES_MOOSHROOM: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -40018,10 +40271,23 @@ pub static ENTITIES_PIG: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::AnyOf(&[
-                        LootCondition::Unsupported,
-                        LootCondition::Unsupported,
+                        LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                            target: EntityTarget::This,
+                            expected: true,
+                        }]),
+                        LootCondition::AllOf(&[
+                            LootCondition::EntityMainhandHasEnchantments(
+                                EntityTarget::DirectKiller,
+                            ),
+                            LootCondition::EntityMainhandEnchantment {
+                                target: EntityTarget::DirectKiller,
+                                enchantment: "#minecraft:smelts_loot",
+                            },
+                        ]),
                     ]),
-                    kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                    kind: LootFunctionKind::FurnaceSmelt {
+                        use_input_count: true,
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -40071,7 +40337,10 @@ pub static ENTITIES_PILLAGER: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_ominous_bottle_amplifier"),
+                    kind: LootFunctionKind::SetOminousBottleAmplifier(LootNumberProvider::Uniform(
+                        &LootNumberProvider::Constant(0f32),
+                        &LootNumberProvider::Constant(4f32),
+                    )),
                 },
             ],
         }],
@@ -40099,10 +40368,23 @@ pub static ENTITIES_POLAR_BEAR: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -40135,10 +40417,23 @@ pub static ENTITIES_POLAR_BEAR: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -40263,10 +40558,23 @@ pub static ENTITIES_RABBIT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -40343,10 +40651,23 @@ pub static ENTITIES_SALMON: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::AnyOf(&[
-                        LootCondition::Unsupported,
-                        LootCondition::Unsupported,
+                        LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                            target: EntityTarget::This,
+                            expected: true,
+                        }]),
+                        LootCondition::AllOf(&[
+                            LootCondition::EntityMainhandHasEnchantments(
+                                EntityTarget::DirectKiller,
+                            ),
+                            LootCondition::EntityMainhandEnchantment {
+                                target: EntityTarget::DirectKiller,
+                                enchantment: "#minecraft:smelts_loot",
+                            },
+                        ]),
                     ]),
-                    kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                    kind: LootFunctionKind::FurnaceSmelt {
+                        use_input_count: true,
+                    },
                 }],
             }],
             rolls: LootNumberProvider::Constant(1f32),
@@ -40392,10 +40713,23 @@ pub static ENTITIES_SHEEP: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -41993,10 +42327,23 @@ pub static ENTITIES_ZOMBIE: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     }],
                 },
             ],
@@ -42025,7 +42372,7 @@ pub static ENTITIES_ZOMBIE: LootTable = LootTable {
             condition: LootCondition::AllOf(&[
                 LootCondition::KilledByPlayer,
                 LootCondition::AllOf(&[
-                    LootCondition::ThisIsBaby(true),
+                    LootCondition::AllOf(&[LootCondition::ThisIsBaby(true)]),
                     LootCondition::ThisVehicleIs("minecraft:chicken"),
                 ]),
             ]),
@@ -42173,10 +42520,23 @@ pub static ENTITIES_ZOMBIE_VILLAGER: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::AnyOf(&[
-                            LootCondition::Unsupported,
-                            LootCondition::Unsupported,
+                            LootCondition::AllOf(&[LootCondition::EntityOnFire {
+                                target: EntityTarget::This,
+                                expected: true,
+                            }]),
+                            LootCondition::AllOf(&[
+                                LootCondition::EntityMainhandHasEnchantments(
+                                    EntityTarget::DirectKiller,
+                                ),
+                                LootCondition::EntityMainhandEnchantment {
+                                    target: EntityTarget::DirectKiller,
+                                    enchantment: "#minecraft:smelts_loot",
+                                },
+                            ]),
                         ]),
-                        kind: LootFunctionKind::Unsupported("minecraft:furnace_smelt"),
+                        kind: LootFunctionKind::FurnaceSmelt {
+                            use_input_count: true,
+                        },
                     }],
                 },
             ],

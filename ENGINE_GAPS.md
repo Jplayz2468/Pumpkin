@@ -1046,3 +1046,38 @@ whole inside-effect pipeline matches Java yet.
   sources, 135 function declarations, full predicates, reloads and live integration.
   Other D01–D06/block gates remain open; this is a bounded checkpoint, not a claim
   that only mobs remain.
+
+## Smelting, stew and ominous-bottle loot transforms
+
+- Added shared `furnace_smelt`, `set_stew_effect` and
+  `set_ominous_bottle_amplifier` execution for **25 declarations** (19/3/3).
+  **110 function declarations remain unsupported**.
+- Smelting assembles the matching furnace recipe, replaces input components,
+  multiplies the result count when requested and caps it at the result's maximum
+  stack size. Empty inputs and missing recipes preserve their original result.
+  This uses the current built-in recipe registry; reloadable/custom recipe results
+  and their component payloads remain part of the recipe/reload gap.
+- Stew selection preserves draw order, appends effects, converts non-instantaneous
+  durations to ticks and preserves Java integer overflow. Empty/non-stew inputs and
+  empty choices skip sampling. Bottle amplifiers sample and clamp to 0–4, including
+  mutations made while a stack is temporarily empty.
+- Built-in smelting predicates now read the target's actual fire state and the
+  direct attacker's main-hand enchantments. Context snapshots use fire immunity and
+  player/living equipment; an indirect attacker's sword is not substituted for a
+  projectile's equipment. Java 26.2 `attacker`/`direct_attacker` selectors are parsed
+  explicitly. All supplied flag constraints are preserved; unsupported flag/slot/
+  level constraints still fail closed. Explicit empty entity predicates require an
+  entity; empty enchantment tests still require the equipment component.
+- `LootTransformOracle` executes actual Java functions with the actual recipe
+  manager loaded from all **73** built-in smelting recipes, including their three
+  ingredient tags. Its level shim supplies only recipe access. **3,265 cases** cover
+  all **1,537 items**, all **40 effects**, 54 production-generated tables, empty and
+  oversized counts, metadata replacement/preservation, ordering and following RNG
+  values. Compared item-component defaults are explicitly bound from the canonical
+  item export. Separate Rust checks exercise the real built-in smelting condition
+  tree and missing entity/equipment/component boundaries. This is shared engine
+  coverage, not a full pass over any mob.
+- Final background run 3 passed **533 engine, 241 world and 66 utility tests**,
+  with the same two previously separately passing localhost tests excluded. Other
+  D01–D06/block gates, full loot contexts/predicates, recipe reloads and live
+  integration remain open.

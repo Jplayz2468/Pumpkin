@@ -1533,3 +1533,11 @@ retain extra item components across placement/save/reload; banner patterns, skul
 profile/sound and styled names now round-trip. The Java comparison matrix adds 288
 cases. Remaining engine/block work, including other block-entity families, is listed
 in ENGINE_GAPS.md; full mob passes remain paused.
+
+### Shared loot transforms
+
+Smelting now uses furnace recipes and replaces/caps the result correctly; stew
+and ominous-bottle functions preserve Java sampling and component updates. Shared
+fire/direct-attacker equipment predicates now activate the built-in smelting rules.
+The Java matrix covers all 1,537 recipe inputs and all 40 effect duration types.
+Remaining functions and broader block/engine gates are recorded in ENGINE_GAPS.md.

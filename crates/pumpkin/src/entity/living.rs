@@ -2438,10 +2438,10 @@ impl LivingEntity {
                     tracker.has_player_attacker()
                 };
 
-            let params = LootContextParameters {
+            let mut params = LootContextParameters {
                 killed_by_player: Some(has_player_kill),
                 this_entity: Some(self.entity.entity_type),
-                killer_entity: killer.map(|c| c.get_entity().entity_type),
+                killer_entity: cause.map(|c| c.get_entity().entity_type),
                 direct_killer_entity: source.map(|s| s.get_entity().entity_type),
                 position: Some(self.entity.pos.load()),
                 world_time: world.level_info.load().day_time as u64,
@@ -2473,6 +2473,20 @@ impl LivingEntity {
                     .map(|vehicle| vehicle.get_entity().entity_type),
                 ..Default::default()
             };
+
+            params.set_entity_context(
+                pumpkin_util::loot_table::EntityTarget::This,
+                dyn_self.as_ref(),
+            );
+            if let Some(attacker) = cause {
+                params.set_entity_context(pumpkin_util::loot_table::EntityTarget::Killer, attacker);
+            }
+            if let Some(direct_attacker) = source {
+                params.set_entity_context(
+                    pumpkin_util::loot_table::EntityTarget::DirectKiller,
+                    direct_attacker,
+                );
+            }
 
             // LivingEntity.die emits before death loot (including experience).
             world.emit_game_event_with_source(

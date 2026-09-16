@@ -191,28 +191,54 @@ fn parse_condition(cond: &ConditionStruct) -> LootCondition {
 }
 
 /// Parses `minecraft:entity_properties`, which asserts facts about an entity involved in
-/// the drop. An empty predicate genuinely matches everything, so it stays `None`.
+/// the drop. An omitted predicate matches unconditionally; an explicit empty one requires an entity.
 fn parse_entity_properties(cond: &ConditionStruct) -> LootCondition {
     let Some(predicate) = &cond.predicate else {
         return LootCondition::None;
     };
-    if predicate.extra.is_empty() {
-        return LootCondition::None;
-    }
-
     let target = match cond.entity.as_deref() {
-        Some("killer") => EntityTarget::Killer,
-        Some("direct_killer") => EntityTarget::DirectKiller,
-        _ => EntityTarget::This,
+        Some("attacker" | "killer") => EntityTarget::Killer,
+        Some("direct_attacker" | "direct_killer") => EntityTarget::DirectKiller,
+        Some("this") | None => EntityTarget::This,
+        _ => return LootCondition::Unsupported,
     };
+
+    if predicate.extra.is_empty() { return LootCondition::EntityPresent(target); }
 
     let mut parsed: Vec<LootCondition> = Vec::new();
     for (key, value) in &predicate.extra {
         let condition = match key.as_str() {
-            "minecraft:flags" => value
-                .get("is_baby")
-                .and_then(serde_json::Value::as_bool)
-                .map(LootCondition::ThisIsBaby),
+            "minecraft:flags" => value.as_object().map(|flags| {
+                if flags.is_empty() { return LootCondition::EntityPresent(target); }
+                let flags: Vec<_> = flags.iter().map(|(key, value)| {
+                    match (key.as_str(), value.as_bool()) {
+                        ("is_on_fire", Some(expected)) => LootCondition::EntityOnFire { target, expected },
+                        ("is_baby", Some(expected)) if target == EntityTarget::This => LootCondition::ThisIsBaby(expected),
+                        _ => LootCondition::Unsupported,
+                    }
+                }).collect();
+                LootCondition::AllOf(Box::leak(flags.into_boxed_slice()))
+            }),
+            "minecraft:equipment" => {
+                // Preserve every constraint; the currently supported equipment shape
+                // is the main-hand enchantment predicate used by smelting loot.
+                let equipment = value.as_object();
+                equipment.filter(|v| v.len() == 1).and_then(|v| v.get("mainhand"))
+                    .and_then(serde_json::Value::as_object).filter(|v| v.len() == 1)
+                    .and_then(|v| v.get("predicates")).and_then(serde_json::Value::as_object)
+                    .filter(|v| v.len() == 1).and_then(|v| v.get("minecraft:enchantments"))
+                    .and_then(serde_json::Value::as_array).map(|predicates| {
+                        let mut conditions = vec![LootCondition::EntityMainhandHasEnchantments(target)];
+                        conditions.extend(predicates.iter().map(|predicate| {
+                            predicate.as_object().filter(|v| v.len() == 1)
+                                .and_then(|v| v.get("enchantments")).and_then(serde_json::Value::as_str)
+                                .map(|name| LootCondition::EntityMainhandEnchantment {
+                                    target, enchantment: Box::leak(name.to_owned().into_boxed_str()),
+                                }).unwrap_or(LootCondition::Unsupported)
+                        }));
+                        LootCondition::AllOf(Box::leak(conditions.into_boxed_slice()))
+                    })
+            }
             "minecraft:vehicle" => value
                 .get("minecraft:entity_type")
                 .and_then(serde_json::Value::as_str)
@@ -398,6 +424,14 @@ fn path_to_ident(relative: &str) -> String {
     relative.replace('/', "_").to_shouty_snake_case()
 }
 
+fn entity_target_tokens(target: EntityTarget) -> TokenStream {
+    match target {
+        EntityTarget::This => quote! { EntityTarget::This },
+        EntityTarget::Killer => quote! { EntityTarget::Killer },
+        EntityTarget::DirectKiller => quote! { EntityTarget::DirectKiller },
+    }
+}
+
 fn condition_to_tokens(cond: LootCondition) -> TokenStream {
     match cond {
         LootCondition::None => quote! { LootCondition::None },
@@ -417,6 +451,22 @@ fn condition_to_tokens(cond: LootCondition) -> TokenStream {
                     properties: &[#(#pairs),*],
                 }
             }
+        }
+        LootCondition::EntityPresent(target) => {
+            let target = entity_target_tokens(target);
+            quote! { LootCondition::EntityPresent(#target) }
+        }
+        LootCondition::EntityMainhandHasEnchantments(target) => {
+            let target = entity_target_tokens(target);
+            quote! { LootCondition::EntityMainhandHasEnchantments(#target) }
+        }
+        LootCondition::EntityOnFire { target, expected } => {
+            let target = entity_target_tokens(target);
+            quote! { LootCondition::EntityOnFire { target: #target, expected: #expected } }
+        }
+        LootCondition::EntityMainhandEnchantment { target, enchantment } => {
+            let target = entity_target_tokens(target);
+            quote! { LootCondition::EntityMainhandEnchantment { target: #target, enchantment: #enchantment } }
         }
         LootCondition::ThisIsBaby(expected) => {
             quote! { LootCondition::ThisIsBaby(#expected) }
@@ -554,6 +604,24 @@ fn functions_tokens(functions: &[EntryFunctionStruct]) -> TokenStream {
                 let option = |v: &serde_json::Value| if v.is_null() { quote! {None} } else { let n=number_tokens(v); quote! {Some(#n)} };
                 let min = option(min); let max = option(max);
                 quote! { LootFunctionKind::LimitCount { min: #min, max: #max } }
+            }
+            "minecraft:furnace_smelt" => {
+                let use_input_count = field("use_input_count").as_bool().unwrap_or(true);
+                quote! { LootFunctionKind::FurnaceSmelt { use_input_count: #use_input_count } }
+            }
+            "minecraft:set_stew_effect" => {
+                let mut seen = std::collections::HashSet::new();
+                let effects: Vec<_> = field("effects").as_array().into_iter().flatten().map(|entry| {
+                    let effect = entry["type"].as_str().expect("stew effect type");
+                    assert!(seen.insert(effect), "duplicate stew effect {effect}");
+                    let duration = number_tokens(&entry["duration"]);
+                    quote! { (#effect, #duration) }
+                }).collect();
+                quote! { LootFunctionKind::SetStewEffect(&[#(#effects),*]) }
+            }
+            "minecraft:set_ominous_bottle_amplifier" => {
+                let amplifier = number_tokens(field("amplifier"));
+                quote! { LootFunctionKind::SetOminousBottleAmplifier(#amplifier) }
             }
             "minecraft:set_damage" => {
                 let damage = number_tokens(field("damage")); let add = field("add").as_bool().unwrap_or(false);
@@ -818,6 +886,16 @@ pub fn build_copy_components_fixtures() -> TokenStream {
         &fs::read_to_string("../../crates/pumpkin/src/world/loot_copy_components_tables.json")
             .expect("loot copy component tables"),
     ).expect("loot copy component JSON");
+    let tables: Vec<_> = tables.iter().map(table_tokens).collect();
+    quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
+}
+
+
+pub fn build_transform_fixtures() -> TokenStream {
+    let tables: Vec<ChestLootTableJson> = serde_json::from_str(
+        &fs::read_to_string("../../crates/pumpkin/src/world/loot_transform_tables.json")
+            .expect("loot transform tables"),
+    ).expect("loot transform JSON");
     let tables: Vec<_> = tables.iter().map(table_tokens).collect();
     quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
 }

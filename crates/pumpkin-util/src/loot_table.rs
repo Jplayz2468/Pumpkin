@@ -28,13 +28,22 @@ pub enum LootCondition {
 
     /// `minecraft:entity_properties` on `this` with `flags.is_baby`.
     ThisIsBaby(bool),
+    EntityPresent(EntityTarget),
+    EntityMainhandHasEnchantments(EntityTarget),
+    EntityOnFire {
+        target: EntityTarget,
+        expected: bool,
+    },
+    EntityMainhandEnchantment {
+        target: EntityTarget,
+        enchantment: &'static str,
+    },
     /// `minecraft:entity_properties` on `this` with `vehicle.entity_type`.
     ThisVehicleIs(&'static str),
     /// `minecraft:entity_properties` matching an entity type, e.g. the creeper's
     /// "killed by a skeleton" music-disc pool.
     EntityTypeMatches {
-        /// Which entity the predicate is about: vanilla's `"this"`, `"killer"` or
-        /// `"direct_killer"`.
+        /// Which entity the predicate is about: `this`, `attacker`, or `direct_attacker`.
         target: EntityTarget,
         /// A registry name, or a `#tag` to be resolved by the evaluator.
         entity_type: &'static str,
@@ -67,7 +76,7 @@ pub enum LootCondition {
 }
 
 /// Which entity an `entity_properties` condition is about.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum EntityTarget {
     This,
     Killer,
@@ -127,6 +136,11 @@ pub enum LootFunctionKind {
         limit: i32,
     },
     ExplosionDecay,
+    FurnaceSmelt {
+        use_input_count: bool,
+    },
+    SetStewEffect(&'static [(&'static str, LootNumberProvider)]),
+    SetOminousBottleAmplifier(LootNumberProvider),
     SetDamage {
         damage: LootNumberProvider,
         add: bool,

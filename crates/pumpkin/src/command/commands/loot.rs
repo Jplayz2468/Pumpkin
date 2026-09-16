@@ -412,9 +412,22 @@ impl CommandExecutor for LootExecutor {
                     ..Default::default()
                 };
 
+                if let Some(player) = &killer {
+                    params.set_entity_context(
+                        pumpkin_util::loot_table::EntityTarget::Killer,
+                        player.as_ref(),
+                    );
+                    params.set_entity_context(
+                        pumpkin_util::loot_table::EntityTarget::DirectKiller,
+                        player.as_ref(),
+                    );
+                }
                 let mut last_key = None;
                 for entity in &target_entities {
-                    params.this_entity = Some(entity.get_entity().entity_type);
+                    params.set_entity_context(
+                        pumpkin_util::loot_table::EntityTarget::This,
+                        entity.as_ref(),
+                    );
                     let resource_name = entity.get_entity().entity_type.resource_name;
                     let key = format!("minecraft:entities/{resource_name}");
                     if let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(&key) {

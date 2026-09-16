@@ -73,10 +73,18 @@ pub type LootComponentMap = Vec<(
     Box<dyn pumpkin_data::data_component_impl::DataComponentImpl>,
 )>;
 
+#[derive(Clone)]
+pub struct LootEntityFacts {
+    pub on_fire: bool,
+    pub mainhand: Option<ItemStack>,
+}
+
 #[derive(Default, Clone)]
 pub struct LootContextParameters {
     /// Snapshots collected before borrowing the loot random stream.
     pub component_sources: std::collections::HashMap<String, LootComponentMap>,
+    pub entities:
+        std::collections::HashMap<pumpkin_util::loot_table::EntityTarget, LootEntityFacts>,
     pub explosion_radius: Option<f32>,
     pub dynamic_drops: std::collections::HashMap<String, Vec<ItemStack>>,
     pub block_state: Option<&'static BlockState>,
@@ -92,7 +100,7 @@ pub struct LootContextParameters {
     pub is_raining: Option<bool>,
     pub is_thundering: Option<bool>,
     /// Whether the killed entity was on fire at death time.
-    /// Computed from `Entity.fire_ticks > 0`.
+    /// Computed from `Entity::is_on_fire`, including fire immunity.
     pub is_on_fire: Option<bool>,
     /// Whether the killed entity was a baby. Vanilla `entity_properties` reads this
     /// through `minecraft:flags { is_baby }`.
@@ -108,6 +116,45 @@ pub struct LootContextParameters {
 }
 
 impl LootContextParameters {
+    pub fn set_entity_context(
+        &mut self,
+        target: pumpkin_util::loot_table::EntityTarget,
+        entity: &dyn crate::entity::EntityBase,
+    ) {
+        use pumpkin_util::loot_table::EntityTarget;
+        let mainhand = if let Some(player) = entity
+            .cast_any()
+            .downcast_ref::<crate::entity::player::Player>()
+        {
+            Some(
+                player
+                    .inventory()
+                    .get_stack_in_hand(pumpkin_util::Hand::Right),
+            )
+        } else {
+            entity.get_living_entity().map(|living| {
+                living
+                    .entity_equipment
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .get(&pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND)
+            })
+        };
+        let on_fire = entity.get_entity().is_on_fire();
+        match target {
+            EntityTarget::This => {
+                self.this_entity = Some(entity.get_entity().entity_type);
+                self.is_on_fire = Some(on_fire);
+            }
+            EntityTarget::Killer => self.killer_entity = Some(entity.get_entity().entity_type),
+            EntityTarget::DirectKiller => {
+                self.direct_killer_entity = Some(entity.get_entity().entity_type)
+            }
+        }
+        self.entities
+            .insert(target, LootEntityFacts { on_fire, mainhand });
+    }
+
     /// Both ordinary block drops and `/loot mine` use the same block-entity context.
     pub fn with_block_entity(
         mut self,
@@ -272,6 +319,69 @@ fn check_condition(
         // An absent fact fails the check rather than passing it: the pools these gate are
         // rare drops, so guessing "true" is what produced guaranteed wrong drops.
         LootCondition::ThisIsBaby(expected) => params.this_is_baby == Some(expected),
+        LootCondition::EntityPresent(target) => {
+            params.entities.contains_key(&target)
+                || match target {
+                    pumpkin_util::loot_table::EntityTarget::This => params.this_entity.is_some(),
+                    pumpkin_util::loot_table::EntityTarget::Killer => {
+                        params.killer_entity.is_some()
+                    }
+                    pumpkin_util::loot_table::EntityTarget::DirectKiller => {
+                        params.direct_killer_entity.is_some()
+                    }
+                }
+        }
+        LootCondition::EntityMainhandHasEnchantments(target) => params
+            .entities
+            .get(&target)
+            .and_then(|entity| entity.mainhand.as_ref())
+            .filter(|stack| !stack.is_empty())
+            .is_some_and(|stack| {
+                stack
+                    .get_data_component::<pumpkin_data::data_component_impl::EnchantmentsImpl>()
+                    .is_some()
+            }),
+        LootCondition::EntityOnFire { target, expected } => {
+            params
+                .entities
+                .get(&target)
+                .map(|entity| entity.on_fire)
+                .or_else(|| {
+                    (target == pumpkin_util::loot_table::EntityTarget::This)
+                        .then_some(params.is_on_fire)
+                        .flatten()
+                })
+                == Some(expected)
+        }
+        LootCondition::EntityMainhandEnchantment {
+            target,
+            enchantment,
+        } => {
+            use pumpkin_data::tag::Taggable;
+            params
+                .entities
+                .get(&target)
+                .and_then(|entity| entity.mainhand.as_ref())
+                .filter(|stack| !stack.is_empty())
+                .and_then(|stack| {
+                    stack
+                        .get_data_component::<pumpkin_data::data_component_impl::EnchantmentsImpl>()
+                })
+                .is_some_and(|enchantments| {
+                    enchantments.enchantment.iter().any(|(value, level)| {
+                        *level > 0
+                            && if let Some(tag) = enchantment.strip_prefix('#') {
+                                value.is_tagged_with(tag).unwrap_or(false)
+                            } else {
+                                pumpkin_data::Enchantment::from_name(
+                                    enchantment
+                                        .strip_prefix("minecraft:")
+                                        .unwrap_or(enchantment),
+                                ) == Some(*value)
+                            }
+                    })
+                })
+        }
         LootCondition::ThisVehicleIs(name) => params
             .this_vehicle
             .is_some_and(|vehicle| entity_type_matches(vehicle, name)),
@@ -529,6 +639,72 @@ fn apply_functions(
                         .filter(|_| rng.next_f32() <= 1.0 / radius)
                         .count() as i32;
                 }
+            }
+            LootFunctionKind::FurnaceSmelt { use_input_count } => {
+                use pumpkin_data::recipes::{
+                    CookingRecipeKind, get_cooking_recipe_with_ingredient,
+                };
+                if current > 0
+                    && let Some(recipe) = get_cooking_recipe_with_ingredient(
+                        output.stack.item,
+                        CookingRecipeKind::Smelting,
+                    )
+                    && let Some(item) = Item::from_registry_key(
+                        recipe
+                            .result
+                            .id
+                            .strip_prefix("minecraft:")
+                            .unwrap_or(recipe.result.id),
+                    )
+                    && item != &Item::AIR
+                    && recipe.result.count > 0
+                {
+                    let result = ItemStack::new(recipe.result.count, item);
+                    let count = if use_input_count { current } else { 1 };
+                    output.count = count
+                        .wrapping_mul(i32::from(result.item_count))
+                        .min(i32::from(result.get_max_stack_size()));
+                    // Recipe assembly replaces the input stack, including its components.
+                    output.stack = result;
+                }
+            }
+            LootFunctionKind::SetStewEffect(effects) => {
+                use pumpkin_data::data_component_impl::{
+                    SuspiciousStewEffect, SuspiciousStewEffectsImpl,
+                };
+                if current > 0 && output.stack.item == &Item::SUSPICIOUS_STEW && !effects.is_empty()
+                {
+                    let (effect, duration) =
+                        effects[rng.next_bounded_i32(effects.len() as i32) as usize];
+                    let effect = effect.strip_prefix("minecraft:").unwrap_or(effect);
+                    let duration = number_int(duration, rng);
+                    // The complete instantaneous effect set in Java 26.2.
+                    let duration =
+                        if matches!(effect, "instant_health" | "instant_damage" | "saturation") {
+                            duration
+                        } else {
+                            duration.wrapping_mul(20)
+                        };
+                    let mut stored = output
+                        .stack
+                        .get_data_component::<SuspiciousStewEffectsImpl>()
+                        .map(|value| value.effects.to_vec())
+                        .unwrap_or_default();
+                    stored.push(SuspiciousStewEffect {
+                        effect: format!("minecraft:{effect}").into(),
+                        duration,
+                    });
+                    output.stack.set_data_component(SuspiciousStewEffectsImpl {
+                        effects: stored.into(),
+                    });
+                }
+            }
+            LootFunctionKind::SetOminousBottleAmplifier(amplifier) => {
+                output.stack.set_data_component(
+                    pumpkin_data::data_component_impl::OminousBottleAmplifierImpl {
+                        amplifier: number_int(amplifier, rng).clamp(0, 4),
+                    },
+                );
             }
             LootFunctionKind::SetDamage { damage, add } => {
                 use pumpkin_data::data_component_impl::DamageImpl;
@@ -1784,5 +1960,229 @@ mod copy_components_tests {
                 compare(case, Xoroshiro::from_seed(seed));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod transform_tests {
+    use super::*;
+    use pumpkin_data::data_component_impl::{
+        CustomNameImpl, DamageImpl, OminousBottleAmplifierImpl, SuspiciousStewEffect,
+        SuspiciousStewEffectsImpl,
+    };
+    use pumpkin_util::text::TextComponent;
+    use serde_json::{Value, json};
+    mod compiled {
+        include!("loot_transform_test_tables.rs");
+    }
+
+    fn compare<R: pumpkin_util::random::RandomImpl>(case: &Value, mut rng: R) {
+        let name = case["item"]
+            .as_str()
+            .unwrap()
+            .strip_prefix("minecraft:")
+            .unwrap();
+        let mut stack = ItemStack::new(
+            case["count"].as_u64().unwrap() as u8,
+            Item::from_registry_key(name).unwrap(),
+        );
+        if case["metadata"].as_bool().unwrap() {
+            stack.set_data_component(CustomNameImpl {
+                name: TextComponent::text("input"),
+            });
+            stack.set_data_component(DamageImpl { damage: 17 });
+            stack.set_data_component(OminousBottleAmplifierImpl { amplifier: 2 });
+            stack.set_data_component(SuspiciousStewEffectsImpl {
+                effects: vec![SuspiciousStewEffect {
+                    effect: "minecraft:poison".into(),
+                    duration: 13,
+                }]
+                .into(),
+            });
+        }
+        let mut params = LootContextParameters::default();
+        params
+            .dynamic_drops
+            .insert("minecraft:input".into(), vec![stack]);
+        let mut output = Vec::new();
+        run_table(
+            &compiled::TABLES[case["table"].as_u64().unwrap() as usize],
+            &params,
+            LootFacts::from_params(&params),
+            &mut rng,
+            &mut Vec::new(),
+            &mut |result, _| {
+                let count = result.visible_count();
+                let stack = &result.stack;
+                let item = if count > 0 {
+                    stack.item.registry_key
+                } else {
+                    "air"
+                };
+                let name = (count > 0)
+                    .then(|| stack.get_custom_name().map(|name| name.clone().get_text()))
+                    .flatten();
+                let damage = (count > 0)
+                    .then(|| {
+                        stack
+                            .get_data_component::<DamageImpl>()
+                            .map(|value| value.damage)
+                    })
+                    .flatten();
+                let amplifier = (count > 0)
+                    .then(|| {
+                        stack
+                            .get_data_component::<OminousBottleAmplifierImpl>()
+                            .map(|value| value.amplifier)
+                    })
+                    .flatten();
+                let stew = (count > 0).then(|| stack.get_data_component::<SuspiciousStewEffectsImpl>().map(|value| value.effects.iter()
+                    .map(|effect| json!({"id": effect.effect, "duration": effect.duration})).collect::<Vec<_>>())).flatten();
+                output.push(json!({"item":format!("minecraft:{item}"),"count":count,"name":name,"damage":damage,"amplifier":amplifier,"stew":stew}));
+            },
+        );
+        let expected: Vec<_> = case["output"].as_array().unwrap().iter().map(|value| json!({
+            "item":value["item"],"count":value["count"],"name":value["name"],"damage":value["damage"],"amplifier":value["amplifier"],"stew":value["stew"]
+        })).collect();
+        assert_eq!(output, expected, "{case}");
+        assert_eq!(
+            rng.next_i64(),
+            case["next"].as_i64().unwrap(),
+            "following RNG: {case}"
+        );
+    }
+
+    #[test]
+    fn loot_transforms_match_java_functions_recipes_and_all_effect_duration_types() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("loot_transform_cases.json")).unwrap();
+        assert_eq!(cases.len(), 3265);
+        assert_eq!(compiled::TABLES.len(), 54);
+        for case in &cases {
+            let seed = case["seed"].as_i64().unwrap() as u64;
+            if case["kind"] == 0 {
+                compare(case, LegacyRand::from_seed(seed));
+            } else {
+                compare(case, Xoroshiro::from_seed(seed));
+            }
+        }
+    }
+
+    #[test]
+    fn builtin_smelting_conditions_use_target_fire_and_direct_attacker_equipment() {
+        use pumpkin_data::data_component_impl::EnchantmentsImpl;
+        use pumpkin_util::loot_table::EntityTarget;
+        let table = pumpkin_data::loot_table::get_loot_table("minecraft:entities/cow").unwrap();
+        let mut enchanted = ItemStack::new(1, &Item::IRON_SWORD);
+        enchanted.set_data_component(EnchantmentsImpl {
+            enchantment: vec![(&pumpkin_data::Enchantment::FIRE_ASPECT, 1)].into(),
+        });
+        for (fire, direct_hand, attacker_hand, cooked) in [
+            (false, None, None, false),
+            (true, None, None, true),
+            (false, Some(enchanted.clone()), None, true),
+            (
+                false,
+                Some(ItemStack::EMPTY.clone()),
+                Some(enchanted.clone()),
+                false,
+            ),
+            (
+                false,
+                Some(ItemStack::new(1, &Item::IRON_SWORD)),
+                None,
+                false,
+            ),
+        ] {
+            let mut params = LootContextParameters {
+                is_on_fire: Some(fire),
+                ..Default::default()
+            };
+            if let Some(mainhand) = direct_hand {
+                params.entities.insert(
+                    EntityTarget::DirectKiller,
+                    LootEntityFacts {
+                        on_fire: false,
+                        mainhand: Some(mainhand),
+                    },
+                );
+            }
+            if let Some(mainhand) = attacker_hand {
+                params.entities.insert(
+                    EntityTarget::Killer,
+                    LootEntityFacts {
+                        on_fire: false,
+                        mainhand: Some(mainhand),
+                    },
+                );
+            }
+            for seed in 0..16 {
+                let drops = generate_loot_with_context(table, seed, &params);
+                assert!(drops.iter().any(|stack| stack.item
+                    == if cooked {
+                        &Item::COOKED_BEEF
+                    } else {
+                        &Item::BEEF
+                    }));
+                assert!(!drops.iter().any(|stack| stack.item
+                    == if cooked {
+                        &Item::BEEF
+                    } else {
+                        &Item::COOKED_BEEF
+                    }));
+            }
+        }
+    }
+    #[test]
+    fn empty_entity_and_enchantment_predicates_still_require_their_sources() {
+        use pumpkin_data::data_component::DataComponent;
+        use pumpkin_util::loot_table::EntityTarget;
+        let target = EntityTarget::DirectKiller;
+        let mut params = LootContextParameters::default();
+        let check = |condition, params: &LootContextParameters| {
+            LootFacts::from_params(params).check(condition, params, &mut LegacyRand::from_seed(0))
+        };
+        assert!(!check(LootCondition::EntityPresent(target), &params));
+        assert!(!check(
+            LootCondition::EntityMainhandHasEnchantments(target),
+            &params
+        ));
+        params.entities.insert(
+            target,
+            LootEntityFacts {
+                on_fire: false,
+                mainhand: None,
+            },
+        );
+        assert!(check(LootCondition::EntityPresent(target), &params));
+        assert!(!check(
+            LootCondition::EntityMainhandHasEnchantments(target),
+            &params
+        ));
+        for (stack, expected) in [
+            (ItemStack::EMPTY.clone(), false),
+            (ItemStack::new(1, &Item::IRON_SWORD), true),
+        ] {
+            params.entities.get_mut(&target).unwrap().mainhand = Some(stack);
+            assert_eq!(
+                check(
+                    LootCondition::EntityMainhandHasEnchantments(target),
+                    &params
+                ),
+                expected
+            );
+        }
+        params
+            .entities
+            .get_mut(&target)
+            .unwrap()
+            .mainhand
+            .as_mut()
+            .unwrap()
+            .remove_data_component(DataComponent::Enchantments);
+        assert!(!check(
+            LootCondition::EntityMainhandHasEnchantments(target),
+            &params
+        ));
     }
 }

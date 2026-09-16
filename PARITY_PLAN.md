@@ -488,3 +488,9 @@ Shared block-component checkpoint: 71 copy-components declarations now execute;
 nine block-entity types and production-generated comparisons against 288 Java cases.
 The broader engine/block completion gate remains open. See ENGINE_GAPS.md for the
 remaining storage, context, predicate, codec and live-integration work.
+
+Shared loot-transform checkpoint: 25 smelting/stew/ominous-bottle declarations and
+smelting's fire/equipment context predicates are implemented. The 3,265 Java cases
+cover every item as a smelting input and every registered effect's duration handling.
+110 other function declarations and the broader ENGINE_GAPS.md gates remain open.
+Full mob passes remain paused.
