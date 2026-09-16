@@ -5,7 +5,7 @@
 //! render a stack back into it, so a mismatch prints both sides identically.
 
 pub mod java_parity {
-    use pumpkin_data::data_component_impl::{EnchantmentsImpl, StoredEnchantmentsImpl};
+    use pumpkin_data::data_component_impl::{EnchantmentsImpl, StoredEnchantmentsImpl, TrimImpl};
     use pumpkin_data::enchantment::Enchantment;
     use pumpkin_data::item::Item;
     use pumpkin_data::item_stack::ItemStack;
@@ -85,8 +85,17 @@ pub mod java_parity {
             .get_data_component::<StoredEnchantmentsImpl>()
             .map(|c| encode(c.enchantment.iter().map(|(e, l)| (*e, *l)).collect()))
             .unwrap_or_default();
+        let trim = stack.get_data_component::<TrimImpl>().map_or_else(
+            || "none".to_string(),
+            |t| {
+                let text = |tag: &pumpkin_nbt::tag::NbtTag| {
+                    tag.extract_string().unwrap_or_default().to_string()
+                };
+                format!("{}/{}", text(&t.material), text(&t.pattern))
+            },
+        );
         format!(
-            "{} x{} damage={} repair_cost={} enchants=[{}] stored=[{}]",
+            "{} x{} damage={} repair_cost={} enchants=[{}] stored=[{}] trim={trim}",
             stack.item.registry_key,
             stack.item_count,
             stack.get_damage(),
@@ -116,8 +125,16 @@ pub mod java_parity {
                 })
                 .collect())
         };
+        let trim = match result.get("trim") {
+            Some(value) if !value.is_null() => format!(
+                "{}/{}",
+                value["material"].as_str().unwrap_or_default(),
+                value["pattern"].as_str().unwrap_or_default()
+            ),
+            _ => "none".to_string(),
+        };
         format!(
-            "{} x{} damage={} repair_cost={} enchants=[{}] stored=[{}]",
+            "{} x{} damage={} repair_cost={} enchants=[{}] stored=[{}] trim={trim}",
             result["item"]
                 .as_str()
                 .expect("item")

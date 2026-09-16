@@ -277,3 +277,54 @@ impl Slot for SmithingOutputSlot {
         self.inventory.mark_dirty();
     }
 }
+
+/// Differential comparison against the real Java 26.2 smithing recipes.
+/// Fixtures come from `tools/vanilla/SmithingOracle.java`.
+#[cfg(test)]
+mod java_parity_tests {
+    use super::*;
+    use crate::entity_equipment::EntityEquipment;
+    use crate::test_support::java_parity::{build, describe, expected};
+    use serde_json::Value;
+    use std::sync::Mutex;
+
+    #[test]
+    fn smithing_results_match_java() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("smithing_cases.json")).expect("smithing fixtures");
+        assert!(cases.len() > 600, "fixture looks truncated");
+
+        let player_inventory = Arc::new(PlayerInventory::new(
+            Arc::new(Mutex::new(EntityEquipment::new())),
+            Arc::new(rustc_hash::FxHashMap::default()),
+        ));
+
+        let mut mismatches: Vec<String> = Vec::new();
+        for (index, case) in cases.iter().enumerate() {
+            let handler = SmithingTableScreenHandler::new(1, &player_inventory);
+            handler.input_inventory.set_stack(0, build(&case["template"]));
+            handler.input_inventory.set_stack(1, build(&case["base"]));
+            handler.input_inventory.set_stack(2, build(&case["addition"]));
+
+            handler.update_output();
+
+            let result = describe(&handler.output_inventory.get_stack(0));
+            let want = expected(&case["result"]);
+            if result != want {
+                mismatches.push(format!(
+                    "case {index}: template={} base={} addition={} matched={}\n  \
+                     java={want}\n  rust={result}",
+                    case["template"], case["base"], case["addition"], case["matched"]
+                ));
+            }
+        }
+
+        assert!(
+            mismatches.is_empty(),
+            "{} of {} smithing cases differ from Java:\n{}",
+            mismatches.len(),
+            cases.len(),
+            mismatches.iter().take(15).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
+}

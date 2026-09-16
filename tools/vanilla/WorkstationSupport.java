@@ -189,6 +189,15 @@ public class WorkstationSupport {
         out.add("enchantments", encode(stack.getOrDefault(DataComponents.ENCHANTMENTS, ItemEnchantments.EMPTY)));
         out.add("stored_enchantments",
                 encode(stack.getOrDefault(DataComponents.STORED_ENCHANTMENTS, ItemEnchantments.EMPTY)));
+        var trim = stack.get(DataComponents.TRIM);
+        if (trim == null) {
+            out.add("trim", JsonNull.INSTANCE);
+        } else {
+            JsonObject encoded = new JsonObject();
+            encoded.addProperty("material", trim.material().unwrapKey().orElseThrow().identifier().toString());
+            encoded.addProperty("pattern", trim.pattern().unwrapKey().orElseThrow().identifier().toString());
+            out.add("trim", encoded);
+        }
         return out;
     }
 
