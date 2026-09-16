@@ -510,3 +510,60 @@ impl Slot for LoomResultSlot {
         self.inventory.mark_dirty();
     }
 }
+
+/// Differential comparison against the real Java 26.2 loom.
+/// Fixtures come from `tools/vanilla/LoomOracle.java`.
+#[cfg(test)]
+mod java_parity_tests {
+    use super::*;
+    use serde_json::Value;
+
+    /// Scope: the selectable-pattern list only. The banner layers the loom then
+    /// produces are not compared here. The list is compared in order because the
+    /// client selects a pattern by index.
+    #[test]
+    fn loom_selectable_patterns_match_java() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("loom_cases.json")).expect("loom fixtures");
+        assert!(cases.len() > 10, "fixture looks truncated");
+
+        let mut mismatches: Vec<String> = Vec::new();
+        for case in &cases {
+            let stack = match case["item"].as_str() {
+                None => ItemStack::EMPTY.clone(),
+                Some(id) => {
+                    let item = Item::from_registry_key(id.trim_start_matches("minecraft:"))
+                        .unwrap_or_else(|| panic!("unknown item {id}"));
+                    ItemStack::new(1, item)
+                }
+            };
+
+            let rust = get_selectable_patterns(&stack);
+            let java: Vec<String> = case["patterns"]
+                .as_array()
+                .expect("patterns")
+                .iter()
+                .map(|value| value.as_str().expect("pattern id").to_string())
+                .collect();
+
+            if rust != java {
+                mismatches.push(format!(
+                    "{}:\n  java ({}) = {}\n  rust ({}) = {}",
+                    case["item"],
+                    java.len(),
+                    java.join(", "),
+                    rust.len(),
+                    rust.join(", ")
+                ));
+            }
+        }
+
+        assert!(
+            mismatches.is_empty(),
+            "{} of {} loom pattern sources differ from Java:\n{}",
+            mismatches.len(),
+            cases.len(),
+            mismatches.iter().take(12).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
+}

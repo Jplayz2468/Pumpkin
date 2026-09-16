@@ -27,6 +27,7 @@ public class WorkstationSupport {
     public static final Path DATA = Path.of("assets/datapacks/26_2/data/minecraft");
     public static Unsafe unsafe;
     public static Registry<Enchantment> enchantments;
+    public static Registry<net.minecraft.world.level.block.entity.BannerPattern> bannerPatterns;
     public static RegistryOps<JsonElement> ops;
 
     protected WorkstationSupport() {}
@@ -89,16 +90,37 @@ public class WorkstationSupport {
         var base = net.minecraft.data.registries.VanillaRegistries.createLookup();
         var registry = new MappedRegistry<Enchantment>(Registries.ENCHANTMENT, Lifecycle.stable());
         var pending = registry.createRegistrationLookup();
+        var patterns = new MappedRegistry<net.minecraft.world.level.block.entity.BannerPattern>(
+                Registries.BANNER_PATTERN, Lifecycle.stable());
+        var pendingPatterns = patterns.createRegistrationLookup();
         ops = RegistryOps.create(JsonOps.INSTANCE, new RegistryOps.RegistryInfoLookup() {
             @SuppressWarnings({"unchecked", "rawtypes"})
             public <T> Optional<RegistryOps.RegistryInfo<T>> lookup(ResourceKey<? extends Registry<? extends T>> key) {
                 if (key.equals(Registries.ENCHANTMENT))
                     return (Optional) Optional.of(new RegistryOps.RegistryInfo<>(registry, pending, Lifecycle.stable()));
+                if (key.equals(Registries.BANNER_PATTERN))
+                    return (Optional) Optional.of(
+                            new RegistryOps.RegistryInfo<>(patterns, pendingPatterns, Lifecycle.stable()));
                 if (key.equals(Registries.ITEM))
                     return (Optional) Optional.of(RegistryOps.RegistryInfo.fromRegistryLookup(BuiltInRegistries.ITEM));
                 return base.lookup(key).map(RegistryOps.RegistryInfo::fromRegistryLookup);
             }
         });
+
+        // Banner patterns must exist before item components, which reference
+        // their tags through provides_banner_patterns.
+        try (var files = Files.list(DATA.resolve("banner_pattern"))) {
+            for (var path : files.sorted().toList())
+                patterns.register(
+                        ResourceKey.create(Registries.BANNER_PATTERN,
+                                Identifier.withDefaultNamespace(path.getFileName().toString().replace(".json", ""))),
+                        net.minecraft.world.level.block.entity.BannerPattern.DIRECT_CODEC
+                                .parse(ops, JsonParser.parseString(Files.readString(path))).getOrThrow(),
+                        RegistrationInfo.BUILT_IN);
+        }
+        patterns.bindTags(tags("banner_pattern", patterns));
+        patterns.freeze();
+        bannerPatterns = patterns;
         try (var files = Files.list(DATA.resolve("enchantment"))) {
             for (var path : files.sorted().toList())
                 registry.register(
