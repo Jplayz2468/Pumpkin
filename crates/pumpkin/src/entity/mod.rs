@@ -1,6 +1,7 @@
 pub mod baby_dimensions;
 mod inside_blocks;
 pub mod inside_effects;
+pub(crate) mod support;
 mod baby_dimensions_data;
 pub mod spawn;
 use crate::{
@@ -906,12 +907,13 @@ pub struct Entity {
     /// The last movement vector
     pub movement: AtomicCell<Vector3<f64>>,
     piston_movement: std::sync::Mutex<(i64, Vector3<f64>)>,
-    inside_movements: std::sync::Mutex<Vec<inside_blocks::Movement>>,
+    inside_movements: std::sync::Mutex<inside_blocks::MovementHistory>,
     last_inside_effects_tick: AtomicI64,
     /// The entity's position rounded to the nearest block coordinates
     pub block_pos: AtomicCell<BlockPos>,
     /// The block supporting the entity
     pub supporting_block_pos: AtomicCell<Option<BlockPos>>,
+    on_ground_no_blocks: AtomicBool,
     /// The chunk coordinates of the entity's current position
     pub chunk_pos: AtomicCell<Vector2<i32>>,
     /// Indicates whether the entity is sneaking
@@ -1097,10 +1099,11 @@ impl Entity {
             last_pos: AtomicCell::new(position),
             movement: AtomicCell::new(Vector3::default()),
             piston_movement: std::sync::Mutex::new((0, Vector3::default())),
-            inside_movements: std::sync::Mutex::new(Vec::new()),
+            inside_movements: std::sync::Mutex::new(inside_blocks::MovementHistory::default()),
             last_inside_effects_tick: AtomicI64::new(i64::MIN),
             block_pos: AtomicCell::new(BlockPos(Vector3::new(floor_x, floor_y, floor_z))),
             supporting_block_pos: AtomicCell::new(None),
+            on_ground_no_blocks: AtomicBool::new(false),
             chunk_pos: AtomicCell::new(Vector2::new(
                 get_section_cord(floor_x),
                 get_section_cord(floor_z),
@@ -1542,23 +1545,53 @@ impl Entity {
         self.supporting_block_pos.load()
     }
 
+    /// Update grounded state and Java's independent nearest collision support query.
+    pub(crate) fn set_on_ground_with_movement(
+        &self,
+        caller: &dyn EntityBase,
+        grounded: bool,
+        movement: Option<Vector3<f64>>,
+    ) {
+        self.on_ground.store(grounded, Ordering::Relaxed);
+        if !grounded {
+            self.on_ground_no_blocks.store(false, Ordering::Relaxed);
+            self.supporting_block_pos.store(None);
+            return;
+        }
+        let world = self.world.load();
+        let area = support::footprint(self.bounding_box.load());
+        let mut supporting = world.find_supporting_block(caller, area);
+        if supporting.is_some() || self.on_ground_no_blocks.load(Ordering::Relaxed) {
+            self.supporting_block_pos.store(supporting);
+        } else if let Some(movement) = movement {
+            supporting = world.find_supporting_block(
+                caller,
+                area.offset(BoundingBox::new(
+                    Vector3::new(-movement.x, 0.0, -movement.z),
+                    Vector3::new(-movement.x, 0.0, -movement.z),
+                )),
+            );
+            self.supporting_block_pos.store(supporting);
+        }
+        self.on_ground_no_blocks
+            .store(supporting.is_none(), Ordering::Relaxed);
+    }
+
     #[expect(clippy::float_cmp)]
     fn adjust_movement_for_collisions(
         &self,
         movement: Vector3<f64>,
         caller: &dyn EntityBase,
     ) -> Vector3<f64> {
+        self.on_ground.store(false, Ordering::Relaxed);
+        self.horizontal_collision.store(false, Ordering::Relaxed);
         if movement.length_squared() == 0.0 {
             return movement;
         }
 
-        self.on_ground.store(false, Ordering::SeqCst);
-        self.supporting_block_pos.store(None);
-        self.horizontal_collision.store(false, Ordering::SeqCst);
-
         let bounding_box = self.bounding_box.load();
 
-        let (collisions, block_positions) = self
+        let (collisions, _) = self
             .world
             .load()
             .get_block_collisions(bounding_box.stretch(movement), caller);
@@ -1573,7 +1606,7 @@ impl Entity {
             max: [b.max.x, b.max.y, b.max.z],
         };
         let shapes: Vec<_> = collisions.iter().map(box_data).collect();
-        let (adjusted, support) = collision_shapes::collide(
+        let (adjusted, _) = collision_shapes::collide(
             [movement.x, movement.y, movement.z],
             box_data(&bounding_box),
             &shapes,
@@ -1585,14 +1618,6 @@ impl Entity {
         );
         let below = movement.y < 0.0 && movement.y != adjusted[1];
         self.on_ground.store(below, Ordering::Relaxed);
-        // Preserve the block association from the gathered collision shapes.
-        // Java's independent nearest-support query is a separate parity gate.
-        self.supporting_block_pos.store(support.and_then(|index| {
-            block_positions
-                .iter()
-                .find(|(end, _)| index < *end)
-                .map(|(_, pos)| *pos)
-        }));
         Vector3::new(adjusted[0], adjusted[1], adjusted[2])
     }
 
@@ -1783,29 +1808,11 @@ impl Entity {
             );
         }
         if let Some(server) = world.server.upgrade() {
-            let mut movements = {
-                let mut pending = self
-                    .inside_movements
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                std::mem::take(&mut *pending)
-            };
-            let position = self.pos.load();
-            if movements.is_empty() {
-                movements.push(inside_blocks::Movement {
-                    from: position,
-                    to: position,
-                    original: None,
-                });
-            } else if let Some(last) = movements.last()
-                && last.to.squared_distance_to_vec(&position) > f64::from(9.9999994e-11_f32)
-            {
-                movements.push(inside_blocks::Movement {
-                    from: last.to,
-                    to: position,
-                    original: None,
-                });
-            }
+            let movements = self
+                .inside_movements
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .finish(self.last_pos.load(), self.pos.load());
             self.apply_inside_movements(caller, &server, movements);
         }
 
@@ -2243,27 +2250,19 @@ impl Entity {
         Option<&'static Block>,
         Option<&'static BlockState>,
     ) {
+        let offset = f64::from(offset as f32);
         if let Some(mut supporting_block) = self.supporting_block_pos.load() {
-            if offset > 1.0e-5 {
+            if offset > f64::from(1.0e-5_f32) {
                 let (block, state) = self.world.load().get_block_and_state(&supporting_block);
 
-                // if let Some(props) = block.properties(state.id) {
-                //     let name = props.;
-
-                //     if offset <= 0.5
-                //         && (name == "OakFenceLikeProperties"
-                //             || name == "ResinBrickWallLikeProperties"
-                //             || name == "OakFenceGateLikeProperties"
-                //                 && OakFenceGateLikeProperties::from_state_id(state.id)
-                //                     .r#open)
-                //     {
-                //         return (supporting_block, Some(block), Some(state));
-                //     }
-                // }
-
+                if (offset <= 0.5 && block.has_tag(&tag::Block::MINECRAFT_FENCES))
+                    || block.has_tag(&tag::Block::MINECRAFT_WALLS)
+                    || block.has_tag(&tag::Block::MINECRAFT_FENCE_GATES)
+                {
+                    return (supporting_block, Some(block), Some(state));
+                }
                 supporting_block.0.y = (self.pos.load().y - offset).floor() as i32;
-
-                return (supporting_block, Some(block), Some(state));
+                return (supporting_block, None, None);
             }
 
             return (supporting_block, None, None);
@@ -2329,7 +2328,7 @@ impl Entity {
 
     #[must_use]
     pub fn get_block_pos_below_that_affects_my_movement(&self) -> BlockPos {
-        self.get_pos_with_y_offset(0.500_001).0
+        self.get_pos_with_y_offset(f64::from(0.500_001_f32)).0
     }
 
     #[must_use]
@@ -2482,6 +2481,15 @@ impl Entity {
         };
         let from = self.pos.load();
         self.move_pos(adjusted);
+        if !self.no_physics.load(Ordering::Relaxed)
+            && (motion.y != 0.0 || caller.get_player().is_none())
+        {
+            self.set_on_ground_with_movement(
+                caller,
+                motion.y < 0.0 && motion.y != adjusted.y,
+                Some(adjusted),
+            );
+        }
         if let Some(server) = self.world.load().server.upgrade() {
             self.apply_inside_movements(
                 caller,
@@ -2504,7 +2512,7 @@ impl Entity {
         if self.no_physics.load(Ordering::Relaxed) {
             self.move_pos(motion);
             self.horizontal_collision.store(false, Ordering::Relaxed);
-            self.on_ground.store(false, Ordering::Relaxed);
+            self.set_on_ground_with_movement(caller, false, None);
 
             return;
         }
@@ -2527,6 +2535,7 @@ impl Entity {
 
 
         self.move_pos(final_move);
+        self.set_on_ground_with_movement(caller, self.on_ground.load(Ordering::Relaxed), Some(final_move));
         self.emit_movement_events(caller, final_move);
 
         if let Some(living) = caller.get_living_entity()
@@ -3668,12 +3677,22 @@ impl Entity {
         to: Vector3<f64>,
         original: Option<Vector3<f64>>,
     ) {
-        if from != to {
-            self.inside_movements
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .push(inside_blocks::Movement { from, to, original });
-        }
+        self.inside_movements
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(inside_blocks::Movement { from, to, original });
+    }
+
+    /// ItemEntity reuses the previous paths on ticks where resting movement is skipped.
+    pub(crate) fn replay_inside_effects(&self, caller: &dyn EntityBase, server: &Server) {
+        self.last_inside_effects_tick
+            .store(self.world.load().get_world_age(), Ordering::Relaxed);
+        let movements = self
+            .inside_movements
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .replay();
+        self.apply_inside_movements(caller, server, movements);
     }
 
     fn apply_inside_movements(
@@ -3684,6 +3703,12 @@ impl Entity {
     ) {
         if !self.is_affected_by_blocks() {
             return;
+        }
+        if self.on_ground.load(Ordering::Relaxed) {
+            let world = self.world.load_full();
+            let position = self.get_pos_with_y_offset(0.2).0;
+            let (block, state) = world.get_block_and_state(&position);
+            world.block_registry.on_entity_step(block, &world, caller, &position, state, false);
         }
         let was_on_fire = self.is_on_fire();
         let was_freezing = self.get_frozen_ticks() > 0;

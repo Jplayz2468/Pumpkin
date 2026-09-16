@@ -2638,6 +2638,19 @@ impl World {
         (collisions, positions)
     }
 
+    /// Java CollisionGetter.findSupportingBlock uses colliding shapes, not non-air cells.
+    pub fn find_supporting_block(
+        &self,
+        entity: &dyn EntityBase,
+        area: BoundingBox,
+    ) -> Option<BlockPos> {
+        let (_, positions) = self.get_block_collisions(area, entity);
+        crate::entity::support::nearest(
+            entity.get_entity().pos.load(),
+            positions.into_iter().map(|(_, pos)| pos),
+        )
+    }
+
     pub fn is_space_empty(&self, bounding_box: BoundingBox) -> bool {
         let min = BlockPos::floored_v(bounding_box.min.add_raw(-1.0, -1.0, -1.0));
         let max = BlockPos::floored_v(bounding_box.max.add_raw(1.0, 1.0, 1.0));

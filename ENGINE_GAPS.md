@@ -37,8 +37,11 @@ BaseCommandBlock.performCommand and CommandBlock.executeChain.
 
 ## Still open, in priority order
 
-1. **D01: movement and inside effects.** Movement replay and remaining inside-effect lifecycle details; full piston movement side effects, step-up/entity
-   collision interactions, nearest-support selection, scaffolding climbing.
+1. **D01: movement and inside effects.** Full piston movement side effects,
+   step-up/entity collision interactions, scaffolding climbing and remaining
+   specialized movement/inside-effect lifecycle paths. Next concrete movement work:
+   port Entity.collide step-up candidates/STEP_HEIGHT and gather entity/world-border
+   colliders alongside blocks; ordinary movement currently clips against blocks only.
 2. **D02: loot engine.** Full function/predicate/component contexts, reloadable
    tables and persistent named random streams. Vault now uses the existing loot
    evaluator; unsupported evaluator behavior is not fixed by its new lifecycle.
@@ -75,8 +78,7 @@ Do not mark these remaining dependencies complete from passing helper tests.
   separately passing localhost socket tests excluded. Final run 6 passed after
   the vehicle/projectile recording and world end-of-tick drain changes.
 
-Remaining for this pipeline: movement replay, other direct entity-specific
-position changes, per-entity sound randomness/categories and full gameplay
+Remaining for this pipeline: other direct entity-specific position changes, per-entity sound randomness/categories and full gameplay
 verification of freeze/fire lifecycle. Swept geometry coverage is not proof that the
 whole inside-effect pipeline matches Java yet.
 
@@ -94,3 +96,26 @@ whole inside-effect pipeline matches Java yet.
   previously separately passing socket tests excluded. No live gameplay run.
 - Sound pitch currently uses world RNG; per-entity random streams and full sound
   categories remain an explicit D04 gap. This is not full engine certification.
+
+## Support selection and movement replay continuation
+
+- Shared support selection queries actual collision shapes under a thin feet box,
+  chooses nearest block center and resolves exact ties by greatest Y, then Z, then X.
+  Ground transitions and horizontal fallback follow Entity.checkSupportingBlock.
+- Java/Bedrock player movement, ordinary server movement and vertical piston pushes
+  update that shared support. Removed the player's non-air/guessed-block selection.
+- Legacy movement/landing offsets retain fences/walls/gates where Java does, widen
+  float offsets exactly, and fetch the state at the resulting Y instead of returning
+  the old support state paired with a different coordinate.
+- Movement history combines oldest paths at 100 pending entries, retains completed
+  paths for replay and uses old position for the no-record fallback.
+- Dropped items now run base entity ticking (fluid state/fire/portal updates), use
+  tick count rather than despawn age for rest scheduling and replay prior contacts
+  on skipped movement ticks. This does not certify all dropped-item behavior.
+- Grounded stepOn callbacks now run before shared inside effects for all affected
+  entities; removed the separate living-only late callback and extra below-block call.
+- Regression checks cover nearest/tied support, fence footprints, bounded movement
+  history, unchanged replay while new movement is pending, and fallback segments.
+- Final background library run 3 (including shared stepOn): **459 passed, 0 failed**,
+  with two previously separately passing socket tests excluded. No live world/client
+  comparison.

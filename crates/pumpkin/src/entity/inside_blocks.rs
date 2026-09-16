@@ -3,11 +3,58 @@
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
 use rustc_hash::FxHashSet;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Movement {
     pub from: Vector3<f64>,
     pub to: Vector3<f64>,
     pub original: Option<Vector3<f64>>,
+}
+
+/// Entity's bounded pending movement log and previous application paths.
+#[derive(Default)]
+pub(super) struct MovementHistory {
+    pending: Vec<Movement>,
+    previous: Vec<Movement>,
+}
+impl MovementHistory {
+    pub fn push(&mut self, movement: Movement) {
+        if self.pending.len() >= 100 {
+            let first = self.pending.remove(0);
+            let second = &mut self.pending[0];
+            second.from = first.from;
+            second.original = None;
+        }
+        self.pending.push(movement);
+    }
+    pub fn is_empty(&self) -> bool {
+        self.pending.is_empty()
+    }
+    pub fn clear(&mut self) {
+        self.pending.clear();
+        self.previous.clear();
+    }
+    pub fn finish(&mut self, old_position: Vector3<f64>, position: Vector3<f64>) -> Vec<Movement> {
+        self.previous = std::mem::take(&mut self.pending);
+        if self.previous.is_empty() {
+            self.previous.push(Movement {
+                from: old_position,
+                to: position,
+                original: None,
+            });
+        } else if let Some(last) = self.previous.last()
+            && last.to.squared_distance_to_vec(&position) > f64::from(9.9999994e-11_f32)
+        {
+            self.previous.push(Movement {
+                from: last.to,
+                to: position,
+                original: None,
+            });
+        }
+        self.replay()
+    }
+    pub fn replay(&self) -> Vec<Movement> {
+        self.previous.clone()
+    }
 }
 
 pub const SKIN: f64 = 1.0e-5_f32 as f64;
@@ -229,6 +276,63 @@ mod tests {
         max: [u64; 3],
         hits: Vec<[i32; 4]>,
     }
+    #[test]
+    fn movement_history_bounds_packets_and_preserves_replay_paths() {
+        let point = |x: usize| Vector3::new(x as f64, 0.0, 0.0);
+        let mut history = MovementHistory::default();
+        for i in 0..102 {
+            history.push(Movement {
+                from: point(i),
+                to: point(i + 1),
+                original: Some(point(1)),
+            });
+        }
+        let paths = history.finish(point(0), point(102));
+        assert_eq!(paths.len(), 100);
+        assert_eq!(
+            paths[0],
+            Movement {
+                from: point(0),
+                to: point(3),
+                original: None
+            }
+        );
+        assert_eq!(paths[1].original, Some(point(1)));
+        assert!(history.is_empty());
+        assert_eq!(history.replay(), paths);
+        history.push(Movement {
+            from: point(102),
+            to: point(103),
+            original: None,
+        });
+        assert_eq!(
+            history.replay(),
+            paths,
+            "pending movement must not alter replay"
+        );
+        let paths = history.finish(point(102), point(105));
+        assert_eq!(paths.len(), 2);
+        assert_eq!(
+            paths[1],
+            Movement {
+                from: point(103),
+                to: point(105),
+                original: None
+            }
+        );
+        history.clear();
+        assert!(history.replay().is_empty());
+        assert!(history.is_empty());
+        assert_eq!(
+            history.finish(point(8), point(9)),
+            vec![Movement {
+                from: point(8),
+                to: point(9),
+                original: None
+            }]
+        );
+    }
+
     #[test]
     fn exact_cell_order_and_steps_match_unmodified_java_26_2() {
         let cases: Vec<Case> =

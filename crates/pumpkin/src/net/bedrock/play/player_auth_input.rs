@@ -22,7 +22,6 @@ impl BedrockClient {
         let on_ground = packet.input_data.get(InputData::VerticalCollision as usize)
             && packet.delta.y < 0.0
             && !entity.has_vehicle();
-        entity.on_ground.store(on_ground, Ordering::Relaxed);
 
         let new_pos = packet
             .position
@@ -39,6 +38,9 @@ impl BedrockClient {
         let pos_changed = new_pos != old_pos;
         let rot_changed = new_pitch != old_pitch || new_yaw != old_yaw;
 
+        if !pos_changed && !rot_changed {
+            entity.set_on_ground_with_movement(player.as_ref(), on_ground, Some(Default::default()));
+        }
         if pos_changed || rot_changed {
             let world = player.world();
 
@@ -50,6 +52,7 @@ impl BedrockClient {
                 );
                 player.get_entity().set_pos(new_pos);
             }
+            entity.set_on_ground_with_movement(player.as_ref(), on_ground, Some(new_pos - old_pos));
             if rot_changed {
                 entity.pitch.store(new_pitch);
                 entity.yaw.store(new_yaw);

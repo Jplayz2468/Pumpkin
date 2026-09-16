@@ -1287,3 +1287,12 @@ before/after callbacks retain order. Exact collector traces match 100 Java oracl
 cases; background library verification passed 456 tests (two socket tests excluded).
 Movement replay and other engine gates remain open in ENGINE_GAPS.md; mob passes
 remain paused.
+
+### Shared support and movement replay
+
+Unified shape-based support selection, exact tie order, fence/wall offsets and
+state-at-offset lookup. Movement records are bounded and reusable; resting item
+entities replay their previous inside contacts and run base entity ticking. stepOn
+now precedes inside effects for all affected grounded entities. Regression library
+final run 3 passed 459 tests; see ENGINE_GAPS.md for integration evidence and the
+remaining engine gates. Full mob passes remain paused.

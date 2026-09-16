@@ -426,22 +426,16 @@ impl ItemEntity {
         }
     }
 
-    fn should_tick_move(&self, move_velo: Vector3<f64>) -> Option<bool> {
+    fn should_tick_move(&self, move_velo: Vector3<f64>) -> bool {
         let entity = &self.entity;
-
-        let mut tick_move = !entity.on_ground.load(Ordering::SeqCst)
-            || move_velo.horizontal_length_squared() > 1.0e-5;
-
-        if !tick_move {
-            let Ok(item_age) = i32::try_from(self.item_age.load(Ordering::Relaxed)) else {
-                entity.remove();
-                return None;
-            };
-
-            tick_move = (item_age + entity.entity_id) % 4 == 0;
-        }
-
-        Some(tick_move)
+        !entity.on_ground.load(Ordering::Relaxed)
+            || move_velo.horizontal_length_squared() > f64::from(1.0e-5_f32)
+            || entity
+                .tick_count
+                .load(Ordering::Relaxed)
+                .wrapping_add(entity.entity_id)
+                % 4
+                == 0
     }
 
     fn move_and_apply_friction(&self, caller: &dyn EntityBase, move_velo: Vector3<f64>) {
@@ -554,8 +548,9 @@ impl EntityBase for ItemEntity {
             })
     }
 
-    fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
+    fn tick(&self, caller: &dyn EntityBase, server: &Server) {
         let entity = &self.entity;
+        entity.tick(caller, server);
         self.decrement_pickup_delay();
 
         let original_velo = entity.velocity.load();
@@ -567,12 +562,10 @@ impl EntityBase for ItemEntity {
 
         let move_velo = entity.velocity.load(); // In case push_out_of_blocks modifies it
 
-        let Some(tick_move) = self.should_tick_move(move_velo) else {
-            return;
-        };
-
-        if tick_move {
+        if self.should_tick_move(move_velo) {
             self.move_and_apply_friction(caller, move_velo);
+        } else {
+            entity.replay_inside_effects(caller, server);
         }
 
         if self.process_age_and_merge() {

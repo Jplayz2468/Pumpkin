@@ -145,7 +145,7 @@ impl Player {
                 }
             }
         }
-        entity.on_ground.store(ground, Ordering::Relaxed);
+        entity.set_on_ground_with_movement(self, ground, Some(delta));
         if !self.is_flying() {
             self.living_entity.fall(
                 self,
