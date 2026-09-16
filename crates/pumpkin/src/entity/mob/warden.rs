@@ -909,7 +909,7 @@ impl WardenEntity {
                     no_ai: self.mob_entity.is_no_ai(),
                     ground: entity.on_ground.load(Ordering::Relaxed),
                     water: entity.is_in_water(),
-                    lava: entity.touching_lava.load(Ordering::Relaxed),
+                    lava: entity.is_in_lava(),
                     passenger: entity.has_vehicle(),
                     removed: entity.removal_reason.load().is_some(),
                     attack: roar.attack_target.is_some(),
@@ -940,7 +940,7 @@ impl WardenEntity {
                     (
                         entity.on_ground.load(Ordering::Relaxed),
                         entity.is_in_water(),
-                        entity.touching_lava.load(Ordering::Relaxed),
+                        entity.is_in_lava(),
                     )
                 },
             )

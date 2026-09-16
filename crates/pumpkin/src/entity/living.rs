@@ -1543,7 +1543,7 @@ impl LivingEntity {
         // TODO: Tick AI
 
         if self.jumping.load(SeqCst) && should_swim_in_fluids {
-            let in_lava = self.entity.touching_lava.load(SeqCst);
+            let in_lava = self.entity.is_in_lava();
 
             let in_water = self.entity.touching_water.load(SeqCst);
 
@@ -1598,7 +1598,7 @@ impl LivingEntity {
         if !simulate_movement {
             // Java NoAI disables travel; block effects and collision processing
             // still run below. Preserve existing velocity instead of adding gravity.
-        } else if (touching_water || self.entity.touching_lava.load(SeqCst))
+        } else if (touching_water || self.entity.is_in_lava())
             && should_swim_in_fluids
             && self.entity.entity_type != &EntityType::STRIDER
         {

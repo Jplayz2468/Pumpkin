@@ -378,3 +378,39 @@ whole inside-effect pipeline matches Java yet.
 - Remaining engine gates stay open; in particular fluid/eye/vehicle interaction,
   splash effects, auto-spin, full teleport/passenger transitions, D02–D06 and the
   outstanding block-system/live-world comparisons. Full mob passes remain paused.
+
+## Fluid tracker, boat passenger contact and splash continuation
+
+- Shared fluid tracking now retains eye contact separately from body contact and
+  previous-tick eye contact. `isUnderWater` uses Java's previous-eye/current-body
+  rule; lava contact respects `firstTick`. Player respawn clears these transient
+  fields. Existing lava consumers use the shared accessor.
+- Fluid interaction boxes normalize crossed endpoints as Java AABB does, including
+  zero-sized entities. A boat clips its passenger's fluid box above the hull unless
+  submerged. Boats and minecarts now call the base fluid/fire/portal tick. Boats
+  reset their underwater counter immediately out of water and eject after 60 ticks
+  of actual hull submersion, rather than treating any water contact as submersion.
+- Splash entry emits the source sound and SPLASH vibration event, with controller
+  velocity, source float volume/pitch and player self-exclusion. Ordinary entity
+  sound silence and the Player override are respected. Server Level.addParticle is
+  a no-op: splash particle arguments still advance the entity random stream.
+- Added an entity-owned legacy random stream for these shared effects, extinguish
+  pitch and push-out speed; float push-out arithmetic and immediate fire-immune
+  extinguishing now match source. This is a foundation, not completion of D04's
+  remaining random consumers or initialization order across subclasses.
+- The actual Java fluid tracker matches 500 controlled scenes, including eye/box,
+  current and chunk-query order. The oracle initializes the chunk's `fluidCount`
+  (not merely `tickingFluidCount`) and explicitly binds fluid tags. Actual Java
+  splash execution matches 300 volume/pitch/following-RNG cases. Background run 3
+  passed **483 tests**, with the same two separately passing socket tests excluded.
+- World flow now includes empty neighboring cells above a lower fluid channel,
+  uses NORTH/EAST/SOUTH/WEST order, performs height subtraction in float precision,
+  and uses Java's division/epsilon normalization. Added 1,600 actual Java block
+  neighborhoods exercising the production registry/height/motion/face data.
+  Final background run 6 passed **484 tests**, with the same two socket exclusions.
+  These comparisons do not exercise a live chunk loader, passenger tick ordering,
+  network playback, or full vehicle physics.
+- Remaining: complete vehicle status/buoyancy/control/packet integration, dynamic
+  FAST_LAVA attributes, swimming/auto-spin state, remaining RNG consumers, full
+  teleport/passenger transitions, live chunk-edge/client gameplay, and the other
+  D02–D06/block-system gates. No full mob pass was performed.

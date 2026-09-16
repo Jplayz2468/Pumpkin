@@ -1396,7 +1396,7 @@ impl PathNavigationTrait for GroundPathNavigation {
             speed: living.controlled_speed.load().unwrap_or(0.0),
             can_update: entity.on_ground.load(Ordering::Relaxed)
                 || entity.is_in_water()
-                || entity.touching_lava.load(Ordering::Relaxed)
+                || entity.is_in_lava()
                 || entity.has_vehicle(),
             ground: entity.on_ground.load(Ordering::Relaxed),
             cut_corner: cut,
@@ -1561,7 +1561,7 @@ impl PathNavigationTrait for GroundPathNavigation {
             if base.pos.load().y < f64::from(world.get_bottom_y())
                 || !(base.on_ground.load(Ordering::Relaxed)
                     || base.is_in_water()
-                    || base.touching_lava.load(Ordering::Relaxed)
+                    || base.is_in_lava()
                     || base.has_vehicle())
             {
                 return None;
@@ -1707,7 +1707,7 @@ impl PathNavigationTrait for FlyingPathNavigation {
         }
         let position = entity.pos.load();
         let can_update = (self.can_float()
-            && (entity.is_in_water() || entity.touching_lava.load(Ordering::Relaxed)))
+            && (entity.is_in_water() || entity.is_in_lava()))
             || !entity.has_vehicle();
         let dimension = entity.entity_dimension.load();
         if !can_update

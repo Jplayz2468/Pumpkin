@@ -18,6 +18,7 @@ use crate::entity::vehicle::vehicle::VehicleEntity;
 pub struct BoatEntity {
     pub vehicle: VehicleEntity,
     ticks_underwater: AtomicCell<f32>,
+    underwater: AtomicBool,
     bubble_time: AtomicI32,
     above_bubble_column: AtomicBool,
     bubble_drag_down: AtomicBool,
@@ -30,12 +31,34 @@ impl BoatEntity {
         Self {
             vehicle: VehicleEntity::new(entity),
             ticks_underwater: AtomicCell::new(0.0),
+            underwater: AtomicBool::new(false),
             bubble_time: AtomicI32::new(0),
             above_bubble_column: AtomicBool::new(false),
             bubble_drag_down: AtomicBool::new(false),
             left_paddle_moving: AtomicBool::new(false),
             right_paddle_moving: AtomicBool::new(false),
         }
+    }
+
+    fn update_underwater_status(&self) -> bool {
+        let bounds = self.vehicle.entity.bounding_box.load();
+        let max_y = bounds.max.y + 0.001;
+        let world = self.vehicle.entity.world.load();
+        for x in bounds.min.x.floor() as i32..bounds.max.x.ceil() as i32 {
+            for y in bounds.max.y.floor() as i32..max_y.ceil() as i32 {
+                for z in bounds.min.z.floor() as i32..bounds.max.z.ceil() as i32 {
+                    let pos = pumpkin_util::math::position::BlockPos::new(x, y, z);
+                    let (fluid, state) = world.get_fluid_and_fluid_state(&pos);
+                    if fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER)
+                        && max_y
+                            < f64::from(y) + f64::from(world.get_fluid_height(&pos, fluid, &state))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        false
     }
 
     fn set_bubble_time(&self, time: i32) {
@@ -119,17 +142,44 @@ impl EntityBase for BoatEntity {
         None
     }
 
-    fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
+    fn tick(&self, caller: &dyn EntityBase, server: &Server) {
+        let underwater = self.update_underwater_status();
+        self.underwater.store(underwater, Ordering::Relaxed);
+        let time = if underwater {
+            self.ticks_underwater.load() + 1.0
+        } else {
+            0.0
+        };
+        self.ticks_underwater.store(time);
+        if time >= 60.0 {
+            let passengers = self
+                .vehicle
+                .entity
+                .passengers
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+            for passenger in passengers.into_iter().rev() {
+                self.vehicle
+                    .entity
+                    .remove_passenger(passenger.get_entity().entity_id);
+            }
+        }
         self.vehicle.tick();
+        self.vehicle.entity.tick(caller, server);
         self.vehicle.entity.tick_block_collisions(caller);
         self.tick_bubble_column();
+    }
 
-        let underwater = self.ticks_underwater.load();
-        if self.vehicle.entity.touching_water.load(Ordering::Relaxed) {
-            self.ticks_underwater.store((underwater + 1.0).min(60.0));
-        } else if underwater > 0.0 {
-            self.ticks_underwater.store((underwater - 1.0).max(0.0));
-        }
+    fn modify_passenger_fluid_box(
+        &self,
+        bounds: pumpkin_util::math::boundingbox::BoundingBox,
+    ) -> Option<pumpkin_util::math::boundingbox::BoundingBox> {
+        super::super::fluid_interaction::boat_passenger_box(
+            self.vehicle.entity.bounding_box.load(),
+            bounds,
+            self.underwater.load(Ordering::Relaxed),
+        )
     }
 
     fn init_data_tracker(&self) {

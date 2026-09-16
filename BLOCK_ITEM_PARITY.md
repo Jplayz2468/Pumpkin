@@ -1383,3 +1383,11 @@ Shared impulse context now covers wind-charge/mace protection, grace/persistence
 landing/reset hooks, mace dust and source fall sounds. Enchantment motion targets
 the affected entity. 1,000 Java context cases and the 481-test background run pass;
 ENGINE_GAPS.md retains the remaining integration and full-parity gates.
+
+### Shared fluid and passenger contact
+
+Fluid/eye tracking, boat passenger clipping, underwater ejection, base vehicle
+fluid/fire ticks and splash sound/vibration are connected. Shared world currents
+now include downward channels through empty neighbors and Java float/normalization
+semantics. See ENGINE_GAPS.md for bounded oracle coverage and remaining vehicle,
+RNG, environment, lifecycle and live gameplay gates; this is not whole-block parity.

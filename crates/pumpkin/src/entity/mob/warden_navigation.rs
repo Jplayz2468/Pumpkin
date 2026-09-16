@@ -353,7 +353,7 @@ impl WardenEntity {
             entity.is_in_water(),
             entity.water_height.load(),
             self.mob_entity.living_entity.get_swim_height(),
-            entity.touching_lava.load(Ordering::Relaxed),
+            entity.is_in_lava(),
         );
         let mut swim = self
             .swim

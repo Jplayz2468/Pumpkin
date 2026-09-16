@@ -4,6 +4,8 @@ mod climbing;
 mod vehicle_control;
 mod fall_distance;
 mod fluid_current;
+mod fluid_interaction;
+mod splash;
 mod impulse_context;
 pub mod inside_effects;
 pub(crate) mod support;
@@ -76,6 +78,7 @@ use pumpkin_util::math::{
     vector3::Vector3,
     wrap_degrees,
 };
+use pumpkin_util::random::{RandomImpl, legacy_rand::LegacyRand};
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
 use pumpkin_util::version::JavaMinecraftVersion;
@@ -295,6 +298,10 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         self.get_entity().teleport(position, yaw, pitch, &world);
     }
 
+    fn modify_passenger_fluid_box(&self, bounds: BoundingBox) -> Option<BoundingBox> {
+        Some(bounds)
+    }
+
     fn is_pushed_by_fluids(&self) -> bool {
         true
     }
@@ -315,6 +322,47 @@ pub trait EntityBase: Send + Sync + std::any::Any {
 
     fn get_default_gravity(&self) -> f64 {
         0.0
+    }
+
+    fn get_sound_category(&self) -> SoundCategory {
+        let kind = self.get_entity().entity_type;
+        match kind.resource_name {
+            "player" => SoundCategory::Players,
+            "item" | "experience_orb" => SoundCategory::Ambient,
+            "lightning_bolt" => SoundCategory::Weather,
+            "rabbit"
+                if self
+                    .cast_any()
+                    .downcast_ref::<passive::rabbit::RabbitEntity>()
+                    .is_some_and(|rabbit| rabbit.variant.load(Relaxed) == 99) =>
+            {
+                SoundCategory::Hostile
+            }
+            "ender_dragon" | "shulker_bullet" | "ghast" | "phantom" | "shulker" | "slime"
+            | "magma_cube" | "hoglin" => SoundCategory::Hostile,
+            _ if is_monster_type(kind) => SoundCategory::Hostile,
+            _ => SoundCategory::Neutral,
+        }
+    }
+
+    fn get_splash_sound(&self, high_speed: bool) -> Sound {
+        let kind = self.get_entity().entity_type;
+        if high_speed {
+            if kind == &EntityType::PLAYER {
+                Sound::EntityPlayerSplashHighSpeed
+            } else {
+                Sound::EntityGenericSplash
+            }
+        } else {
+            match kind.resource_name {
+                "player" => Sound::EntityPlayerSplash,
+                "dolphin" => Sound::EntityDolphinSplash,
+                "axolotl" => Sound::EntityAxolotlSplash,
+                "hoglin" => Sound::EntityHostileSplash,
+                _ if is_monster_type(kind) => Sound::EntityHostileSplash,
+                _ => Sound::EntityGenericSplash,
+            }
+        }
     }
 
     /// Entity/Mob/AbstractBoat.getControllingPassenger. Only the first rider
@@ -1120,6 +1168,8 @@ pub struct Entity {
     pub entity_id: i32,
     /// A persistent, unique identifier for the entity
     pub entity_uuid: uuid::Uuid,
+    /// Java Entity owns one legacy random stream; it is not saved to entity NBT.
+    random: std::sync::Mutex<LegacyRand>,
     /// The type of entity (e.g., player, zombie, item)
     pub entity_type: &'static EntityType,
     /// The world in which the entity exists.
@@ -1168,6 +1218,10 @@ pub struct Entity {
     movement_emission: std::sync::Mutex<(f32, f32)>,
     /// Indicates whether the entity is touching water
     pub touching_water: AtomicBool,
+    eye_in_water: AtomicBool,
+    eye_in_lava: AtomicBool,
+    was_eye_in_water: AtomicBool,
+    first_tick: AtomicBool,
     /// Indicates the fluid height
     pub water_height: AtomicCell<f64>,
     /// Indicates whether the entity is touching lava
@@ -1313,13 +1367,23 @@ impl Entity {
             .level
             .get_rough_biome(&BlockPos::new(floor_x, floor_y, floor_z));
 
+        let mut random = LegacyRand::from_seed(pumpkin_util::random::get_seed());
+        // Entity initializes an insecure UUID before any gameplay draws, even when
+        // a saved/spawn-provided UUID replaces it later.
+        random.next_i64();
+        random.next_i64();
         Self {
             entity_id,
             entity_uuid,
+            random: std::sync::Mutex::new(random),
             entity_type,
             on_ground: AtomicBool::new(false),
             movement_emission: std::sync::Mutex::new((0.0, 1.0)),
             touching_water: AtomicBool::new(false),
+            eye_in_water: AtomicBool::new(false),
+            eye_in_lava: AtomicBool::new(false),
+            was_eye_in_water: AtomicBool::new(false),
+            first_tick: AtomicBool::new(true),
             water_height: AtomicCell::new(0.0),
             touching_lava: AtomicBool::new(false),
             lava_height: AtomicCell::new(0.0),
@@ -2342,77 +2406,91 @@ impl Entity {
         }
     }
 
-    // Entity.updateFluidInteraction / EntityFluidInteraction.update (Java 26.2).
+    pub(crate) fn random(&self) -> std::sync::MutexGuard<'_, LegacyRand> {
+        self.random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
 
+    fn water_splash(&self, caller: &dyn EntityBase) {
+        let controller = caller.get_controlling_passenger();
+        let movement = controller.as_ref().map_or_else(
+            || self.velocity.load(),
+            |rider| rider.get_entity().velocity.load(),
+        );
+        let (volume, pitch) = splash::sound_and_advance_random(
+            movement,
+            controller.is_some(),
+            self.entity_dimension.load().width,
+            &mut *self.random(),
+        );
+        let sound = caller.get_splash_sound(volume >= 0.25);
+        if let Some(player) = caller.get_player() {
+            // Player.playSound excludes the controlling client's own local effect.
+            self.world.load().play_sound_raw_expect(
+                player,
+                sound as u16,
+                caller.get_sound_category(),
+                &self.pos.load(),
+                volume,
+                pitch,
+            );
+        } else if !self.is_silent() {
+            self.world.load().play_sound_fine(
+                sound,
+                caller.get_sound_category(),
+                &self.pos.load(),
+                volume,
+                pitch,
+            );
+        }
+        self.world.load().emit_game_event_from_entity(
+            "splash",
+            self.pos.load(),
+            Some(caller),
+            None,
+        );
+    }
+
+    // Entity.updateFluidInteraction / EntityFluidInteraction.update (Java 26.2).
     pub(crate) fn update_fluid_state(&self, caller: &dyn EntityBase) {
         let is_pushed = caller.is_pushed_by_fluids();
-        let mut fluid_push = [Vector3::default(), Vector3::default()];
-        let mut fluid_n = [0, 0];
-        let mut fluid_height: [f64; 2] = [0.0, 0.0];
-
         let entity_box = self.bounding_box.load();
-        let bounding_box = entity_box.expand(-0.001, -0.001, -0.001);
-
-        let min = bounding_box.min_block_pos();
-
-        let max = BlockPos::new(
-            (bounding_box.max.x.ceil() as i32).saturating_sub(1),
-            (bounding_box.max.y.ceil() as i32).saturating_sub(1),
-            (bounding_box.max.z.ceil() as i32).saturating_sub(1),
-        );
-
+        let bounds = fluid_interaction::interaction_box(entity_box);
+        let bounds = if let Some(vehicle) = self.get_vehicle() {
+            vehicle.modify_passenger_fluid_box(bounds)
+        } else {
+            Some(bounds)
+        };
         let world = self.world.load();
-
-        // Java requires the full chunk rectangle, including a one-block X/Z margin.
-        // The section "hasFluid" fast path is only an optimization; loadedness is semantic.
-        let loaded = ((min.0.z - 1) >> 4..=(max.0.z + 1) >> 4).all(|z| {
-            ((min.0.x - 1) >> 4..=(max.0.x + 1) >> 4)
-                .all(|x| world.level.is_chunk_loaded(&Vector2::new(x, z)))
-        });
-        if loaded {
-            for x in min.0.x..=max.0.x {
-                for y in min.0.y..=max.0.y {
-                    for z in min.0.z..=max.0.z {
-                        let pos = BlockPos::new(x, y, z);
-
-                        let (fluid, state) = world.get_fluid_and_fluid_state(&pos);
-
-                        if fluid.id != Fluid::EMPTY.id {
-                            let surface_y = f64::from(world.get_fluid_height(&pos, fluid, &state))
-                                + f64::from(y);
-
-                            if surface_y >= bounding_box.min.y {
-                                let marginal_height = surface_y - entity_box.min.y;
-                                let i = usize::from(
-                                    fluid.id == Fluid::FLOWING_LAVA.id
-                                        || fluid.id == Fluid::LAVA.id,
-                                );
-
-                                fluid_height[i] = fluid_height[i].max(marginal_height);
-
-                                if !is_pushed {
-                                    continue;
-                                }
-
-                                let mut fluid_velo = world.get_fluid_velocity(pos, fluid, &state);
-
-                                if fluid_height[i] < 0.4 {
-                                    fluid_velo = fluid_velo * fluid_height[i];
-                                }
-
-                                fluid_push[i] += fluid_velo;
-
-                                fluid_n[i] += 1;
-                            }
-                        }
-                    }
+        let trackers = fluid_interaction::scan(
+            bounds,
+            entity_box.min.y,
+            self.get_eye_pos(),
+            !is_pushed,
+            |chunk| world.level.is_chunk_loaded(&chunk),
+            |pos| {
+                let (fluid, state) = world.get_fluid_and_fluid_state(&pos);
+                if state.is_empty {
+                    return None;
                 }
-            }
-        }
-
-        // Fluid displacement is evaluated here. Inside-block effects are collected
-        // with block effects along the movement path, so water/lava ordering is
-        // determined by traversal steps instead of registry IDs.
+                let kind = if fluid.matches_type(&Fluid::WATER) {
+                    0
+                } else if fluid.matches_type(&Fluid::LAVA) {
+                    1
+                } else {
+                    return None;
+                };
+                Some(fluid_interaction::Sample {
+                    kind,
+                    height: f64::from(world.get_fluid_height(&pos, fluid, &state)),
+                    state: (fluid, state),
+                })
+            },
+            |pos, (fluid, state)| world.get_fluid_velocity(pos, fluid, state),
+        );
+        self.eye_in_water.store(trackers[0].eyes_inside, Relaxed);
+        self.eye_in_lava.store(trackers[1].eyes_inside, Relaxed);
 
         let lava_speed = if world.dimension.fast_lava {
             0.007
@@ -2420,16 +2498,15 @@ impl Entity {
             0.002_333_333_333_333_333_5
         };
 
-        let water_height = fluid_height[0];
+        let water_height = trackers[0].height;
 
         let in_water = water_height > 0.0;
 
         if in_water {
             self.fall_distance.store(0.0);
 
-            if !self.touching_water.load(Ordering::SeqCst) {
-
-                // TODO: Spawn splash particles
+            if !self.touching_water.load(Ordering::SeqCst) && !self.first_tick.load(Relaxed) {
+                self.water_splash(caller);
             }
         }
 
@@ -2437,7 +2514,7 @@ impl Entity {
 
         self.touching_water.store(in_water, Ordering::SeqCst);
 
-        let lava_height = fluid_height[1];
+        let lava_height = trackers[1].height;
 
         let in_lava = lava_height > 0.0;
 
@@ -2445,8 +2522,8 @@ impl Entity {
 
         self.touching_lava.store(in_lava, Ordering::SeqCst);
         if is_pushed {
-            self.push_by_fluid(0.014, fluid_push[0], fluid_n[0]);
-            self.push_by_fluid(lava_speed, fluid_push[1], fluid_n[1]);
+            self.push_by_fluid(0.014, trackers[0].current, trackers[0].current_count);
+            self.push_by_fluid(lava_speed, trackers[1].current, trackers[1].current_count);
         }
     }
 
@@ -2893,7 +2970,7 @@ impl Entity {
             }
         }
 
-        let amplitude = rand::random::<f64>().mul_add(0.2, 0.1);
+        let amplitude = f64::from(self.random().next_f32() * 0.2_f32 + 0.1_f32);
 
         let axis = direction.to_axis().into();
 
@@ -3330,20 +3407,20 @@ impl Entity {
 
     #[must_use]
     pub fn is_submerged_in_water(&self) -> bool {
-        let pos = self.pos.load();
-        let eye_y = pos.y + self.get_eye_height();
-        let eye_pos = BlockPos::floored(pos.x, eye_y, pos.z);
-        let world = self.world.load();
-        let (fluid, state) = world.get_fluid_and_fluid_state(&eye_pos);
-        fluid.matches_type(&Fluid::WATER)
-            && eye_y
-                <= f64::from(eye_pos.0.y)
-                    + f64::from(world.get_fluid_height(&eye_pos, fluid, &state))
+        self.eye_in_water.load(Relaxed)
+    }
+
+    pub fn is_submerged_in_lava(&self) -> bool {
+        self.eye_in_lava.load(Relaxed)
+    }
+
+    pub fn is_in_lava(&self) -> bool {
+        !self.first_tick.load(Relaxed) && self.touching_lava.load(Relaxed)
     }
 
     #[must_use]
     pub fn is_under_water(&self) -> bool {
-        self.is_in_water() && self.is_submerged_in_water()
+        self.was_eye_in_water.load(Relaxed) && self.is_in_water()
     }
 
     #[must_use]
@@ -3972,14 +4049,13 @@ impl Entity {
         if (was_on_fire && !self.is_on_fire()) || (was_freezing && self.get_frozen_ticks() == 0) {
             world.play_sound_fine(
                 Sound::EntityGenericExtinguishFire,
-                if caller.get_player().is_some() {
-                    SoundCategory::Players
-                } else {
-                    SoundCategory::Neutral
-                },
+                caller.get_sound_category(),
                 &self.pos.load(),
                 0.7,
-                1.6 + (world.rand_f32() - world.rand_f32()) * 0.4,
+                {
+                    let mut random = self.random();
+                    1.6_f32 + (random.next_f32() - random.next_f32()) * 0.4_f32
+                },
             );
         }
         let was_ignited = self.fire_ticks.load(Ordering::Relaxed) > previous_fire;
@@ -4883,6 +4959,14 @@ impl Entity {
     }
 
     pub fn reset_state(&self) {
+        self.first_tick.store(true, Relaxed);
+        self.eye_in_water.store(false, Relaxed);
+        self.eye_in_lava.store(false, Relaxed);
+        self.was_eye_in_water.store(false, Relaxed);
+        self.touching_water.store(false, Relaxed);
+        self.touching_lava.store(false, Relaxed);
+        self.water_height.store(0.0);
+        self.lava_height.store(0.0);
         self.set_fall_flying(false);
         self.set_pose(EntityPose::Standing);
         self.extinguish();
@@ -5154,6 +5238,8 @@ impl EntityBase for Entity {
 
         self.update_last_pos();
         self.tick_portal(caller);
+        self.was_eye_in_water
+            .store(self.eye_in_water.load(Relaxed), Relaxed);
         self.update_fluid_state(caller);
         self.check_out_of_world(caller);
         let fire_ticks = self.fire_ticks.load(Ordering::Relaxed);
@@ -5162,12 +5248,9 @@ impl EntityBase for Entity {
         let is_immune = self.entity_type.fire_immune || self.fire_immune.load(Ordering::Relaxed);
         if fire_ticks > 0 {
             if is_immune {
-                self.fire_ticks.store(fire_ticks - 4, Ordering::Relaxed);
-                if self.fire_ticks.load(Ordering::Relaxed) < 0 {
-                    self.extinguish();
-                }
+                self.extinguish();
             } else {
-                if fire_ticks % 20 == 0 && !self.touching_lava.load(Ordering::Relaxed) {
+                if fire_ticks % 20 == 0 && !self.is_in_lava() {
                     caller.damage(caller, 1.0, DamageType::ON_FIRE);
                 }
 
@@ -5177,7 +5260,7 @@ impl EntityBase for Entity {
 
         // Entity.baseTick halves lava fall distance once, after fluid/fire processing.
         // A landing fluid refresh must not apply another reduction.
-        if self.touching_lava.load(Ordering::Relaxed) {
+        if self.is_in_lava() {
             self.fall_distance.store(self.fall_distance.load() * 0.5);
         }
 
@@ -5190,6 +5273,7 @@ impl EntityBase for Entity {
             self.riding_cooldown
                 .store(riding_cooldown - 1, Ordering::Relaxed);
         }
+        self.first_tick.store(false, Relaxed);
     }
 
     fn get_entity(&self) -> &Entity {

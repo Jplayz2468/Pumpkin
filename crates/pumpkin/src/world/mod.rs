@@ -19,6 +19,7 @@ use tracing::{debug, error, info, trace, warn};
 
 mod active_chunks;
 mod block_ray;
+mod fluid_flow;
 pub use block_ray::{RayFluidHandling, RayHit};
 mod block_interaction_shapes;
 pub mod chunker;
@@ -2438,74 +2439,17 @@ impl World {
     // FlowingFluid.getFlow()
     pub fn get_fluid_velocity(
         &self,
-        pos0: BlockPos,
-        fluid0: &Fluid,
-        state0: &FluidState,
+        pos: BlockPos,
+        fluid: &Fluid,
+        state: &FluidState,
     ) -> Vector3<f64> {
-        let mut velo = Vector3::default();
-
-        for dir in BlockDirection::horizontal() {
-            let offset = dir.to_offset();
-            let pos = pos0.offset(offset);
-
-            let (neighbor_fluid, neighbor_state) = self.get_fluid_and_fluid_state(&pos);
-
-            if neighbor_fluid.matches_type(fluid0) {
-                let mut neighbor_height = neighbor_state.height;
-                let mut amplitude = 0.0;
-
-                if neighbor_height == 0.0 {
-                    let state_id = self.get_block_state_id(&pos);
-                    let block_id = state_id.to_block_id();
-                    let block_state = state_id.to_state();
-
-                    let blocks_movement = blocks_movement(block_state, block_id);
-
-                    if !blocks_movement {
-                        let down_pos = pos.down();
-                        let (down_fluid, down_state) = self.get_fluid_and_fluid_state(&down_pos);
-
-                        if down_fluid.matches_type(fluid0) {
-                            neighbor_height = down_state.height;
-                            if neighbor_height > 0.0 {
-                                amplitude = f64::from(state0.height)
-                                    - (f64::from(neighbor_height) - 0.888_888_9);
-                            }
-                        }
-                    }
-                } else if neighbor_height > 0.0 {
-                    amplitude = f64::from(state0.height) - f64::from(neighbor_height);
-                }
-
-                if amplitude != 0.0 {
-                    velo.x += f64::from(offset.x) * amplitude;
-                    velo.z += f64::from(offset.z) * amplitude;
-                }
-            }
-        }
-
-        if state0.falling {
-            for dir in BlockDirection::horizontal() {
-                let pos = pos0.offset(dir.to_offset());
-
-                if self.is_solid_face(fluid0.id, pos, dir.to_block_direction())
-                    || self.is_solid_face(fluid0.id, pos.up(), dir.to_block_direction())
-                {
-                    if velo.length_squared() != 0.0 {
-                        velo = velo.normalize();
-                    }
-
-                    velo.y -= 6.0;
-                    break;
-                }
-            }
-        }
-
-        if velo.length_squared() == 0.0 {
-            velo
-        } else {
-            velo.normalize()
-        }
+        fluid_flow::velocity(
+            pos,
+            state.height,
+            state.falling,
+            |pos| fluid_flow::cell(self.get_block_state_id(&pos), fluid),
+            |pos, direction| self.is_solid_face(fluid.id, pos, direction),
+        )
     }
 
     // FlowingFluid.isSolidFace()

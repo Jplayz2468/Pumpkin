@@ -392,7 +392,7 @@ impl ItemEntity {
             if velo.y < 0.06 {
                 velo.y += 5.0e-4;
             }
-        } else if entity.touching_lava.load(Ordering::SeqCst) && entity.lava_height.load() > 0.1 {
+        } else if entity.is_in_lava() && entity.lava_height.load() > 0.1 {
             velo.x *= 0.95;
             velo.z *= 0.95;
             if velo.y < 0.06 {
@@ -520,7 +520,7 @@ impl ItemEntity {
 
         let velocity_dirty = entity.velocity_dirty.swap(false, Ordering::SeqCst)
             || entity.touching_water.load(Ordering::SeqCst)
-            || entity.touching_lava.load(Ordering::SeqCst)
+            || entity.is_in_lava()
             || entity.velocity.load().sub(&original_velo).length_squared() > 0.1;
         let moved = entity.pos.load() != entity.last_sent_pos.load();
         let position_dirty = moved

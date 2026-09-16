@@ -112,7 +112,7 @@ impl MoveControlTrait for MoveControl {
                 // Warden is affected by fluids. Other navigators keep their own control mode.
                 if entity.on_ground.load(Ordering::Relaxed)
                     || entity.is_in_water()
-                    || entity.touching_lava.load(Ordering::Relaxed)
+                    || entity.is_in_lava()
                 {
                     self.operation = Operation::Wait;
                 }

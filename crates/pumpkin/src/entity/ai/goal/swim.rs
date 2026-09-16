@@ -22,7 +22,7 @@ impl SwimGoal {
         let entity = &living.entity;
         let in_water = entity.touching_water.load(Ordering::SeqCst)
             && entity.water_height.load() > living.get_swim_height();
-        in_water || entity.touching_lava.load(Ordering::SeqCst)
+        in_water || entity.is_in_lava()
     }
 }
 
