@@ -325,7 +325,7 @@ mod tests {
             DataComponent::ItemName,
             Some(
                 ItemNameImpl {
-                    name: Cow::Borrowed("filled_map.mansion"),
+                    name: "filled_map.mansion".into(),
                 }
                 .to_dyn(),
             ),

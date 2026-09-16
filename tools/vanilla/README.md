@@ -332,3 +332,27 @@ Multi-entry `set_enchantments` fixtures use constant providers: Java's `Map.copy
 iteration can vary by process, so a seeded comparison of multiple stochastic
 providers requires a separate ordering policy. Live menu, reload and per-entity
 random-source ownership remain outside these fixtures.
+
+### Names, instruments and component hashes
+
+`LootNameInstrumentOracle.java` runs the actual Java codec/evaluator with canonical
+instrument registries and compared item prototypes. Its 23 tables/736 cases cover
+name targets, absent names, style/translation/list structure, temporarily empty
+stacks, three instrument tags, explicit duplicate/empty options, all eight horns,
+both RNG types and following random values. No live level is needed.
+
+Twenty additional fixtures contain Java network bytes, encoded component values
+and HashOps CRC32C values. Instruments also export resolved sound/range/duration.
+Cases include Unicode, styled names, translation arguments, styled list roots,
+all registered horns and two inline definitions (registered and custom sounds).
+Rust decodes/reencodes network data, saves/loads NBT, checks Java hashes and compares
+instrument bytes exactly. Names compare structure rather than compound-key order.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/LootNameInstrumentOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' LootNameInstrumentOracle crates/pumpkin/src/world/loot_name_instrument_tables.json crates/pumpkin/src/world/loot_name_instrument_cases.json crates/pumpkin/src/world/name_instrument_wire_cases.json
+cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- item loot_table loot_name_instrument_test_tables
+```
+
+The fixtures do not certify entity-resolved text, every text/argument type, other
+component hashes, registry reloads, older protocol versions or live item-use flow.

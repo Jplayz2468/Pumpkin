@@ -1120,3 +1120,48 @@ whole inside-effect pipeline matches Java yet.
   map order is process-dependent; built-in maps use constants), per-entity/player
   RNG ownership and full enchanting-menu/client lifecycle comparison. This closes
   a shared selection/function batch, not D01–D06 or the remaining block gates.
+
+## Name/instrument components, loot and protocol continuation
+
+- Implemented the three built-in `set_name` declarations and one `set_instrument`.
+  **Nine function declarations remain unsupported**: six `set_components` and
+  three `exploration_map`. Entity-resolved `set_name` remains explicitly unsupported
+  in generation; the built-in declarations do not request entity resolution.
+- Item names now retain text components rather than flattening literal/styled text
+  into translation keys. Static prototype keys remain compact; dynamic values keep
+  their component structure through both network decoding paths and saved NBT.
+  Custom-name network serialization also preserves supported structure/styles.
+  Text-list parsing now appends to the first component, preserving its styling and
+  existing siblings. String components in `extra` and translation arguments parse
+  through the same component reader.
+- Instruments retain registry references or inline definitions, persist their data
+  and implement reference/inline protocol encoding. Registry IDs come from the same
+  ordered 26.2 entries sent to clients. Tag/list selection preserves order,
+  duplicates, empty choices and RNG consumption. Negative/unknown wire IDs reject
+  without overflowing. Horn use reads the effective stack/hand, sound, range and
+  duration, applies its cooldown group and emits the instrument-play game event.
+- Corrected CRC32C string hashing to Java UTF-16 length/code units and float hashing
+  to Java's float discriminator. Name and instrument component hashes now use the
+  corresponding structured encoding; map entries sort by unsigned child hash.
+- `LootNameInstrumentOracle` executes Java's actual codec/evaluator for 23 tables
+  and **736 cases**, including both random sources and their following values.
+  **20 Java network fixtures** cover names (Unicode, styling, translation arguments,
+  list roots), all eight horn references and two inline instruments with registered
+  or custom sounds. Rust verifies decoded structure, reencoding, NBT round trips,
+  Java component hashes and resolved playback parameters. Instrument bytes compare
+  exactly; compound-key order is not required to match for component text bytes.
+- The expanded inventory suite exposed a stale ender-chest test. The test now closes
+  the old menu before assigning its replacement tracker, matching both Java's
+  `PlayerEnderChestContainer.setActiveChest` and Pumpkin's `open_handled_screen`.
+  No production viewer-lifecycle behavior was changed to satisfy that assertion.
+- Expanded background run 8 passed **1,059 tests**: 542 engine, 73 data,
+  23 inventory, 114 protocol, 66 utility and 241 world. The same two previously
+  separately passing localhost tests were excluded. After the final reference
+  normalization, the targeted name/instrument suite also passed all **3 tests**
+  (covering the Java fixtures, saved/wire/hash/playback values and invalid IDs).
+- Remaining D02/D05/D06: component-patch application/validation and trim protocol,
+  exploration maps, entity text resolution, primitive numeric/boolean translation
+  arguments and other unsupported text forms, full component-hash coverage,
+  reloadable registries and older-client/live menu integration. Instrument gameplay
+  event delivery/cooldown interaction still needs live verification. Other shared
+  engine/block gates remain open; no full mob pass was started.

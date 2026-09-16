@@ -125,6 +125,8 @@ pub enum LootRegistrySet {
 
 #[derive(Clone, Copy, Debug)]
 pub enum LootFunctionKind {
+    SetInstrument(LootRegistrySet),
+    SetName { name_json: Option<&'static str>, item_name: bool },
     EnchantRandomly {
         options: LootRegistrySet,
         only_compatible: bool,

@@ -1454,14 +1454,27 @@ impl World {
         category: SoundCategory,
         position: &Vector3<f64>,
     ) {
-        let seed = self.next_sound_seed();
+        self.play_sound_event_fine_expect(player, sound, category, position, 1.0, 1.0);
+    }
+
+    pub fn play_sound_event_fine_expect(
+        &self,
+        player: &Player,
+        sound: &pumpkin_data::data_component_impl::IdOr<
+            pumpkin_data::data_component_impl::SoundEvent,
+        >,
+        category: SoundCategory,
+        position: &Vector3<f64>,
+        volume: f32,
+        pitch: f32,
+    ) {
         let packet = CSoundEffect::new(
             data_to_proto_sound(sound),
             category,
             position,
-            1.0,
-            1.0,
-            seed,
+            volume,
+            pitch,
+            self.next_sound_seed(),
         );
         self.broadcast_sound(&packet, *position, Some(player.gameprofile.id));
     }

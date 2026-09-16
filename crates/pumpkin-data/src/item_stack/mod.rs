@@ -501,7 +501,7 @@ impl ItemStack {
         if let Some(item_name) =
             self.get_data_component::<crate::data_component_impl::ItemNameImpl>()
         {
-            return item_name.name.to_string();
+            return item_name.name.component().get_text();
         }
         self.item.registry_key.to_string()
     }
@@ -1072,7 +1072,7 @@ mod tests {
             DataComponent::ItemName,
             Some(
                 ItemNameImpl {
-                    name: Cow::Borrowed("filled_map.mansion"),
+                    name: "filled_map.mansion".into(),
                 }
                 .to_dyn(),
             ),
@@ -1086,8 +1086,11 @@ mod tests {
             decoded
                 .get_data_component::<ItemNameImpl>()
                 .expect("item name should decode")
-                .name,
-            "filled_map.mansion"
+                .write_data()
+                .extract_compound()
+                .unwrap()
+                .get_string("translate"),
+            Some("filled_map.mansion")
         );
     }
 

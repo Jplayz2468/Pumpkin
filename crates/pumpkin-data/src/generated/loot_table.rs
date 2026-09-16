@@ -31035,7 +31035,9 @@ pub static CHESTS_PILLAGER_OUTPOST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:set_instrument"),
+                kind: LootFunctionKind::SetInstrument(LootRegistrySet::Tag(
+                    "minecraft:regular_goat_horns",
+                )),
             }],
         },
         LootPool {
@@ -31443,7 +31445,10 @@ pub static CHESTS_SHIPWRECK_MAP: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_name"),
+                        kind: LootFunctionKind::SetName {
+                            name_json: Some("{\"translate\":\"filled_map.buried_treasure\"}"),
+                            item_name: true,
+                        },
                     },
                 ],
             }],
@@ -35269,7 +35274,10 @@ pub static CHESTS_UNDERWATER_RUIN_BIG: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_name"),
+                            kind: LootFunctionKind::SetName {
+                                name_json: Some("{\"translate\":\"filled_map.buried_treasure\"}"),
+                                item_name: true,
+                            },
                         },
                     ],
                 },
@@ -35465,7 +35473,10 @@ pub static CHESTS_UNDERWATER_RUIN_SMALL: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_name"),
+                            kind: LootFunctionKind::SetName {
+                                name_json: Some("{\"translate\":\"filled_map.buried_treasure\"}"),
+                                item_name: true,
+                            },
                         },
                     ],
                 },

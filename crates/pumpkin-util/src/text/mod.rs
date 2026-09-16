@@ -52,16 +52,14 @@ impl<'de> Deserialize<'de> for TextComponent {
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
-                let mut bases = Vec::new();
+                let mut first = seq
+                    .next_element::<TextComponent>()?
+                    .ok_or_else(|| A::Error::custom("A component list cannot be empty"))?
+                    .0;
                 while let Some(element) = seq.next_element::<TextComponent>()? {
-                    bases.push(element.0);
+                    first.extra.push(element.0);
                 }
-
-                Ok(TextComponentBase {
-                    content: Box::new(TextContent::Text { text: "".into() }),
-                    style: Box::default(),
-                    extra: bases,
-                })
+                Ok(first)
             }
 
             fn visit_map<A: MapAccess<'de>>(self, map: A) -> Result<Self::Value, A::Error> {
@@ -81,6 +79,13 @@ impl Serialize for TextComponent {
     }
 }
 
+fn deserialize_component_list<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<TextComponentBase>, D::Error> {
+    Vec::<TextComponent>::deserialize(deserializer)
+        .map(|values| values.into_iter().map(|value| value.0).collect())
+}
+
 /// The base structure for a text component containing content, style, and children.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "camelCase")]
@@ -92,7 +97,11 @@ pub struct TextComponentBase {
     #[serde(flatten)]
     pub style: Box<Style>,
     /// Child text components that are appended after this component's content.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        default,
+        skip_serializing_if = "Vec::is_empty",
+        deserialize_with = "deserialize_component_list"
+    )]
     pub extra: Vec<Self>,
 }
 
@@ -2031,7 +2040,11 @@ pub enum TextContent {
         #[serde(skip, default)]
         bedrock_translate: Option<Cow<'static, str>>,
         /// Substitution parameters for the translation.
-        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        #[serde(
+            default,
+            skip_serializing_if = "Vec::is_empty",
+            deserialize_with = "deserialize_component_list"
+        )]
         with: Vec<TextComponentBase>,
     },
     /// Displays the name of one or more entities found by a selector.

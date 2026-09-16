@@ -1556,3 +1556,16 @@ Remaining functions and broader block/engine gates are recorded in ENGINE_GAPS.m
   removal, in-memory/NBT boundaries and signed network trade costs have regression
   checks. See `ENGINE_GAPS.md` for verification and exact remaining limits.
 - Full mob passes remain paused. This is not all-block or full-engine certification.
+
+## Shared component continuation: names and instruments
+
+- Fixed item/custom-name network preservation and stored item-name structure,
+  component list roots/string children, instrument values/protocol and component
+  hashes for these paths. Corrected shared UTF-16 string and float hash primitives.
+- Added the four built-in name/instrument loot declarations; nine component/map
+  declarations remain unsupported. Horn playback now uses the effective held
+  component and hand instead of the first horn's fixed sound/duration.
+- Java comparisons cover 736 loot cases and 20 network/component-hash/playback
+  cases. Expanded library checks include data, inventory and protocol packages;
+  see `ENGINE_GAPS.md` for the final result and remaining text/component limits.
+- This is shared engine/item-component work, not a full mob or all-item pass.

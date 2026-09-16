@@ -48,6 +48,9 @@ pub mod translation;
 #[path = "generated/registry.rs"]
 pub mod registry;
 
+#[cfg(feature = "registry")]
+pub mod registry_reference;
+
 #[cfg(feature = "screen")]
 #[rustfmt::skip]
 #[path = "generated/screen.rs"]
@@ -102,6 +105,9 @@ pub mod data_component;
 
 #[cfg(feature = "data_component")]
 pub mod data_component_impl;
+
+#[cfg(feature = "data_component")]
+pub mod component_hash;
 
 #[cfg(feature = "attributes")]
 #[rustfmt::skip]

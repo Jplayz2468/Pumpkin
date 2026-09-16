@@ -229,7 +229,7 @@ impl ToTokens for ItemComponents {
         let item_name = LitStr::new(&text, Span::call_site());
         tokens.extend(quote! {
             (ItemName, &ItemNameImpl {
-                name: Cow::Borrowed(#item_name),
+                name: ItemNameValue::Translation(Cow::Borrowed(#item_name)),
             }),
         });
 
@@ -853,8 +853,9 @@ impl ToTokens for ItemComponents {
         if self.glider.is_some() {
             tokens.extend(quote! { (Glider, &GliderImpl), });
         }
-        if self.instrument.is_some() {
-            tokens.extend(quote! { (Instrument, &InstrumentImpl), });
+        if let Some(instrument) = &self.instrument {
+            let name = instrument.as_str().expect("built-in instrument reference");
+            tokens.extend(quote! { (Instrument, &InstrumentImpl { instrument: InstrumentValue::Reference(Cow::Borrowed(#name)) }), });
         }
         if let Some(model) = &self.item_model {
             let model_lit = LitStr::new(model, Span::call_site());
@@ -2007,13 +2008,13 @@ pub fn build() -> TokenStream {
                         if id == &ItemName {
                             data.as_any()
                                 .downcast_ref::<ItemNameImpl>()
-                                .map(|name| name.name.as_ref())
+                                .map(|name| name.name.component())
                         } else {
                             None
                         }
                     })
-                    .unwrap_or(self.registry_key);
-                TextComponent::translate(name, &[])
+                    .unwrap_or_else(|| TextComponent::translate(self.registry_key, &[]));
+                name
             }
 
             #[doc = "Try to parse an item from a resource location string."]

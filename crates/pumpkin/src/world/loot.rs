@@ -670,6 +670,56 @@ fn apply_functions(
                         .count() as i32;
                 }
             }
+            LootFunctionKind::SetInstrument(options) => {
+                use pumpkin_data::data_component_impl::{InstrumentImpl, InstrumentValue};
+                use pumpkin_util::loot_table::LootRegistrySet;
+                let options: Vec<_> = match options {
+                    LootRegistrySet::All => pumpkin_data::registry_reference::entries("instrument")
+                        .iter()
+                        .map(|entry| format!("minecraft:{}", entry.name))
+                        .collect(),
+                    LootRegistrySet::Values(names) => {
+                        names.iter().map(|name| (*name).to_owned()).collect()
+                    }
+                    LootRegistrySet::Tag(name) => pumpkin_data::tag::get_tag_values(
+                        pumpkin_data::tag::RegistryKey::Instrument,
+                        name,
+                    )
+                    .unwrap_or_default()
+                    .iter()
+                    .map(|name| (*name).to_owned())
+                    .collect(),
+                };
+                if !options.is_empty() {
+                    let selected = &options[rng.next_bounded_i32(options.len() as i32) as usize];
+                    output.stack.set_data_component(InstrumentImpl {
+                        instrument: InstrumentValue::Reference(if selected.contains(':') {
+                            selected.clone().into()
+                        } else {
+                            format!("minecraft:{selected}").into()
+                        }),
+                    });
+                }
+            }
+            LootFunctionKind::SetName {
+                name_json,
+                item_name,
+            } => {
+                if let Some(name) = name_json.and_then(|json| {
+                    serde_json::from_str::<pumpkin_util::text::TextComponent>(json).ok()
+                }) {
+                    use pumpkin_data::data_component_impl::{
+                        CustomNameImpl, ItemNameImpl, ItemNameValue,
+                    };
+                    if item_name {
+                        output.stack.set_data_component(ItemNameImpl {
+                            name: ItemNameValue::Component(name),
+                        });
+                    } else {
+                        output.stack.set_data_component(CustomNameImpl { name });
+                    }
+                }
+            }
             LootFunctionKind::EnchantRandomly {
                 options,
                 only_compatible,
@@ -2595,3 +2645,7 @@ mod enchantment_tests {
         );
     }
 }
+
+#[cfg(test)]
+#[path = "loot_name_instrument_tests.rs"]
+mod name_instrument_tests;

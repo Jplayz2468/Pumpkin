@@ -319,12 +319,7 @@ impl DataComponentCodec<Self> for ItemModelImpl {
 
 impl DataComponentCodec<Self> for CustomNameImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        let mut bytes = Vec::new();
-        NbtTag::String(self.name.clone().get_text().into_boxed_str())
-            .serialize(&mut NbtWriteHelperJava::new(&mut bytes))
-            .map_err(|e| WritingError::Message(e.to_string()))?;
-        seq.write_slice(&bytes)?;
-        Ok(())
+        seq.write_slice(&self.name.encode_for_version(&JavaMinecraftVersion::V_26_2))
     }
 
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
@@ -375,19 +370,19 @@ impl DataComponentCodec<Self> for LoreImpl {
 
 impl DataComponentCodec<Self> for ItemNameImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        let mut name = pumpkin_nbt::compound::NbtCompound::new();
-        name.put_string("translate", self.name.to_string());
-        let mut bytes = Vec::new();
-        NbtTag::Compound(name)
-            .serialize(&mut NbtWriteHelperJava::new(&mut bytes))
-            .map_err(|error| WritingError::Message(error.to_string()))?;
-        seq.write_slice(&bytes)
+        seq.write_slice(
+            &self
+                .name
+                .component()
+                .encode_for_version(&JavaMinecraftVersion::V_26_2),
+        )
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let name = seq.get_str()?;
+        let tag = seq
+            .get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?
+            .ok_or_else(|| ReadingError::Message("Missing item name component".into()))?;
         Ok(Self {
-            name: Cow::Owned(name.into()),
+            name: ItemNameValue::Component(pumpkin_util::text::TextComponent::from_nbt(&tag)),
         })
     }
 }
@@ -2444,12 +2439,112 @@ impl DataComponentCodec<Self> for BlockEntityDataImpl {
 
 impl DataComponentCodec<Self> for InstrumentImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_var_int(&VarInt(0))
+        match &self.instrument {
+            InstrumentValue::Reference(name) => {
+                let id = pumpkin_data::registry_reference::id("instrument", name)
+                    .ok_or_else(|| WritingError::Message(format!("Unknown instrument {name}")))?;
+                seq.write_var_int(&VarInt(id + 1))
+            }
+            InstrumentValue::Inline(data) => {
+                let instrument = data
+                    .extract_compound()
+                    .ok_or_else(|| WritingError::Message("Invalid inline instrument".into()))?;
+                seq.write_var_int(&VarInt(0))?;
+                let sound = instrument
+                    .get("sound_event")
+                    .ok_or_else(|| WritingError::Message("Missing instrument sound".into()))?;
+                match sound {
+                    NbtTag::String(name) => {
+                        let sound =
+                            Sound::from_name(name.strip_prefix("minecraft:").unwrap_or(name))
+                                .ok_or_else(|| {
+                                    WritingError::Message(format!("Unknown sound {name}"))
+                                })?;
+                        seq.write_var_int(&VarInt(sound as i32 + 1))?;
+                    }
+                    NbtTag::Compound(sound) => {
+                        seq.write_var_int(&VarInt(0))?;
+                        seq.write_string(
+                            sound
+                                .get_string("sound_id")
+                                .ok_or_else(|| WritingError::Message("Missing sound id".into()))?,
+                        )?;
+                        let range = sound.get("range").and_then(nbt_number_f32);
+                        seq.write_option(&range, |w, range| w.write_f32(*range))?;
+                    }
+                    _ => return Err(WritingError::Message("Invalid instrument sound".into())),
+                }
+                for name in ["use_duration", "range"] {
+                    seq.write_f32(instrument.get(name).and_then(nbt_number_f32).ok_or_else(
+                        || WritingError::Message(format!("Missing instrument {name}")),
+                    )?)?;
+                }
+                let description = instrument.get("description").ok_or_else(|| {
+                    WritingError::Message("Missing instrument description".into())
+                })?;
+                seq.write_slice(
+                    &pumpkin_util::text::TextComponent::from_nbt(description)
+                        .encode_for_version(&JavaMinecraftVersion::V_26_2),
+                )
+            }
+        }
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let _ = seq.get_var_int()?;
-        Ok(Self)
+        let id = seq.get_var_int()?.0;
+        if id < 0 {
+            return Err(ReadingError::Message(format!("Invalid instrument id {id}")));
+        }
+        if id != 0 {
+            let name = pumpkin_data::registry_reference::name("instrument", id - 1)
+                .ok_or_else(|| ReadingError::Message(format!("Invalid instrument id {id}")))?;
+            return Ok(Self {
+                instrument: InstrumentValue::Reference(name.into()),
+            });
+        }
+        let sound_id = seq.get_var_int()?.0;
+        if sound_id < 0 {
+            return Err(ReadingError::Message(format!(
+                "Invalid sound id {sound_id}"
+            )));
+        }
+        let sound = if sound_id == 0 {
+            let mut sound = pumpkin_nbt::compound::NbtCompound::new();
+            sound.put_string("sound_id", seq.get_str()?.to_string());
+            if let Some(range) = seq.get_option(NetworkReadExt::get_f32)? {
+                sound.put_float("range", range);
+            }
+            NbtTag::Compound(sound)
+        } else {
+            let name = usize::try_from(sound_id - 1)
+                .ok()
+                .and_then(|id| Sound::NAMES.get(id))
+                .ok_or_else(|| ReadingError::Message(format!("Invalid sound id {sound_id}")))?;
+            NbtTag::String(format!("minecraft:{name}").into())
+        };
+        let mut instrument = pumpkin_nbt::compound::NbtCompound::new();
+        instrument.put("sound_event", sound);
+        instrument.put_float("use_duration", seq.get_f32()?);
+        instrument.put_float("range", seq.get_f32()?);
+        instrument.put(
+            "description",
+            seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?
+                .ok_or_else(|| ReadingError::Message("Missing instrument description".into()))?,
+        );
+        Ok(Self {
+            instrument: InstrumentValue::Inline(NbtTag::Compound(instrument)),
+        })
+    }
+}
+
+fn nbt_number_f32(value: &NbtTag) -> Option<f32> {
+    match value {
+        NbtTag::Byte(v) => Some(f32::from(*v)),
+        NbtTag::Short(v) => Some(f32::from(*v)),
+        NbtTag::Int(v) => Some(*v as f32),
+        NbtTag::Long(v) => Some(*v as f32),
+        NbtTag::Float(v) => Some(*v),
+        NbtTag::Double(v) => Some(*v as f32),
+        _ => None,
     }
 }
 

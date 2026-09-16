@@ -120,38 +120,72 @@ impl DataComponentImpl for CustomNameImpl {
             .to_nbt_tag_for_version(&pumpkin_util::version::JavaMinecraftVersion::V_26_2)
     }
     fn get_hash(&self) -> i32 {
-        get_str_hash(self.name.clone().get_text().as_str()) as i32
+        crate::component_hash::text(&self.name) as i32
     }
     default_impl!(CustomName);
 }
 
+/// Compact translation keys keep generated prototypes const; dynamic names retain
+/// their complete component, including literal text, arguments and style.
+#[derive(Clone, Debug)]
+pub enum ItemNameValue {
+    Translation(Cow<'static, str>),
+    Component(TextComponent),
+}
+impl PartialEq for ItemNameValue {
+    fn eq(&self, other: &Self) -> bool {
+        self.component() == other.component()
+    }
+}
+impl Eq for ItemNameValue {}
+impl std::hash::Hash for ItemNameValue {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.component().hash(state);
+    }
+}
+impl ItemNameValue {
+    #[allow(deprecated)]
+    pub fn component(&self) -> TextComponent {
+        match self {
+            Self::Translation(key) => TextComponent::translate(key.clone(), &[]),
+            Self::Component(component) => component.clone(),
+        }
+    }
+}
+impl From<&'static str> for ItemNameValue {
+    fn from(value: &'static str) -> Self {
+        Self::Translation(value.into())
+    }
+}
+impl From<String> for ItemNameValue {
+    fn from(value: String) -> Self {
+        Self::Translation(value.into())
+    }
+}
+impl From<Cow<'static, str>> for ItemNameValue {
+    fn from(value: Cow<'static, str>) -> Self {
+        Self::Translation(value)
+    }
+}
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
 pub struct ItemNameImpl {
-    pub name: Cow<'static, str>,
+    pub name: ItemNameValue,
 }
 impl ItemNameImpl {
     pub fn read_data(data: &NbtTag) -> Option<Self> {
-        let name = match data {
-            NbtTag::String(name) => name.to_string(),
-            NbtTag::Compound(component) => component
-                .get_string("translate")
-                .or_else(|| component.get_string("text"))?
-                .to_owned(),
-            _ => return None,
-        };
         Some(Self {
-            name: Cow::Owned(name),
+            name: ItemNameValue::Component(TextComponent::from_nbt(data)),
         })
     }
 }
 impl DataComponentImpl for ItemNameImpl {
     fn write_data(&self) -> NbtTag {
-        let mut component = NbtCompound::new();
-        component.put_string("translate", self.name.to_string());
-        NbtTag::Compound(component)
+        self.name
+            .component()
+            .to_nbt_tag_for_version(&pumpkin_util::version::JavaMinecraftVersion::V_26_2)
     }
     fn get_hash(&self) -> i32 {
-        get_str_hash(&self.name) as i32
+        crate::component_hash::text(&self.name.component()) as i32
     }
     default_impl!(ItemName);
 }
@@ -445,14 +479,141 @@ impl DataComponentImpl for BaseColorImpl {
     default_impl!(BaseColor);
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct InstrumentImpl;
+#[derive(Clone, Debug, PartialEq)]
+pub enum InstrumentValue {
+    Reference(Cow<'static, str>),
+    Inline(NbtTag),
+}
+#[derive(Clone, Debug, PartialEq)]
+pub struct InstrumentImpl {
+    pub instrument: InstrumentValue,
+}
+#[derive(Clone, Debug)]
+pub struct InstrumentPlayback {
+    pub sound: crate::data_component_impl::IdOr<SoundEvent>,
+    pub range: f32,
+    pub duration_ticks: i32,
+}
 impl InstrumentImpl {
-    pub const fn read_data(_data: &NbtTag) -> Option<Self> {
-        Some(Self)
+    pub fn playback(&self) -> Option<InstrumentPlayback> {
+        let definition = self.definition()?;
+        let definition = definition.extract_compound()?;
+        let float = |value: &NbtTag| match value {
+            NbtTag::Float(v) => Some(*v),
+            NbtTag::Double(v) => Some(*v as f32),
+            NbtTag::Int(v) => Some(*v as f32),
+            NbtTag::Byte(v) => Some(f32::from(*v)),
+            NbtTag::Short(v) => Some(f32::from(*v)),
+            NbtTag::Long(v) => Some(*v as f32),
+            _ => None,
+        };
+        let sound = match definition.get("sound_event")? {
+            NbtTag::String(name) => crate::data_component_impl::IdOr::Id(
+                crate::sound::Sound::from_name(name.strip_prefix("minecraft:").unwrap_or(name))?,
+            ),
+            NbtTag::Compound(sound) => crate::data_component_impl::IdOr::Value(SoundEvent::new(
+                sound.get_string("sound_id")?.to_owned(),
+                sound.get("range").and_then(float),
+            )),
+            _ => return None,
+        };
+        Some(InstrumentPlayback {
+            sound,
+            range: float(definition.get("range")?)?,
+            duration_ticks: (float(definition.get("use_duration")?)? * 20.0).floor() as i32,
+        })
+    }
+    pub fn read_data(data: &NbtTag) -> Option<Self> {
+        Some(Self {
+            instrument: match data {
+                NbtTag::String(name) => InstrumentValue::Reference(if name.contains(':') {
+                    name.to_string().into()
+                } else {
+                    format!("minecraft:{name}").into()
+                }),
+                NbtTag::Compound(_) => InstrumentValue::Inline(data.clone()),
+                _ => return None,
+            },
+        })
+    }
+    pub fn definition(&self) -> Option<NbtTag> {
+        match &self.instrument {
+            InstrumentValue::Reference(name) => {
+                crate::registry_reference::definition("instrument", name)
+            }
+            InstrumentValue::Inline(data) => Some(data.clone()),
+        }
     }
 }
 impl DataComponentImpl for InstrumentImpl {
+    fn get_hash(&self) -> i32 {
+        use crate::component_hash;
+        use crate::data_component_impl::{get_f32_hash, get_str_hash};
+        let identifier = |name: &str| {
+            get_str_hash(&if name.contains(':') {
+                name.to_owned()
+            } else {
+                format!("minecraft:{name}")
+            })
+        };
+        let InstrumentValue::Inline(data) = &self.instrument else {
+            if let InstrumentValue::Reference(name) = &self.instrument {
+                return identifier(name) as i32;
+            }
+            unreachable!();
+        };
+        let Some(data) = data.extract_compound() else {
+            return 0;
+        };
+        let float = |v: &NbtTag| match v {
+            NbtTag::Float(v) => Some(*v),
+            NbtTag::Double(v) => Some(*v as f32),
+            NbtTag::Int(v) => Some(*v as f32),
+            _ => None,
+        };
+        let Some(duration) = data.get("use_duration").and_then(float) else {
+            return 0;
+        };
+        let Some(range) = data.get("range").and_then(float) else {
+            return 0;
+        };
+        let Some(description) = data.get("description") else {
+            return 0;
+        };
+        let sound = match data.get("sound_event") {
+            Some(NbtTag::String(name)) => identifier(name),
+            Some(NbtTag::Compound(value)) => {
+                let Some(name) = value.get_string("sound_id") else {
+                    return 0;
+                };
+                let mut entries = vec![(get_str_hash("sound_id"), identifier(name))];
+                if let Some(range) = value.get("range").and_then(float) {
+                    entries.push((get_str_hash("range"), get_f32_hash(range)));
+                }
+                component_hash::map(entries)
+            }
+            _ => return 0,
+        };
+        component_hash::map(vec![
+            (get_str_hash("sound_event"), sound),
+            (get_str_hash("use_duration"), get_f32_hash(duration)),
+            (get_str_hash("range"), get_f32_hash(range)),
+            (
+                get_str_hash("description"),
+                component_hash::text(&TextComponent::from_nbt(description)),
+            ),
+        ]) as i32
+    }
+    fn write_data(&self) -> NbtTag {
+        match &self.instrument {
+            InstrumentValue::Reference(name) => NbtTag::String(if name.contains(':') {
+                name.to_string().into()
+            } else {
+                format!("minecraft:{name}").into()
+            }),
+            InstrumentValue::Inline(data) => data.clone(),
+        }
+    }
     default_impl!(Instrument);
 }
 

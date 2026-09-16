@@ -504,3 +504,12 @@ Java reference coverage: 2,200 loot and 12,296 table cases, with both RNG types 
 following values. Remaining gates include dynamic registries/context producers,
 process-dependent stochastic map iteration, menu/client integration and the other
 D01–D06/block dependencies. No full mob pass was started.
+
+### Name/instrument component checkpoint
+
+Added four built-in loot declarations and preserved name/instrument components
+through protocol, NBT and hashing. Horn use now reads the effective component.
+Java fixtures cover 736 loot cases and 20 component network/hash/playback cases.
+Nine built-in function declarations remain unsupported (component patches/maps).
+Entity text resolution, complete text forms/component hashes, reloads and live
+integration remain open with the other engine/block dependencies.

@@ -269,9 +269,12 @@ mod tests {
         ec.on_open();
         assert_eq!(tracker1.get_viewer_count(), 1);
 
-        // Setting a new tracker while one is open should close the old tracker
-        ec.set_tracker(tracker2.clone());
+        // Player::open_handled_screen closes the old menu before the new factory
+        // assigns its tracker. Java setActiveChest itself only changes the reference.
+        ec.on_close();
         assert_eq!(tracker1.get_viewer_count(), 0);
+        assert!(!ec.has_tracker());
+        ec.set_tracker(tracker2.clone());
         assert!(ec.is_tracker(&tracker2));
 
         ec.on_open();
