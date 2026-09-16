@@ -1487,3 +1487,12 @@ flush before success; failed writes keep dirty state and retained payloads for r
 Errors from entities, tickets, POI, custom data and world metadata reach server and
 plugin save callers. ENGINE_GAPS.md records failure/retry evidence and the remaining
 command-result, crash-recovery and lifecycle gates. Full mob passes remain paused.
+
+
+### Pending save images and unreadable chunks
+
+Block reloads now use the retained save image after an unsuccessful write, including
+its frozen relative tick delays. Read errors are distinct from missing terrain and
+complete every request in the failed region batch. Scheduler exits also fail pending
+save requests. ENGINE_GAPS.md records the integration checks and remaining recovery
+and engine gates; full mob passes remain paused.

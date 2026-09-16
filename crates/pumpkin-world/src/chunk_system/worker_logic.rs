@@ -127,9 +127,39 @@ pub async fn io_read_work(
         let level_clone = level.clone();
 
         let fetch_task = tokio::spawn(async move {
+            let mut disk = Vec::new();
+            for pos in batch {
+                let pending = level_clone
+                    .pending_chunk_writes
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .get(&pos)
+                    .cloned();
+                if let Some(pending) = pending {
+                    let result = run_blocking(move || pending.read()).await;
+                    let data = match result {
+                        Ok(Ok(chunk)) => Loaded(chunk),
+                        result => LoadedData::Error((
+                            pos,
+                            crate::chunk::ChunkReadingError::IoError(std::io::Error::other(
+                                match result {
+                                    Ok(Err(error)) => error,
+                                    Err(error) => error.to_string(),
+                                    _ => unreachable!(),
+                                },
+                            )),
+                        )),
+                    };
+                    if t_send.send(data).await.is_err() {
+                        return;
+                    }
+                } else {
+                    disk.push(pos);
+                }
+            }
             level_clone
                 .chunk_saver
-                .fetch_chunks(&level_clone.level_folder, &batch, t_send)
+                .fetch_chunks(&level_clone.level_folder, &disk, t_send)
                 .await;
         });
 
@@ -155,7 +185,28 @@ pub async fn io_read_work(
                         break;
                     }
                 }
-                LoadedData::Missing(pos) | LoadedData::Error((pos, _)) => {
+                LoadedData::Error((pos, error)) => {
+                    // Preserve the holder as an unsuccessful load. Only absence
+                    // permits new terrain; corruption/I/O failures retry loading.
+                    tokio::select! {
+                        _ = level.cancel_token.cancelled() => return,
+                        _ = tokio::time::sleep(std::time::Duration::from_millis(250)) => {}
+                    }
+                    if send
+                        .send((
+                            pos,
+                            RecvChunk::GenerationFailure {
+                                pos,
+                                stage: StagedChunkEnum::Empty,
+                                error: format!("Chunk read failed: {error}"),
+                            },
+                        ))
+                        .is_err()
+                    {
+                        return;
+                    }
+                }
+                LoadedData::Missing(pos) => {
                     if send
                         .send((
                             pos,
@@ -196,7 +247,6 @@ pub(crate) async fn io_write_work(
     level: Arc<Level>,
     lock: IOLock,
 ) {
-    let mut failed_chunks = std::collections::HashMap::new();
     loop {
         // Don't check cancel_token here (keep saving chunks)
         let Some(job) = recv.recv().await else { break };
@@ -225,23 +275,73 @@ pub(crate) async fn io_write_work(
         .await;
         let result = match upgrade_result {
             Ok(vec) => {
-                // Retain failed unloads too: they may no longer have a live holder.
-                // A newer submission for a position replaces its older failed image.
-                failed_chunks.extend(vec);
-                let pending = failed_chunks
-                    .iter()
-                    .map(|(pos, chunk)| (*pos, chunk.clone()))
-                    .collect();
-                match level
-                    .chunk_saver
-                    .save_chunks(&level.level_folder, pending)
-                    .await
-                {
-                    Ok(()) => {
-                        failed_chunks.clear();
-                        Ok(())
+                let pending: Vec<_> = {
+                    let mut cache = level
+                        .pending_chunk_writes
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    for (pos, source) in vec {
+                        cache.insert(
+                            pos,
+                            Arc::new(super::pending_write::PendingWrite::new(source)),
+                        );
                     }
-                    Err(error) => Err(error.to_string()),
+                    cache
+                        .iter()
+                        .map(|(pos, pending)| (*pos, pending.clone()))
+                        .collect()
+                };
+                let captured = run_blocking(move || {
+                    let mut snapshots = Vec::new();
+                    let mut entries = Vec::new();
+                    let mut errors = Vec::new();
+                    for (pos, entry) in pending {
+                        match entry.snapshot() {
+                            Ok(image) => {
+                                snapshots.push((pos, image));
+                                entries.push((pos, entry));
+                            }
+                            Err(error) => errors.push(format!("Snapshot {pos:?}: {error}")),
+                        }
+                    }
+                    (snapshots, entries, errors)
+                })
+                .await;
+                match captured {
+                    Err(error) => Err(format!("Chunk snapshot task failed: {error}")),
+                    Ok((snapshots, entries, mut errors)) => {
+                        match level
+                            .chunk_saver
+                            .save_chunks(&level.level_folder, snapshots)
+                            .await
+                        {
+                            Ok(()) => {
+                                let mut cache = level
+                                    .pending_chunk_writes
+                                    .lock()
+                                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                                for (pos, entry) in entries {
+                                    if cache
+                                        .get(&pos)
+                                        .is_some_and(|current| Arc::ptr_eq(current, &entry))
+                                    {
+                                        cache.remove(&pos);
+                                    }
+                                }
+                            }
+                            Err(error) => {
+                                for (_, entry) in entries {
+                                    entry.failed();
+                                }
+                                errors.push(error.to_string());
+                            }
+                        }
+                        if errors.is_empty() {
+                            Ok(())
+                        } else {
+                            Err(errors.join("; "))
+                        }
+                    }
                 }
             }
             Err(error) => Err(format!("Failed to upgrade chunks for saving: {error}")),

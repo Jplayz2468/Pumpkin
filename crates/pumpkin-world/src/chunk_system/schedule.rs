@@ -47,6 +47,25 @@ impl Ord for TaskHeapNode {
     }
 }
 
+/// Close requests even if the scheduler unwinds or takes an early exit.
+struct SaveRequestsOnExit<'a>(&'a Level);
+impl Drop for SaveRequestsOnExit<'_> {
+    fn drop(&mut self) {
+        let mut requests = self
+            .0
+            .save_requests
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.0.shut_down_chunk_system.store(true, Relaxed);
+        for completion in requests.drain(..) {
+            let _ = completion.send(Err(
+                "Chunk scheduler stopped before accepting the save".into()
+            ));
+        }
+        self.0.level_channel.notify();
+    }
+}
+
 pub struct GenerationSchedule {
     queue: BinaryHeap<TaskHeapNode>,
     graph: DAG,
@@ -1210,7 +1229,7 @@ impl GenerationSchedule {
                 );
 
                 if let Some(mut holder) = self.chunk_map.remove(&pos) {
-                    let target_stage = holder.target_stage;
+                    let target_stage = holder.target_stage.max(holder.dependency_stage);
 
                     if !holder.occupied.is_null() {
                         if self.graph.nodes.contains_key(holder.occupied) {
@@ -1228,7 +1247,6 @@ impl GenerationSchedule {
                     }
 
                     holder.current_stage = StagedChunkEnum::None;
-                    holder.dependency_stage = StagedChunkEnum::None;
                     holder.chunk = None;
 
                     for i in (StagedChunkEnum::None as usize + 1)..=(target_stage as usize) {
@@ -1260,7 +1278,7 @@ impl GenerationSchedule {
                     self.chunk_map.insert(pos, holder);
 
                     warn!(
-                        "Chunk {:?} reset to None and re-queued for regeneration (target: {:?})",
+                        "Chunk {:?} reset to None and re-queued to load (target: {:?})",
                         pos, target_stage
                     );
                 } else {
@@ -1273,6 +1291,7 @@ impl GenerationSchedule {
 
     #[expect(clippy::too_many_lines)]
     fn work(mut self, level: &Arc<Level>) {
+        let _requests_on_exit = SaveRequestsOnExit(level);
         debug!(
             "schedule thread start id: {:?} name: {}",
             thread::current().id(),
@@ -1768,5 +1787,30 @@ impl GenerationSchedule {
             }
         }
         true
+    }
+}
+
+#[cfg(test)]
+mod save_request_tests {
+    use super::*;
+    #[tokio::test]
+    async fn scheduler_unwind_closes_unaccepted_save_requests() {
+        let dir = tempfile::tempdir().unwrap();
+        let level = Level::from_root_folder(
+            &pumpkin_config::world::LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            pumpkin_data::dimension::Dimension::OVERWORLD,
+        );
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        level.save_requests.lock().unwrap().push(tx);
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = SaveRequestsOnExit(&level);
+            panic!("simulated scheduler failure");
+        }));
+        assert!(panic.is_err());
+        assert!(rx.await.unwrap().is_err());
+        assert!(level.save_chunks().await.is_err());
+        level.shutdown().await;
     }
 }

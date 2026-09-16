@@ -25,6 +25,7 @@ pub mod chunk_state;
 pub mod dag;
 pub mod generation;
 pub mod generation_cache;
+pub(crate) mod pending_write;
 pub mod schedule;
 pub mod worker_logic;
 

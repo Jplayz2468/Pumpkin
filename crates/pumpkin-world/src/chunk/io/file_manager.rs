@@ -276,11 +276,28 @@ where
                 let chunk_serializer = match self.get_serializer(&path).await {
                     Ok(s) => s,
                     Err(ChunkReadingError::ChunkNotExist) => {
+                        for pos in chunks {
+                            if task_stream.send(LoadedData::Missing(pos)).await.is_err() {
+                                break;
+                            }
+                        }
                         return;
                     }
                     Err(err) => {
-                        // Best-effort: report the error for the first coord in the batch.
-                        let _ = task_stream.send(LoadedData::Error((chunks[0], err))).await;
+                        // Every requested holder needs a completion, even if the
+                        // shared region could not be opened at all.
+                        let message = err.to_string();
+                        for pos in chunks {
+                            let error =
+                                ChunkReadingError::IoError(std::io::Error::other(message.clone()));
+                            if task_stream
+                                .send(LoadedData::Error((pos, error)))
+                                .await
+                                .is_err()
+                            {
+                                break;
+                            }
+                        }
                         return;
                     }
                 };

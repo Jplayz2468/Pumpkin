@@ -111,6 +111,12 @@ pub struct Level {
     pub loaded_chunks: Arc<DashMap<Vector2<i32>, SyncChunk>>,
     pub(crate) loaded_chunk_changes: Arc<SegQueue<LoadedChunkChange>>,
     loaded_entity_chunks: Arc<DashMap<Vector2<i32>, SyncEntityChunk>>,
+    pub(crate) pending_chunk_writes: Mutex<
+        std::collections::HashMap<
+            Vector2<i32>,
+            Arc<crate::chunk_system::pending_write::PendingWrite>,
+        >,
+    >,
     pub(crate) save_requests: Mutex<Vec<SaveCompletion>>,
     pub game_time: Arc<AtomicI64>,
     pub chunks_with_scheduled_ticks: Arc<dashmap::DashSet<Vector2<i32>>>,
@@ -306,6 +312,7 @@ impl Level {
             loaded_chunks: Arc::new(DashMap::new()),
             loaded_chunk_changes: Arc::new(SegQueue::new()),
             loaded_entity_chunks: Arc::new(DashMap::new()),
+            pending_chunk_writes: Mutex::new(std::collections::HashMap::new()),
             save_requests: Mutex::new(Vec::new()),
             game_time: Arc::new(AtomicI64::new(0)),
             chunks_with_scheduled_ticks: Arc::new(dashmap::DashSet::new()),
@@ -687,8 +694,7 @@ impl Level {
                         }
                         let y_base = min_y + (i as i32 * 16);
                         for _ in 0..samples_per_section {
-                            let pos =
-                                self.get_block_random_pos(chunk_x_base, y_base, chunk_z_base, 15);
+                            let pos = self.get_block_random_pos(chunk_x_base, y_base, chunk_z_base, 15);
                             let x_offset = (pos.0.x - chunk_x_base) as usize;
                             let y_in_section = (pos.0.y - y_base) as usize;
                             let z_offset = (pos.0.z - chunk_z_base) as usize;
@@ -1185,6 +1191,163 @@ mod tests {
     use super::*;
     use pumpkin_config::world::LevelConfig;
     use tempfile::TempDir;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn loading_after_a_failed_save_uses_the_frozen_pending_image() {
+        let dir = TempDir::new().unwrap();
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let pos = Vector2::new(0, 0);
+        let chunk = ChunkData::empty_sync(0, 0);
+        chunk.light_populated.store(true, Ordering::Relaxed);
+        level.loaded_chunks.insert(pos, chunk.clone());
+        level.game_time.store(1000, Ordering::SeqCst);
+        chunk.set_block_absolute_y(0, 64, 0, Block::STONE.default_state.id);
+        chunk.mark_dirty(true);
+        level.save_chunks().await.unwrap();
+        let region = &level.level_folder.region_folder;
+        let backup = region.with_extension("backup");
+        std::fs::rename(region, &backup).unwrap();
+        std::fs::write(region, b"not a directory").unwrap();
+        chunk.set_block_absolute_y(0, 64, 0, Block::GOLD_BLOCK.default_state.id);
+        chunk.mark_dirty(true);
+        level.schedule_block_tick(
+            &Block::STONE,
+            BlockPos::new(1, 64, 0),
+            20,
+            TickPriority::Normal,
+        );
+        assert!(level.save_chunks().await.is_err());
+        level.loaded_chunks.remove(&pos);
+        // Changes to an old source and elapsed world time cannot alter the image.
+        chunk.set_block_absolute_y(0, 64, 0, Block::DIAMOND_BLOCK.default_state.id);
+        chunk.mark_dirty(true);
+        level.game_time.store(9000, Ordering::SeqCst);
+        let loaded = tokio::time::timeout(
+            Duration::from_secs(10),
+            level.get_or_fetch_chunk(pos, Arc::clone),
+        )
+        .await
+        .unwrap();
+        assert!(!Arc::ptr_eq(&loaded, &chunk));
+        assert_eq!(
+            loaded.section.get_block_absolute_y(0, 64, 0),
+            Some(Block::GOLD_BLOCK.default_state.id)
+        );
+        assert_eq!(loaded.block_ticks.to_vec()[0].delay, 20);
+        // The loaded queue advances, while the retained retry image stays frozen.
+        level.game_time.store(9005, Ordering::SeqCst);
+        assert_eq!(loaded.block_ticks.to_vec()[0].delay, 15);
+        let pending = level
+            .pending_chunk_writes
+            .lock()
+            .unwrap()
+            .get(&pos)
+            .cloned()
+            .unwrap();
+        assert_eq!(pending.read().unwrap().block_ticks.to_vec()[0].delay, 20);
+        loaded.set_block_absolute_y(0, 64, 0, Block::EMERALD_BLOCK.default_state.id);
+        loaded.mark_dirty(true);
+        assert!(level.save_chunks().await.is_err());
+        let pending = level
+            .pending_chunk_writes
+            .lock()
+            .unwrap()
+            .get(&pos)
+            .cloned()
+            .unwrap();
+        assert_eq!(
+            pending
+                .read()
+                .unwrap()
+                .section
+                .get_block_absolute_y(0, 64, 0),
+            Some(Block::EMERALD_BLOCK.default_state.id)
+        );
+        std::fs::remove_file(region).unwrap();
+        std::fs::rename(backup, region).unwrap();
+        level.save_chunks().await.unwrap();
+        assert!(level.pending_chunk_writes.lock().unwrap().is_empty());
+        level.shutdown().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn unreadable_regions_complete_every_request_without_creating_new_terrain() {
+        use crate::chunk_system::{
+            chunk_state::StagedChunkEnum,
+            worker_logic::{RecvChunk, io_read_work},
+        };
+        let dir = TempDir::new().unwrap();
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let region = &level.level_folder.region_folder;
+        std::fs::remove_dir(region).unwrap();
+        std::fs::write(region, b"not a directory").unwrap();
+        let positions = vec![Vector2::new(0, 0), Vector2::new(1, 0)];
+        let (tx, mut rx) = mpsc::channel(2);
+        level
+            .chunk_saver
+            .fetch_chunks(&level.level_folder, &positions, tx)
+            .await;
+        for expected in &positions {
+            assert!(
+                matches!(rx.recv().await, Some(LoadedData::Error((pos, _))) if pos == *expected)
+            );
+        }
+        assert!(rx.recv().await.is_none());
+        let (commands, input) = mpsc::channel(1);
+        let (output, results) = crossbeam::channel::unbounded();
+        let lock = Arc::new((
+            std::sync::Mutex::new(crate::chunk_system::HashMapType::default()),
+            tokio::sync::Notify::new(),
+        ));
+        let worker = tokio::spawn(io_read_work(
+            Arc::new(tokio::sync::Mutex::new(input)),
+            output,
+            level.clone(),
+            lock,
+        ));
+        commands.send(positions.clone()).await.unwrap();
+        drop(commands);
+        let failures = tokio::task::spawn_blocking(move || {
+            (0..2)
+                .map(|_| results.recv_timeout(Duration::from_secs(5)).unwrap())
+                .collect::<Vec<_>>()
+        })
+        .await
+        .unwrap();
+        for (pos, result) in failures {
+            assert!(positions.contains(&pos));
+            assert!(matches!(
+                result,
+                RecvChunk::GenerationFailure {
+                    stage: StagedChunkEnum::Empty,
+                    ..
+                }
+            ));
+        }
+        worker.await.unwrap();
+        assert!(level.loaded_chunks.is_empty());
+        std::fs::remove_file(region).unwrap();
+        std::fs::create_dir(region).unwrap();
+        let (tx, mut rx) = mpsc::channel(2);
+        level
+            .chunk_saver
+            .fetch_chunks(&level.level_folder, &positions, tx)
+            .await;
+        for expected in positions {
+            assert!(matches!(rx.recv().await, Some(LoadedData::Missing(pos)) if pos == expected));
+        }
+        level.shutdown().await;
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn manual_save_flushes_watched_chunks_and_retries_failed_writes() {

@@ -863,3 +863,37 @@ whole inside-effect pipeline matches Java yet.
   failures, read-after-failed-unload coordination, proto-chunk recovery, atomic
   multi-file snapshots and broader plugin/save concurrency are not certified here.
   The other shared engine/block gates remain open; full mob passes remain paused.
+
+
+## Pending block-save snapshots and failed-load isolation
+
+- Chunk writes capture an independent serialized image before I/O. The image keeps
+  block states and relative scheduled-tick delays fixed across retries. Source
+  mutations after capture remain separate and dirty; newer save submissions replace
+  the older image for that position. Failed serialization retains its source for a
+  later capture attempt.
+- Pending images are shared with the chunk reader. A load following a failed save
+  reads a copy of that image before consulting disk. Its tick queues bind to the
+  loading world's clock without changing the retained retry image. Successfully
+  written entries are removed only after disk completion.
+- Read errors no longer take the missing-chunk path that creates fresh terrain.
+  Every requested chunk receives a failure when its region cannot be opened; reads
+  retry with a short delay and preserve the requested dependency stage. Missing
+  storage still permits generation, including after a previous I/O error is repaired.
+- A scheduler exit/unwind closes unaccepted save requests with an error and rejects
+  later submissions, preventing save futures from waiting on a stopped scheduler.
+- Source basis: local Java IOWorker.store/loadAsync supplies copied pending NBT
+  before disk reads and propagates read errors. Retaining failed images for retry
+  extends Pumpkin's recovery policy; it does not certify Java failure semantics.
+- Evidence: a real failed write followed by the actual chunk-load pipeline sees the
+  saved image, ignores later changes to the old source, restores remaining delays
+  at a later world time, and accepts a newer replacement snapshot. Batch read-failure
+  checks cover all requested positions, failure notifications without new proto
+  terrain, and recovery to missing-storage results. An unwind check verifies pending
+  save completion closes and later saves reject the stopped scheduler. Final
+  background run 4 passed **512 engine and 241 world tests**, excluding the same
+  two previously separately passing localhost socket tests. No live client session
+  or full mob pass was performed.
+- Remaining: full dependent-generation recovery under live load, fatal I/O-worker
+  recovery, command result/flush semantics, crash durability and atomic multi-file
+  state, plus the other shared engine/block gates. Full mob passes remain paused.
