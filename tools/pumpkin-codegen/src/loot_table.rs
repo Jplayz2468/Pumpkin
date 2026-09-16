@@ -725,6 +725,15 @@ fn functions_tokens(functions: &[EntryFunctionStruct]) -> TokenStream {
                 let count = number_tokens(field("count")); let limit=field("limit").as_i64().unwrap_or(0) as i32;
                 quote! { LootFunctionKind::EnchantedCountIncrease { enchantment: #enchantment, count: #count, limit: #limit } }
             }
+            "minecraft:exploration_map" => {
+                // Defaults mirror ExplorationMapFunction's optionalFieldOf codec.
+                let destination = field("destination").as_str().unwrap_or("#minecraft:on_treasure_maps").to_string();
+                let decoration = field("decoration").as_str().unwrap_or("minecraft:woodland_mansion").to_string();
+                let zoom = field("zoom").as_i64().unwrap_or(2) as i8;
+                let search_radius = field("search_radius").as_i64().unwrap_or(50) as i32;
+                let skip_existing_chunks = field("skip_existing_chunks").as_bool().unwrap_or(true);
+                quote! { LootFunctionKind::ExplorationMap { destination: #destination, decoration: #decoration, zoom: #zoom, search_radius: #search_radius, skip_existing_chunks: #skip_existing_chunks } }
+            }
             other => quote! { LootFunctionKind::Unsupported(#other) },
         };
         quote! { LootFunction { condition: #condition, kind: #kind } }

@@ -31441,7 +31441,13 @@ pub static CHESTS_SHIPWRECK_MAP: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:exploration_map"),
+                        kind: LootFunctionKind::ExplorationMap {
+                            destination: "#minecraft:on_treasure_maps",
+                            decoration: "minecraft:red_x",
+                            zoom: 1i8,
+                            search_radius: 50i32,
+                            skip_existing_chunks: false,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -35270,7 +35276,13 @@ pub static CHESTS_UNDERWATER_RUIN_BIG: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:exploration_map"),
+                            kind: LootFunctionKind::ExplorationMap {
+                                destination: "#minecraft:on_treasure_maps",
+                                decoration: "minecraft:red_x",
+                                zoom: 1i8,
+                                search_radius: 50i32,
+                                skip_existing_chunks: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -35469,7 +35481,13 @@ pub static CHESTS_UNDERWATER_RUIN_SMALL: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:exploration_map"),
+                            kind: LootFunctionKind::ExplorationMap {
+                                destination: "#minecraft:on_treasure_maps",
+                                decoration: "minecraft:red_x",
+                                zoom: 1i8,
+                                search_radius: 50i32,
+                                skip_existing_chunks: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,

@@ -179,6 +179,16 @@ pub enum LootFunctionKind {
     CopyState {
         properties: &'static [(&'static str, u32)],
     },
+    ExplorationMap {
+        /// Structure tag naming the search targets, e.g. `#minecraft:on_treasure_maps`.
+        destination: &'static str,
+        /// Map decoration registry name placed on the located structure.
+        decoration: &'static str,
+        zoom: i8,
+        /// Search radius in chunk-region rings.
+        search_radius: i32,
+        skip_existing_chunks: bool,
+    },
     /// Retain unsupported functions explicitly for the remaining component/function work.
     Unsupported(&'static str),
 }

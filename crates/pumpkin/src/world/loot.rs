@@ -92,9 +92,145 @@ pub fn generate_loot_in_world(
     seed: i64,
     params: &LootContextParameters,
 ) -> Vec<ItemStack> {
+    // `ExplorationMap` is the one built-in function needing world access, so it is
+    // resolved here and handed to the pure pass through the context.
+    let resolved;
+    let params = match exploration_map_request(table) {
+        Some(request) if params.exploration_map.is_none() => {
+            let mut owned = params.clone();
+            owned.exploration_map = resolve_exploration_map(world, params.position, &request);
+            resolved = owned;
+            &resolved
+        }
+        _ => params,
+    };
     with_loot_random(world, table, seed, |rng| {
         generate_loot_with_rng(table, params, rng)
     })
+}
+
+/// The `exploration_map` parameters declared anywhere in `table`, if any.
+fn exploration_map_request(table: &LootTable) -> Option<LootFunctionKind> {
+    fn find(functions: &[LootFunction]) -> Option<LootFunctionKind> {
+        functions
+            .iter()
+            .find(|function| matches!(function.kind, LootFunctionKind::ExplorationMap { .. }))
+            .map(|function| function.kind)
+    }
+
+    if let Some(kind) = find(table.functions) {
+        return Some(kind);
+    }
+    for pool in table.pools {
+        if let Some(kind) = find(pool.functions) {
+            return Some(kind);
+        }
+        for entry in pool.entries {
+            if let Some(kind) = find(entry.functions) {
+                return Some(kind);
+            }
+        }
+    }
+    None
+}
+
+/// Locates the destination structure and allocates the filled map, mirroring
+/// `ExplorationMapFunction.run`.
+fn resolve_exploration_map(
+    world: &super::World,
+    position: Option<pumpkin_util::math::vector3::Vector3<f64>>,
+    request: &LootFunctionKind,
+) -> Option<ItemStack> {
+    use pumpkin_data::data_component::DataComponent;
+    use pumpkin_data::data_component_impl::{DataComponentImpl, MapIdImpl};
+    use pumpkin_data::map_decoration::MapDecorationType;
+    use pumpkin_data::structures::StructureSet;
+    use pumpkin_util::math::position::BlockPos;
+    use pumpkin_world::generation::generator::structure_finder::find_nearest_structure;
+
+    let LootFunctionKind::ExplorationMap {
+        destination,
+        decoration,
+        zoom,
+        search_radius,
+        ..
+    } = *request
+    else {
+        return None;
+    };
+
+    let position = position?;
+    let server = world.server.upgrade()?;
+    let origin = BlockPos::floored(position.x, position.y, position.z);
+
+    // Structure tag data is not generated yet, so the destination tag is mapped
+    // to the structure sets whose members it names.
+    let wanted = structure_tag_members(destination)?;
+    let placements: Vec<&pumpkin_data::structures::StructurePlacement> = StructureSet::ALL
+        .iter()
+        .filter(|set| {
+            set.structures
+                .iter()
+                .any(|entry| wanted.contains(&entry.structure))
+        })
+        .map(|set| &set.placement)
+        .collect();
+    if placements.is_empty() {
+        return None;
+    }
+
+    let level = &world.level;
+    let target = find_nearest_structure(
+        origin,
+        &placements,
+        search_radius,
+        level.seed.0 as i64,
+        level.world_gen().global_structure_cache()?,
+    )?;
+
+    // MapItemSavedData.createFresh snaps the centre onto the map grid.
+    let size = 128i32 << zoom.max(0);
+    let center_x = (target.0.x + 64).div_euclid(size) * size + size / 2 - 64;
+    let center_z = (target.0.z + 64).div_euclid(size) * size + size / 2 - 64;
+
+    let map_id = server.next_map_id();
+    let map = server
+        .map_manager
+        .create_map(map_id, world.dimension.clone(), center_x, center_z, zoom);
+    if let Ok(mut map) = map.lock() {
+        let scale = f64::from(size / 128);
+        let icon_x = (f64::from(target.0.x - center_x) / scale * 2.0).clamp(-128.0, 127.0) as i8;
+        let icon_z = (f64::from(target.0.z - center_z) / scale * 2.0).clamp(-128.0, 127.0) as i8;
+        map.decorations.push(super::map::MapDecoration {
+            icon_type: MapDecorationType::from_name(decoration.trim_start_matches("minecraft:"))
+                .map_or(MapDecorationType::RED_X.id, |kind| kind.id) as i32,
+            x: icon_x,
+            z: icon_z,
+            // Vanilla stores target decorations facing south.
+            direction: 8,
+            display_name: None,
+        });
+    }
+
+    let mut stack = ItemStack::new(1, &Item::FILLED_MAP);
+    stack
+        .patch
+        .push((DataComponent::MapId, Some(MapIdImpl { id: map_id }.to_dyn())));
+    Some(stack)
+}
+
+/// The structures named by a `#`-prefixed destination tag. Only the tags used by
+/// built-in tables are known; structure tag data is not generated yet.
+fn structure_tag_members(
+    destination: &str,
+) -> Option<&'static [pumpkin_data::structures::StructureKeys]> {
+    use pumpkin_data::structures::StructureKeys;
+    match destination.trim_start_matches('#') {
+        "minecraft:on_treasure_maps" | "on_treasure_maps" => {
+            Some(&[StructureKeys::BuriedTreasure])
+        }
+        _ => None,
+    }
 }
 
 pub type LootComponentMap = Vec<(
@@ -143,6 +279,10 @@ pub struct LootContextParameters {
     /// Whether the killed entity was a raid captain, for
     /// `type_specific/raider { is_captain }`.
     pub this_is_raid_captain: Option<bool>,
+    /// Filled treasure map resolved before generation, because structure
+    /// lookup and map allocation need the world and `apply_functions` is a
+    /// pure sync pass. `None` when no structure was found in range.
+    pub exploration_map: Option<ItemStack>,
 }
 
 impl LootContextParameters {
@@ -997,6 +1137,14 @@ fn apply_functions(
                     });
                 }
             }
+            LootFunctionKind::ExplorationMap { .. } => {
+                // Vanilla replaces the empty map only when a destination was found.
+                if output.stack.item == &Item::MAP
+                    && let Some(map) = &params.exploration_map
+                {
+                    output.stack = map.clone();
+                }
+            }
             LootFunctionKind::Unsupported(_) => {}
         }
     }
@@ -1347,6 +1495,102 @@ fn shuffle_and_split_items(
     for i in (1..n).rev() {
         let j = rng.next_bounded_i32((i + 1) as i32) as usize;
         result.swap(i, j);
+    }
+}
+
+#[cfg(test)]
+mod exploration_map_tests {
+    use super::*;
+    use pumpkin_data::loot_table;
+
+    /// All three built-in treasure-map tables must expose the parsed function.
+    /// While it stayed `Unsupported` the chests handed out a blank map and
+    /// buried treasure had no discovery path at all.
+    #[test]
+    fn built_in_treasure_tables_declare_exploration_map() {
+        for table in [
+            &loot_table::CHESTS_SHIPWRECK_MAP,
+            &loot_table::CHESTS_UNDERWATER_RUIN_BIG,
+            &loot_table::CHESTS_UNDERWATER_RUIN_SMALL,
+        ] {
+            let request = exploration_map_request(table)
+                .expect("treasure table declares an exploration_map function");
+            let LootFunctionKind::ExplorationMap {
+                destination,
+                decoration,
+                zoom,
+                search_radius,
+                skip_existing_chunks,
+            } = request
+            else {
+                panic!("expected an ExplorationMap function");
+            };
+            assert_eq!(destination, "#minecraft:on_treasure_maps");
+            assert_eq!(decoration, "minecraft:red_x");
+            assert_eq!(zoom, 1);
+            // Defaulted by the codec, not written in the JSON.
+            assert_eq!(search_radius, 50);
+            assert!(!skip_existing_chunks);
+        }
+    }
+
+    /// The destination tag must resolve to a structure set the finder can search.
+    #[test]
+    fn treasure_tag_resolves_to_the_buried_treasure_set() {
+        use pumpkin_data::structures::{StructureKeys, StructureSet};
+
+        let wanted = structure_tag_members("#minecraft:on_treasure_maps")
+            .expect("the built-in treasure tag is known");
+        assert_eq!(wanted, &[StructureKeys::BuriedTreasure]);
+        assert!(
+            StructureSet::ALL.iter().any(|set| set
+                .structures
+                .iter()
+                .any(|entry| wanted.contains(&entry.structure))),
+            "no structure set contains buried treasure"
+        );
+        assert!(structure_tag_members("#minecraft:village").is_none());
+    }
+
+    /// A resolved map replaces the empty one; an unresolved search leaves the
+    /// blank map alone, exactly as vanilla returns the unchanged stack.
+    #[test]
+    fn resolved_map_replaces_the_blank_map_and_absence_leaves_it() {
+        let functions = &[LootFunction {
+            condition: LootCondition::None,
+            kind: LootFunctionKind::ExplorationMap {
+                destination: "#minecraft:on_treasure_maps",
+                decoration: "minecraft:red_x",
+                zoom: 1,
+                search_radius: 50,
+                skip_existing_chunks: false,
+            },
+        }];
+        let blank = || LootOutput {
+            stack: ItemStack::new(1, &Item::MAP),
+            count: 1,
+        };
+
+        let mut params = LootContextParameters::default();
+        let facts = LootFacts::from_params(&params);
+        let unresolved = apply_functions(
+            blank(),
+            functions,
+            &params,
+            facts,
+            &mut Xoroshiro::from_seed(1),
+        );
+        assert_eq!(unresolved.stack.item, &Item::MAP);
+
+        params.exploration_map = Some(ItemStack::new(1, &Item::FILLED_MAP));
+        let resolved = apply_functions(
+            blank(),
+            functions,
+            &params,
+            facts,
+            &mut Xoroshiro::from_seed(1),
+        );
+        assert_eq!(resolved.stack.item, &Item::FILLED_MAP);
     }
 }
 
