@@ -2547,6 +2547,15 @@ impl World {
     /// Local collision boxes, including block entities with a moving lid.
     pub(crate) fn block_collision_boxes(&self, pos: &BlockPos) -> Vec<BoundingBox> {
         let state = self.get_block_state(pos);
+        if state.id.to_block() == &Block::MOVING_PISTON
+            && let Some(entity) = self.get_block_entity(pos)
+            && let Some(piston) = entity
+                .as_any()
+                .downcast_ref::<crate::block::entities::piston::PistonBlockEntity>()
+        {
+            return piston.collision_boxes();
+        }
+
         if state
             .id
             .to_block()
@@ -2590,6 +2599,19 @@ impl World {
                 if let Some(shape) =
                     crate::block::blocks::powder_snow::collision_shape_for_entity(entity, &pos)
                 {
+                    let shape = shape.at_pos(pos);
+                    if shape.intersects(&bounding_box) {
+                        collided = true;
+                        collisions.push(shape);
+                    }
+                }
+            } else if block == &Block::SCAFFOLDING {
+                for shape in crate::block::blocks::scaffolding::ScaffoldingBlock::collision_boxes(
+                    state.id,
+                    &pos,
+                    entity.get_entity().bounding_box.load().min.y,
+                    entity.get_entity().is_sneaking(),
+                ) {
                     let shape = shape.at_pos(pos);
                     if shape.intersects(&bounding_box) {
                         collided = true;
@@ -5918,16 +5940,11 @@ impl World {
                 }
             }
 
-            // Preserve legacy MOVED behavior while giving strict placement its
-            // own shape suppression. The remaining Java flag mapping is separate.
-            // Vanilla Level.java:257:
-            // if ((updateFlags & 16) == 0 && updateLimit > 0) { ... updateNeighbourShapes(..., updateLimit - 1); }
-            if !flags.intersects(BlockFlags::MOVED | BlockFlags::SKIP_SHAPE_UPDATES)
-                && update_limit > 0
-            {
+            // Level.setBlock propagates shapes for moved blocks too. Java's
+            // propagation mask clears neighbor notifications and drop suppression.
+            if !flags.contains(BlockFlags::SKIP_SHAPE_UPDATES) && update_limit > 0 {
                 let mut neighbour_update_flags = flags;
-                neighbour_update_flags.remove(BlockFlags::NOTIFY_NEIGHBORS);
-                neighbour_update_flags.remove(BlockFlags::SKIP_REDSTONE_WIRE_STATE_REPLACEMENT);
+                neighbour_update_flags.remove(BlockFlags::NOTIFY_NEIGHBORS | BlockFlags::SKIP_DROPS);
                 let next_limit = update_limit.saturating_sub(1);
                 self.block_registry.prepare(
                     self,

@@ -1,6 +1,6 @@
 use std::sync::{
     Mutex as StdMutex,
-    atomic::{AtomicBool, AtomicU32, Ordering},
+    atomic::{AtomicBool, AtomicI64, AtomicU32, Ordering},
 };
 
 use pumpkin_nbt::compound::NbtCompound;
@@ -8,7 +8,7 @@ use pumpkin_util::math::position::BlockPos;
 
 use super::BlockEntity;
 
-// todo: CustomName, LastExecution, UpdateLastExecution
+// TODO: component-form CustomName and LastOutput persistence.
 pub struct CommandBlockEntity {
     pub position: BlockPos,
     pub powered: AtomicBool,
@@ -19,6 +19,8 @@ pub struct CommandBlockEntity {
     pub last_output: StdMutex<String>,
     pub track_output: AtomicBool,
     pub success_count: AtomicU32,
+    pub last_execution: AtomicI64,
+    pub update_last_execution: AtomicBool,
 }
 
 impl CommandBlockEntity {
@@ -35,6 +37,8 @@ impl CommandBlockEntity {
             last_output: StdMutex::new(String::new()),
             track_output: AtomicBool::new(track_output),
             success_count: AtomicU32::new(0),
+            last_execution: AtomicI64::new(-1),
+            update_last_execution: AtomicBool::new(true),
         }
     }
 
@@ -57,7 +61,12 @@ impl CommandBlockEntity {
         );
         nbt.put_bool("powered", self.powered.load(Ordering::SeqCst));
         nbt.put_bool("TrackOutput", self.track_output.load(Ordering::SeqCst));
-        nbt.put_bool("UpdateLastExecution", false);
+        let update_last = self.update_last_execution.load(Ordering::Relaxed);
+        nbt.put_bool("UpdateLastExecution", update_last);
+        let last = self.last_execution.load(Ordering::Relaxed);
+        if update_last && last != -1 {
+            nbt.put_long("LastExecution", last);
+        }
         nbt.put_int(
             "SuccessCount",
             self.success_count.load(Ordering::SeqCst).cast_signed(),
@@ -89,7 +98,7 @@ impl BlockEntity for CommandBlockEntity {
         let powered = AtomicBool::new(nbt.get_bool("powered").unwrap_or(false));
         let command = StdMutex::new(nbt.get_string("Command").unwrap_or("").to_string());
         let last_output = StdMutex::new(nbt.get_string("LastOutput").unwrap_or("").to_string());
-        let track_output = AtomicBool::new(nbt.get_bool("TrackOutput").unwrap_or(false));
+        let track_output = AtomicBool::new(nbt.get_bool("TrackOutput").unwrap_or(true));
         let success_count =
             AtomicU32::new(nbt.get_int("SuccessCount").unwrap_or(0).cast_unsigned());
 
@@ -102,6 +111,16 @@ impl BlockEntity for CommandBlockEntity {
             last_output,
             track_output,
             success_count,
+            update_last_execution: AtomicBool::new(
+                nbt.get_bool("UpdateLastExecution").unwrap_or(true),
+            ),
+            last_execution: AtomicI64::new(
+                if nbt.get_bool("UpdateLastExecution").unwrap_or(true) {
+                    nbt.get_long("LastExecution").unwrap_or(-1)
+                } else {
+                    -1
+                },
+            ),
             dirty: AtomicBool::new(false),
         }
     }
@@ -122,5 +141,30 @@ impl BlockEntity for CommandBlockEntity {
 
     fn as_any(&self) -> &dyn std::any::Any {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn execution_tracking_defaults_and_disabled_reload_match_source() {
+        let pos = BlockPos::new(0, 0, 0);
+        let mut nbt = NbtCompound::new();
+        let default = CommandBlockEntity::from_nbt(&nbt, pos);
+        assert!(default.track_output.load(Ordering::Relaxed));
+        assert!(default.update_last_execution.load(Ordering::Relaxed));
+        assert_eq!(default.last_execution.load(Ordering::Relaxed), -1);
+        nbt.put_long("LastExecution", 42);
+        let enabled = CommandBlockEntity::from_nbt(&nbt, pos);
+        let mut saved = NbtCompound::new();
+        enabled.write_nbt(&mut saved);
+        assert_eq!(saved.get_long("LastExecution"), Some(42));
+        nbt.put_bool("UpdateLastExecution", false);
+        let disabled = CommandBlockEntity::from_nbt(&nbt, pos);
+        assert_eq!(disabled.last_execution.load(Ordering::Relaxed), -1);
+        let mut saved = NbtCompound::new();
+        disabled.write_nbt(&mut saved);
+        assert_eq!(saved.get_long("LastExecution"), None);
     }
 }

@@ -2258,6 +2258,16 @@ impl LivingEntity {
         damage_per_distance: f32,
         damage_type: DamageType,
     ) {
+        self.apply_fall_damage_with_type(caller, fall_distance, damage_per_distance, damage_type);
+    }
+
+    pub fn apply_fall_damage_with_type(
+        &self,
+        caller: &dyn EntityBase,
+        fall_distance: f32,
+        damage_per_distance: f32,
+        damage_type: DamageType,
+    ) -> bool {
         let may_fly = caller.get_player().is_some_and(|player| {
             player
                 .abilities
@@ -2266,7 +2276,7 @@ impl LivingEntity {
                 .allow_flying
         });
         if may_fly || self.is_immune_to_fall_damage() {
-            return;
+            return false;
         }
 
         // Vanilla parity: the fall_damage gamerule only affects players.
@@ -2280,7 +2290,7 @@ impl LivingEntity {
                 .game_rules
                 .fall_damage
         {
-            return;
+            return false;
         }
 
         if fall_distance >= 2.0
@@ -2305,7 +2315,9 @@ impl LivingEntity {
                 self.entity
                     .play_sound(Self::get_fall_sound(fall_distance as i32));
             }
+            return true;
         }
+        false
     }
 
     const fn get_fall_sound(distance: i32) -> Sound {

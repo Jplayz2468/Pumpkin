@@ -22,6 +22,15 @@ use tracing::warn;
 
 pub struct CommandBlock;
 
+struct CommandBlockResult(Arc<CommandBlockEntity>);
+impl pumpkin_command::source::ReturnValueCallable for CommandBlockResult {
+    fn call(&self, result: pumpkin_command::source::ReturnValue) {
+        if result.success_value() {
+            self.0.success_count.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+}
+
 impl CommandBlock {
     fn get_relative_facing(
         world: &World,
@@ -115,38 +124,62 @@ impl CommandBlock {
         world: Arc<World>,
         block_entity: Arc<dyn BlockEntity>,
         command: &str,
-    ) {
-        let command_blocks_work = { world.level_info.load().game_rules.command_blocks_work };
-        if !command_blocks_work {
-            return;
-        }
-
+    ) -> bool {
         let Ok(command_entity) = Arc::downcast::<CommandBlockEntity>(block_entity) else {
             warn!("Failed to downcast block entity to CommandBlockEntity");
-            return;
+            return false;
         };
-
-        if command.is_empty() {
-            command_entity.success_count.store(0, Ordering::Release);
-        } else {
-            let source = CommandSender::CommandBlock(command_entity, world).into_source(server);
-
+        let now = world.get_world_age();
+        if command_entity.last_execution.load(Ordering::Relaxed) == now {
+            return false;
+        }
+        if command.eq_ignore_ascii_case("Searge") {
+            *command_entity
+                .last_output
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = "#itzlipofutzli".to_owned();
+            command_entity.success_count.store(1, Ordering::Relaxed);
+            return true;
+        }
+        command_entity.success_count.store(0, Ordering::Release);
+        if world.level_info.load().game_rules.command_blocks_work && !command.is_empty() {
+            command_entity
+                .last_output
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clear();
+            let source = CommandSender::CommandBlock(command_entity.clone(), world)
+                .into_source(server)
+                .with_command_result_taker(pumpkin_command::source::ResultValueTaker(vec![
+                    Arc::new(CommandBlockResult(command_entity.clone())),
+                ]));
             server
                 .command_dispatcher
                 .load()
                 .handle_command(&source, command);
         }
+        command_entity.last_execution.store(
+            if command_entity.update_last_execution.load(Ordering::Relaxed) {
+                now
+            } else {
+                -1
+            },
+            Ordering::Relaxed,
+        );
+        true
     }
 
     fn chain_execute(server: &Arc<Server>, world: &Arc<World>, start: BlockPos) {
-        let mut i = u16::MAX;
+        let limit = world
+            .level_info
+            .load()
+            .game_rules
+            .max_command_sequence_length
+            .max(0);
+        let mut i = limit;
         let mut pos = start;
 
         while i > 0 {
-            let command_blocks_work = { world.level_info.load().game_rules.command_blocks_work };
-            if !command_blocks_work {
-                return;
-            }
             let (block, state_id) = world.get_block_and_state_id(&pos);
 
             if block.id != Block::CHAIN_COMMAND_BLOCK.id {
@@ -178,7 +211,9 @@ impl CommandBlock {
                         warn!("Command block entity disappeared during execution");
                         break;
                     };
-                    Self::execute(server, world.clone(), entity, &command);
+                    if !Self::execute(server, world.clone(), entity, &command) {
+                        break;
+                    }
                     world.update_neighbour_for_output_signal(&pos, block);
                 } else if props.conditional {
                     command_entity.success_count.store(0, Ordering::Release);
@@ -192,7 +227,7 @@ impl CommandBlock {
             if i == 0 {
                 warn!(
                     "Command block chain executed {} times (the maximum)!",
-                    u16::MAX
+                    limit
                 );
             }
         }
@@ -267,10 +302,6 @@ impl BlockBehaviour for CommandBlock {
     }
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        let command_blocks_work = { args.world.level_info.load().game_rules.command_blocks_work };
-        if !command_blocks_work {
-            return;
-        }
         let Some(block_entity) = args.world.get_block_entity(args.position) else {
             return;
         };
@@ -313,7 +344,11 @@ impl BlockBehaviour for CommandBlock {
             let world = args.world.clone();
             let position = *args.position;
             let facing = props.facing;
-            Self::execute(&server, world.clone(), block_entity.clone(), &command);
+            if command.is_empty() {
+                command_entity.success_count.store(0, Ordering::Relaxed);
+            } else {
+                Self::execute(&server, world.clone(), block_entity.clone(), &command);
+            }
             Self::chain_execute(
                 &server,
                 &world,
@@ -399,5 +434,20 @@ impl BlockBehaviour for CommandBlock {
             .rotate(props.facing.to_block_direction())
             .to_facing();
         BlockState::from_id(props.to_state_id(block))
+    }
+}
+
+#[cfg(test)]
+mod execution_result_tests {
+    use super::*;
+    use pumpkin_command::source::{ReturnValue, ReturnValueCallable};
+    #[test]
+    fn comparator_count_counts_successes_not_return_values() {
+        let block = Arc::new(CommandBlockEntity::new(BlockPos::new(0, 0, 0), true, false));
+        let callback = CommandBlockResult(block.clone());
+        callback.call(ReturnValue::Success(123));
+        callback.call(ReturnValue::Failure);
+        callback.call(ReturnValue::Success(0));
+        assert_eq!(block.success_count.load(Ordering::Relaxed), 2);
     }
 }

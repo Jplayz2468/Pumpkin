@@ -1241,3 +1241,27 @@ so they must not be used to reconstruct audit completion.
   queue remain documented while work moves to mobs.
 
 - Corrected final block background run 21: **123 passed, 0 failed**.
+
+
+## Shared engine continuation — 2026-09-15
+
+User priority changed to shared-engine/block dependencies before further mob work;
+no full mob pass is underway. See ENGINE_GAPS.md for the implemented scope,
+source references, verification and remaining dependencies.
+
+- Fixed shape-update propagation flags and piston completion/drop/waterlogging.
+- Added dynamic piston geometry, collision-clipped pushes, per-tick movement limits,
+  slime velocity and honey carrying. Normal pushes include players.
+- Shared axis-ordered collision clipping now also covers ordinary entities;
+  scaffolding collision uses entity feet/descending context.
+- Honey has source-based side sliding, fall-distance reset, sounds/status and
+  advancement checks. The older inside-effect dispatcher used by piston pushes
+  now uses the registered inside shape and independent fluid-height checks.
+- Vaults now activate/detect eligible players, generate table-based rewards,
+  unlock after 14 ticks, open/eject on 20-tick intervals, synchronize display data,
+  throttle failures and persist ordered rewarded-player history and queued items.
+- Command blocks count successful execution callbacks, track/persist last execution,
+  stop repeated chain execution, respect max_command_sequence_length and keep
+  repeat scheduling when command execution is disabled.
+
+These changes do not close the exhaustive block or engine parity gates.

@@ -2,8 +2,8 @@
 
 ## Working agreement
 
-- Finish a bounded source pass across blocks, then mobs (user priority on 2026-09-15); retain the item queue for afterwards. Reuse documented work; do not restart it.
-- Batch related fixes. Move shared-engine work to the dependency queue below instead of expanding the current batch.
+- Current user priority (2026-09-15): close block/shared-engine gaps before adding more mobs. Do not perform a full mob pass yet. Retain the item queue and reuse existing source work.
+- Batch related engine fixes from the dependency queue; background tests run while implementation/review continues.
 - A reviewed batch means its block handlers were compared and local fixes made. It does **not** mean verified 1:1 parity.
 - Background tests are now authorized (2026-09-15). Keep useful work moving while they run; inspect finished results without waiting loops. Historical no-test statements in the log describe earlier work.
 - Checkpoint each batch. Report the batch, concrete fixes, open dependencies and actual test status.
@@ -371,9 +371,10 @@ Item source inventory:
 
 ### B03 open dependencies
 
-- D02/D03/D06: vault BE is still incomplete: hard-coded rewards, missing active
-  detection/ejection timing and failure-sound cooldown, reward-history persistence,
-  loot context and shared/client state. Block interaction gating is now source-based.
+- Vault activation, timed ejection, cooldown, history/queue persistence and shared
+  client data are now implemented (see ENGINE_GAPS.md). Remaining D02/D06 scope:
+  complete loot functions/predicates, reloadable tables and named random streams,
+  malformed config validation, and live protocol/gameplay comparison.
 - D03/D04: creaking heart protector spawning/removal, resin production and linked
   entity lifecycle; player-caused explosion XP. The BE currently only tracks signal.
 - D03/D04: fully rotated BlockPattern search, copper golem summoning/chest conversion,
@@ -405,9 +406,9 @@ Item source inventory:
 
 ### B06 open dependencies
 
-- D03/D06: command execution result counts, once-per-tick execution guard, sequence
-  limit gamerule, disabled-command-block scheduling, wider raw comparator signal
-  representation, full custom-name/output persistence and editor protocol.
+- Command success callbacks, once-per-tick tracking/persistence, sequence-limit
+  gamerule and disabled-command scheduling are now implemented. Remaining D03/D06:
+  wider raw comparator representation, component-form names/output and editor protocol.
 - D03: structure block redstone SAVE/LOAD/CORNER operations, template operations
   and structure mode/state initialization; current BE is mainly persisted config.
 - I01/B14: game-master item placement and block-state components, barrier bucket
@@ -417,20 +418,20 @@ Item source inventory:
 ### B07 open dependencies
 
 - D01/D03: contextual conductor/support shapes, vanilla HashSet neighbor order,
-  experimental redstone orientation/evaluator, exact movement flag and scheduled
-  update ordering. The world still suppresses shape updates for MOVED separately
-  from Java's known-shape flag, so piston sequencing needs a shared-engine pass.
-- D03/D04: piston BE swept collision shapes, player pushes, slime velocity and
-  honey carry, removal/finish timing and moved-block loot. Current movement uses
-  simplified swept boxes and omits players; source-handler review is not parity.
+  experimental redstone orientation/evaluator and exact scheduled-update ordering.
+  MOVED no longer suppresses shape updates; propagated flags clear drop suppression.
+- Piston moving shapes, swept-face queries, collision-clipped pushes (including
+  normal player pushes), slime velocity, honey carry, completion shape/drop handling
+  and waterlogging are implemented. Remaining D01/D03/D04: full movement-side-effect
+  parity, swept inside-effect aggregation, source orientation and live contraptions.
 - D02/I01: moving-piston loot and pick-block data; contextual ore BlockItem checks.
 - D04/D06: minecart movement/command carts, precise entity collision dispatch and
   redstone BE/network integration retain the limitations from the carried ports.
 
 ### B08–B12 retained dependencies
 
-- B08 / D01 / I01: context-sensitive scaffolding collision, climbing and placement
-  extension; fluid-container acceptance, full shape/data comparison. Fence lead
+- B08 / D01 / I01: scaffolding contextual collision is implemented. Climbing and
+  placement extension, fluid-container acceptance and full shape/data comparison remain. Fence lead
   binding shares the existing item helper; exact leash knot lifecycle remains D04.
 - B09 / D01–D03: feature-cache buffering versus interleaved world callbacks/RNG,
   configured tree/provider/height-view behavior, liquid containers, double-plant
@@ -451,13 +452,13 @@ Item source inventory:
   evaluator still has the D02 context/random-stream limitations.
 - Vines use normal block-item placement/consumption for extra faces, with corrected
   context direction ordering. Slime applies the source step-speed reduction.
-- D01/D04: honey side sliding/effects, full landing/suppress-bounce behavior,
-  magma enchantment-driven immunity and cobweb inside-effect aggregation remain
-  entity/engine work, now available to the mob pass.
+- Honey side sliding, landing/slide status effects and advancement checks are
+  implemented. Remaining D01/D04: full shared landing/suppress-bounce behavior,
+  magma enchantment-driven immunity and cobweb/inside-effect aggregation.
 - B14 data evidence is in PARITY_BLOCK_DATA_AUDIT.md. Exhaustive Java constructor
   inheritance, runtime routing and contextual shape parity remain open. User's
   request to prioritize mobs does not turn this unfinished gate into a pass.
-- Next active work: mobs; item batches remain queued. All block source files now
+- Next active work: shared engine dependencies; mob passes are paused and item batches remain queued. All block source files now
   have a reviewed or carried source-pass disposition, not a 1:1 certification.
 
-Mob work has started; see [MOB_PARITY.md](MOB_PARITY.md) for the active batch and remaining scope.
+Mob work is paused at the user’s request. See [ENGINE_GAPS.md](ENGINE_GAPS.md) for current engine work and [MOB_PARITY.md](MOB_PARITY.md) for preserved mob scope.

@@ -1,5 +1,7 @@
 # Mob parity work — local vanilla 26.2
 
+**Paused (2026-09-15): fix shared engine gaps before further mob additions; no full mob pass authorized for now.**
+
 The user requested mobs next after the bounded block handler pass. Open block
 engine dependencies and the original item queue remain in PARITY_PLAN.md.
 Source-reviewed does not mean verified 1:1 gameplay. Use background tests while

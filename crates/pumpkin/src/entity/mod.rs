@@ -903,6 +903,7 @@ pub struct Entity {
     pub last_pos: AtomicCell<Vector3<f64>>,
     /// The last movement vector
     pub movement: AtomicCell<Vector3<f64>>,
+    piston_movement: std::sync::Mutex<(i64, Vector3<f64>)>,
     /// The entity's position rounded to the nearest block coordinates
     pub block_pos: AtomicCell<BlockPos>,
     /// The block supporting the entity
@@ -1091,6 +1092,7 @@ impl Entity {
             pos: AtomicCell::new(position),
             last_pos: AtomicCell::new(position),
             movement: AtomicCell::new(Vector3::default()),
+            piston_movement: std::sync::Mutex::new((0, Vector3::default())),
             block_pos: AtomicCell::new(BlockPos(Vector3::new(floor_x, floor_y, floor_z))),
             supporting_block_pos: AtomicCell::new(None),
             chunk_pos: AtomicCell::new(Vector2::new(
@@ -1558,114 +1560,33 @@ impl Entity {
             return movement;
         }
 
-        if caller
-            .get_living_entity()
-            .is_some_and(|living| living.controlled_speed.load().is_some())
-        {
-            use crate::entity::ai::control::{collision_response, collision_shapes};
-            let box_data = |b: &BoundingBox| collision_shapes::Box3 {
-                min: [b.min.x, b.min.y, b.min.z],
-                max: [b.max.x, b.max.y, b.max.z],
-            };
-            let shapes: Vec<_> = collisions.iter().map(box_data).collect();
-            let (adjusted, support) = collision_shapes::collide(
-                [movement.x, movement.y, movement.z],
-                box_data(&bounding_box),
-                &shapes,
-            );
-            self.horizontal_collision.store(
-                collision_response::clipped(movement.x, adjusted[0])
-                    || collision_response::clipped(movement.z, adjusted[2]),
-                Ordering::Relaxed,
-            );
-            let below = movement.y < 0.0 && movement.y != adjusted[1];
-            self.on_ground.store(below, Ordering::Relaxed);
-            // Preserve the block association from the gathered collision shapes.
-            // Java's independent nearest-support query is a separate parity gate.
-            self.supporting_block_pos.store(support.and_then(|index| {
-                block_positions
-                    .iter()
-                    .find(|(end, _)| index < *end)
-                    .map(|(_, pos)| *pos)
-            }));
-            return Vector3::new(adjusted[0], adjusted[1], adjusted[2]);
-        }
-
-        let mut adjusted_movement = movement;
-
-        // Y-Axis adjustment
-        if movement.get_axis(Axis::Y) != 0.0 {
-            let mut max_time = 1.0;
-            let mut positions = block_positions.into_iter();
-            if let Some((mut collisions_len, mut position)) = positions.next() {
-                let mut supporting_block_pos = None;
-
-                for (i, inert_box) in collisions.iter().enumerate() {
-                    if i == collisions_len {
-                        let Some((next_len, next_pos)) = positions.next() else {
-                            break;
-                        };
-                        collisions_len = next_len;
-                        position = next_pos;
-                    }
-
-                    if let Some(collision_time) = bounding_box.calculate_collision_time(
-                        inert_box,
-                        adjusted_movement,
-                        Axis::Y,
-                        max_time,
-                    ) {
-                        max_time = collision_time;
-
-                        // If the entity is moving downwards and collides, set the supporting block position
-                        if movement.get_axis(Axis::Y) < 0.0 {
-                            supporting_block_pos = Some(position);
-                        }
-                    }
-                }
-
-                if max_time != 1.0 {
-                    let changed_component = adjusted_movement.get_axis(Axis::Y) * max_time;
-                    adjusted_movement.set_axis(Axis::Y, changed_component);
-                }
-
-                self.on_ground
-                    .store(supporting_block_pos.is_some(), Ordering::SeqCst);
-                self.supporting_block_pos.store(supporting_block_pos);
-            }
-        }
-
-        let mut horizontal_collision = false;
-
-        for axis in Axis::horizontal() {
-            if movement.get_axis(axis) == 0.0 {
-                continue;
-            }
-
-            let mut max_time = 1.0;
-
-            for inert_box in &collisions {
-                if let Some(collision_time) = bounding_box.calculate_collision_time(
-                    inert_box,
-                    adjusted_movement,
-                    axis,
-                    max_time,
-                ) {
-                    max_time = collision_time;
-                }
-            }
-
-            if max_time != 1.0 {
-                let changed_component = adjusted_movement.get_axis(axis) * max_time;
-                adjusted_movement.set_axis(axis, changed_component);
-                horizontal_collision = true;
-            }
-        }
-
-        self.horizontal_collision
-            .store(horizontal_collision, Ordering::SeqCst);
-
-        adjusted_movement
+        use crate::entity::ai::control::{collision_response, collision_shapes};
+        let box_data = |b: &BoundingBox| collision_shapes::Box3 {
+            min: [b.min.x, b.min.y, b.min.z],
+            max: [b.max.x, b.max.y, b.max.z],
+        };
+        let shapes: Vec<_> = collisions.iter().map(box_data).collect();
+        let (adjusted, support) = collision_shapes::collide(
+            [movement.x, movement.y, movement.z],
+            box_data(&bounding_box),
+            &shapes,
+        );
+        self.horizontal_collision.store(
+            collision_response::clipped(movement.x, adjusted[0])
+                || collision_response::clipped(movement.z, adjusted[2]),
+            Ordering::Relaxed,
+        );
+        let below = movement.y < 0.0 && movement.y != adjusted[1];
+        self.on_ground.store(below, Ordering::Relaxed);
+        // Preserve the block association from the gathered collision shapes.
+        // Java's independent nearest-support query is a separate parity gate.
+        self.supporting_block_pos.store(support.and_then(|index| {
+            block_positions
+                .iter()
+                .find(|(end, _)| index < *end)
+                .map(|(_, pos)| *pos)
+        }));
+        Vector3::new(adjusted[0], adjusted[1], adjusted[2])
     }
 
     /// Applies knockback to the entity, following vanilla Minecraft's mechanics.
@@ -2505,6 +2426,59 @@ impl Entity {
         if let Some((kind, state)) = event {
             world.emit_game_event_with_context(kind, self.pos.load(), Some(self.entity_id), state);
         }
+    }
+
+    /// External piston displacement uses collision clipping without replacing the
+    /// entity's travel velocity. Each axis is limited to 0.51 blocks per game tick.
+    pub(crate) fn move_by_piston(&self, caller: &dyn EntityBase, mut motion: Vector3<f64>) {
+        if !self.no_physics.load(Ordering::Relaxed) && motion.length_squared() > 1.0e-7 {
+            let now = self.world.load().get_world_age();
+            let mut accumulator = self
+                .piston_movement
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if accumulator.0 != now {
+                *accumulator = (now, Vector3::default());
+            }
+            let axis = if motion.x != 0.0 {
+                Axis::X
+            } else if motion.y != 0.0 {
+                Axis::Y
+            } else {
+                Axis::Z
+            };
+            let previous = accumulator.1.get_axis(axis);
+            let total = (previous + motion.get_axis(axis)).clamp(-0.51, 0.51);
+            accumulator.1.set_axis(axis, total);
+            motion = Vector3::default();
+            motion.set_axis(axis, total - previous);
+            if motion.length_squared() <= f64::from(1.0e-5_f32).powi(2) {
+                return;
+            }
+        }
+        let adjusted = if self.no_physics.load(Ordering::Relaxed) {
+            motion
+        } else {
+            use crate::entity::ai::control::collision_shapes::{self, Box3};
+            let bounds = self.bounding_box.load();
+            let (collisions, _) = self
+                .world
+                .load()
+                .get_block_collisions(bounds.stretch(motion), caller);
+            let to_box = |b: &BoundingBox| Box3 {
+                min: [b.min.x, b.min.y, b.min.z],
+                max: [b.max.x, b.max.y, b.max.z],
+            };
+            let shapes: Vec<_> = collisions.iter().map(to_box).collect();
+            let (movement, _) =
+                collision_shapes::collide([motion.x, motion.y, motion.z], to_box(&bounds), &shapes);
+            Vector3::new(movement[0], movement[1], movement[2])
+        };
+        self.move_pos(adjusted);
+        if let Some(server) = self.world.load().server.upgrade() {
+            Self::check_block_collision(caller, &server);
+        }
+        self.send_pos();
     }
 
     pub fn move_entity(&self, caller: &dyn EntityBase, mut motion: Vector3<f64>) {
@@ -3647,16 +3621,19 @@ impl Entity {
     }
 
     pub fn check_block_collision(entity: &dyn EntityBase, server: &Server) {
+        if !entity.get_entity().is_affected_by_blocks() {
+            return;
+        }
         let aabb = entity.get_entity().bounding_box.load();
         let blockpos = BlockPos::new(
-            (aabb.min.x + 0.001).floor() as i32,
-            (aabb.min.y + 0.001).floor() as i32,
-            (aabb.min.z + 0.001).floor() as i32,
+            (aabb.min.x + f64::from(1.0e-5_f32)).floor() as i32,
+            (aabb.min.y + f64::from(1.0e-5_f32)).floor() as i32,
+            (aabb.min.z + f64::from(1.0e-5_f32)).floor() as i32,
         );
         let blockpos1 = BlockPos::new(
-            (aabb.max.x - 0.001).floor() as i32,
-            (aabb.max.y - 0.001).floor() as i32,
-            (aabb.max.z - 0.001).floor() as i32,
+            (aabb.max.x - f64::from(1.0e-5_f32)).floor() as i32,
+            (aabb.max.y - f64::from(1.0e-5_f32)).floor() as i32,
+            (aabb.max.z - f64::from(1.0e-5_f32)).floor() as i32,
         );
         let world = entity.get_entity().world.load();
 
@@ -3665,30 +3642,36 @@ impl Entity {
                 for z in blockpos.0.z..=blockpos1.0.z {
                     let pos = BlockPos::new(x, y, z);
                     let (block, state) = world.get_block_and_state(&pos);
-                    let block_outlines = state.get_block_outline_shapes_at(&pos);
-
-                    if state.outline_shapes.is_empty() {
+                    let inside_shape = if block == &Block::POWDER_SNOW {
+                        crate::block::blocks::powder_snow::inside_collision_shape_for_entity(
+                            entity, &pos,
+                        )
+                    } else {
+                        world
+                            .block_registry
+                            .get_inside_collision_shape(block, &world, state, &pos)
+                    };
+                    if inside_shape.at_pos(pos).intersects(&aabb) {
+                        if block == &Block::POWDER_SNOW {
+                            entity
+                                .get_entity()
+                                .is_in_powder_snow
+                                .store(true, Ordering::Relaxed);
+                        }
                         world
                             .block_registry
                             .on_entity_collision(block, &world, entity, &pos, state, server);
-                        let fluid = world.get_fluid(&pos);
+                    }
+                    // Fluid effects are independent of the solid block's inside shape.
+                    let (fluid, fluid_state) = world.get_fluid_and_fluid_state(&pos);
+                    if !fluid_state.is_empty
+                        && aabb.min.y
+                            < f64::from(pos.0.y)
+                                + f64::from(world.get_fluid_height(&pos, fluid, &fluid_state))
+                    {
                         world
                             .block_registry
                             .on_entity_collision_fluid(fluid, entity);
-                        continue;
-                    }
-                    for outline in block_outlines {
-                        let outline_aabb = outline.at_pos(pos);
-                        if outline_aabb.intersects(&aabb) {
-                            world
-                                .block_registry
-                                .on_entity_collision(block, &world, entity, &pos, state, server);
-                            let fluid = world.get_fluid(&pos);
-                            world
-                                .block_registry
-                                .on_entity_collision_fluid(fluid, entity);
-                            break;
-                        }
                     }
                 }
             }

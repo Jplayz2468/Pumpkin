@@ -15,6 +15,32 @@ use crate::block::{
 pub struct ScaffoldingBlock;
 
 impl ScaffoldingBlock {
+    /// ScaffoldingBlock.getCollisionShape uses the entity's feet and descending
+    /// intent, rather than the block's outline or a context-free solid shape.
+    pub(crate) fn collision_boxes(
+        state: BlockStateId,
+        pos: &BlockPos,
+        feet: f64,
+        descending: bool,
+    ) -> Vec<pumpkin_util::math::boundingbox::BoundingBox> {
+        use pumpkin_util::math::boundingbox::BoundingBox;
+        let props = ScaffoldingLikeProperties::from_state_id(state);
+        let above = |height| feet > f64::from(pos.0.y) + height - f64::from(1.0e-5_f32);
+        if above(1.0) && !descending {
+            vec![
+                BoundingBox::new_array([0.0, 0.875, 0.0], [1.0, 1.0, 1.0]),
+                BoundingBox::new_array([0.0, 0.0, 0.0], [0.125, 1.0, 0.125]),
+                BoundingBox::new_array([0.875, 0.0, 0.0], [1.0, 1.0, 0.125]),
+                BoundingBox::new_array([0.0, 0.0, 0.875], [0.125, 1.0, 1.0]),
+                BoundingBox::new_array([0.875, 0.0, 0.875], [1.0, 1.0, 1.0]),
+            ]
+        } else if props.distance != 0 && props.bottom && above(0.0) {
+            vec![BoundingBox::new_array([0.0, 0.0, 0.0], [1.0, 0.125, 1.0])]
+        } else {
+            Vec::new()
+        }
+    }
+
     #[must_use]
     pub fn get_distance(world: &dyn BlockAccessor, pos: &BlockPos) -> u8 {
         let below_pos = pos.down();
@@ -112,5 +138,31 @@ impl BlockBehaviour for ScaffoldingBlock {
             args.world
                 .set_block_state(args.position, new_state, BlockFlags::NOTIFY_ALL);
         }
+    }
+}
+
+#[cfg(test)]
+mod collision_tests {
+    use super::*;
+    #[test]
+    fn descending_and_entering_from_below_do_not_hit_the_top_platform() {
+        let pos = BlockPos::new(0, 64, 0);
+        let mut props = ScaffoldingLikeProperties::default(&Block::SCAFFOLDING);
+        props.distance = 0;
+        props.bottom = false;
+        let state = props.to_state_id(&Block::SCAFFOLDING);
+        assert!(!ScaffoldingBlock::collision_boxes(state, &pos, 65.0, false).is_empty());
+        assert!(ScaffoldingBlock::collision_boxes(state, &pos, 65.0, true).is_empty());
+        assert!(ScaffoldingBlock::collision_boxes(state, &pos, 64.5, false).is_empty());
+        props.distance = 1;
+        props.bottom = true;
+        let boxes = ScaffoldingBlock::collision_boxes(
+            props.to_state_id(&Block::SCAFFOLDING),
+            &pos,
+            64.5,
+            false,
+        );
+        assert_eq!(boxes.len(), 1);
+        assert_eq!(boxes[0].max.y, 0.125);
     }
 }
