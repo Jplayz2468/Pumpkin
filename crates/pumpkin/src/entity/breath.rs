@@ -2,8 +2,8 @@ use crate::entity::EntityBase;
 use crate::entity::player::Player;
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::effect::StatusEffect;
+use pumpkin_data::tag::Taggable;
 use pumpkin_protocol::codec::var_int::VarInt;
-use pumpkin_util::GameMode;
 use std::sync::atomic::{AtomicI32, Ordering};
 
 pub const MAX_AIR: i32 = 300;
@@ -28,100 +28,111 @@ impl Default for BreathManager {
 
 impl BreathManager {
     pub fn tick(&self, player: &Player) {
-        let mode = player.gamemode.load();
-
-        if matches!(mode, GameMode::Creative | GameMode::Spectator) {
-            if self.air_supply.load(Ordering::Relaxed) != MAX_AIR {
-                self.air_supply.store(MAX_AIR, Ordering::Relaxed);
-                self.send_air_supply(player);
-            }
-            self.drowning_tick.store(0, Ordering::Relaxed);
+        if player.living_entity.health.load() <= 0.0 {
             return;
         }
-
-        if !player.world().level_info.load().game_rules.drowning_damage {
-            return;
-        }
-
-        if player
+        let entity = player.get_entity();
+        let world = player.world();
+        let in_water = entity.is_submerged_in_water()
+            && world.get_block(&pumpkin_util::math::position::BlockPos::floored_v(
+                player.eye_position(),
+            )) != &pumpkin_data::Block::BUBBLE_COLUMN;
+        let water_breathing = player
             .living_entity
-            .has_effect(&StatusEffect::WATER_BREATHING)
-        {
-            if self.air_supply.swap(MAX_AIR, Ordering::Relaxed) != MAX_AIR {
-                self.send_air_supply(player);
+            .has_effect(&StatusEffect::WATER_BREATHING);
+        let conduit = player
+            .living_entity
+            .has_effect(&StatusEffect::CONDUIT_POWER);
+        let nautilus = player
+            .living_entity
+            .has_effect(&StatusEffect::BREATH_OF_THE_NAUTILUS);
+        let invulnerable = player
+            .abilities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .invulnerable;
+        let underwater_breathing = entity
+            .entity_type
+            .is_tagged_with("minecraft:can_breathe_under_water")
+            .unwrap_or(false);
+        let can_drown = in_water
+            && !underwater_breathing
+            && !water_breathing
+            && !conduit
+            && !nautilus
+            && !invulnerable;
+        let previous = self.air_supply.load(Ordering::Relaxed);
+        let next = if can_drown {
+            let oxygen_bonus = player
+                .living_entity
+                .get_attribute_value(&pumpkin_data::attributes::Attributes::OXYGEN_BONUS);
+            // Entity-owned Java random initialization remains a shared engine dependency.
+            if oxygen_bonus > 0.0 && rand::random::<f64>() >= 1.0 / (oxygen_bonus + 1.0) {
+                previous
+            } else {
+                previous.wrapping_sub(AIR_DEPLETION_RATE)
             }
-            self.drowning_tick.store(0, Ordering::Relaxed);
+        } else if previous < MAX_AIR && (!in_water || !nautilus || water_breathing || conduit) {
+            (previous + AIR_RECOVERY_RATE).min(MAX_AIR)
+        } else {
+            previous
+        };
+        if !self.change_air(player, next) {
             return;
         }
-
-        let in_water = player.get_entity().is_submerged_in_water()
-            && player
-                .world()
-                .get_block(&pumpkin_util::math::position::BlockPos::floored_v(
-                    player.eye_position(),
-                ))
-                != &pumpkin_data::Block::BUBBLE_COLUMN;
-        let prev = self.air_supply.load(Ordering::Relaxed);
-
-        if in_water {
-            let mut new_air = (prev - AIR_DEPLETION_RATE).max(0);
-            if new_air != prev {
-                let server = player.world().server.upgrade();
-                if let Some(server) = server {
-                    let mut event = crate::plugin::api::events::entity::entity_air_change::EntityAirChangeEvent::new(
-                        player.entity_id(),
-                        new_air,
-                    );
-                    server.plugin_manager.fire_blocking(&server, &mut event);
-                    if event.cancelled {
-                        return;
-                    }
-                    new_air = event.amount.clamp(0, MAX_AIR);
-                }
-                self.air_supply.store(new_air, Ordering::Relaxed);
-                self.send_air_supply(player);
+        if can_drown && self.air_supply.load(Ordering::Relaxed) <= -DROWNING_INTERVAL {
+            self.change_air(player, 0);
+            world.send_entity_status(
+                entity,
+                pumpkin_data::entity::EntityStatus::DrownParticles,
+                None,
+            );
+            if world.level_info.load().game_rules.drowning_damage {
+                player
+                    .living_entity
+                    .damage(player, DROWNING_DAMAGE, DamageType::DROWN);
             }
-
-            if new_air <= 0 {
-                let t = self.drowning_tick.fetch_add(1, Ordering::Relaxed) + 1;
-
-                if t >= DROWNING_INTERVAL {
-                    self.drowning_tick.store(0, Ordering::Relaxed);
-                    player
-                        .living_entity
-                        .damage(player, DROWNING_DAMAGE, DamageType::DROWN);
-                }
-            }
-        } else {
-            let mut new_air = (prev + AIR_RECOVERY_RATE).min(MAX_AIR);
-            if new_air != prev {
-                let server = player.world().server.upgrade();
-                if let Some(server) = server {
-                    let mut event = crate::plugin::api::events::entity::entity_air_change::EntityAirChangeEvent::new(
-                        player.entity_id(),
-                        new_air,
-                    );
-                    server.plugin_manager.fire_blocking(&server, &mut event);
-                    if event.cancelled {
-                        return;
-                    }
-                    new_air = event.amount.clamp(0, MAX_AIR);
-                }
-                self.air_supply.store(new_air, Ordering::Relaxed);
-                self.send_air_supply(player);
-            }
-            self.drowning_tick.store(0, Ordering::Relaxed);
         }
+        self.drowning_tick.store(
+            self.air_supply
+                .load(Ordering::Relaxed)
+                .wrapping_neg()
+                .clamp(0, DROWNING_INTERVAL - 1),
+            Ordering::Relaxed,
+        );
+    }
+
+    fn change_air(&self, player: &Player, mut amount: i32) -> bool {
+        if amount == self.air_supply.load(Ordering::Relaxed) {
+            return true;
+        }
+        if let Some(server) = player.world().server.upgrade() {
+            let mut event =
+                crate::plugin::api::events::entity::entity_air_change::EntityAirChangeEvent::new(
+                    player.entity_id(),
+                    amount,
+                );
+            server.plugin_manager.fire_blocking(&server, &mut event);
+            if event.cancelled {
+                return false;
+            }
+            amount = event.amount;
+        }
+        self.air_supply.store(amount, Ordering::Relaxed);
+        self.send_air_supply(player);
+        true
     }
 
     pub fn send_air_supply(&self, player: &Player) {
-        let air = self.air_supply.load(Ordering::Relaxed).clamp(0, MAX_AIR);
+        let air = self.air_supply.load(Ordering::Relaxed);
 
         let mut bedrock_meta =
             pumpkin_protocol::bedrock::client::set_actor_data::SyncedActorDataList::new();
         bedrock_meta.set(
             pumpkin_protocol::bedrock::client::set_actor_data::entity_data_key::AIR_SUPPLY,
-            pumpkin_protocol::bedrock::client::set_actor_data::MetadataValue::Short(air as i16),
+            pumpkin_protocol::bedrock::client::set_actor_data::MetadataValue::Short(
+                air.clamp(0, MAX_AIR) as i16,
+            ),
         );
 
         player.get_entity().set_synced_data(

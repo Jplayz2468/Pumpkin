@@ -6871,11 +6871,7 @@ impl EntityBase for Player {
         // Store food level, saturation, exhaustion, and tick timer
         self.hunger_manager.write_nbt(nbt);
 
-        let air_supply = self
-            .breath_manager
-            .air_supply
-            .load(Ordering::Relaxed)
-            .clamp(0, super::breath::MAX_AIR);
+        let air_supply = self.breath_manager.air_supply.load(Ordering::Relaxed);
         nbt.put_short("Air", air_supply as i16);
         nbt.put_int("AirSupply", air_supply);
         nbt.put_int(
@@ -7056,13 +7052,15 @@ impl EntityBase for Player {
             .map(i32::from)
             .or_else(|| nbt.get_int("AirSupply"))
         {
-            self.breath_manager
-                .air_supply
-                .store(air.clamp(0, super::breath::MAX_AIR), Ordering::Relaxed);
+            self.breath_manager.air_supply.store(air, Ordering::Relaxed);
         }
-        if let Some(tick) = nbt.get_int("DrowningTick") {
-            self.breath_manager.drowning_tick.store(
-                tick.clamp(0, super::breath::DROWNING_INTERVAL - 1),
+        // Read the old separate drowning counter only when the stored air has not
+        // already encoded the negative vanilla counter.
+        if self.breath_manager.air_supply.load(Ordering::Relaxed) == 0
+            && let Some(tick) = nbt.get_int("DrowningTick")
+        {
+            self.breath_manager.air_supply.store(
+                -tick.clamp(0, super::breath::DROWNING_INTERVAL - 1),
                 Ordering::Relaxed,
             );
         }

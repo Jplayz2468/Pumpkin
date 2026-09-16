@@ -136,6 +136,62 @@ pub const fn equipment_break_status(slot: &EquipmentSlot) -> EntityStatus {
     }
 }
 
+const MONSTER_IDS: &[u16] = &[
+    EntityType::BLAZE.id,
+    EntityType::BOGGED.id,
+    EntityType::SKELETON.id,
+    EntityType::STRAY.id,
+    EntityType::WITHER_SKELETON.id,
+    EntityType::BREEZE.id,
+    EntityType::CREAKING.id,
+    EntityType::CREEPER.id,
+    EntityType::DROWNED.id,
+    EntityType::ENDERMITE.id,
+    EntityType::EVOKER.id,
+    EntityType::GIANT.id,
+    EntityType::GUARDIAN.id,
+    EntityType::ELDER_GUARDIAN.id,
+    EntityType::ILLUSIONER.id,
+    EntityType::PIGLIN.id,
+    EntityType::PIGLIN_BRUTE.id,
+    EntityType::PILLAGER.id,
+    EntityType::PARCHED.id,
+    EntityType::RAVAGER.id,
+    EntityType::SILVERFISH.id,
+    EntityType::SPIDER.id,
+    EntityType::CAVE_SPIDER.id,
+    EntityType::VEX.id,
+    EntityType::VINDICATOR.id,
+    EntityType::WARDEN.id,
+    EntityType::WITCH.id,
+    EntityType::WITHER.id,
+    EntityType::ZOGLIN.id,
+    EntityType::ZOMBIE.id,
+    EntityType::ZOMBIE_VILLAGER.id,
+    EntityType::HUSK.id,
+    EntityType::ENDERMAN.id,
+    EntityType::ZOMBIFIED_PIGLIN.id,
+];
+
+/// The concrete subclasses of vanilla Monster (distinct from the Enemy interface).
+pub(crate) fn is_monster_type(entity_type: &EntityType) -> bool {
+    MONSTER_IDS.contains(&entity_type.id)
+}
+
+pub(crate) fn is_enemy_type(entity_type: &EntityType) -> bool {
+    is_monster_type(entity_type)
+        || [
+            EntityType::ENDER_DRAGON.id,
+            EntityType::HOGLIN.id,
+            EntityType::SHULKER.id,
+            EntityType::PHANTOM.id,
+            EntityType::MAGMA_CUBE.id,
+            EntityType::SLIME.id,
+            EntityType::GHAST.id,
+        ]
+        .contains(&entity_type.id)
+}
+
 pub trait EntityBase: Send + Sync + std::any::Any {
     fn container_inventory(&self) -> Option<Arc<dyn pumpkin_inventory::Inventory>> {
         None
@@ -3019,6 +3075,18 @@ impl Entity {
     #[must_use]
     pub fn is_in_water(&self) -> bool {
         self.touching_water.load(Ordering::Relaxed)
+    }
+
+    pub fn is_in_water_or_rain(&self) -> bool {
+        let world = self.world.load();
+        let pos = self.block_pos.load();
+        self.is_in_water()
+            || world.is_raining_at(&pos)
+            || world.is_raining_at(&BlockPos::floored(
+                f64::from(pos.0.x),
+                self.bounding_box.load().max.y,
+                f64::from(pos.0.z),
+            ))
     }
 
     #[must_use]

@@ -24,43 +24,6 @@ use crate::world::World;
 
 type BedProperties = pumpkin_data::block_properties::WhiteBedLikeProperties;
 
-const NO_SLEEP_IDS: &[u16] = &[
-    EntityType::BLAZE.id,
-    EntityType::BOGGED.id,
-    EntityType::SKELETON.id,
-    EntityType::STRAY.id,
-    EntityType::WITHER_SKELETON.id,
-    EntityType::BREEZE.id,
-    EntityType::CREAKING.id,
-    EntityType::CREEPER.id,
-    EntityType::DROWNED.id,
-    EntityType::ENDERMITE.id,
-    EntityType::EVOKER.id,
-    EntityType::GIANT.id,
-    EntityType::GUARDIAN.id,
-    EntityType::ELDER_GUARDIAN.id,
-    EntityType::ILLUSIONER.id,
-    EntityType::PIGLIN.id,
-    EntityType::PIGLIN_BRUTE.id,
-    EntityType::PILLAGER.id,
-    EntityType::PARCHED.id,
-    EntityType::RAVAGER.id,
-    EntityType::SILVERFISH.id,
-    EntityType::SPIDER.id,
-    EntityType::CAVE_SPIDER.id,
-    EntityType::VEX.id,
-    EntityType::VINDICATOR.id,
-    EntityType::WARDEN.id,
-    EntityType::WITCH.id,
-    EntityType::WITHER.id,
-    EntityType::ZOGLIN.id,
-    EntityType::ZOMBIE.id,
-    EntityType::ZOMBIE_VILLAGER.id,
-    EntityType::HUSK.id,
-    EntityType::ENDERMAN.id,
-    EntityType::ZOMBIFIED_PIGLIN.id,
-];
-
 #[pumpkin_block_from_tag("minecraft:beds")]
 pub struct BedBlock;
 
@@ -430,7 +393,7 @@ impl BedBlock {
 }
 
 fn entity_prevents_sleep(entity: &dyn EntityBase, player: &Player) -> bool {
-    if !NO_SLEEP_IDS.contains(&entity.get_entity().entity_type.id) {
+    if !crate::entity::is_monster_type(entity.get_entity().entity_type) {
         return false;
     }
     if let Some(piglin) = (entity as &dyn std::any::Any)

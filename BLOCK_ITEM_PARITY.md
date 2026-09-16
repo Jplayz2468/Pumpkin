@@ -927,3 +927,30 @@ so they must not be used to reconstruct audit completion.
   completeness, XP recipe awards/advancements, custom names/locks, immediate
   comparator ordering, block-entity placement/pick components and other shared
   engine gaps. Complete block/item parity is still open.
+
+## Continued source port: conduit activation, attacks and breathing effects
+
+- Conduits now run their source server behavior: every 40 world ticks they
+  require the complete 3x3x3 water volume, count the three intersecting frame
+  rings using the four valid blocks, activate at 16 and hunt at 42.
+- Frame size sets the integer-stepped effect radius; wet players within the
+  source block-position distance receive 260 ticks of conduit power. Wet Enemy
+  candidates are selected with level random; retained targets use alive/range
+  checks without reselection that tick. Attacks deal four magic damage with the
+  source sound, and target changes send block-entity updates.
+- Activation/deactivation, 80-tick ambient and delayed short sounds use source
+  timing and random order. Only Target UUID persists; activation is recomputed.
+  Placement checks full water, schedules water after shape updates and preserves
+  automatically created block entities. Monster/Enemy classification and water
+  or rain checks are shared with entity logic.
+- Player breathing now recognizes conduit power and breath of the nautilus.
+  Air refills by four, nautilus alone holds underwater air, invulnerability does
+  not instantly refill it, and oxygen bonus can defer depletion. Drowning uses
+  negative air down to -20, sends the source particle event, and respects the
+  damage rule without freezing the air counter. NBT retains negative air; old
+  separate counter saves still load. Java receives signed air; Bedrock remains
+  bounded to its display range.
+- No compilation/tests. Remaining: exact entity RNG/ordering and weather/fluids,
+  generic nonplayer breathing and underwater vehicle dismount, effect/protocol
+  differences, and previously recorded block/item dependencies. This source
+  implementation does not establish complete parity.
