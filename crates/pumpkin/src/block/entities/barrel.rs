@@ -1,13 +1,16 @@
+use crate::entity::player::Player;
 use pumpkin_data::block_properties::BarrelLikeProperties;
+use pumpkin_data::data_component_impl::{
+    ContainerImpl, ContainerLootImpl, CustomNameImpl, DataComponentImpl,
+};
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::{Block, FacingExt, item_stack::ItemStack};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
-use pumpkin_util::random::xoroshiro128::Xoroshiro;
-use pumpkin_util::random::{RandomImpl, get_seed};
+use pumpkin_util::text::TextComponent;
 use std::any::Any;
-use std::sync::RwLock;
+use std::sync::{Mutex, RwLock, Weak};
 use std::{
     array::from_fn,
     sync::{
@@ -28,6 +31,11 @@ pub struct BarrelBlockEntity {
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
 
+    world: Mutex<Weak<World>>,
+    loot: Mutex<Option<(String, i64)>>,
+    custom_name: Mutex<Option<TextComponent>>,
+    removed: AtomicBool,
+
     // Viewer
     viewers: ViewerCountTracker,
 }
@@ -41,39 +49,85 @@ impl BlockEntity for BarrelBlockEntity {
         self.position
     }
 
-    fn from_nbt(nbt: &pumpkin_nbt::compound::NbtCompound, position: BlockPos) -> Self
-    where
-        Self: Sized,
-    {
-        let mut barrel = Self {
-            position,
-            items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
-            dirty: AtomicBool::new(false),
-            comparator_dirty: AtomicBool::new(false),
-            viewers: ViewerCountTracker::new(),
-        };
-
-        pumpkin_inventory::sync_read_items_from_nbt(
-            nbt,
-            barrel
-                .items
-                .get_mut()
-                .unwrap_or_else(std::sync::PoisonError::into_inner),
-        );
-
-        barrel
+    fn from_nbt(nbt: &NbtCompound, position: BlockPos) -> Self {
+        let mut entity = Self::new(position);
+        let loot = nbt
+            .get_string("LootTable")
+            .map(|key| (key.to_owned(), nbt.get_long("LootTableSeed").unwrap_or(0)));
+        if loot.is_none() {
+            pumpkin_inventory::sync_read_items_from_nbt(
+                nbt,
+                entity
+                    .items
+                    .get_mut()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner),
+            );
+        }
+        *entity
+            .loot
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = loot;
+        *entity
+            .custom_name
+            .get_mut()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            nbt.get("CustomName").map(TextComponent::from_nbt);
+        entity
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
-        self.write_inventory_nbt(nbt, true);
+        if let Some(name) = self
+            .custom_name
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+        {
+            nbt.put("CustomName", CustomNameImpl { name }.write_data());
+        }
+        if let Some((table, seed)) = self
+            .loot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+        {
+            nbt.put_string("LootTable", table);
+            if seed != 0 {
+                nbt.put_long("LootTableSeed", seed);
+            }
+        } else {
+            let items = self
+                .items
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if items.iter().any(|stack| !stack.is_empty()) {
+                sync_write_items_to_nbt(items.as_slice(), nbt);
+            }
+        }
+    }
+
+    fn set_world(&self, world: Weak<World>) {
+        *self
+            .world
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = world;
+    }
+
+    fn set_removed(&self) {
+        self.removed.store(true, Ordering::Relaxed);
     }
 
     fn refresh_viewers(&self, world: &Arc<World>, source: Option<i32>) {
+        if self.removed.load(Ordering::Relaxed) {
+            return;
+        }
         self.viewers
             .update_viewer_count_with_source(self, world, &self.position, source);
     }
 
     fn tick(&self, world: &Arc<World>) {
+        if self.removed.load(Ordering::Relaxed) {
+            return;
+        }
         self.viewers
             .update_viewer_count::<Self>(self, world, &self.position);
     }
@@ -99,11 +153,74 @@ impl BlockEntity for BarrelBlockEntity {
     }
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
-        let mut nbt = NbtCompound::new();
-        if let Ok(guard) = self.items.try_read() {
-            sync_write_items_to_nbt(&*guard, &mut nbt);
+        // Base BlockEntity.getUpdateTag is empty; inventories arrive through menus.
+        Some(NbtCompound::new())
+    }
+
+    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+        *self
+            .loot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = stack
+            .get_data_component::<ContainerLootImpl>()
+            .map(|loot| (loot.loot_table.clone(), loot.seed));
+        *self
+            .custom_name
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = stack
+            .get_data_component::<CustomNameImpl>()
+            .map(|name| name.name.clone());
+        let container = stack.get_data_component::<ContainerImpl>();
+        {
+            let mut items = self
+                .items
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            items.fill_with(|| ItemStack::EMPTY.clone());
+            for (slot, stored) in container
+                .into_iter()
+                .flat_map(|container| container.items.iter())
+            {
+                if let Some(target) = items.get_mut(*slot as usize) {
+                    *target = stored.clone();
+                }
+            }
         }
-        Some(nbt)
+        self.mark_dirty();
+    }
+
+    fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
+        if let Some(name) = self
+            .custom_name
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+        {
+            stack.set_data_component(CustomNameImpl { name });
+        }
+        if let Some((loot_table, seed)) = self
+            .loot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+        {
+            stack.set_data_component(ContainerLootImpl { loot_table, seed });
+        }
+
+        let items = self
+            .items
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let contents: Vec<(u8, ItemStack)> = items
+            .iter()
+            .enumerate()
+            .filter(|(_, slot)| !slot.is_empty())
+            .map(|(slot, stack)| (slot as u8, stack.clone()))
+            .collect();
+        if contents.is_empty() {
+            return;
+        }
+        stack.set_data_component(ContainerImpl { items: contents });
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -139,7 +256,70 @@ impl BarrelBlockEntity {
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
             viewers: ViewerCountTracker::new(),
+            world: Mutex::new(Weak::new()),
+            loot: Mutex::new(None),
+            custom_name: Mutex::new(None),
+            removed: AtomicBool::new(false),
         }
+    }
+
+    pub fn display_name(&self) -> TextComponent {
+        self.custom_name
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+            .unwrap_or_else(|| {
+                pumpkin_macros::translate_cross!(
+                    pumpkin_data::translation::java::CONTAINER_BARREL,
+                    pumpkin_data::translation::bedrock::CONTAINER_BARREL
+                )
+            })
+    }
+
+    pub fn has_loot_table(&self) -> bool {
+        self.loot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_some()
+    }
+
+    pub fn unpack_loot(&self, player: Option<&Player>) {
+        let Some(world) = self
+            .world
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .upgrade()
+        else {
+            return;
+        };
+        let loot = self
+            .loot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        let Some((key, seed)) = loot else {
+            return;
+        };
+        if let Some(table) = pumpkin_data::loot_table::get_loot_table(&key) {
+            let seed = if seed == 0 { world.rand_i64() } else { seed };
+            crate::world::loot::fill_inventory_with_context(
+                self,
+                table,
+                seed,
+                &crate::world::loot::LootContextParameters {
+                    position: Some(self.position.to_centered_f64()),
+                    this_entity: player.map(|_| &pumpkin_data::entity::EntityType::PLAYER),
+                    luck: player.map_or(0.0, |player| {
+                        player
+                            .living_entity
+                            .get_attribute_value(&pumpkin_data::attributes::Attributes::LUCK)
+                            as f32
+                    }),
+                    ..Default::default()
+                },
+            );
+        }
+        self.mark_dirty();
     }
 
     fn set_open(&self, world: &Arc<World>, open: bool) {
@@ -156,8 +336,6 @@ impl BarrelBlockEntity {
     }
 
     fn play_sound(&self, world: &Arc<World>, sound: Sound) {
-        let mut rng = Xoroshiro::from_seed(get_seed());
-
         let state = world.get_block_state(&self.position);
         let properties = BarrelLikeProperties::from_state_id(state.id);
         let direction = properties.facing.to_block_direction().to_offset();
@@ -171,7 +349,7 @@ impl BarrelBlockEntity {
             SoundCategory::Blocks,
             &position,
             0.5,
-            rng.next_f32() * 0.1 + 0.9,
+            world.rand_f32() * 0.1 + 0.9,
         );
     }
 }
@@ -182,6 +360,7 @@ impl Inventory for BarrelBlockEntity {
     }
 
     fn is_empty(&self) -> bool {
+        self.unpack_loot(None);
         let items = self
             .items
             .read()
@@ -190,6 +369,7 @@ impl Inventory for BarrelBlockEntity {
     }
 
     fn get_stack(&self, slot: usize) -> ItemStack {
+        self.unpack_loot(None);
         let items = self
             .items
             .read()
@@ -198,16 +378,17 @@ impl Inventory for BarrelBlockEntity {
     }
 
     fn remove_stack(&self, slot: usize) -> ItemStack {
+        self.unpack_loot(None);
         let mut items = self
             .items
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let removed = std::mem::replace(&mut items[slot], ItemStack::EMPTY.clone());
-        self.mark_dirty();
         removed
     }
 
     fn remove_stack_specific(&self, slot: usize, amount: u8) -> ItemStack {
+        self.unpack_loot(None);
         let mut items = self
             .items
             .write()
@@ -221,7 +402,13 @@ impl Inventory for BarrelBlockEntity {
         res
     }
 
-    fn set_stack(&self, slot: usize, stack: ItemStack) {
+    fn set_stack(&self, slot: usize, mut stack: ItemStack) {
+        self.unpack_loot(None);
+        stack.item_count = stack.item_count.min(
+            stack
+                .get_max_stack_size()
+                .min(self.get_max_count_per_stack()),
+        );
         let mut items = self
             .items
             .write()
@@ -235,10 +422,16 @@ impl Inventory for BarrelBlockEntity {
     }
 
     fn on_open(&self) {
+        if self.removed.load(Ordering::Relaxed) {
+            return;
+        }
         self.viewers.open_container();
     }
 
     fn on_close(&self) {
+        if self.removed.load(Ordering::Relaxed) {
+            return;
+        }
         self.viewers.close_container();
     }
 

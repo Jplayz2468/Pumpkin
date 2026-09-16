@@ -1,10 +1,9 @@
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::random::xoroshiro128::Xoroshiro;
-use pumpkin_util::random::{RandomImpl, get_seed};
 use std::any::Any;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use crate::block::viewer::{ViewerCountListener, ViewerCountTracker, ViewerCountTrackerExt};
 use crate::world::World;
@@ -13,6 +12,8 @@ use super::BlockEntity;
 
 pub struct EnderChestBlockEntity {
     pub position: BlockPos,
+
+    removed: AtomicBool,
 
     // Viewer
     viewers: Arc<ViewerCountTracker>,
@@ -34,7 +35,12 @@ impl BlockEntity for EnderChestBlockEntity {
         Self {
             position,
             viewers: Arc::new(ViewerCountTracker::at(position)),
+            removed: AtomicBool::new(false),
         }
+    }
+
+    fn set_removed(&self) {
+        self.removed.store(true, Ordering::Relaxed);
     }
 
     fn write_nbt(&self, _nbt: &mut NbtCompound) {}
@@ -44,11 +50,17 @@ impl BlockEntity for EnderChestBlockEntity {
     }
 
     fn refresh_viewers(&self, world: &Arc<World>, source: Option<i32>) {
+        if self.removed.load(Ordering::Relaxed) {
+            return;
+        }
         self.viewers
             .update_viewer_count_with_source(self, world, &self.position, source);
     }
 
     fn tick(&self, world: &Arc<World>) {
+        if self.removed.load(Ordering::Relaxed) {
+            return;
+        }
         self.viewers
             .update_viewer_count::<Self>(self, world, &self.position);
     }
@@ -85,6 +97,7 @@ impl EnderChestBlockEntity {
         Self {
             position,
             viewers: Arc::new(ViewerCountTracker::at(position)),
+            removed: AtomicBool::new(false),
         }
     }
 
@@ -94,14 +107,12 @@ impl EnderChestBlockEntity {
     }
 
     fn play_sound(&self, world: &Arc<World>, sound: Sound) {
-        let mut rng = Xoroshiro::from_seed(get_seed());
-
         world.play_sound_fine(
             sound,
             SoundCategory::Blocks,
             &self.position.to_centered_f64(),
             0.5,
-            rng.next_f32() * 0.1 + 0.9,
+            world.rand_f32() * 0.1 + 0.9,
         );
     }
 }

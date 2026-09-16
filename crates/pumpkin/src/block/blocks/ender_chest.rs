@@ -3,8 +3,8 @@ use std::sync::Mutex;
 
 use crate::block::entities::ender_chest::EnderChestBlockEntity;
 use crate::block::{
-    BlockBehaviour, GetScreenHandlerFactoryArgs, NormalUseArgs, OnPlaceArgs,
-    OnSyncedBlockEventArgs, PathComputationType, PlacedArgs, registry::BlockActionResult,
+    BlockBehaviour, GetScreenHandlerFactoryArgs, GetStateForNeighborUpdateArgs, NormalUseArgs,
+    OnPlaceArgs, OnSyncedBlockEventArgs, PathComputationType, registry::BlockActionResult,
 };
 use crate::world::World;
 use pumpkin_data::block_properties::LadderLikeProperties;
@@ -61,7 +61,11 @@ impl BlockBehaviour for EnderChestBlock {
             .entity
             .get_horizontal_facing()
             .opposite();
-        props.waterlogged = args.replacing.water_source();
+        props.waterlogged = args
+            .world
+            .get_fluid_and_fluid_state(args.position)
+            .0
+            .matches_type(&pumpkin_data::Fluid::WATER);
         props.to_state_id(args.block)
     }
 
@@ -78,13 +82,14 @@ impl BlockBehaviour for EnderChestBlock {
             position: args.position,
             player: args.player,
         }) {
+            args.player
+                .open_handled_screen(factory.as_ref(), Some(*args.position));
             args.player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::Custom,
                 pumpkin_data::statistic::CustomStatistic::OpenEnderchest as i32,
                 1,
             );
-            args.player
-                .open_handled_screen(factory.as_ref(), Some(*args.position));
+
             // TODO: PiglinBrain.onGuardedBlockInteracted(serverWorld, player, true);
         }
 
@@ -99,13 +104,7 @@ impl BlockBehaviour for EnderChestBlock {
             return None;
         }
 
-        let block_entity = if let Some(be) = args.world.get_block_entity(args.position) {
-            be
-        } else {
-            let be = Arc::new(EnderChestBlockEntity::new(*args.position));
-            args.world.add_block_entity(be.clone());
-            be
-        };
+        let block_entity = args.world.get_block_entity(args.position)?;
 
         let block_entity = block_entity
             .as_any()
@@ -119,9 +118,19 @@ impl BlockBehaviour for EnderChestBlock {
         }))
     }
 
-    fn placed(&self, args: PlacedArgs<'_>) {
-        let block_entity = EnderChestBlockEntity::new(*args.position);
-        args.world.add_block_entity(Arc::new(block_entity));
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        if LadderLikeProperties::from_state_id(args.state_id).waterlogged {
+            args.world.schedule_fluid_tick(
+                &pumpkin_data::Fluid::WATER,
+                *args.position,
+                5,
+                pumpkin_world::tick::TickPriority::Normal,
+            );
+        }
+        args.state_id
     }
 
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {
@@ -130,7 +139,7 @@ impl BlockBehaviour for EnderChestBlock {
 }
 
 fn is_chest_blocked(world: &World, block_pos: &BlockPos) -> bool {
-    // TODO: Block opening when a cat is sitting on top.
+    // Unlike ordinary chests, ender chests do not check for sitting cats.
     has_block_on_top(world, block_pos)
 }
 fn has_block_on_top(world: &World, block_pos: &BlockPos) -> bool {

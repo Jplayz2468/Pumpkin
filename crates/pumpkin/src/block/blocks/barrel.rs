@@ -1,7 +1,9 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::block::{GetComparatorOutputArgs, GetScreenHandlerFactoryArgs, OnPlaceArgs, PlacedArgs};
+use crate::block::{
+    GetComparatorOutputArgs, GetScreenHandlerFactoryArgs, OnPlaceArgs, OnStateReplacedArgs,
+};
 use crate::block::{
     registry::BlockActionResult,
     {BlockBehaviour, NormalUseArgs},
@@ -30,6 +32,15 @@ impl ScreenHandlerFactory for BarrelScreenFactory {
         player_inventory: &Arc<PlayerInventory>,
         player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
+        let barrel = self.0.as_any().downcast_ref::<BarrelBlockEntity>()?;
+        if player.is_spectator() && barrel.has_loot_table() {
+            return None;
+        }
+        barrel.unpack_loot(
+            player
+                .as_any()
+                .downcast_ref::<crate::entity::player::Player>(),
+        );
         let handler = create_generic_9x3(sync_id, player_inventory, self.0.clone(), player);
         let concrete_arc = Arc::new(Mutex::new(handler));
 
@@ -37,10 +48,18 @@ impl ScreenHandlerFactory for BarrelScreenFactory {
     }
 
     fn get_display_name(&self) -> TextComponent {
-        pumpkin_macros::translate_cross!(
-            translation::java::CONTAINER_BARREL,
-            translation::bedrock::CONTAINER_BARREL
-        )
+        self.0
+            .as_any()
+            .downcast_ref::<BarrelBlockEntity>()
+            .map_or_else(
+                || {
+                    pumpkin_macros::translate_cross!(
+                        translation::java::CONTAINER_BARREL,
+                        translation::bedrock::CONTAINER_BARREL
+                    )
+                },
+                BarrelBlockEntity::display_name,
+            )
     }
 }
 
@@ -62,13 +81,13 @@ impl BlockBehaviour for BarrelBlock {
             position: args.position,
             player: args.player,
         }) {
+            args.player
+                .open_handled_screen(factory.as_ref(), Some(*args.position));
             args.player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::Custom,
                 pumpkin_data::statistic::CustomStatistic::OpenBarrel as i32,
                 1,
             );
-            args.player
-                .open_handled_screen(factory.as_ref(), Some(*args.position));
         }
 
         BlockActionResult::Success
@@ -79,13 +98,14 @@ impl BlockBehaviour for BarrelBlock {
         args: GetScreenHandlerFactoryArgs<'_>,
     ) -> Option<Box<dyn ScreenHandlerFactory>> {
         let block_entity = args.world.get_block_entity(args.position)?;
+        block_entity.as_any().downcast_ref::<BarrelBlockEntity>()?;
         let inventory = block_entity.get_inventory()?;
         Some(Box::new(BarrelScreenFactory(inventory)))
     }
 
-    fn placed(&self, args: PlacedArgs<'_>) {
-        let barrel_block_entity = BarrelBlockEntity::new(*args.position);
-        args.world.add_block_entity(Arc::new(barrel_block_entity));
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
+        args.world
+            .update_neighbour_for_output_signal(args.position, args.block);
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {

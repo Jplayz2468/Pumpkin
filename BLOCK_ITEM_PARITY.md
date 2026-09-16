@@ -984,3 +984,29 @@ so they must not be used to reconstruct audit completion.
   semantics and the legacy main-hand bucket-use path. These are source changes,
   not a completed parity result. Rustfmt and diff whitespace review only; no
   compilation, tests or gameplay runs.
+
+
+## Continued source port: barrels and ender-chest lifecycle
+
+- Removed placement-time block-entity replacement for barrels and ender chests;
+  placed container components now survive placement. Barrel removal notifies
+  comparators, and both interactions open the menu before awarding the statistic.
+- Barrels retain CustomName and unresolved LootTable/Seed in saved NBT, resolve
+  loot only on inventory access/menu creation using available player luck/context,
+  block spectators from generating unopened loot and carry container/name/loot
+  item components through placement and component collection. Empty saves omit
+  Items; client update tags no longer expose the inventory. Menu titles use names.
+- Barrel slot writes clamp item/container limits, whole-stack removal preserves
+  removeItemNoUpdate behavior, and detached barrels stop viewer transitions.
+  Barrel/ender-chest sounds use the level random pitch rather than a newly seeded
+  generator. Removed ender chests no longer refresh viewer sounds/events.
+- Ender-chest use requires an existing correctly typed block entity; it no longer
+  fabricates one during a click. Waterlogging accepts the actual water fluid type
+  and schedules water on neighbor updates. Only the redstone conductor above
+  obstructs opening; vanilla does not apply the ordinary-chest cat restriction.
+  Private ender-chest slot insertion now clamps stack limits.
+- Remaining: shared lock item predicates, piglin guarded-container anger,
+  exact loot-engine functions/random streams, nonplayer viewers and scheduled
+  block-tick versus block-entity-tick recheck ordering. Existing player menu
+  validity already checks the live block-entity/inventory identity and range.
+  Source review/rustfmt/diff checks only; no compilation or tests.

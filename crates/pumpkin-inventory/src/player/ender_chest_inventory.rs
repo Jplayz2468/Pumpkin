@@ -132,7 +132,12 @@ impl Inventory for EnderChestInventory {
         }
     }
 
-    fn set_stack(&self, slot: usize, stack: ItemStack) {
+    fn set_stack(&self, slot: usize, mut stack: ItemStack) {
+        stack.item_count = stack.item_count.min(
+            stack
+                .get_max_stack_size()
+                .min(self.get_max_count_per_stack()),
+        );
         let mut items = self
             .items
             .write()
