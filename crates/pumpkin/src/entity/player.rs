@@ -3947,6 +3947,18 @@ impl Player {
         yaw: Option<f32>,
         pitch: Option<f32>,
     ) {
+        self.teleport_world_with_movement(new_world, position, yaw, pitch, None)
+            .await;
+    }
+
+    pub(crate) async fn teleport_world_with_movement(
+        self: &Arc<Self>,
+        new_world: Arc<World>,
+        position: Vector3<f64>,
+        yaw: Option<f32>,
+        pitch: Option<f32>,
+        movement: Option<Vector3<f64>>,
+    ) {
         let current_world = self.living_entity.entity.world.load_full();
         let yaw = yaw.unwrap_or(new_world.level_info.load().spawn_yaw);
         let pitch = pitch.unwrap_or(new_world.level_info.load().spawn_pitch);
@@ -4076,7 +4088,7 @@ impl Player {
                     java_client.send_chunks(&[chunk]).await;
                 }
 
-                player.request_teleport(position, yaw, pitch);
+                player.request_teleport_with_movement(position, yaw, pitch, movement);
 
                 let mut changed_world_event = crate::plugin::api::events::player::player_changed_world::PlayerChangedWorldEvent {
                     player: player.clone(),
@@ -4093,6 +4105,16 @@ impl Player {
     /// Rarly used, for example when waking up the player from a bed or their first time spawn. Otherwise, the `teleport` method should be used.
     /// The player should respond with the `SConfirmTeleport` packet.
     pub fn request_teleport(&self, position: Vector3<f64>, yaw: f32, pitch: f32) {
+        self.request_teleport_with_movement(position, yaw, pitch, None);
+    }
+
+    pub(crate) fn request_teleport_with_movement(
+        &self,
+        position: Vector3<f64>,
+        yaw: f32,
+        pitch: f32,
+        movement: Option<Vector3<f64>>,
+    ) {
         // This is the ultra special magic code used to create the teleport id
         // This returns the old value
         // This operation wraps around on overflow.
@@ -4120,6 +4142,9 @@ impl Player {
         self.living_entity.entity.set_pos(position);
         let entity = &self.living_entity.entity;
         entity.set_rotation(yaw, pitch);
+        if let Some(movement) = movement {
+            entity.velocity.store(movement);
+        }
         match self.client.as_ref() {
             ClientPlatform::Java(client) => {
                 *self
@@ -4130,7 +4155,7 @@ impl Player {
                 let packet = CPlayerPosition::new(
                     teleport_id.into(),
                     position,
-                    Vector3::new(0.0, 0.0, 0.0),
+                    movement.unwrap_or_default(),
                     yaw,
                     pitch,
                     // TODO

@@ -53,13 +53,8 @@ impl PortalSearchResult {
             return current_yaw;
         }
 
-        // Axis changed, rotate yaw by 90 degrees
-        // X axis portal faces East/West, Z axis portal faces North/South
-        match (src_axis, self.axis) {
-            (HorizontalAxis::X, HorizontalAxis::Z) => current_yaw + 90.0,
-            (HorizontalAxis::Z, HorizontalAxis::X) => current_yaw - 90.0,
-            _ => current_yaw,
-        }
+        // Java's dimension transition uses +90 for either axis change.
+        current_yaw + 90.0
     }
 
     #[must_use]
@@ -981,7 +976,7 @@ mod tests {
         );
         assert_eq!(
             x_portal.calculate_teleport_yaw(45.0, Some(HorizontalAxis::Z)),
-            -45.0
+            135.0
         );
     }
 }

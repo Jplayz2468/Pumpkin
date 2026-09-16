@@ -313,6 +313,7 @@ pub struct World {
     pub active_chunks: RwLock<FxHashSet<Vector2<i32>>>,
     active_chunk_tracker: std::sync::Mutex<ActiveChunkTracker>,
     pub forced_chunks: std::sync::Mutex<FxHashSet<Vector2<i32>>>,
+    pub(crate) portal_tickets: std::sync::Mutex<portal::tickets::PortalTickets>,
     /// Block entities indexed by chunk, so ticking only visits the currently
     /// active chunks instead of scanning every loaded block entity each tick.
     pub block_entities: DashMap<Vector2<i32>, FxHashMap<BlockPos, Arc<dyn BlockEntity>>>,
@@ -448,6 +449,7 @@ impl World {
             active_chunks: RwLock::new(FxHashSet::default()),
             active_chunk_tracker: std::sync::Mutex::new(ActiveChunkTracker::default()),
             forced_chunks: std::sync::Mutex::new(FxHashSet::default()),
+            portal_tickets: std::sync::Mutex::default(),
             server,
             block_entities: DashMap::new(),
             pending_block_entity_migrations: crossbeam::queue::SegQueue::new(),
@@ -463,11 +465,12 @@ impl World {
             s.advanced_config.networking.java.simulation_distance.get()
         }) as i32;
         let players = self.players.load();
-        let forced_chunks = self
+        let mut forced_chunks = self
             .forced_chunks
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
+        forced_chunks.extend(self.portal_ticking_chunks());
         let mut tracker = self
             .active_chunk_tracker
             .lock()
@@ -1748,6 +1751,11 @@ impl World {
         let player_handle = handle.clone();
         let _player_guard = player_handle.enter();
         for player in players.iter() {
+            if player.get_entity().teleporting.load(Ordering::Acquire)
+                || !std::ptr::eq(player.get_entity().world.load().as_ref(), self.as_ref())
+            {
+                continue;
+            }
             player.tick(server);
             player.get_entity().flush_pending_inside_effects(player.as_ref());
         }
@@ -1789,10 +1797,18 @@ impl World {
             let _guard = entity_handle.enter();
             {
                 for (entity, entity_chunk) in &tickable {
+                    if entity.get_entity().is_removed()
+                        || entity.get_entity().teleporting.load(Ordering::Acquire)
+                    {
+                        continue;
+                    }
                     entity.get_entity().tick_count.fetch_add(1, Relaxed);
                     crate::entity::projectile::begin_tick(entity.as_ref());
                     crate::entity::projectile::emit_shoot_event(entity.as_ref());
                     entity.tick(entity.as_ref(), server_ref);
+                    if entity.get_entity().is_removed() {
+                        continue;
+                    }
                     crate::entity::projectile::check_left_owner(entity.as_ref());
                     entity.get_entity().flush_pending_inside_effects(entity.as_ref());
 
@@ -5771,17 +5787,32 @@ impl World {
     }
 
     pub fn remove_entity(&self, entity: &dyn EntityBase) {
+        self.remove_entity_with_reason(entity, RemovalReason::Discarded);
+    }
+
+    pub(crate) fn remove_entity_with_reason(
+        &self,
+        entity: &dyn EntityBase,
+        reason: RemovalReason,
+    ) -> bool {
         let base_entity = entity.get_entity();
         if base_entity
             .removal_reason
-            .swap(Some(RemovalReason::Discarded))
-            .is_some()
+            .compare_exchange(None, Some(reason))
+            .is_err()
         {
-            return;
+            return false;
         }
         base_entity.removed.store(true, Ordering::Release);
 
-        self.notify_mob_observers_of_removal(base_entity.entity_id, RemovalReason::Discarded);
+        self.notify_mob_observers_of_removal(base_entity.entity_id, reason);
+        if reason == RemovalReason::ChangedDimension {
+            base_entity
+                .leashed_to
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take();
+        }
 
         self.spawn_state.load().remove_entity(self, entity);
         self.entity_tracker.remove_entity(entity, self);
@@ -5790,6 +5821,7 @@ impl World {
             new_entities.retain(|e| e.get_entity().entity_uuid != base_entity.entity_uuid);
             new_entities
         });
+        true
     }
 
     pub async fn remove_entities_in_chunks(

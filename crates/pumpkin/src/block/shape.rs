@@ -105,11 +105,6 @@ pub(crate) fn push_entities_up(
                 downward = downward.max(shape.max.y - moved.min.y);
             }
         }
-        entity.teleport(
-            entity.get_entity().pos.load() + Vector3::new(0.0, 1.0 + downward, 0.0),
-            None,
-            None,
-            world.clone(),
-        );
+        crate::entity::teleport::move_relative(entity.as_ref(), Vector3::new(0.0, 1.0 + downward, 0.0));
     }
 }

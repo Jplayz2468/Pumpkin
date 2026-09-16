@@ -57,15 +57,22 @@ impl TNTEntity {
 }
 
 impl EntityBase for TNTEntity {
-    fn teleport(
-        &self,
-        position: Vector3<f64>,
-        yaw: Option<f32>,
-        pitch: Option<f32>,
-        world: std::sync::Arc<crate::world::World>,
-    ) {
-        self.entity.teleport(position, yaw, pitch, &world);
+    fn after_teleport(&self) {
         self.used_portal.store(true, Ordering::Relaxed);
+    }
+
+    fn restore_transient_state(&self, old: &dyn EntityBase) {
+        self.entity.restore_teleport_state(old.get_entity());
+        if let Some(old) = old.cast_any().downcast_ref::<Self>() {
+            *self
+                .owner
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = old
+                .owner
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+        }
     }
 
     fn tick(&self, caller: &dyn EntityBase, _server: &Server) {

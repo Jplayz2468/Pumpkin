@@ -121,6 +121,8 @@ pub mod projectile;
 pub mod projectile_deflection;
 mod saved_motion;
 pub mod synched_entity_data;
+pub mod teleport;
+pub mod teleport_state;
 pub mod tnt;
 mod tnt_state;
 pub mod r#type;
@@ -318,8 +320,17 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         pitch: Option<f32>,
         world: Arc<World>,
     ) {
-        self.get_entity().teleport(position, yaw, pitch, &world);
+        teleport::request(
+            self.get_entity(),
+            crate::world::portal::TeleportTransition::from_target(world, position, yaw, pitch),
+        );
     }
+
+    fn restore_transient_state(&self, old: &dyn EntityBase) {
+        self.get_entity().restore_teleport_state(old.get_entity());
+    }
+
+    fn after_teleport(&self) {}
 
     fn modify_passenger_fluid_box(&self, bounds: BoundingBox) -> Option<BoundingBox> {
         Some(bounds)
@@ -1253,6 +1264,7 @@ static CURRENT_ID: AtomicI32 = AtomicI32::new(1);
 
 /// Represents a non-living Entity (e.g. Item, Egg, Snowball...)
 pub struct Entity {
+    pub(crate) teleporting: AtomicBool,
     /// A unique identifier for the entity
     pub entity_id: i32,
     /// A persistent, unique identifier for the entity
@@ -1467,6 +1479,7 @@ impl Entity {
             entity_id,
             entity_uuid,
             random: std::sync::Mutex::new(random),
+            teleporting: AtomicBool::new(false),
             entity_type,
             on_ground: AtomicBool::new(false),
             movement_emission: std::sync::Mutex::new((0.0, 1.0)),
@@ -1579,6 +1592,39 @@ impl Entity {
         self.current_biome.store(Arc::new(biome));
         self.last_biome_update_pos.store(block_pos);
         self.world.store(world);
+    }
+
+    pub(crate) fn restore_teleport_state(&self, old: &Self) {
+        self.portal_cooldown
+            .store(old.portal_cooldown.load(Relaxed), Relaxed);
+        *self
+            .portal_manager
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = old
+            .portal_manager
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        if projectile::is_projectile(self.entity_type) {
+            *self
+                .projectile_owner
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = old
+                .projectile_owner
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone();
+        }
+    }
+
+    pub(crate) fn apply_teleport_state(&self, state: teleport_state::TeleportState) {
+        self.clear_inside_movements();
+        self.set_pos(state.position);
+        self.set_rotation(state.yaw, state.pitch);
+        self.head_yaw.store(state.yaw);
+        self.last_pos.store(state.position);
+        self.velocity.store(state.velocity);
+        self.last_sent_pos.store(state.position);
     }
 
     pub fn bedrock_metadata(&self) -> SyncedActorDataList {
@@ -3096,8 +3142,6 @@ impl Entity {
                 let dest_world_opt = portal_processor.destination_world.clone();
                 let src_portal = portal_processor.source_portal.clone();
                 let entity_id = self.entity_id;
-                let yaw = self.yaw.load();
-
                 let rt_handle = world_clone.server.upgrade().map(|s| s.runtime.clone());
                 rayon::spawn(move || {
                     let _guard = rt_handle.as_ref().map(tokio::runtime::Handle::enter);
@@ -3112,22 +3156,9 @@ impl Entity {
                     );
 
                     if let Some(transition) = transition {
-                        let dest_world = transition.new_world.clone();
-                        let yaw_val = transition.yaw;
-                        let pitch = transition.pitch;
-                        let teleport_pos = transition.position;
-
-                        // Teleport the main entity
-                        entity_arc.teleport(teleport_pos, yaw_val, pitch, dest_world.clone());
-
-                        // Teleport all passengers recursively along with the vehicle
-                        let yaw_delta = yaw_val.map(|y| y - yaw);
-                        Self::teleport_passengers_recursive(
-                            entity_arc.get_entity(),
-                            teleport_pos,
-                            yaw_delta,
-                            &dest_world,
-                        );
+                        if let Some(runtime) = &rt_handle {
+                            runtime.block_on(teleport::transfer(entity_arc, transition));
+                        }
                     }
                 });
             } else if portal_processor.portal_time == 0 {
@@ -3136,43 +3167,6 @@ impl Entity {
         }
         if should_remove {
             *manager_guard = None;
-        }
-    }
-
-    /// Recursively teleports all passengers (and their passengers) to the destination
-    fn teleport_passengers_recursive(
-        entity: &Self,
-        position: Vector3<f64>,
-        yaw_delta: Option<f32>,
-        dest_world: &Arc<World>,
-    ) {
-        let passengers = entity
-            .passengers
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
-        for passenger in passengers {
-            let passenger_entity = passenger.get_entity();
-            let passenger_yaw = yaw_delta.map(|delta| passenger_entity.yaw.load() + delta);
-            passenger_entity.portal_cooldown.store(
-                passenger_entity.default_portal_cooldown(),
-                Ordering::Relaxed,
-            );
-
-            // Get nested passengers before teleporting
-            let nested_passengers = passenger_entity
-                .passengers
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .clone();
-
-            passenger.teleport(position, passenger_yaw, None, dest_world.clone());
-
-            // Recursively teleport nested passengers
-            for nested in nested_passengers {
-                let nested_entity = nested.get_entity();
-                Self::teleport_passengers_recursive(nested_entity, position, yaw_delta, dest_world);
-            }
         }
     }
 

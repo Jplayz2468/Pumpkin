@@ -1418,3 +1418,14 @@ Java paths. Chunk loading preserves saved motion; numeric codec and motion limit
 are shared by all entities. ENGINE_GAPS.md records the differential fixtures and
 remaining world-transfer, TNT-minecart and live-gameplay gates. Full mob passes
 remain paused.
+
+
+### Portal world and passenger transitions
+
+Non-player portal transfers now move world membership through UUID-preserving
+entity replacement; nested passengers and projectile/TNT owner references follow.
+Shared relative motion rotates with portal axes, and block shape pushes preserve
+riding relationships. Temporary portal loading/ticking tickets support arrivals
+without nearby players. The two-world integration test and Java transition
+comparisons are documented in ENGINE_GAPS.md, alongside remaining ticket
+persistence, End rules, scheduling and client gates. Full mob passes remain paused.

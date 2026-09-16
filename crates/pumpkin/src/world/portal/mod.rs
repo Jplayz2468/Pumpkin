@@ -9,10 +9,12 @@ use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::world::BlockFlags;
 
 use super::World;
+use crate::entity::teleport_state::{self, TeleportState};
 
 pub mod end;
 pub mod nether;
 pub mod poi;
+pub mod tickets;
 
 pub use nether::{NetherPortal, PortalSearchResult};
 pub use poi::PortalPoiStorage;
@@ -128,12 +130,13 @@ impl PortalType {
                             }
                         }
 
-                        Some(TeleportTransition {
-                            new_world: dest_world,
-                            position: Vector3::new(100.5f64, y, 0.5f64),
-                            yaw: Some(90.0f32),
-                            pitch: None,
-                        })
+                        Some(TeleportTransition::portal(
+                            dest_world,
+                            Vector3::new(100.5, y, 0.5),
+                            90.0,
+                            0.0,
+                            teleport_state::DELTA | teleport_state::X_ROT,
+                        ))
                     } else {
                         // Leaving the End through the exit portal: return to overworld spawn
                         if let Some(player) =
@@ -164,16 +167,17 @@ impl PortalType {
                         }
 
                         let info = dest_world.level_info.load();
-                        Some(TeleportTransition {
-                            new_world: dest_world,
-                            position: Vector3::new(
+                        Some(TeleportTransition::portal(
+                            dest_world,
+                            Vector3::new(
                                 f64::from(info.spawn_x) + 0.5,
                                 f64::from(info.spawn_y),
                                 f64::from(info.spawn_z) + 0.5,
                             ),
-                            yaw: None,
-                            pitch: None,
-                        })
+                            info.spawn_yaw,
+                            info.spawn_pitch,
+                            teleport_state::DELTA | teleport_state::ROTATION,
+                        ))
                     }
                 } else {
                     None
@@ -181,7 +185,7 @@ impl PortalType {
             }
             Self::Nether => {
                 let pos = caller.get_entity().pos.load();
-                let current_yaw = caller.get_entity().yaw.load();
+
                 let dimensions = caller.get_entity().entity_dimension.load();
                 let scale_factor_new = dest_world.dimension.coordinate_scale;
                 let scale_factor_current = current_level.dimension.coordinate_scale;
@@ -246,7 +250,7 @@ impl PortalType {
                 });
 
                 let (final_pos, yaw) = exit_portal.map_or_else(
-                    || (approximate_exit_pos.0.to_f64(), None),
+                    || (approximate_exit_pos.0.to_f64(), 0.0),
                     |exit_portal| {
                         let relative_offset = source_portal.map_or_else(
                             || Vector3::new(0.5, 0.0, 0.0),
@@ -264,30 +268,86 @@ impl PortalType {
                             exit_portal.calculate_exit_position(relative_offset, &dimensions);
                         let collision_free_pos =
                             exit_portal.find_open_position(&dest_world, target_pos, &dimensions);
-                        let yaw = exit_portal
-                            .calculate_teleport_yaw(current_yaw, source_portal.map(|p| p.axis));
-                        (collision_free_pos, Some(yaw))
+                        let yaw = exit_portal.calculate_teleport_yaw(0.0, Some(source_portal_axis));
+                        (collision_free_pos, yaw)
                     },
                 );
 
-                Some(TeleportTransition {
-                    new_world: dest_world,
-                    position: final_pos,
+                Some(TeleportTransition::portal(
+                    dest_world,
+                    final_pos,
                     yaw,
-                    pitch: None,
-                })
+                    0.0,
+                    teleport_state::DELTA | teleport_state::ROTATION,
+                ))
             }
         }
     }
 }
 
+#[derive(Clone)]
 pub struct TeleportTransition {
     pub new_world: Arc<World>,
-    pub position: Vector3<f64>,
-    pub yaw: Option<f32>,
-    pub pitch: Option<f32>,
+    pub state: TeleportState,
+    pub relatives: u16,
+    pub as_passenger: bool,
+    pub portal: bool,
 }
 
+impl TeleportTransition {
+    pub fn from_target(
+        world: Arc<World>,
+        position: Vector3<f64>,
+        yaw: Option<f32>,
+        pitch: Option<f32>,
+    ) -> Self {
+        Self {
+            new_world: world,
+            state: TeleportState {
+                position,
+                velocity: Vector3::default(),
+                yaw: yaw.unwrap_or(0.0),
+                pitch: pitch.unwrap_or(0.0),
+            },
+            relatives: teleport_state::DELTA
+                | if yaw.is_none() {
+                    teleport_state::Y_ROT
+                } else {
+                    0
+                }
+                | if pitch.is_none() {
+                    teleport_state::X_ROT
+                } else {
+                    0
+                },
+            as_passenger: false,
+            portal: false,
+        }
+    }
+
+    fn portal(
+        world: Arc<World>,
+        position: Vector3<f64>,
+        yaw: f32,
+        pitch: f32,
+        relatives: u16,
+    ) -> Self {
+        Self {
+            new_world: world,
+            state: TeleportState {
+                position,
+                velocity: Vector3::default(),
+                yaw,
+                pitch,
+            },
+            relatives,
+            as_passenger: false,
+            portal: true,
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct PortalProcessor {
     pub portal_type: PortalType,
     pub entry_position: BlockPos,
@@ -326,11 +386,10 @@ impl PortalProcessor {
         if self.inside_portal_this_tick {
             self.inside_portal_this_tick = false;
             if allowed_to_teleport {
-                self.portal_time += 1;
                 let transition_time = self
                     .portal_type
                     .get_portal_transition_time(current_world, entity);
-                self.portal_time >= transition_time
+                advance_portal_time(&mut self.portal_time, transition_time)
             } else {
                 false
             }
@@ -347,5 +406,27 @@ impl PortalProcessor {
     #[must_use]
     pub const fn has_expired(&self) -> bool {
         self.portal_time == 0
+    }
+}
+
+fn advance_portal_time(time: &mut u32, delay: u32) -> bool {
+    let previous = *time;
+    *time = time.wrapping_add(1);
+    previous >= delay
+}
+
+#[cfg(test)]
+mod processor_tests {
+    use super::advance_portal_time;
+    #[test]
+    fn transition_compares_the_previous_contact_count() {
+        let mut time = 0;
+        for _ in 0..80 {
+            assert!(!advance_portal_time(&mut time, 80));
+        }
+        assert!(advance_portal_time(&mut time, 80));
+        time = 0;
+        assert!(advance_portal_time(&mut time, 0));
+        assert_eq!(time, 1);
     }
 }

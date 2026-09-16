@@ -2,6 +2,7 @@
 use pumpkin_nbt::compound::NbtCompound;
 use uuid::Uuid;
 
+#[derive(Clone)]
 pub struct EntityReference<T> {
     pub uuid: Uuid,
     cached: Option<T>,

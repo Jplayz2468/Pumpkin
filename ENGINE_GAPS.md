@@ -607,3 +607,47 @@ whole inside-effect pipeline matches Java yet.
   other linked-entity identity and projectile lifecycle gaps. The current generic
   non-player teleport changes coordinates but does not transfer world membership;
   the portal calculator alone does not close that engine gap. No full mob pass.
+
+
+## World transfers, passenger transitions and portal motion
+
+- Non-player transitions now recreate the entity in the destination world from
+  saved NBT, preserve its UUID, allocate a new runtime ID and remove the source
+  with ChangedDimension. Both worlds' live lists, trackers and spawn accounting
+  are updated. Removed entities in an already-collected tick list are skipped.
+  Ordinary removal no longer overwrites an earlier removal reason.
+- Transfers walk every passenger level, retain position/yaw/pitch offsets, detach
+  cross-world riders before transfer and remount successful arrivals on the new
+  vehicle. Player transfers await the existing world/client path before remounting.
+  Concurrent requests for the same entity are guarded; entities pause ticking
+  while their transfer awaits I/O. Loaded requests complete synchronously.
+- Portal cooldown/processor and projectile/TNT cached owner references survive
+  replacement. Removed owner handles resolve to the new entity by UUID. TNT's
+  post-transition callback retains its portal-resistant blast behavior. This does
+  not add missing Vex owner or ItemEntity reference-cache implementations.
+- Added PositionMoveRotation relative-position, rotation, velocity and passenger
+  arithmetic. Nether axis changes use +90 degrees in both directions and rotate
+  motion using Java's float lookup-table operations. End entry retains/rotates
+  motion with its source flags. Portal player packets now carry the resulting
+  movement; post-transition portal sound targets the arriving player.
+- Block shape pushes use a separate synchronous position-only path, retaining
+  riding relationships without triggering TNT's dimension-transition flag.
+  Portal contact timing now compares the old count before incrementing it.
+- Portal arrivals install/refresh a 300-tick destination ticket, load at radius 3
+  and activate the central 3x3 entity-ticking footprint without nearby players.
+  Expiration removes the loading ticket and active footprint; overlapping arrivals
+  refresh/union correctly.
+- Evidence: **768 actual Java PositionMoveRotation/passenger-transition cases**
+  compare exact floating-point bits. A real two-World integration test transfers
+  TNT, a falling-block rider and a nested arrow, checking source removal, new IDs,
+  stable UUIDs, saved fuse/power, rotated velocity, mounts, owner re-resolution,
+  same-world identity and immediate block-push/request behavior. Final background
+  run 5 passed **501 engine tests**, with the two previously separately passing
+  localhost socket tests excluded. No live client connection was used.
+- Still open: persistent portal tickets and distinct block-only ticking outside
+  the central 3x3; portal search/generation scheduling relative to synchronous
+  Java ticks; complete End return/respawn/credits rules; spectator/camera transfer,
+  player tracker/streaming/cancellation ordering, rider client acknowledgments and
+  older Java/Bedrock live packet verification. Shared serialization limitations
+  still affect entity replacement where a type's own saved payload is incomplete.
+  This closes the missing basic world transfer, not all portal or engine parity.
