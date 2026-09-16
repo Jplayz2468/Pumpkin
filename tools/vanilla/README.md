@@ -183,3 +183,17 @@ pickability override.
 javac -cp '../comparison/downloads/classpath/*:/tmp' -d /tmp tools/vanilla/ProjectileOwnerOracle.java
 java -cp '/tmp:../comparison/downloads/classpath/*' ProjectileOwnerOracle > crates/pumpkin/src/entity/projectile/owner_cases.json
 ```
+
+## Entity owner references
+
+`EntityReferenceOracle.java` uses the real generic Java EntityReference with simple
+UniquelyIdentifyable targets. Its 600 stateful cases verify UUID- and object-created
+references, cache hits without lookups, removed cached targets, rejected removed or
+wrong-UUID lookup results, replacements, and UUID codec integers. Rust uses the same
+resolver with weak live-entity handles; the fixture tests resolution semantics, not
+world registration lifetime or network delivery across dimensions.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*:/tmp' -d /tmp tools/vanilla/EntityReferenceOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' EntityReferenceOracle > crates/pumpkin/src/entity/entity_reference_cases.json
+```

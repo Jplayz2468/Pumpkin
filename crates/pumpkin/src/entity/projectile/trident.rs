@@ -19,7 +19,6 @@ use super::{ProjectileHit, collision_on_segment};
 
 pub struct TridentEntity {
     pub entity: Entity,
-    pub owner_id: Option<i32>,
     pub item_stack: Arc<Mutex<ItemStack>>,
     pub pickup: ArrowPickup,
     pub in_ground: AtomicBool,
@@ -38,9 +37,9 @@ impl TridentEntity {
     const DESPAWN_TIME: u32 = 1200;
 
     pub fn new(entity: Entity, owner_id: Option<i32>) -> Self {
+        entity.set_projectile_owner_by_id(owner_id);
         Self {
             entity,
-            owner_id,
             item_stack: Arc::new(Mutex::new(ItemStack::new(1, &Item::TRIDENT))),
             pickup: ArrowPickup::Disallowed,
             in_ground: AtomicBool::new(false),
@@ -60,12 +59,12 @@ impl TridentEntity {
     ) -> Self {
         let mut owner_pos = shooter.pos.load();
         owner_pos.y = owner_pos.y + f64::from(shooter.entity_dimension.load().eye_height) - 0.1;
-        entity.pos.store(owner_pos);
+        entity.set_pos(owner_pos);
         entity.set_velocity(Vector3::new(0.0, 0.1, 0.0));
 
+        entity.set_projectile_owner(Some(shooter));
         Self {
             entity,
-            owner_id: Some(shooter.entity_id),
             item_stack: Arc::new(Mutex::new(item_stack)),
             pickup,
             in_ground: AtomicBool::new(false),
@@ -131,10 +130,6 @@ impl TridentEntity {
 }
 
 impl EntityBase for TridentEntity {
-    fn get_owner_id(&self) -> Option<i32> {
-        self.owner_id
-    }
-
     fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         let entity = self.get_entity();
         let world = entity.world.load();

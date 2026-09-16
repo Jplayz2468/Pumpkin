@@ -23,7 +23,6 @@ impl LlamaSpitEntity {
     pub const fn new(entity: Entity) -> Self {
         let thrown = ThrownItemEntity {
             entity,
-            owner_id: None,
             has_hit: AtomicBool::new(false),
             gravity: LLAMA_SPIT_GRAVITY,
         };
@@ -40,11 +39,11 @@ impl LlamaSpitEntity {
         let x = owner_pos.x - offset * body_yaw_rad.sin();
         let y = owner_pos.y + shooter.get_eye_height() - 0.1;
         let z = owner_pos.z + offset * body_yaw_rad.cos();
-        entity.pos.store(Vector3::new(x, y, z));
+        entity.set_pos(Vector3::new(x, y, z));
 
+        entity.set_projectile_owner(Some(shooter));
         let thrown = ThrownItemEntity {
             entity,
-            owner_id: Some(shooter.entity_id),
             has_hit: AtomicBool::new(false),
             gravity: LLAMA_SPIT_GRAVITY,
         };
@@ -54,10 +53,6 @@ impl LlamaSpitEntity {
 }
 
 impl EntityBase for LlamaSpitEntity {
-    fn get_owner_id(&self) -> Option<i32> {
-        self.thrown.owner_id
-    }
-
     fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         if self.get_entity().touching_water.load(Ordering::Relaxed) {
             self.get_entity().remove();
@@ -85,9 +80,7 @@ impl EntityBase for LlamaSpitEntity {
             ..
         } = hit
         {
-            let world = self.get_entity().world.load();
-            let owner_id = self.thrown.owner_id;
-            let owner = owner_id.and_then(|id| world.get_entity_by_id(id));
+            let owner = self.get_projectile_owner();
 
             let _ = entity.damage_with_context(
                 entity.as_ref(),

@@ -2,6 +2,7 @@ pub mod baby_dimensions;
 mod inside_blocks;
 mod climbing;
 mod vehicle_control;
+pub mod entity_reference;
 mod fall_distance;
 mod fluid_current;
 mod fluid_interaction;
@@ -261,8 +262,19 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         None
     }
 
+    fn get_projectile_owner(&self) -> Option<Arc<dyn EntityBase>> {
+        self.get_entity().resolve_projectile_owner()
+    }
+
+    fn get_projectile_owner_player(&self) -> Option<Arc<player::Player>> {
+        let owner = self.get_projectile_owner()?;
+        let entity = owner.get_entity();
+        entity.world.load().get_player_by_uuid(entity.entity_uuid)
+    }
+
     fn get_owner_id(&self) -> Option<i32> {
-        None
+        self.get_projectile_owner()
+            .map(|owner| owner.get_entity().entity_id)
     }
 
     fn get_eye_pos(&self) -> Vector3<f64> {
@@ -1340,6 +1352,7 @@ pub struct Entity {
     /// Transient: loading an entity starts this clock at zero.
     pub tick_count: AtomicI32,
     pub projectile_has_been_shot: AtomicBool,
+    pub projectile_owner: std::sync::Mutex<Option<entity_reference::EntityOwner>>,
     pub projectile_owner_collision: std::sync::Mutex<projectile::owner_collision::OwnerCollision>,
 
     pub current_biome: ArcSwap<&'static Biome>,
@@ -1514,6 +1527,7 @@ impl Entity {
             age: AtomicI32::new(0),
             tick_count: AtomicI32::new(0),
             projectile_has_been_shot: AtomicBool::new(false),
+            projectile_owner: std::sync::Mutex::default(),
             projectile_owner_collision: std::sync::Mutex::default(),
             current_biome: ArcSwap::new(Arc::new(current_biome)),
             last_biome_update_pos: AtomicCell::new(BlockPos::new(floor_x, floor_y, floor_z)),
@@ -3384,6 +3398,20 @@ impl Entity {
     pub fn create_spawn_packet(&self) -> CSpawnEntity {
         let entity_loc = self.pos.load();
         let entity_vel = self.velocity.load();
+        let data = if projectile::is_projectile(self.entity_type) {
+            self.resolve_projectile_owner().map_or_else(
+                || {
+                    if self.entity_type == &EntityType::FISHING_BOBBER {
+                        self.entity_id
+                    } else {
+                        0
+                    }
+                },
+                |owner| owner.get_entity().entity_id,
+            )
+        } else {
+            self.data.load(Relaxed)
+        };
         CSpawnEntity::new(
             VarInt(self.entity_id),
             self.entity_uuid,
@@ -3392,7 +3420,7 @@ impl Entity {
             self.pitch.load(),
             self.yaw.load(),
             self.head_yaw.load(), // todo: head_yaw and yaw are swapped, find out why
-            self.data.load(Relaxed).into(),
+            data.into(),
             entity_vel,
         )
     }
@@ -4612,6 +4640,53 @@ impl Entity {
             .clone()
     }
 
+    pub fn set_projectile_owner(&self, owner: Option<&Entity>) {
+        *self
+            .projectile_owner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = owner.map(|owner| {
+            let uuid = owner.entity_uuid;
+            owner
+                .world
+                .load()
+                .get_entity_in_any_dimension(uuid)
+                .map_or_else(
+                    || entity_reference::EntityOwner::new(uuid),
+                    |owner| {
+                        entity_reference::EntityOwner::with_cached(uuid, Arc::downgrade(&owner))
+                    },
+                )
+        });
+    }
+
+    pub fn set_projectile_owner_by_id(&self, owner_id: Option<i32>) {
+        let world = self.world.load();
+        let owner = owner_id.and_then(|id| world.get_entity_by_id(id));
+        self.set_projectile_owner(owner.as_ref().map(|owner| owner.get_entity()));
+    }
+
+    pub fn resolve_projectile_owner(&self) -> Option<Arc<dyn EntityBase>> {
+        let world = self.world.load();
+        self.projectile_owner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .as_mut()?
+            .resolve(
+                |cached| {
+                    cached
+                        .upgrade()
+                        .filter(|owner| !owner.get_entity().is_removed())
+                },
+                |uuid| {
+                    let owner = world.get_entity_in_any_dimension(uuid)?;
+                    if owner.get_entity().is_removed() {
+                        return None;
+                    }
+                    Some((Arc::downgrade(&owner), owner))
+                },
+            )
+    }
+
     pub(crate) fn root_vehicle_id(&self) -> i32 {
         let mut root = self.entity_id;
         let mut parent = self.get_vehicle();
@@ -5156,6 +5231,14 @@ impl Entity {
     pub fn write_nbt(&self, nbt: &mut NbtCompound) {
         if projectile::is_projectile(self.entity_type) {
             nbt.put_bool("HasBeenShot", self.projectile_has_been_shot.load(Relaxed));
+            if let Some(owner) = self
+                .projectile_owner
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .as_ref()
+            {
+                owner.write(nbt, "Owner");
+            }
             self.projectile_owner_collision
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
@@ -5240,6 +5323,15 @@ impl Entity {
         self.fall_distance.store(fall_distance::read(nbt));
         self.projectile_has_been_shot
             .store(nbt.get_bool("HasBeenShot").unwrap_or(false), Relaxed);
+        *self
+            .projectile_owner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            if projectile::is_projectile(self.entity_type) {
+                entity_reference::EntityOwner::read(nbt, "Owner")
+            } else {
+                None
+            };
         self.projectile_owner_collision
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)

@@ -4584,9 +4584,7 @@ impl World {
         let player_source = source.is_some_and(|source| {
             source.get_player().is_some()
                 || (crate::entity::projectile::is_projectile(source.get_entity().entity_type)
-                    && source
-                        .get_owner_id()
-                        .is_some_and(|owner| self.get_player_by_id(owner).is_some()))
+                    && source.get_projectile_owner_player().is_some())
         });
         if caused_by_player || player_source {
             explosion = explosion.caused_by_player();
@@ -5343,6 +5341,30 @@ impl World {
             .iter()
             .find(|p| p.get_entity().entity_uuid == id)
             .cloned()
+    }
+
+    /// ServerLevel.getEntityInAnyDimension: current world first, then server order.
+    pub fn get_entity_in_any_dimension(&self, uuid: uuid::Uuid) -> Option<Arc<dyn EntityBase>> {
+        let in_world = |world: &World| {
+            world.get_entity_by_uuid(uuid).or_else(|| {
+                world
+                    .get_player_by_uuid(uuid)
+                    .map(|player| player as Arc<dyn EntityBase>)
+            })
+        };
+        if let Some(entity) = in_world(self) {
+            return Some(entity);
+        }
+        let server = self.server.upgrade()?;
+        for world in server.worlds.load().iter() {
+            if std::ptr::eq(self, world.as_ref()) {
+                continue;
+            }
+            if let Some(entity) = in_world(world) {
+                return Some(entity);
+            }
+        }
+        None
     }
 
     /// Gets a list of players whose location equals the given position in the world.

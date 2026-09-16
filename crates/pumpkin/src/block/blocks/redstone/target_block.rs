@@ -65,9 +65,7 @@ impl BlockBehaviour for TargetBlock {
             args.world
                 .schedule_block_tick(args.block, *args.position, delay, TickPriority::Normal);
         }
-        if let Some(owner_id) = args.projectile.get_owner_id()
-            && let Some(player) = args.world.get_player_by_id(owner_id)
-        {
+        if let Some(player) = args.projectile.get_projectile_owner_player() {
             player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::Custom,
                 pumpkin_data::statistic::CustomStatistic::TargetHit as i32,

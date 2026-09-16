@@ -541,3 +541,38 @@ whole inside-effect pipeline matches Java yet.
   full mob pass was performed.
 - Final background run 3 passed **493 engine tests** after excluding removed
   owners from resolution, with the same two socket-test exclusions.
+
+## Projectile owner UUID references
+
+- Removed per-projectile runtime owner-ID storage and duplicate getter overrides.
+  Constructors now capture UUID identity in the shared entity owner reference.
+  Owner NBT uses Java's four-int Owner UUID representation, including unresolved
+  owners. Loading resets the cached handle without dropping that identity.
+- Added current-world-first lookup across server worlds, including players. Live
+  cached owners remain usable through world moves; removed/expired cached handles
+  trigger UUID resolution again. Runtime IDs are derived from the resolved entity.
+  Weak cached handles avoid creating owner/projectile reference cycles.
+- Owner collision, permissions, damage attribution, pearl teleport lookup, egg and
+  firework callbacks, sculk vibration/shrieker attribution, TNT ignition, bells,
+  target statistics and explosion player attribution use resolved owner objects.
+  Shoot events retain the owner object as context across dimension boundaries.
+- Java spawn packets now carry the resolved projectile owner ID; ownerless fishing
+  hooks use their own ID, while other ownerless projectiles use zero. This updates
+  the common sender; it does not certify older-client object-data conversions.
+- Arrow/trident/spit/hook constructors now update position, bounding box and cached
+  block/chunk coordinates together when moving to their owner-relative spawn point.
+- Actual Java EntityReference fixtures cover **600 stateful cache/lookup cases**,
+  removed and replacement owners, a wrong UUID, and exact UUID codec integers.
+  Rust checks also cover saving an unresolved owner, resolution after a runtime-ID
+  change, missing/malformed Owner data and clearing the transient cache on load.
+  Background run 3 passed **495 engine tests** with the same two socket exclusions,
+  before the final spawn-packet owner-data adjustment.
+- Remaining linked-engine work: primed TNT and evoker-fang owner persistence,
+  complete owner-changing deflection/restore callbacks, firework attachment identity,
+  older-client/Bedrock ownership packets, and live cross-dimension save/reload tests.
+  Java keeps a strong cached object; our weak cache relies on live world/entity
+  handles retaining non-removed entities. Unregistered owner construction/lifetime
+  remains an integration boundary. Full mob passes remain paused.
+- Final background run 4 passed **495 engine + 114 protocol tests** after the
+  spawn-packet adjustment, with the same two socket-test exclusions. No live
+  cross-dimension server/client test was performed.

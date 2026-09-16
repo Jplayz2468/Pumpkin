@@ -54,7 +54,6 @@ impl ArrowPickup {
 
 pub struct ArrowEntity {
     pub entity: Entity,
-    pub owner_id: Option<i32>,
     pub item_stack: RwLock<ItemStack>,
     pub base_damage: AtomicU64,
     pub pickup: ArrowPickup,
@@ -91,9 +90,9 @@ impl ArrowEntity {
         item_stack: &ItemStack,
         pickup: ArrowPickup,
     ) -> Self {
+        entity.set_projectile_owner_by_id(owner_id);
         Self {
             entity,
-            owner_id,
             item_stack: RwLock::new(item_stack.copy_with_count(1)),
             base_damage: AtomicU64::new(Self::ARROW_BASE_DAMAGE.to_bits()),
             pickup,
@@ -121,7 +120,7 @@ impl ArrowEntity {
     ) -> Self {
         let mut owner_pos = shooter.pos.load();
         owner_pos.y = owner_pos.y + f64::from(shooter.entity_dimension.load().eye_height) - 0.1;
-        entity.pos.store(owner_pos);
+        entity.set_pos(owner_pos);
         let mut launch_event =
             crate::plugin::api::events::entity::projectile_launch::ProjectileLaunchEvent::new(
                 entity.entity_id,
@@ -133,9 +132,9 @@ impl ArrowEntity {
                 .fire_blocking(&server, &mut launch_event);
         }
 
+        entity.set_projectile_owner(Some(shooter));
         Self {
             entity,
-            owner_id: Some(shooter.entity_id),
             item_stack: RwLock::new(item_stack.copy_with_count(1)),
             base_damage: AtomicU64::new(Self::ARROW_BASE_DAMAGE.to_bits()),
             pickup,
@@ -460,10 +459,6 @@ impl ArrowEntity {
 }
 
 impl EntityBase for ArrowEntity {
-    fn get_owner_id(&self) -> Option<i32> {
-        self.owner_id
-    }
-
     fn write_custom_nbt(&self, nbt: &mut pumpkin_nbt::compound::NbtCompound) {
         let item_stack = self
             .item_stack
@@ -900,10 +895,9 @@ impl EntityBase for ArrowEntity {
 
                 let punch = self.punch_level.load(Ordering::Relaxed);
                 let is_spectral = entity.entity_type.id == EntityType::SPECTRAL_ARROW.id;
-                let owner_id = self.owner_id;
                 let pierce = self.pierce_level.load(Ordering::Relaxed);
 
-                let owner_entity = owner_id.and_then(|id| world.get_entity_by_id(id));
+                let owner_entity = self.get_projectile_owner();
 
                 let damage_succeeded = target.damage_with_context(
                     target.as_ref(),

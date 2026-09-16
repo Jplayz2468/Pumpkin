@@ -117,10 +117,6 @@ impl WindChargeEntity {
 }
 
 impl EntityBase for WindChargeEntity {
-    fn get_owner_id(&self) -> Option<i32> {
-        self.thrown_item_entity.owner_id
-    }
-
     fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         self.thrown_item_entity.process_tick(caller);
 
@@ -147,9 +143,7 @@ impl EntityBase for WindChargeEntity {
     fn on_hit(&self, hit: ProjectileHit) {
         let hit_pos = hit.hit_pos();
         if let ProjectileHit::Entity { ref entity, .. } = hit {
-            let world = self.get_entity().world.load();
-            let owner_id = self.thrown_item_entity.owner_id;
-            let owner = owner_id.and_then(|id| world.get_entity_by_id(id));
+            let owner = self.get_projectile_owner();
 
             let _ = entity.damage_with_context(
                 entity.as_ref(),

@@ -16,7 +16,6 @@ use pumpkin_util::math::vector3::Vector3;
 
 pub struct FishingBobberEntity {
     pub entity: Entity,
-    pub owner_id: i32,
     pub hooked_entity_id: AtomicI32,
     pub in_ground: AtomicBool,
     pub has_hit: AtomicBool,
@@ -48,6 +47,7 @@ impl FishingBobberEntity {
     /// reported yaw/pitch - matching vanilla, which ignores that packet field here.
     pub fn with_rod(entity: Entity, owner: &Player, rod: &ItemStack) -> Self {
         let owner_entity = &owner.living_entity.entity;
+        entity.set_projectile_owner(Some(owner_entity));
         let y_rot = owner_entity.yaw.load();
         let x_rot = owner_entity.pitch.load();
 
@@ -64,7 +64,7 @@ impl FishingBobberEntity {
             owner_pos.y + owner_entity.get_eye_height(),
             owner_pos.z - f64::from(y_cos) * 0.3,
         );
-        entity.pos.store(spawn_pos);
+        entity.set_pos(spawn_pos);
 
         // FishingHook.java:95-101: three independent triangular-jittered scale factors,
         // one per axis, applied to the look-direction vector.
@@ -90,7 +90,6 @@ impl FishingBobberEntity {
 
         Self {
             entity,
-            owner_id: owner.living_entity.entity.entity_id,
             hooked_entity_id: AtomicI32::new(0),
             in_ground: AtomicBool::new(false),
             has_hit: AtomicBool::new(false),
@@ -280,7 +279,7 @@ impl FishingBobberEntity {
         let entity = self.get_entity();
         let world = entity.world.load();
 
-        let Some(owner) = world.get_entity_by_id(self.owner_id) else {
+        let Some(owner) = self.get_projectile_owner() else {
             entity.remove();
             return;
         };
@@ -413,7 +412,7 @@ impl FishingBobberEntity {
 
         let candidates = world.get_entities_at_box(&search_box);
         for cand in candidates {
-            if cand.get_entity().entity_id == self.owner_id
+            if Some(cand.get_entity().entity_id) == self.get_owner_id()
                 || cand.get_entity().entity_id == entity.entity_id
             {
                 continue;
@@ -438,10 +437,6 @@ impl FishingBobberEntity {
 }
 
 impl EntityBase for FishingBobberEntity {
-    fn get_owner_id(&self) -> Option<i32> {
-        Some(self.owner_id)
-    }
-
     fn get_entity(&self) -> &Entity {
         &self.entity
     }

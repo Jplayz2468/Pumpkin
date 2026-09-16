@@ -28,7 +28,6 @@ impl EggEntity {
         entity.set_velocity(Vector3::new(0.0, 0.1, 0.0));
         let thrown = ThrownItemEntity {
             entity,
-            owner_id: None,
             has_hit: AtomicBool::new(false),
             gravity: GRAVITY,
         };
@@ -61,10 +60,6 @@ impl EggEntity {
 }
 
 impl EntityBase for EggEntity {
-    fn get_owner_id(&self) -> Option<i32> {
-        self.thrown.owner_id
-    }
-
     fn init_data_tracker(&self) {
         let entity = self.get_entity();
         let stack = self
@@ -114,7 +109,6 @@ impl EntityBase for EggEntity {
         let mut hatching = to_spawn > 0;
         let mut hatching_type: &'static EntityType = &EntityType::CHICKEN;
 
-        let owner_id = self.thrown.owner_id;
         let entity_uuid = self.get_entity().entity_uuid;
         let variant_name = {
             let stack = self
@@ -126,8 +120,7 @@ impl EntityBase for EggEntity {
                 .map(|comp| comp.value.clone())
         };
 
-        if let Some(owner_id) = owner_id
-            && let Some(player) = world.get_player_by_id(owner_id)
+        if let Some(player) = self.get_projectile_owner_player()
             && let Some(server) = world.server.upgrade()
         {
             let mut event = PlayerEggThrowEvent::new(

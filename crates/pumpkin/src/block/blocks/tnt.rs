@@ -174,10 +174,7 @@ impl BlockBehaviour for TNTBlock {
         if args.projectile.get_entity().is_on_fire()
             && crate::entity::projectile::may_interact(args.projectile, args.world, args.position)
         {
-            let owner = args
-                .projectile
-                .get_owner_id()
-                .and_then(|id| args.world.get_entity_by_id(id));
+            let owner = args.projectile.get_projectile_owner();
             let source = owner
                 .as_deref()
                 .filter(|entity| entity.get_living_entity().is_some());

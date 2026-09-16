@@ -772,7 +772,6 @@ impl DispenserBlock {
         );
         let thrown = ThrownItemEntity {
             entity,
-            owner_id: None,
             has_hit: AtomicBool::new(false),
             gravity: WIND_CHARGE_GRAVITY,
         };

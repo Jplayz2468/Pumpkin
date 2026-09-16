@@ -286,7 +286,6 @@ pub fn from_type(
         id if id == EntityType::WIND_CHARGE.id => {
             let thrown = ThrownItemEntity {
                 entity,
-                owner_id: None,
                 has_hit: AtomicBool::new(false),
                 gravity: WIND_CHARGE_GRAVITY,
             };
@@ -295,7 +294,6 @@ pub fn from_type(
         id if id == EntityType::BREEZE_WIND_CHARGE.id => {
             let thrown = ThrownItemEntity {
                 entity,
-                owner_id: None,
                 has_hit: AtomicBool::new(false),
                 gravity: WIND_CHARGE_GRAVITY,
             };

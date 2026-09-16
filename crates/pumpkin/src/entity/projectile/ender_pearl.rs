@@ -29,7 +29,6 @@ impl EnderPearlEntity {
 
         let thrown = ThrownItemEntity {
             entity,
-            owner_id: None,
             has_hit: AtomicBool::new(false),
             gravity: GRAVITY,
         };
@@ -45,10 +44,6 @@ impl EnderPearlEntity {
 }
 
 impl EntityBase for EnderPearlEntity {
-    fn get_owner_id(&self) -> Option<i32> {
-        self.thrown.owner_id
-    }
-
     fn tick(&self, caller: &dyn EntityBase, _server: &Server) {
         self.thrown.process_tick(caller);
     }
@@ -68,10 +63,7 @@ impl EntityBase for EnderPearlEntity {
         let entity = self.get_entity();
         let world = entity.world.load();
 
-        let attacker = self
-            .thrown
-            .owner_id
-            .and_then(|id| world.get_entity_by_id(id));
+        let attacker = self.get_projectile_owner();
 
         // Spawn portal particles at hit position
         let hit_pos = hit.hit_pos();
@@ -96,7 +88,6 @@ impl EntityBase for EnderPearlEntity {
             );
         }
 
-        let owner_id = self.thrown.owner_id;
         let teleport_pos = entity.last_pos.load();
 
         if let (
@@ -119,8 +110,7 @@ impl EntityBase for EnderPearlEntity {
             );
         }
 
-        if let Some(owner_id) = owner_id
-            && let Some(owner) = world.get_entity_by_id(owner_id)
+        if let Some(owner) = self.get_projectile_owner()
             && owner.get_entity().is_alive()
             && owner.get_living_entity().is_none_or(|living| {
                 living.health.load() > 0.0 && owner.get_entity().pose.load() != EntityPose::Sleeping

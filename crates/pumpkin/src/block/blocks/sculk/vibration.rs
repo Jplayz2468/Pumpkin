@@ -205,7 +205,7 @@ impl VibrationInfo {
     }
 
     fn from_entity(
-        world: &World,
+        _world: &World,
         event: GameEvent,
         distance: f32,
         origin: Vector3<f64>,
@@ -217,8 +217,7 @@ impl VibrationInfo {
             .filter(|entity| {
                 crate::entity::projectile::is_projectile(entity.get_entity().entity_type)
             })
-            .and_then(|e| e.get_owner_id())
-            .and_then(|id| world.get_entity_by_id(id))
+            .and_then(|e| e.get_projectile_owner())
             .map(|e| e.get_entity().entity_uuid);
         Self {
             event,

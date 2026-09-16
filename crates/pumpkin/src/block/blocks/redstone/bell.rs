@@ -224,10 +224,7 @@ impl BlockBehaviour for BellBlock {
         ) {
             return;
         }
-        let player = args
-            .projectile
-            .get_owner_id()
-            .and_then(|id| args.world.get_player_by_id(id));
+        let player = args.projectile.get_projectile_owner_player();
         if ring_bell(
             *args.position,
             args.world,

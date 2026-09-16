@@ -164,9 +164,10 @@ fn triggering_player(
     if let Some(player) = controlling_player(world, entity.as_ref()) {
         return Some(player);
     }
-    if crate::entity::projectile::is_projectile(entity.get_entity().entity_type)
-        || entity.get_item_entity().is_some()
-    {
+    if crate::entity::projectile::is_projectile(entity.get_entity().entity_type) {
+        return entity.get_projectile_owner_player();
+    }
+    if entity.get_item_entity().is_some() {
         return entity
             .get_owner_id()
             .and_then(|owner| world.get_player_by_id(owner));

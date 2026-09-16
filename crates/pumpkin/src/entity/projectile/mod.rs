@@ -59,9 +59,7 @@ pub fn may_interact(
     world: &crate::world::World,
     pos: &BlockPos,
 ) -> bool {
-    let owner = projectile
-        .get_owner_id()
-        .and_then(|id| world.get_entity_by_id(id));
+    let owner = projectile.get_projectile_owner();
     owner.is_none_or(|owner| {
         owner.get_player().map_or_else(
             || world.level_info.load().game_rules.mob_griefing,
@@ -92,10 +90,12 @@ pub fn emit_shoot_event(projectile: &dyn EntityBase) {
             .projectile_has_been_shot
             .swap(true, Ordering::Relaxed)
     {
-        entity.world.load().emit_game_event_with_source(
+        let owner = projectile.get_projectile_owner();
+        entity.world.load().emit_game_event_from_entity(
             "projectile_shoot",
             entity.pos.load(),
-            projectile.get_owner_id(),
+            owner.as_deref(),
+            None,
         );
     }
 }
@@ -122,12 +122,7 @@ pub fn check_left_owner(projectile: &dyn EntityBase) {
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .check(|| {
-            let world = entity.world.load();
-            let Some(mut root) = projectile
-                .get_owner_id()
-                .and_then(|id| world.get_entity_by_id(id))
-                .filter(|owner| !owner.get_entity().is_removed())
-            else {
+            let Some(mut root) = projectile.get_projectile_owner() else {
                 return true;
             };
             let mut seen = std::collections::HashSet::new();
@@ -171,10 +166,7 @@ pub fn can_hit_entity(projectile: &dyn EntityBase, candidate: &dyn EntityBase) -
         return false;
     }
     let entity = projectile.get_entity();
-    let owner = projectile
-        .get_owner_id()
-        .and_then(|id| entity.world.load().get_entity_by_id(id))
-        .filter(|owner| !owner.get_entity().is_removed());
+    let owner = projectile.get_projectile_owner();
     let same_vehicle = owner.as_ref().is_some_and(|owner| {
         owner.get_entity().root_vehicle_id() == candidate.get_entity().root_vehicle_id()
     });
@@ -229,7 +221,6 @@ pub fn apply_on_projectile_spawned(
 
 pub struct ThrownItemEntity {
     pub entity: Entity,
-    pub owner_id: Option<i32>,
     pub has_hit: AtomicBool,
     pub gravity: f64,
 }
@@ -239,9 +230,9 @@ impl ThrownItemEntity {
         let mut owner_pos = owner.pos.load();
         owner_pos.y += owner.get_eye_height() - 0.1;
         entity.set_pos(owner_pos);
+        entity.set_projectile_owner(Some(owner));
         Self {
             entity,
-            owner_id: Some(owner.entity_id),
             has_hit: AtomicBool::new(false),
             gravity,
         }

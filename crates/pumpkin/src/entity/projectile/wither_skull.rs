@@ -25,7 +25,6 @@ impl WitherSkullEntity {
     pub const fn new(entity: Entity) -> Self {
         let thrown = ThrownItemEntity {
             entity,
-            owner_id: None,
             has_hit: AtomicBool::new(false),
             gravity: GRAVITY,
         };
@@ -74,10 +73,6 @@ impl WitherSkullEntity {
 }
 
 impl EntityBase for WitherSkullEntity {
-    fn get_owner_id(&self) -> Option<i32> {
-        self.thrown.owner_id
-    }
-
     fn write_custom_nbt(&self, nbt: &mut NbtCompound) {
         nbt.put_bool("dangerous", self.is_dangerous());
     }
