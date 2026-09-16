@@ -1041,8 +1041,24 @@ impl ToTokens for ItemComponents {
         if self.tooltip_display.is_some() {
             tokens.extend(quote! { (TooltipDisplay, &TooltipDisplayImpl), });
         }
-        if self.use_effects.is_some() {
-            tokens.extend(quote! { (UseEffects, &UseEffectsImpl), });
+        if let Some(effects) = &self.use_effects {
+            let can_sprint = effects
+                .get("can_sprint")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(false);
+            let interact_vibrations = effects
+                .get("interact_vibrations")
+                .and_then(serde_json::Value::as_bool)
+                .unwrap_or(true);
+            let speed_multiplier = effects
+                .get("speed_multiplier")
+                .and_then(serde_json::Value::as_f64)
+                .unwrap_or(0.2) as f32;
+            if !can_sprint && interact_vibrations && speed_multiplier == 0.2 {
+                tokens.extend(quote! { (UseEffects, &UseEffectsImpl::DEFAULT), });
+            } else {
+                tokens.extend(quote! { (UseEffects, &UseEffectsImpl { can_sprint: #can_sprint, interact_vibrations: #interact_vibrations, speed_multiplier: #speed_multiplier }), });
+            }
         }
         if let Some(use_remainder) = &self.use_remainder {
             let item_key = use_remainder

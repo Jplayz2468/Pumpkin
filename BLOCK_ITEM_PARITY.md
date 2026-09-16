@@ -793,3 +793,26 @@ so they must not be used to reconstruct audit completion.
   suppliers/custom tables, component hashes and protocol-version remapping,
   pick-block/crafting component propagation, loot RNG and precise generic callback
   ordering remain open. All-block/all-item parity is still incomplete.
+
+## Continued source port: wooden shelves and item-use effects
+
+- Unpowered shelves swap the selected whole stack with the hit third of the
+  front face, preserve the creative empty-slot copy, and distinguish take/place/
+  swap sounds. Powered shelves swap the corresponding final three/six/nine hotbar
+  slots across their connected chain. Offhand and other faces pass; empty powered
+  swaps consume. Inventory changes and client updates now follow those actions.
+- Shelf placement captures power/source water. Power transitions maintain the
+  source's left-first chains of at most three, using cached neighbor parts to
+  prevent connection callbacks from rebuilding a chain. Disconnect/removal and
+  water updates, activation sounds/events and back-face comparators are handled.
+- Shelf block entities now retain their original contents, restore container
+  components, send item/alignment updates and emit the requested event after
+  mutation. Automation uses the same stack limits, change notifications and
+  persistent dirty state; removal scatters original contents without live events.
+- Replaced the empty use-effects component placeholder with its sprint, vibration
+  and speed fields in NBT, the wire codec and generator. The checked-in default
+  references were updated manually, preserving all seven nondefault spear entries
+  from assets. Shelf removal consults the retrieved item's vibration setting.
+- No compilation, tests or code generation. Shared item ownership/visual rotation,
+  component hashes, custom environment/shape behavior, broader movement use-effect
+  application, loot/pick-block handling and the rest of the parity ledger remain.

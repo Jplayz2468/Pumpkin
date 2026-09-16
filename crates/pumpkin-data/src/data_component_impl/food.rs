@@ -382,15 +382,53 @@ impl Hash for ConsumableImpl {
     }
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct UseEffectsImpl;
+#[derive(Clone, Debug, PartialEq)]
+pub struct UseEffectsImpl {
+    pub can_sprint: bool,
+    pub interact_vibrations: bool,
+    pub speed_multiplier: f32,
+}
 impl UseEffectsImpl {
-    pub const fn read_data(_data: &NbtTag) -> Option<Self> {
-        Some(Self)
+    pub const DEFAULT: Self = Self {
+        can_sprint: false,
+        interact_vibrations: true,
+        speed_multiplier: 0.2,
+    };
+    pub fn read_data(data: &NbtTag) -> Option<Self> {
+        let data = data.extract_compound()?;
+        let speed_multiplier = data.get_float("speed_multiplier").unwrap_or(0.2);
+        if !(0.0..=1.0).contains(&speed_multiplier) {
+            return None;
+        }
+        Some(Self {
+            can_sprint: data.get_bool("can_sprint").unwrap_or(false),
+            interact_vibrations: data.get_bool("interact_vibrations").unwrap_or(true),
+            speed_multiplier,
+        })
     }
 }
 impl DataComponentImpl for UseEffectsImpl {
+    fn write_data(&self) -> NbtTag {
+        let mut data = NbtCompound::new();
+        if self.can_sprint {
+            data.put_bool("can_sprint", true);
+        }
+        if !self.interact_vibrations {
+            data.put_bool("interact_vibrations", false);
+        }
+        if self.speed_multiplier != 0.2 {
+            data.put_float("speed_multiplier", self.speed_multiplier);
+        }
+        NbtTag::Compound(data)
+    }
     default_impl!(UseEffects);
+}
+impl Hash for UseEffectsImpl {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.can_sprint.hash(state);
+        self.interact_vibrations.hash(state);
+        self.speed_multiplier.to_bits().hash(state);
+    }
 }
 
 /// Mirrors `UseRemainder.convertInto` (`UseRemainder.java:9`): the item stack left in hand

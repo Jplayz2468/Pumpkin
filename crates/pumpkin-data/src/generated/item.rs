@@ -133,7 +133,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_BUTTON: Self = Self {
@@ -182,7 +182,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_CHEST_BOAT: Self = Self {
@@ -231,7 +231,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_DOOR: Self = Self {
@@ -280,7 +280,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_FENCE: Self = Self {
@@ -329,7 +329,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_FENCE_GATE: Self = Self {
@@ -378,7 +378,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_HANGING_SIGN: Self = Self {
@@ -427,7 +427,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_LEAVES: Self = Self {
@@ -476,7 +476,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_LOG: Self = Self {
@@ -525,7 +525,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_PLANKS: Self = Self {
@@ -574,7 +574,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_PRESSURE_PLATE: Self = Self {
@@ -623,7 +623,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_SAPLING: Self = Self {
@@ -672,7 +672,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_SHELF: Self = Self {
@@ -722,7 +722,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_SIGN: Self = Self {
@@ -771,7 +771,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_SLAB: Self = Self {
@@ -820,7 +820,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_STAIRS: Self = Self {
@@ -869,7 +869,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_TRAPDOOR: Self = Self {
@@ -918,7 +918,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACACIA_WOOD: Self = Self {
@@ -967,7 +967,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ACTIVATOR_RAIL: Self = Self {
@@ -1016,7 +1016,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const AIR: Self = Self {
@@ -1065,7 +1065,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ALLAY_SPAWN_EGG: Self = Self {
@@ -1115,7 +1115,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ALLIUM: Self = Self {
@@ -1164,7 +1164,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const AMETHYST_BLOCK: Self = Self {
@@ -1213,7 +1213,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const AMETHYST_CLUSTER: Self = Self {
@@ -1262,7 +1262,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const AMETHYST_SHARD: Self = Self {
@@ -1312,7 +1312,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ANCIENT_DEBRIS: Self = Self {
@@ -1367,7 +1367,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ANDESITE: Self = Self {
@@ -1416,7 +1416,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ANDESITE_SLAB: Self = Self {
@@ -1465,7 +1465,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ANDESITE_STAIRS: Self = Self {
@@ -1514,7 +1514,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ANDESITE_WALL: Self = Self {
@@ -1563,7 +1563,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ANGLER_POTTERY_SHERD: Self = Self {
@@ -1612,7 +1612,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ANVIL: Self = Self {
@@ -1661,7 +1661,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const APPLE: Self = Self {
@@ -1728,7 +1728,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ARCHER_POTTERY_SHERD: Self = Self {
@@ -1777,7 +1777,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ARMADILLO_SCUTE: Self = Self {
@@ -1826,7 +1826,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ARMADILLO_SPAWN_EGG: Self = Self {
@@ -1876,7 +1876,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ARMOR_STAND: Self = Self {
@@ -1925,7 +1925,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ARMS_UP_POTTERY_SHERD: Self = Self {
@@ -1974,7 +1974,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ARROW: Self = Self {
@@ -2023,7 +2023,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const AXOLOTL_BUCKET: Self = Self {
@@ -2073,7 +2073,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const AXOLOTL_SPAWN_EGG: Self = Self {
@@ -2123,7 +2123,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const AZALEA: Self = Self {
@@ -2172,7 +2172,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const AZALEA_LEAVES: Self = Self {
@@ -2221,7 +2221,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const AZURE_BLUET: Self = Self {
@@ -2270,7 +2270,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAKED_POTATO: Self = Self {
@@ -2337,7 +2337,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO: Self = Self {
@@ -2386,7 +2386,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_BLOCK: Self = Self {
@@ -2435,7 +2435,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_BUTTON: Self = Self {
@@ -2484,7 +2484,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_CHEST_RAFT: Self = Self {
@@ -2533,7 +2533,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_DOOR: Self = Self {
@@ -2582,7 +2582,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_FENCE: Self = Self {
@@ -2631,7 +2631,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_FENCE_GATE: Self = Self {
@@ -2680,7 +2680,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_HANGING_SIGN: Self = Self {
@@ -2729,7 +2729,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_MOSAIC: Self = Self {
@@ -2778,7 +2778,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_MOSAIC_SLAB: Self = Self {
@@ -2827,7 +2827,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_MOSAIC_STAIRS: Self = Self {
@@ -2876,7 +2876,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_PLANKS: Self = Self {
@@ -2925,7 +2925,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_PRESSURE_PLATE: Self = Self {
@@ -2974,7 +2974,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_RAFT: Self = Self {
@@ -3023,7 +3023,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_SHELF: Self = Self {
@@ -3073,7 +3073,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_SIGN: Self = Self {
@@ -3122,7 +3122,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_SLAB: Self = Self {
@@ -3171,7 +3171,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_STAIRS: Self = Self {
@@ -3220,7 +3220,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAMBOO_TRAPDOOR: Self = Self {
@@ -3269,7 +3269,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BARREL: Self = Self {
@@ -3319,7 +3319,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BARRIER: Self = Self {
@@ -3368,7 +3368,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BASALT: Self = Self {
@@ -3417,7 +3417,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BAT_SPAWN_EGG: Self = Self {
@@ -3467,7 +3467,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BEACON: Self = Self {
@@ -3516,7 +3516,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BEDROCK: Self = Self {
@@ -3565,7 +3565,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BEE_NEST: Self = Self {
@@ -3624,7 +3624,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BEE_SPAWN_EGG: Self = Self {
@@ -3674,7 +3674,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BEEF: Self = Self {
@@ -3741,7 +3741,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BEEHIVE: Self = Self {
@@ -3800,7 +3800,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BEETROOT: Self = Self {
@@ -3867,7 +3867,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BEETROOT_SEEDS: Self = Self {
@@ -3916,7 +3916,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BEETROOT_SOUP: Self = Self {
@@ -3983,7 +3983,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
             (
                 UseRemainder,
                 &UseRemainderImpl {
@@ -4038,7 +4038,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIG_DRIPLEAF: Self = Self {
@@ -4087,7 +4087,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_BOAT: Self = Self {
@@ -4136,7 +4136,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_BUTTON: Self = Self {
@@ -4185,7 +4185,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_CHEST_BOAT: Self = Self {
@@ -4234,7 +4234,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_DOOR: Self = Self {
@@ -4283,7 +4283,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_FENCE: Self = Self {
@@ -4332,7 +4332,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_FENCE_GATE: Self = Self {
@@ -4381,7 +4381,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_HANGING_SIGN: Self = Self {
@@ -4430,7 +4430,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_LEAVES: Self = Self {
@@ -4479,7 +4479,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_LOG: Self = Self {
@@ -4528,7 +4528,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_PLANKS: Self = Self {
@@ -4577,7 +4577,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_PRESSURE_PLATE: Self = Self {
@@ -4626,7 +4626,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_SAPLING: Self = Self {
@@ -4675,7 +4675,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_SHELF: Self = Self {
@@ -4725,7 +4725,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_SIGN: Self = Self {
@@ -4774,7 +4774,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_SLAB: Self = Self {
@@ -4823,7 +4823,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_STAIRS: Self = Self {
@@ -4872,7 +4872,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_TRAPDOOR: Self = Self {
@@ -4921,7 +4921,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BIRCH_WOOD: Self = Self {
@@ -4970,7 +4970,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_BANNER: Self = Self {
@@ -5020,7 +5020,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_BED: Self = Self {
@@ -5069,7 +5069,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_BUNDLE: Self = Self {
@@ -5119,7 +5119,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_CANDLE: Self = Self {
@@ -5168,7 +5168,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_CARPET: Self = Self {
@@ -5236,7 +5236,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_CONCRETE: Self = Self {
@@ -5285,7 +5285,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_CONCRETE_POWDER: Self = Self {
@@ -5334,7 +5334,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_DYE: Self = Self {
@@ -5384,7 +5384,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_GLAZED_TERRACOTTA: Self = Self {
@@ -5433,7 +5433,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_HARNESS: Self = Self {
@@ -5498,7 +5498,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_SHULKER_BOX: Self = Self {
@@ -5548,7 +5548,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_STAINED_GLASS: Self = Self {
@@ -5597,7 +5597,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_STAINED_GLASS_PANE: Self = Self {
@@ -5646,7 +5646,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_TERRACOTTA: Self = Self {
@@ -5695,7 +5695,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACK_WOOL: Self = Self {
@@ -5744,7 +5744,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACKSTONE: Self = Self {
@@ -5793,7 +5793,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACKSTONE_SLAB: Self = Self {
@@ -5842,7 +5842,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACKSTONE_STAIRS: Self = Self {
@@ -5891,7 +5891,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLACKSTONE_WALL: Self = Self {
@@ -5940,7 +5940,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLADE_POTTERY_SHERD: Self = Self {
@@ -5989,7 +5989,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLAST_FURNACE: Self = Self {
@@ -6039,7 +6039,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLAZE_POWDER: Self = Self {
@@ -6088,7 +6088,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLAZE_ROD: Self = Self {
@@ -6137,7 +6137,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLAZE_SPAWN_EGG: Self = Self {
@@ -6187,7 +6187,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_BANNER: Self = Self {
@@ -6237,7 +6237,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_BED: Self = Self {
@@ -6286,7 +6286,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_BUNDLE: Self = Self {
@@ -6336,7 +6336,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_CANDLE: Self = Self {
@@ -6385,7 +6385,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_CARPET: Self = Self {
@@ -6453,7 +6453,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_CONCRETE: Self = Self {
@@ -6502,7 +6502,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_CONCRETE_POWDER: Self = Self {
@@ -6551,7 +6551,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_DYE: Self = Self {
@@ -6601,7 +6601,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_EGG: Self = Self {
@@ -6656,7 +6656,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_GLAZED_TERRACOTTA: Self = Self {
@@ -6705,7 +6705,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_HARNESS: Self = Self {
@@ -6770,7 +6770,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_ICE: Self = Self {
@@ -6819,7 +6819,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_ORCHID: Self = Self {
@@ -6868,7 +6868,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_SHULKER_BOX: Self = Self {
@@ -6918,7 +6918,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_STAINED_GLASS: Self = Self {
@@ -6967,7 +6967,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_STAINED_GLASS_PANE: Self = Self {
@@ -7016,7 +7016,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_TERRACOTTA: Self = Self {
@@ -7065,7 +7065,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BLUE_WOOL: Self = Self {
@@ -7114,7 +7114,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BOGGED_SPAWN_EGG: Self = Self {
@@ -7164,7 +7164,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BOLT_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -7213,7 +7213,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BONE: Self = Self {
@@ -7262,7 +7262,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BONE_BLOCK: Self = Self {
@@ -7311,7 +7311,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BONE_MEAL: Self = Self {
@@ -7360,7 +7360,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BOOK: Self = Self {
@@ -7410,7 +7410,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BOOKSHELF: Self = Self {
@@ -7459,7 +7459,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BORDURE_INDENTED_BANNER_PATTERN: Self = Self {
@@ -7509,7 +7509,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BOW: Self = Self {
@@ -7561,7 +7561,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BOWL: Self = Self {
@@ -7610,7 +7610,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BRAIN_CORAL: Self = Self {
@@ -7659,7 +7659,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BRAIN_CORAL_BLOCK: Self = Self {
@@ -7708,7 +7708,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BRAIN_CORAL_FAN: Self = Self {
@@ -7757,7 +7757,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BREAD: Self = Self {
@@ -7824,7 +7824,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BREEZE_ROD: Self = Self {
@@ -7873,7 +7873,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BREEZE_SPAWN_EGG: Self = Self {
@@ -7923,7 +7923,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BREWER_POTTERY_SHERD: Self = Self {
@@ -7972,7 +7972,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BREWING_STAND: Self = Self {
@@ -8022,7 +8022,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BRICK: Self = Self {
@@ -8071,7 +8071,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BRICK_SLAB: Self = Self {
@@ -8120,7 +8120,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BRICK_STAIRS: Self = Self {
@@ -8169,7 +8169,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BRICK_WALL: Self = Self {
@@ -8218,7 +8218,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BRICKS: Self = Self {
@@ -8267,7 +8267,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_BANNER: Self = Self {
@@ -8317,7 +8317,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_BED: Self = Self {
@@ -8366,7 +8366,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_BUNDLE: Self = Self {
@@ -8416,7 +8416,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_CANDLE: Self = Self {
@@ -8465,7 +8465,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_CARPET: Self = Self {
@@ -8533,7 +8533,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_CONCRETE: Self = Self {
@@ -8582,7 +8582,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_CONCRETE_POWDER: Self = Self {
@@ -8631,7 +8631,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_DYE: Self = Self {
@@ -8681,7 +8681,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_EGG: Self = Self {
@@ -8736,7 +8736,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_GLAZED_TERRACOTTA: Self = Self {
@@ -8785,7 +8785,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_HARNESS: Self = Self {
@@ -8850,7 +8850,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_MUSHROOM: Self = Self {
@@ -8899,7 +8899,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_MUSHROOM_BLOCK: Self = Self {
@@ -8948,7 +8948,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_SHULKER_BOX: Self = Self {
@@ -8998,7 +8998,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_STAINED_GLASS: Self = Self {
@@ -9047,7 +9047,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_STAINED_GLASS_PANE: Self = Self {
@@ -9096,7 +9096,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_TERRACOTTA: Self = Self {
@@ -9145,7 +9145,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BROWN_WOOL: Self = Self {
@@ -9194,7 +9194,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BRUSH: Self = Self {
@@ -9245,7 +9245,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BUBBLE_CORAL: Self = Self {
@@ -9294,7 +9294,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BUBBLE_CORAL_BLOCK: Self = Self {
@@ -9343,7 +9343,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BUBBLE_CORAL_FAN: Self = Self {
@@ -9392,7 +9392,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BUCKET: Self = Self {
@@ -9441,7 +9441,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BUDDING_AMETHYST: Self = Self {
@@ -9490,7 +9490,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BUNDLE: Self = Self {
@@ -9540,7 +9540,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BURN_POTTERY_SHERD: Self = Self {
@@ -9589,7 +9589,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const BUSH: Self = Self {
@@ -9638,7 +9638,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CACTUS: Self = Self {
@@ -9687,7 +9687,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CACTUS_FLOWER: Self = Self {
@@ -9736,7 +9736,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CAKE: Self = Self {
@@ -9785,7 +9785,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CALCITE: Self = Self {
@@ -9834,7 +9834,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CALIBRATED_SCULK_SENSOR: Self = Self {
@@ -9883,7 +9883,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CAMEL_HUSK_SPAWN_EGG: Self = Self {
@@ -9933,7 +9933,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CAMEL_SPAWN_EGG: Self = Self {
@@ -9983,7 +9983,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CAMPFIRE: Self = Self {
@@ -10033,7 +10033,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CANDLE: Self = Self {
@@ -10082,7 +10082,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CARROT: Self = Self {
@@ -10149,7 +10149,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CARROT_ON_A_STICK: Self = Self {
@@ -10200,7 +10200,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CARTOGRAPHY_TABLE: Self = Self {
@@ -10249,7 +10249,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CARVED_PUMPKIN: Self = Self {
@@ -10320,7 +10320,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CAT_SPAWN_EGG: Self = Self {
@@ -10370,7 +10370,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CAULDRON: Self = Self {
@@ -10419,7 +10419,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CAVE_SPIDER_SPAWN_EGG: Self = Self {
@@ -10469,7 +10469,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHAIN_COMMAND_BLOCK: Self = Self {
@@ -10518,7 +10518,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHAINMAIL_BOOTS: Self = Self {
@@ -10607,7 +10607,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHAINMAIL_CHESTPLATE: Self = Self {
@@ -10696,7 +10696,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHAINMAIL_HELMET: Self = Self {
@@ -10785,7 +10785,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHAINMAIL_LEGGINGS: Self = Self {
@@ -10874,7 +10874,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHARCOAL: Self = Self {
@@ -10923,7 +10923,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_BOAT: Self = Self {
@@ -10972,7 +10972,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_BUTTON: Self = Self {
@@ -11021,7 +11021,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_CHEST_BOAT: Self = Self {
@@ -11070,7 +11070,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_DOOR: Self = Self {
@@ -11119,7 +11119,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_FENCE: Self = Self {
@@ -11168,7 +11168,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_FENCE_GATE: Self = Self {
@@ -11217,7 +11217,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_HANGING_SIGN: Self = Self {
@@ -11266,7 +11266,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_LEAVES: Self = Self {
@@ -11315,7 +11315,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_LOG: Self = Self {
@@ -11364,7 +11364,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_PLANKS: Self = Self {
@@ -11413,7 +11413,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_PRESSURE_PLATE: Self = Self {
@@ -11462,7 +11462,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_SAPLING: Self = Self {
@@ -11511,7 +11511,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_SHELF: Self = Self {
@@ -11561,7 +11561,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_SIGN: Self = Self {
@@ -11610,7 +11610,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_SLAB: Self = Self {
@@ -11659,7 +11659,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_STAIRS: Self = Self {
@@ -11708,7 +11708,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_TRAPDOOR: Self = Self {
@@ -11757,7 +11757,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHERRY_WOOD: Self = Self {
@@ -11806,7 +11806,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHEST: Self = Self {
@@ -11856,7 +11856,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHEST_MINECART: Self = Self {
@@ -11905,7 +11905,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHICKEN: Self = Self {
@@ -11982,7 +11982,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHICKEN_SPAWN_EGG: Self = Self {
@@ -12032,7 +12032,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHIPPED_ANVIL: Self = Self {
@@ -12081,7 +12081,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_BOOKSHELF: Self = Self {
@@ -12131,7 +12131,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_CINNABAR: Self = Self {
@@ -12180,7 +12180,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_COPPER: Self = Self {
@@ -12229,7 +12229,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_DEEPSLATE: Self = Self {
@@ -12278,7 +12278,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_NETHER_BRICKS: Self = Self {
@@ -12327,7 +12327,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_POLISHED_BLACKSTONE: Self = Self {
@@ -12376,7 +12376,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_QUARTZ_BLOCK: Self = Self {
@@ -12425,7 +12425,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_RED_SANDSTONE: Self = Self {
@@ -12474,7 +12474,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_RESIN_BRICKS: Self = Self {
@@ -12523,7 +12523,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_SANDSTONE: Self = Self {
@@ -12572,7 +12572,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_STONE_BRICKS: Self = Self {
@@ -12621,7 +12621,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_SULFUR: Self = Self {
@@ -12670,7 +12670,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_TUFF: Self = Self {
@@ -12719,7 +12719,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHISELED_TUFF_BRICKS: Self = Self {
@@ -12768,7 +12768,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHORUS_FLOWER: Self = Self {
@@ -12817,7 +12817,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHORUS_FRUIT: Self = Self {
@@ -12891,7 +12891,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CHORUS_PLANT: Self = Self {
@@ -12940,7 +12940,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CINNABAR: Self = Self {
@@ -12989,7 +12989,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CINNABAR_BRICK_SLAB: Self = Self {
@@ -13038,7 +13038,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CINNABAR_BRICK_STAIRS: Self = Self {
@@ -13087,7 +13087,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CINNABAR_BRICK_WALL: Self = Self {
@@ -13136,7 +13136,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CINNABAR_BRICKS: Self = Self {
@@ -13185,7 +13185,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CINNABAR_SLAB: Self = Self {
@@ -13234,7 +13234,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CINNABAR_STAIRS: Self = Self {
@@ -13283,7 +13283,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CINNABAR_WALL: Self = Self {
@@ -13332,7 +13332,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CLAY: Self = Self {
@@ -13381,7 +13381,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CLAY_BALL: Self = Self {
@@ -13430,7 +13430,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CLOCK: Self = Self {
@@ -13479,7 +13479,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CLOSED_EYEBLOSSOM: Self = Self {
@@ -13528,7 +13528,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COAL: Self = Self {
@@ -13577,7 +13577,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COAL_BLOCK: Self = Self {
@@ -13626,7 +13626,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COAL_ORE: Self = Self {
@@ -13675,7 +13675,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COARSE_DIRT: Self = Self {
@@ -13724,7 +13724,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COAST_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -13773,7 +13773,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COBBLED_DEEPSLATE: Self = Self {
@@ -13822,7 +13822,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COBBLED_DEEPSLATE_SLAB: Self = Self {
@@ -13871,7 +13871,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COBBLED_DEEPSLATE_STAIRS: Self = Self {
@@ -13920,7 +13920,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COBBLED_DEEPSLATE_WALL: Self = Self {
@@ -13969,7 +13969,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COBBLESTONE: Self = Self {
@@ -14018,7 +14018,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COBBLESTONE_SLAB: Self = Self {
@@ -14067,7 +14067,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COBBLESTONE_STAIRS: Self = Self {
@@ -14116,7 +14116,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COBBLESTONE_WALL: Self = Self {
@@ -14165,7 +14165,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COBWEB: Self = Self {
@@ -14214,7 +14214,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COCOA_BEANS: Self = Self {
@@ -14263,7 +14263,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COD: Self = Self {
@@ -14330,7 +14330,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COD_BUCKET: Self = Self {
@@ -14388,7 +14388,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COD_SPAWN_EGG: Self = Self {
@@ -14438,7 +14438,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COMMAND_BLOCK: Self = Self {
@@ -14487,7 +14487,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COMMAND_BLOCK_MINECART: Self = Self {
@@ -14536,7 +14536,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COMPARATOR: Self = Self {
@@ -14585,7 +14585,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COMPASS: Self = Self {
@@ -14634,7 +14634,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COMPOSTER: Self = Self {
@@ -14683,7 +14683,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CONDUIT: Self = Self {
@@ -14732,7 +14732,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COOKED_BEEF: Self = Self {
@@ -14799,7 +14799,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COOKED_CHICKEN: Self = Self {
@@ -14866,7 +14866,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COOKED_COD: Self = Self {
@@ -14933,7 +14933,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COOKED_MUTTON: Self = Self {
@@ -15000,7 +15000,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COOKED_PORKCHOP: Self = Self {
@@ -15067,7 +15067,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COOKED_RABBIT: Self = Self {
@@ -15134,7 +15134,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COOKED_SALMON: Self = Self {
@@ -15201,7 +15201,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COOKIE: Self = Self {
@@ -15268,7 +15268,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_AXE: Self = Self {
@@ -15368,7 +15368,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_BARS: Self = Self {
@@ -15417,7 +15417,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_BLOCK: Self = Self {
@@ -15466,7 +15466,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_BOOTS: Self = Self {
@@ -15555,7 +15555,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_BULB: Self = Self {
@@ -15604,7 +15604,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_CHAIN: Self = Self {
@@ -15653,7 +15653,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_CHEST: Self = Self {
@@ -15702,7 +15702,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_CHESTPLATE: Self = Self {
@@ -15791,7 +15791,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_DOOR: Self = Self {
@@ -15840,7 +15840,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_GOLEM_SPAWN_EGG: Self = Self {
@@ -15890,7 +15890,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_GOLEM_STATUE: Self = Self {
@@ -15948,7 +15948,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_GRATE: Self = Self {
@@ -15997,7 +15997,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_HELMET: Self = Self {
@@ -16086,7 +16086,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_HOE: Self = Self {
@@ -16186,7 +16186,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_HORSE_ARMOR: Self = Self {
@@ -16266,7 +16266,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_INGOT: Self = Self {
@@ -16316,7 +16316,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_LANTERN: Self = Self {
@@ -16365,7 +16365,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_LEGGINGS: Self = Self {
@@ -16454,7 +16454,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_NAUTILUS_ARMOR: Self = Self {
@@ -16534,7 +16534,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_NUGGET: Self = Self {
@@ -16583,7 +16583,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_ORE: Self = Self {
@@ -16632,7 +16632,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_PICKAXE: Self = Self {
@@ -16732,7 +16732,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_SHOVEL: Self = Self {
@@ -16832,7 +16832,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_SPEAR: Self = Self {
@@ -16968,7 +16968,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl { can_sprint: true, interact_vibrations: false, speed_multiplier: 1.0 }),
         ],
     };
     pub const COPPER_SWORD: Self = Self {
@@ -17073,7 +17073,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_TORCH: Self = Self {
@@ -17122,7 +17122,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COPPER_TRAPDOOR: Self = Self {
@@ -17171,7 +17171,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CORNFLOWER: Self = Self {
@@ -17220,7 +17220,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const COW_SPAWN_EGG: Self = Self {
@@ -17270,7 +17270,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRACKED_DEEPSLATE_BRICKS: Self = Self {
@@ -17319,7 +17319,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRACKED_DEEPSLATE_TILES: Self = Self {
@@ -17368,7 +17368,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRACKED_NETHER_BRICKS: Self = Self {
@@ -17417,7 +17417,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRACKED_POLISHED_BLACKSTONE_BRICKS: Self = Self {
@@ -17466,7 +17466,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRACKED_STONE_BRICKS: Self = Self {
@@ -17515,7 +17515,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRAFTER: Self = Self {
@@ -17565,7 +17565,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRAFTING_TABLE: Self = Self {
@@ -17614,7 +17614,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CREAKING_HEART: Self = Self {
@@ -17663,7 +17663,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CREAKING_SPAWN_EGG: Self = Self {
@@ -17713,7 +17713,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CREEPER_BANNER_PATTERN: Self = Self {
@@ -17763,7 +17763,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CREEPER_HEAD: Self = Self {
@@ -17834,7 +17834,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CREEPER_SPAWN_EGG: Self = Self {
@@ -17884,7 +17884,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_BUTTON: Self = Self {
@@ -17933,7 +17933,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_DOOR: Self = Self {
@@ -17982,7 +17982,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_FENCE: Self = Self {
@@ -18031,7 +18031,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_FENCE_GATE: Self = Self {
@@ -18080,7 +18080,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_FUNGUS: Self = Self {
@@ -18129,7 +18129,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_HANGING_SIGN: Self = Self {
@@ -18178,7 +18178,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_HYPHAE: Self = Self {
@@ -18227,7 +18227,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_NYLIUM: Self = Self {
@@ -18276,7 +18276,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_PLANKS: Self = Self {
@@ -18325,7 +18325,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_PRESSURE_PLATE: Self = Self {
@@ -18374,7 +18374,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_ROOTS: Self = Self {
@@ -18423,7 +18423,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_SHELF: Self = Self {
@@ -18473,7 +18473,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_SIGN: Self = Self {
@@ -18522,7 +18522,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_SLAB: Self = Self {
@@ -18571,7 +18571,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_STAIRS: Self = Self {
@@ -18620,7 +18620,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_STEM: Self = Self {
@@ -18669,7 +18669,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRIMSON_TRAPDOOR: Self = Self {
@@ -18718,7 +18718,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CROSSBOW: Self = Self {
@@ -18776,7 +18776,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CRYING_OBSIDIAN: Self = Self {
@@ -18825,7 +18825,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CUT_COPPER: Self = Self {
@@ -18874,7 +18874,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CUT_COPPER_SLAB: Self = Self {
@@ -18923,7 +18923,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CUT_COPPER_STAIRS: Self = Self {
@@ -18972,7 +18972,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CUT_RED_SANDSTONE: Self = Self {
@@ -19021,7 +19021,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CUT_RED_SANDSTONE_SLAB: Self = Self {
@@ -19070,7 +19070,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CUT_SANDSTONE: Self = Self {
@@ -19119,7 +19119,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CUT_SANDSTONE_SLAB: Self = Self {
@@ -19168,7 +19168,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_BANNER: Self = Self {
@@ -19218,7 +19218,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_BED: Self = Self {
@@ -19267,7 +19267,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_BUNDLE: Self = Self {
@@ -19317,7 +19317,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_CANDLE: Self = Self {
@@ -19366,7 +19366,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_CARPET: Self = Self {
@@ -19434,7 +19434,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_CONCRETE: Self = Self {
@@ -19483,7 +19483,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_CONCRETE_POWDER: Self = Self {
@@ -19532,7 +19532,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_DYE: Self = Self {
@@ -19582,7 +19582,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_GLAZED_TERRACOTTA: Self = Self {
@@ -19631,7 +19631,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_HARNESS: Self = Self {
@@ -19696,7 +19696,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_SHULKER_BOX: Self = Self {
@@ -19746,7 +19746,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_STAINED_GLASS: Self = Self {
@@ -19795,7 +19795,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_STAINED_GLASS_PANE: Self = Self {
@@ -19844,7 +19844,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_TERRACOTTA: Self = Self {
@@ -19893,7 +19893,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const CYAN_WOOL: Self = Self {
@@ -19942,7 +19942,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DAMAGED_ANVIL: Self = Self {
@@ -19991,7 +19991,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DANDELION: Self = Self {
@@ -20040,7 +20040,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DANGER_POTTERY_SHERD: Self = Self {
@@ -20089,7 +20089,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_BOAT: Self = Self {
@@ -20138,7 +20138,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_BUTTON: Self = Self {
@@ -20187,7 +20187,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_CHEST_BOAT: Self = Self {
@@ -20236,7 +20236,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_DOOR: Self = Self {
@@ -20285,7 +20285,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_FENCE: Self = Self {
@@ -20334,7 +20334,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_FENCE_GATE: Self = Self {
@@ -20383,7 +20383,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_HANGING_SIGN: Self = Self {
@@ -20432,7 +20432,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_LEAVES: Self = Self {
@@ -20481,7 +20481,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_LOG: Self = Self {
@@ -20530,7 +20530,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_PLANKS: Self = Self {
@@ -20579,7 +20579,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_PRESSURE_PLATE: Self = Self {
@@ -20628,7 +20628,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_SAPLING: Self = Self {
@@ -20677,7 +20677,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_SHELF: Self = Self {
@@ -20727,7 +20727,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_SIGN: Self = Self {
@@ -20776,7 +20776,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_SLAB: Self = Self {
@@ -20825,7 +20825,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_STAIRS: Self = Self {
@@ -20874,7 +20874,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_TRAPDOOR: Self = Self {
@@ -20923,7 +20923,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_OAK_WOOD: Self = Self {
@@ -20972,7 +20972,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_PRISMARINE: Self = Self {
@@ -21021,7 +21021,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_PRISMARINE_SLAB: Self = Self {
@@ -21070,7 +21070,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DARK_PRISMARINE_STAIRS: Self = Self {
@@ -21119,7 +21119,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DAYLIGHT_DETECTOR: Self = Self {
@@ -21168,7 +21168,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_BRAIN_CORAL: Self = Self {
@@ -21217,7 +21217,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_BRAIN_CORAL_BLOCK: Self = Self {
@@ -21266,7 +21266,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_BRAIN_CORAL_FAN: Self = Self {
@@ -21315,7 +21315,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_BUBBLE_CORAL: Self = Self {
@@ -21364,7 +21364,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_BUBBLE_CORAL_BLOCK: Self = Self {
@@ -21413,7 +21413,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_BUBBLE_CORAL_FAN: Self = Self {
@@ -21462,7 +21462,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_BUSH: Self = Self {
@@ -21511,7 +21511,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_FIRE_CORAL: Self = Self {
@@ -21560,7 +21560,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_FIRE_CORAL_BLOCK: Self = Self {
@@ -21609,7 +21609,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_FIRE_CORAL_FAN: Self = Self {
@@ -21658,7 +21658,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_HORN_CORAL: Self = Self {
@@ -21707,7 +21707,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_HORN_CORAL_BLOCK: Self = Self {
@@ -21756,7 +21756,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_HORN_CORAL_FAN: Self = Self {
@@ -21805,7 +21805,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_TUBE_CORAL: Self = Self {
@@ -21854,7 +21854,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_TUBE_CORAL_BLOCK: Self = Self {
@@ -21903,7 +21903,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEAD_TUBE_CORAL_FAN: Self = Self {
@@ -21952,7 +21952,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEBUG_STICK: Self = Self {
@@ -22003,7 +22003,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DECORATED_POT: Self = Self {
@@ -22059,7 +22059,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE: Self = Self {
@@ -22108,7 +22108,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_BRICK_SLAB: Self = Self {
@@ -22157,7 +22157,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_BRICK_STAIRS: Self = Self {
@@ -22206,7 +22206,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_BRICK_WALL: Self = Self {
@@ -22255,7 +22255,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_BRICKS: Self = Self {
@@ -22304,7 +22304,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_COAL_ORE: Self = Self {
@@ -22353,7 +22353,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_COPPER_ORE: Self = Self {
@@ -22402,7 +22402,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_DIAMOND_ORE: Self = Self {
@@ -22451,7 +22451,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_EMERALD_ORE: Self = Self {
@@ -22500,7 +22500,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_GOLD_ORE: Self = Self {
@@ -22549,7 +22549,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_IRON_ORE: Self = Self {
@@ -22598,7 +22598,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_LAPIS_ORE: Self = Self {
@@ -22647,7 +22647,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_REDSTONE_ORE: Self = Self {
@@ -22696,7 +22696,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_TILE_SLAB: Self = Self {
@@ -22745,7 +22745,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_TILE_STAIRS: Self = Self {
@@ -22794,7 +22794,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_TILE_WALL: Self = Self {
@@ -22843,7 +22843,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DEEPSLATE_TILES: Self = Self {
@@ -22892,7 +22892,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DETECTOR_RAIL: Self = Self {
@@ -22941,7 +22941,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND: Self = Self {
@@ -22991,7 +22991,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_AXE: Self = Self {
@@ -23091,7 +23091,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_BLOCK: Self = Self {
@@ -23140,7 +23140,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_BOOTS: Self = Self {
@@ -23229,7 +23229,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_CHESTPLATE: Self = Self {
@@ -23318,7 +23318,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_HELMET: Self = Self {
@@ -23407,7 +23407,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_HOE: Self = Self {
@@ -23507,7 +23507,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_HORSE_ARMOR: Self = Self {
@@ -23587,7 +23587,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_LEGGINGS: Self = Self {
@@ -23676,7 +23676,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_NAUTILUS_ARMOR: Self = Self {
@@ -23756,7 +23756,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_ORE: Self = Self {
@@ -23805,7 +23805,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_PICKAXE: Self = Self {
@@ -23905,7 +23905,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_SHOVEL: Self = Self {
@@ -24005,7 +24005,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIAMOND_SPEAR: Self = Self {
@@ -24141,7 +24141,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl { can_sprint: true, interact_vibrations: false, speed_multiplier: 1.0 }),
         ],
     };
     pub const DIAMOND_SWORD: Self = Self {
@@ -24246,7 +24246,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIORITE: Self = Self {
@@ -24295,7 +24295,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIORITE_SLAB: Self = Self {
@@ -24344,7 +24344,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIORITE_STAIRS: Self = Self {
@@ -24393,7 +24393,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIORITE_WALL: Self = Self {
@@ -24442,7 +24442,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIRT: Self = Self {
@@ -24491,7 +24491,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DIRT_PATH: Self = Self {
@@ -24540,7 +24540,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DISC_FRAGMENT_5: Self = Self {
@@ -24589,7 +24589,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DISPENSER: Self = Self {
@@ -24639,7 +24639,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DOLPHIN_SPAWN_EGG: Self = Self {
@@ -24689,7 +24689,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DONKEY_SPAWN_EGG: Self = Self {
@@ -24739,7 +24739,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DRAGON_BREATH: Self = Self {
@@ -24788,7 +24788,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DRAGON_EGG: Self = Self {
@@ -24837,7 +24837,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DRAGON_HEAD: Self = Self {
@@ -24908,7 +24908,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DRIED_GHAST: Self = Self {
@@ -24957,7 +24957,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DRIED_KELP: Self = Self {
@@ -25024,7 +25024,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DRIED_KELP_BLOCK: Self = Self {
@@ -25073,7 +25073,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DRIPSTONE_BLOCK: Self = Self {
@@ -25122,7 +25122,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DROPPER: Self = Self {
@@ -25172,7 +25172,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DROWNED_SPAWN_EGG: Self = Self {
@@ -25222,7 +25222,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const DUNE_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -25271,7 +25271,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ECHO_SHARD: Self = Self {
@@ -25320,7 +25320,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EGG: Self = Self {
@@ -25375,7 +25375,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ELDER_GUARDIAN_SPAWN_EGG: Self = Self {
@@ -25425,7 +25425,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ELYTRA: Self = Self {
@@ -25499,7 +25499,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EMERALD: Self = Self {
@@ -25549,7 +25549,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EMERALD_BLOCK: Self = Self {
@@ -25598,7 +25598,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EMERALD_ORE: Self = Self {
@@ -25647,7 +25647,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ENCHANTED_BOOK: Self = Self {
@@ -25703,7 +25703,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ENCHANTED_GOLDEN_APPLE: Self = Self {
@@ -25807,7 +25807,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ENCHANTING_TABLE: Self = Self {
@@ -25856,7 +25856,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const END_CRYSTAL: Self = Self {
@@ -25906,7 +25906,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const END_PORTAL_FRAME: Self = Self {
@@ -25955,7 +25955,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const END_ROD: Self = Self {
@@ -26004,7 +26004,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const END_STONE: Self = Self {
@@ -26053,7 +26053,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const END_STONE_BRICK_SLAB: Self = Self {
@@ -26102,7 +26102,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const END_STONE_BRICK_STAIRS: Self = Self {
@@ -26151,7 +26151,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const END_STONE_BRICK_WALL: Self = Self {
@@ -26200,7 +26200,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const END_STONE_BRICKS: Self = Self {
@@ -26249,7 +26249,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ENDER_CHEST: Self = Self {
@@ -26298,7 +26298,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ENDER_DRAGON_SPAWN_EGG: Self = Self {
@@ -26348,7 +26348,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ENDER_EYE: Self = Self {
@@ -26397,7 +26397,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ENDER_PEARL: Self = Self {
@@ -26453,7 +26453,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ENDERMAN_SPAWN_EGG: Self = Self {
@@ -26503,7 +26503,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ENDERMITE_SPAWN_EGG: Self = Self {
@@ -26553,7 +26553,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EVOKER_SPAWN_EGG: Self = Self {
@@ -26603,7 +26603,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPERIENCE_BOTTLE: Self = Self {
@@ -26653,7 +26653,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPLORER_POTTERY_SHERD: Self = Self {
@@ -26702,7 +26702,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_CHISELED_COPPER: Self = Self {
@@ -26751,7 +26751,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER: Self = Self {
@@ -26800,7 +26800,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER_BARS: Self = Self {
@@ -26849,7 +26849,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER_BULB: Self = Self {
@@ -26898,7 +26898,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER_CHAIN: Self = Self {
@@ -26947,7 +26947,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER_CHEST: Self = Self {
@@ -26996,7 +26996,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER_DOOR: Self = Self {
@@ -27045,7 +27045,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER_GOLEM_STATUE: Self = Self {
@@ -27103,7 +27103,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER_GRATE: Self = Self {
@@ -27152,7 +27152,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER_LANTERN: Self = Self {
@@ -27201,7 +27201,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_COPPER_TRAPDOOR: Self = Self {
@@ -27250,7 +27250,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_CUT_COPPER: Self = Self {
@@ -27299,7 +27299,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_CUT_COPPER_SLAB: Self = Self {
@@ -27348,7 +27348,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_CUT_COPPER_STAIRS: Self = Self {
@@ -27397,7 +27397,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EXPOSED_LIGHTNING_ROD: Self = Self {
@@ -27446,7 +27446,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const EYE_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -27495,7 +27495,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FARMLAND: Self = Self {
@@ -27544,7 +27544,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FEATHER: Self = Self {
@@ -27593,7 +27593,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FERMENTED_SPIDER_EYE: Self = Self {
@@ -27642,7 +27642,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FERN: Self = Self {
@@ -27691,7 +27691,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FIELD_MASONED_BANNER_PATTERN: Self = Self {
@@ -27741,7 +27741,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FILLED_MAP: Self = Self {
@@ -27792,7 +27792,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FIRE_CHARGE: Self = Self {
@@ -27841,7 +27841,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FIRE_CORAL: Self = Self {
@@ -27890,7 +27890,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FIRE_CORAL_BLOCK: Self = Self {
@@ -27939,7 +27939,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FIRE_CORAL_FAN: Self = Self {
@@ -27988,7 +27988,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FIREFLY_BUSH: Self = Self {
@@ -28037,7 +28037,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FIREWORK_ROCKET: Self = Self {
@@ -28093,7 +28093,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FIREWORK_STAR: Self = Self {
@@ -28142,7 +28142,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FISHING_ROD: Self = Self {
@@ -28194,7 +28194,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLETCHING_TABLE: Self = Self {
@@ -28243,7 +28243,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLINT: Self = Self {
@@ -28292,7 +28292,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLINT_AND_STEEL: Self = Self {
@@ -28343,7 +28343,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLOW_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -28392,7 +28392,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLOW_BANNER_PATTERN: Self = Self {
@@ -28442,7 +28442,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLOW_POTTERY_SHERD: Self = Self {
@@ -28491,7 +28491,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLOWER_BANNER_PATTERN: Self = Self {
@@ -28541,7 +28541,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLOWER_POT: Self = Self {
@@ -28590,7 +28590,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLOWERING_AZALEA: Self = Self {
@@ -28639,7 +28639,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FLOWERING_AZALEA_LEAVES: Self = Self {
@@ -28688,7 +28688,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FOX_SPAWN_EGG: Self = Self {
@@ -28738,7 +28738,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FRIEND_POTTERY_SHERD: Self = Self {
@@ -28787,7 +28787,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FROG_SPAWN_EGG: Self = Self {
@@ -28837,7 +28837,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FROGSPAWN: Self = Self {
@@ -28886,7 +28886,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FURNACE: Self = Self {
@@ -28936,7 +28936,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const FURNACE_MINECART: Self = Self {
@@ -28985,7 +28985,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GHAST_SPAWN_EGG: Self = Self {
@@ -29035,7 +29035,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GHAST_TEAR: Self = Self {
@@ -29084,7 +29084,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GILDED_BLACKSTONE: Self = Self {
@@ -29133,7 +29133,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLASS: Self = Self {
@@ -29182,7 +29182,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLASS_BOTTLE: Self = Self {
@@ -29231,7 +29231,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLASS_PANE: Self = Self {
@@ -29280,7 +29280,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLISTERING_MELON_SLICE: Self = Self {
@@ -29329,7 +29329,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLOBE_BANNER_PATTERN: Self = Self {
@@ -29379,7 +29379,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLOW_BERRIES: Self = Self {
@@ -29446,7 +29446,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLOW_INK_SAC: Self = Self {
@@ -29495,7 +29495,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLOW_ITEM_FRAME: Self = Self {
@@ -29544,7 +29544,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLOW_LICHEN: Self = Self {
@@ -29593,7 +29593,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLOW_SQUID_SPAWN_EGG: Self = Self {
@@ -29643,7 +29643,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLOWSTONE: Self = Self {
@@ -29692,7 +29692,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GLOWSTONE_DUST: Self = Self {
@@ -29741,7 +29741,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOAT_HORN: Self = Self {
@@ -29791,7 +29791,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOAT_SPAWN_EGG: Self = Self {
@@ -29841,7 +29841,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLD_BLOCK: Self = Self {
@@ -29890,7 +29890,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLD_INGOT: Self = Self {
@@ -29940,7 +29940,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLD_NUGGET: Self = Self {
@@ -29989,7 +29989,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLD_ORE: Self = Self {
@@ -30038,7 +30038,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_APPLE: Self = Self {
@@ -30125,7 +30125,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_AXE: Self = Self {
@@ -30225,7 +30225,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_BOOTS: Self = Self {
@@ -30314,7 +30314,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_CARROT: Self = Self {
@@ -30381,7 +30381,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_CHESTPLATE: Self = Self {
@@ -30470,7 +30470,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_DANDELION: Self = Self {
@@ -30519,7 +30519,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_HELMET: Self = Self {
@@ -30608,7 +30608,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_HOE: Self = Self {
@@ -30708,7 +30708,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_HORSE_ARMOR: Self = Self {
@@ -30788,7 +30788,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_LEGGINGS: Self = Self {
@@ -30877,7 +30877,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_NAUTILUS_ARMOR: Self = Self {
@@ -30957,7 +30957,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_PICKAXE: Self = Self {
@@ -31057,7 +31057,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_SHOVEL: Self = Self {
@@ -31157,7 +31157,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GOLDEN_SPEAR: Self = Self {
@@ -31293,7 +31293,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl { can_sprint: true, interact_vibrations: false, speed_multiplier: 1.0 }),
         ],
     };
     pub const GOLDEN_SWORD: Self = Self {
@@ -31398,7 +31398,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRANITE: Self = Self {
@@ -31447,7 +31447,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRANITE_SLAB: Self = Self {
@@ -31496,7 +31496,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRANITE_STAIRS: Self = Self {
@@ -31545,7 +31545,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRANITE_WALL: Self = Self {
@@ -31594,7 +31594,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRASS_BLOCK: Self = Self {
@@ -31643,7 +31643,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAVEL: Self = Self {
@@ -31692,7 +31692,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_BANNER: Self = Self {
@@ -31742,7 +31742,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_BED: Self = Self {
@@ -31791,7 +31791,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_BUNDLE: Self = Self {
@@ -31841,7 +31841,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_CANDLE: Self = Self {
@@ -31890,7 +31890,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_CARPET: Self = Self {
@@ -31958,7 +31958,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_CONCRETE: Self = Self {
@@ -32007,7 +32007,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_CONCRETE_POWDER: Self = Self {
@@ -32056,7 +32056,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_DYE: Self = Self {
@@ -32106,7 +32106,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_GLAZED_TERRACOTTA: Self = Self {
@@ -32155,7 +32155,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_HARNESS: Self = Self {
@@ -32220,7 +32220,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_SHULKER_BOX: Self = Self {
@@ -32270,7 +32270,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_STAINED_GLASS: Self = Self {
@@ -32319,7 +32319,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_STAINED_GLASS_PANE: Self = Self {
@@ -32368,7 +32368,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_TERRACOTTA: Self = Self {
@@ -32417,7 +32417,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRAY_WOOL: Self = Self {
@@ -32466,7 +32466,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_BANNER: Self = Self {
@@ -32516,7 +32516,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_BED: Self = Self {
@@ -32565,7 +32565,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_BUNDLE: Self = Self {
@@ -32615,7 +32615,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_CANDLE: Self = Self {
@@ -32664,7 +32664,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_CARPET: Self = Self {
@@ -32732,7 +32732,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_CONCRETE: Self = Self {
@@ -32781,7 +32781,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_CONCRETE_POWDER: Self = Self {
@@ -32830,7 +32830,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_DYE: Self = Self {
@@ -32880,7 +32880,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_GLAZED_TERRACOTTA: Self = Self {
@@ -32929,7 +32929,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_HARNESS: Self = Self {
@@ -32994,7 +32994,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_SHULKER_BOX: Self = Self {
@@ -33044,7 +33044,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_STAINED_GLASS: Self = Self {
@@ -33093,7 +33093,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_STAINED_GLASS_PANE: Self = Self {
@@ -33142,7 +33142,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_TERRACOTTA: Self = Self {
@@ -33191,7 +33191,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GREEN_WOOL: Self = Self {
@@ -33240,7 +33240,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GRINDSTONE: Self = Self {
@@ -33289,7 +33289,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GUARDIAN_SPAWN_EGG: Self = Self {
@@ -33339,7 +33339,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GUNPOWDER: Self = Self {
@@ -33388,7 +33388,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GUSTER_BANNER_PATTERN: Self = Self {
@@ -33438,7 +33438,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const GUSTER_POTTERY_SHERD: Self = Self {
@@ -33487,7 +33487,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HANGING_ROOTS: Self = Self {
@@ -33536,7 +33536,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HAPPY_GHAST_SPAWN_EGG: Self = Self {
@@ -33586,7 +33586,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HAY_BLOCK: Self = Self {
@@ -33635,7 +33635,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HEART_OF_THE_SEA: Self = Self {
@@ -33684,7 +33684,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HEART_POTTERY_SHERD: Self = Self {
@@ -33733,7 +33733,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HEARTBREAK_POTTERY_SHERD: Self = Self {
@@ -33782,7 +33782,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HEAVY_CORE: Self = Self {
@@ -33831,7 +33831,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HEAVY_WEIGHTED_PRESSURE_PLATE: Self = Self {
@@ -33880,7 +33880,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HOGLIN_SPAWN_EGG: Self = Self {
@@ -33930,7 +33930,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HONEY_BLOCK: Self = Self {
@@ -33979,7 +33979,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HONEY_BOTTLE: Self = Self {
@@ -34048,7 +34048,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
             (
                 UseRemainder,
                 &UseRemainderImpl {
@@ -34103,7 +34103,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HONEYCOMB_BLOCK: Self = Self {
@@ -34152,7 +34152,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HOPPER: Self = Self {
@@ -34202,7 +34202,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HOPPER_MINECART: Self = Self {
@@ -34251,7 +34251,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HORN_CORAL: Self = Self {
@@ -34300,7 +34300,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HORN_CORAL_BLOCK: Self = Self {
@@ -34349,7 +34349,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HORN_CORAL_FAN: Self = Self {
@@ -34398,7 +34398,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HORSE_SPAWN_EGG: Self = Self {
@@ -34448,7 +34448,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HOST_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -34497,7 +34497,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HOWL_POTTERY_SHERD: Self = Self {
@@ -34546,7 +34546,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const HUSK_SPAWN_EGG: Self = Self {
@@ -34596,7 +34596,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ICE: Self = Self {
@@ -34645,7 +34645,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const INFESTED_CHISELED_STONE_BRICKS: Self = Self {
@@ -34694,7 +34694,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const INFESTED_COBBLESTONE: Self = Self {
@@ -34743,7 +34743,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const INFESTED_CRACKED_STONE_BRICKS: Self = Self {
@@ -34792,7 +34792,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const INFESTED_DEEPSLATE: Self = Self {
@@ -34841,7 +34841,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const INFESTED_MOSSY_STONE_BRICKS: Self = Self {
@@ -34890,7 +34890,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const INFESTED_STONE: Self = Self {
@@ -34939,7 +34939,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const INFESTED_STONE_BRICKS: Self = Self {
@@ -34988,7 +34988,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const INK_SAC: Self = Self {
@@ -35037,7 +35037,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_AXE: Self = Self {
@@ -35137,7 +35137,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_BARS: Self = Self {
@@ -35186,7 +35186,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_BLOCK: Self = Self {
@@ -35235,7 +35235,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_BOOTS: Self = Self {
@@ -35324,7 +35324,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_CHAIN: Self = Self {
@@ -35373,7 +35373,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_CHESTPLATE: Self = Self {
@@ -35462,7 +35462,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_DOOR: Self = Self {
@@ -35511,7 +35511,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_GOLEM_SPAWN_EGG: Self = Self {
@@ -35561,7 +35561,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_HELMET: Self = Self {
@@ -35650,7 +35650,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_HOE: Self = Self {
@@ -35750,7 +35750,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_HORSE_ARMOR: Self = Self {
@@ -35830,7 +35830,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_INGOT: Self = Self {
@@ -35880,7 +35880,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_LEGGINGS: Self = Self {
@@ -35969,7 +35969,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_NAUTILUS_ARMOR: Self = Self {
@@ -36049,7 +36049,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_NUGGET: Self = Self {
@@ -36098,7 +36098,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_ORE: Self = Self {
@@ -36147,7 +36147,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_PICKAXE: Self = Self {
@@ -36247,7 +36247,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_SHOVEL: Self = Self {
@@ -36347,7 +36347,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_SPEAR: Self = Self {
@@ -36483,7 +36483,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl { can_sprint: true, interact_vibrations: false, speed_multiplier: 1.0 }),
         ],
     };
     pub const IRON_SWORD: Self = Self {
@@ -36588,7 +36588,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const IRON_TRAPDOOR: Self = Self {
@@ -36637,7 +36637,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ITEM_FRAME: Self = Self {
@@ -36686,7 +36686,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JACK_O_LANTERN: Self = Self {
@@ -36735,7 +36735,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JIGSAW: Self = Self {
@@ -36784,7 +36784,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUKEBOX: Self = Self {
@@ -36833,7 +36833,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_BOAT: Self = Self {
@@ -36882,7 +36882,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_BUTTON: Self = Self {
@@ -36931,7 +36931,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_CHEST_BOAT: Self = Self {
@@ -36980,7 +36980,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_DOOR: Self = Self {
@@ -37029,7 +37029,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_FENCE: Self = Self {
@@ -37078,7 +37078,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_FENCE_GATE: Self = Self {
@@ -37127,7 +37127,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_HANGING_SIGN: Self = Self {
@@ -37176,7 +37176,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_LEAVES: Self = Self {
@@ -37225,7 +37225,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_LOG: Self = Self {
@@ -37274,7 +37274,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_PLANKS: Self = Self {
@@ -37323,7 +37323,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_PRESSURE_PLATE: Self = Self {
@@ -37372,7 +37372,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_SAPLING: Self = Self {
@@ -37421,7 +37421,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_SHELF: Self = Self {
@@ -37471,7 +37471,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_SIGN: Self = Self {
@@ -37520,7 +37520,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_SLAB: Self = Self {
@@ -37569,7 +37569,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_STAIRS: Self = Self {
@@ -37618,7 +37618,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_TRAPDOOR: Self = Self {
@@ -37667,7 +37667,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const JUNGLE_WOOD: Self = Self {
@@ -37716,7 +37716,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const KELP: Self = Self {
@@ -37765,7 +37765,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const KNOWLEDGE_BOOK: Self = Self {
@@ -37815,7 +37815,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LADDER: Self = Self {
@@ -37864,7 +37864,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LANTERN: Self = Self {
@@ -37913,7 +37913,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LAPIS_BLOCK: Self = Self {
@@ -37962,7 +37962,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LAPIS_LAZULI: Self = Self {
@@ -38012,7 +38012,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LAPIS_ORE: Self = Self {
@@ -38061,7 +38061,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LARGE_AMETHYST_BUD: Self = Self {
@@ -38110,7 +38110,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LARGE_FERN: Self = Self {
@@ -38159,7 +38159,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LAVA_BUCKET: Self = Self {
@@ -38208,7 +38208,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LEAD: Self = Self {
@@ -38257,7 +38257,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LEAF_LITTER: Self = Self {
@@ -38306,7 +38306,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LEATHER: Self = Self {
@@ -38355,7 +38355,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LEATHER_BOOTS: Self = Self {
@@ -38444,7 +38444,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LEATHER_CHESTPLATE: Self = Self {
@@ -38533,7 +38533,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LEATHER_HELMET: Self = Self {
@@ -38622,7 +38622,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LEATHER_HORSE_ARMOR: Self = Self {
@@ -38702,7 +38702,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LEATHER_LEGGINGS: Self = Self {
@@ -38791,7 +38791,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LECTERN: Self = Self {
@@ -38840,7 +38840,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LEVER: Self = Self {
@@ -38889,7 +38889,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT: Self = Self {
@@ -38944,7 +38944,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_BANNER: Self = Self {
@@ -38994,7 +38994,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_BED: Self = Self {
@@ -39043,7 +39043,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_BUNDLE: Self = Self {
@@ -39093,7 +39093,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_CANDLE: Self = Self {
@@ -39142,7 +39142,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_CARPET: Self = Self {
@@ -39210,7 +39210,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_CONCRETE: Self = Self {
@@ -39259,7 +39259,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_CONCRETE_POWDER: Self = Self {
@@ -39308,7 +39308,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_DYE: Self = Self {
@@ -39358,7 +39358,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_GLAZED_TERRACOTTA: Self = Self {
@@ -39407,7 +39407,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_HARNESS: Self = Self {
@@ -39472,7 +39472,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_SHULKER_BOX: Self = Self {
@@ -39522,7 +39522,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_STAINED_GLASS: Self = Self {
@@ -39571,7 +39571,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_STAINED_GLASS_PANE: Self = Self {
@@ -39620,7 +39620,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_TERRACOTTA: Self = Self {
@@ -39669,7 +39669,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_BLUE_WOOL: Self = Self {
@@ -39718,7 +39718,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_BANNER: Self = Self {
@@ -39768,7 +39768,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_BED: Self = Self {
@@ -39817,7 +39817,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_BUNDLE: Self = Self {
@@ -39867,7 +39867,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_CANDLE: Self = Self {
@@ -39916,7 +39916,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_CARPET: Self = Self {
@@ -39984,7 +39984,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_CONCRETE: Self = Self {
@@ -40033,7 +40033,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_CONCRETE_POWDER: Self = Self {
@@ -40082,7 +40082,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_DYE: Self = Self {
@@ -40132,7 +40132,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_GLAZED_TERRACOTTA: Self = Self {
@@ -40181,7 +40181,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_HARNESS: Self = Self {
@@ -40246,7 +40246,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_SHULKER_BOX: Self = Self {
@@ -40296,7 +40296,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_STAINED_GLASS: Self = Self {
@@ -40345,7 +40345,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_STAINED_GLASS_PANE: Self = Self {
@@ -40394,7 +40394,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_TERRACOTTA: Self = Self {
@@ -40443,7 +40443,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_GRAY_WOOL: Self = Self {
@@ -40492,7 +40492,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHT_WEIGHTED_PRESSURE_PLATE: Self = Self {
@@ -40541,7 +40541,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIGHTNING_ROD: Self = Self {
@@ -40590,7 +40590,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LILAC: Self = Self {
@@ -40639,7 +40639,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LILY_OF_THE_VALLEY: Self = Self {
@@ -40688,7 +40688,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LILY_PAD: Self = Self {
@@ -40737,7 +40737,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_BANNER: Self = Self {
@@ -40787,7 +40787,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_BED: Self = Self {
@@ -40836,7 +40836,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_BUNDLE: Self = Self {
@@ -40886,7 +40886,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_CANDLE: Self = Self {
@@ -40935,7 +40935,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_CARPET: Self = Self {
@@ -41003,7 +41003,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_CONCRETE: Self = Self {
@@ -41052,7 +41052,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_CONCRETE_POWDER: Self = Self {
@@ -41101,7 +41101,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_DYE: Self = Self {
@@ -41151,7 +41151,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_GLAZED_TERRACOTTA: Self = Self {
@@ -41200,7 +41200,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_HARNESS: Self = Self {
@@ -41265,7 +41265,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_SHULKER_BOX: Self = Self {
@@ -41315,7 +41315,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_STAINED_GLASS: Self = Self {
@@ -41364,7 +41364,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_STAINED_GLASS_PANE: Self = Self {
@@ -41413,7 +41413,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_TERRACOTTA: Self = Self {
@@ -41462,7 +41462,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LIME_WOOL: Self = Self {
@@ -41511,7 +41511,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LINGERING_POTION: Self = Self {
@@ -41573,7 +41573,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LLAMA_SPAWN_EGG: Self = Self {
@@ -41623,7 +41623,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LODESTONE: Self = Self {
@@ -41672,7 +41672,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const LOOM: Self = Self {
@@ -41721,7 +41721,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MACE: Self = Self {
@@ -41810,7 +41810,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_BANNER: Self = Self {
@@ -41860,7 +41860,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_BED: Self = Self {
@@ -41909,7 +41909,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_BUNDLE: Self = Self {
@@ -41959,7 +41959,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_CANDLE: Self = Self {
@@ -42008,7 +42008,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_CARPET: Self = Self {
@@ -42076,7 +42076,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_CONCRETE: Self = Self {
@@ -42125,7 +42125,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_CONCRETE_POWDER: Self = Self {
@@ -42174,7 +42174,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_DYE: Self = Self {
@@ -42224,7 +42224,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_GLAZED_TERRACOTTA: Self = Self {
@@ -42273,7 +42273,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_HARNESS: Self = Self {
@@ -42338,7 +42338,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_SHULKER_BOX: Self = Self {
@@ -42388,7 +42388,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_STAINED_GLASS: Self = Self {
@@ -42437,7 +42437,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_STAINED_GLASS_PANE: Self = Self {
@@ -42486,7 +42486,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_TERRACOTTA: Self = Self {
@@ -42535,7 +42535,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGENTA_WOOL: Self = Self {
@@ -42584,7 +42584,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGMA_BLOCK: Self = Self {
@@ -42633,7 +42633,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGMA_CREAM: Self = Self {
@@ -42682,7 +42682,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAGMA_CUBE_SPAWN_EGG: Self = Self {
@@ -42732,7 +42732,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_BOAT: Self = Self {
@@ -42781,7 +42781,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_BUTTON: Self = Self {
@@ -42830,7 +42830,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_CHEST_BOAT: Self = Self {
@@ -42879,7 +42879,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_DOOR: Self = Self {
@@ -42928,7 +42928,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_FENCE: Self = Self {
@@ -42977,7 +42977,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_FENCE_GATE: Self = Self {
@@ -43026,7 +43026,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_HANGING_SIGN: Self = Self {
@@ -43075,7 +43075,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_LEAVES: Self = Self {
@@ -43124,7 +43124,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_LOG: Self = Self {
@@ -43173,7 +43173,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_PLANKS: Self = Self {
@@ -43222,7 +43222,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_PRESSURE_PLATE: Self = Self {
@@ -43271,7 +43271,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_PROPAGULE: Self = Self {
@@ -43320,7 +43320,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_ROOTS: Self = Self {
@@ -43369,7 +43369,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_SHELF: Self = Self {
@@ -43419,7 +43419,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_SIGN: Self = Self {
@@ -43468,7 +43468,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_SLAB: Self = Self {
@@ -43517,7 +43517,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_STAIRS: Self = Self {
@@ -43566,7 +43566,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_TRAPDOOR: Self = Self {
@@ -43615,7 +43615,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MANGROVE_WOOD: Self = Self {
@@ -43664,7 +43664,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MAP: Self = Self {
@@ -43713,7 +43713,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MEDIUM_AMETHYST_BUD: Self = Self {
@@ -43762,7 +43762,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MELON: Self = Self {
@@ -43811,7 +43811,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MELON_SEEDS: Self = Self {
@@ -43860,7 +43860,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MELON_SLICE: Self = Self {
@@ -43927,7 +43927,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MILK_BUCKET: Self = Self {
@@ -43986,7 +43986,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
             (
                 UseRemainder,
                 &UseRemainderImpl {
@@ -44041,7 +44041,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MINER_POTTERY_SHERD: Self = Self {
@@ -44090,7 +44090,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOJANG_BANNER_PATTERN: Self = Self {
@@ -44140,7 +44140,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOOSHROOM_SPAWN_EGG: Self = Self {
@@ -44190,7 +44190,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSS_BLOCK: Self = Self {
@@ -44239,7 +44239,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSS_CARPET: Self = Self {
@@ -44288,7 +44288,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSSY_COBBLESTONE: Self = Self {
@@ -44337,7 +44337,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSSY_COBBLESTONE_SLAB: Self = Self {
@@ -44386,7 +44386,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSSY_COBBLESTONE_STAIRS: Self = Self {
@@ -44435,7 +44435,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSSY_COBBLESTONE_WALL: Self = Self {
@@ -44484,7 +44484,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSSY_STONE_BRICK_SLAB: Self = Self {
@@ -44533,7 +44533,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSSY_STONE_BRICK_STAIRS: Self = Self {
@@ -44582,7 +44582,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSSY_STONE_BRICK_WALL: Self = Self {
@@ -44631,7 +44631,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOSSY_STONE_BRICKS: Self = Self {
@@ -44680,7 +44680,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MOURNER_POTTERY_SHERD: Self = Self {
@@ -44729,7 +44729,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUD: Self = Self {
@@ -44778,7 +44778,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUD_BRICK_SLAB: Self = Self {
@@ -44827,7 +44827,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUD_BRICK_STAIRS: Self = Self {
@@ -44876,7 +44876,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUD_BRICK_WALL: Self = Self {
@@ -44925,7 +44925,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUD_BRICKS: Self = Self {
@@ -44974,7 +44974,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUDDY_MANGROVE_ROOTS: Self = Self {
@@ -45023,7 +45023,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MULE_SPAWN_EGG: Self = Self {
@@ -45073,7 +45073,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSHROOM_STEM: Self = Self {
@@ -45122,7 +45122,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSHROOM_STEW: Self = Self {
@@ -45189,7 +45189,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
             (
                 UseRemainder,
                 &UseRemainderImpl {
@@ -45250,7 +45250,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_13: Self = Self {
@@ -45305,7 +45305,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_5: Self = Self {
@@ -45360,7 +45360,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_BLOCKS: Self = Self {
@@ -45415,7 +45415,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_BOUNCE: Self = Self {
@@ -45470,7 +45470,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_CAT: Self = Self {
@@ -45525,7 +45525,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_CHIRP: Self = Self {
@@ -45580,7 +45580,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_CREATOR: Self = Self {
@@ -45635,7 +45635,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_CREATOR_MUSIC_BOX: Self = Self {
@@ -45690,7 +45690,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_FAR: Self = Self {
@@ -45745,7 +45745,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_LAVA_CHICKEN: Self = Self {
@@ -45800,7 +45800,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_MALL: Self = Self {
@@ -45855,7 +45855,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_MELLOHI: Self = Self {
@@ -45910,7 +45910,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_OTHERSIDE: Self = Self {
@@ -45965,7 +45965,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_PIGSTEP: Self = Self {
@@ -46020,7 +46020,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_PRECIPICE: Self = Self {
@@ -46075,7 +46075,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_RELIC: Self = Self {
@@ -46130,7 +46130,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_STAL: Self = Self {
@@ -46185,7 +46185,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_STRAD: Self = Self {
@@ -46240,7 +46240,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_TEARS: Self = Self {
@@ -46295,7 +46295,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_WAIT: Self = Self {
@@ -46350,7 +46350,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUSIC_DISC_WARD: Self = Self {
@@ -46405,7 +46405,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MUTTON: Self = Self {
@@ -46472,7 +46472,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const MYCELIUM: Self = Self {
@@ -46521,7 +46521,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NAME_TAG: Self = Self {
@@ -46570,7 +46570,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NAUTILUS_SHELL: Self = Self {
@@ -46619,7 +46619,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NAUTILUS_SPAWN_EGG: Self = Self {
@@ -46669,7 +46669,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_BRICK: Self = Self {
@@ -46718,7 +46718,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_BRICK_FENCE: Self = Self {
@@ -46767,7 +46767,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_BRICK_SLAB: Self = Self {
@@ -46816,7 +46816,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_BRICK_STAIRS: Self = Self {
@@ -46865,7 +46865,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_BRICK_WALL: Self = Self {
@@ -46914,7 +46914,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_BRICKS: Self = Self {
@@ -46963,7 +46963,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_GOLD_ORE: Self = Self {
@@ -47012,7 +47012,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_QUARTZ_ORE: Self = Self {
@@ -47061,7 +47061,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_SPROUTS: Self = Self {
@@ -47110,7 +47110,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_STAR: Self = Self {
@@ -47166,7 +47166,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_WART: Self = Self {
@@ -47215,7 +47215,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHER_WART_BLOCK: Self = Self {
@@ -47264,7 +47264,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_AXE: Self = Self {
@@ -47370,7 +47370,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_BLOCK: Self = Self {
@@ -47425,7 +47425,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_BOOTS: Self = Self {
@@ -47527,7 +47527,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_CHESTPLATE: Self = Self {
@@ -47629,7 +47629,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_HELMET: Self = Self {
@@ -47731,7 +47731,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_HOE: Self = Self {
@@ -47837,7 +47837,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_HORSE_ARMOR: Self = Self {
@@ -47930,7 +47930,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_INGOT: Self = Self {
@@ -47986,7 +47986,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_LEGGINGS: Self = Self {
@@ -48088,7 +48088,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_NAUTILUS_ARMOR: Self = Self {
@@ -48181,7 +48181,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_PICKAXE: Self = Self {
@@ -48287,7 +48287,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_SCRAP: Self = Self {
@@ -48342,7 +48342,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_SHOVEL: Self = Self {
@@ -48448,7 +48448,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_SPEAR: Self = Self {
@@ -48590,7 +48590,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl { can_sprint: true, interact_vibrations: false, speed_multiplier: 1.0 }),
         ],
     };
     pub const NETHERITE_SWORD: Self = Self {
@@ -48701,7 +48701,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERITE_UPGRADE_SMITHING_TEMPLATE: Self = Self {
@@ -48750,7 +48750,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NETHERRACK: Self = Self {
@@ -48799,7 +48799,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const NOTE_BLOCK: Self = Self {
@@ -48848,7 +48848,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_BOAT: Self = Self {
@@ -48897,7 +48897,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_BUTTON: Self = Self {
@@ -48946,7 +48946,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_CHEST_BOAT: Self = Self {
@@ -48995,7 +48995,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_DOOR: Self = Self {
@@ -49044,7 +49044,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_FENCE: Self = Self {
@@ -49093,7 +49093,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_FENCE_GATE: Self = Self {
@@ -49142,7 +49142,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_HANGING_SIGN: Self = Self {
@@ -49191,7 +49191,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_LEAVES: Self = Self {
@@ -49240,7 +49240,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_LOG: Self = Self {
@@ -49289,7 +49289,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_PLANKS: Self = Self {
@@ -49338,7 +49338,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_PRESSURE_PLATE: Self = Self {
@@ -49387,7 +49387,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_SAPLING: Self = Self {
@@ -49436,7 +49436,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_SHELF: Self = Self {
@@ -49486,7 +49486,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_SIGN: Self = Self {
@@ -49535,7 +49535,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_SLAB: Self = Self {
@@ -49584,7 +49584,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_STAIRS: Self = Self {
@@ -49633,7 +49633,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_TRAPDOOR: Self = Self {
@@ -49682,7 +49682,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OAK_WOOD: Self = Self {
@@ -49731,7 +49731,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OBSERVER: Self = Self {
@@ -49780,7 +49780,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OBSIDIAN: Self = Self {
@@ -49829,7 +49829,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OCELOT_SPAWN_EGG: Self = Self {
@@ -49879,7 +49879,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OCHRE_FROGLIGHT: Self = Self {
@@ -49928,7 +49928,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OMINOUS_BOTTLE: Self = Self {
@@ -49993,7 +49993,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OMINOUS_TRIAL_KEY: Self = Self {
@@ -50042,7 +50042,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OPEN_EYEBLOSSOM: Self = Self {
@@ -50091,7 +50091,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_BANNER: Self = Self {
@@ -50141,7 +50141,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_BED: Self = Self {
@@ -50190,7 +50190,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_BUNDLE: Self = Self {
@@ -50240,7 +50240,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_CANDLE: Self = Self {
@@ -50289,7 +50289,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_CARPET: Self = Self {
@@ -50357,7 +50357,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_CONCRETE: Self = Self {
@@ -50406,7 +50406,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_CONCRETE_POWDER: Self = Self {
@@ -50455,7 +50455,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_DYE: Self = Self {
@@ -50505,7 +50505,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_GLAZED_TERRACOTTA: Self = Self {
@@ -50554,7 +50554,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_HARNESS: Self = Self {
@@ -50619,7 +50619,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_SHULKER_BOX: Self = Self {
@@ -50669,7 +50669,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_STAINED_GLASS: Self = Self {
@@ -50718,7 +50718,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_STAINED_GLASS_PANE: Self = Self {
@@ -50767,7 +50767,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_TERRACOTTA: Self = Self {
@@ -50816,7 +50816,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_TULIP: Self = Self {
@@ -50865,7 +50865,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ORANGE_WOOL: Self = Self {
@@ -50914,7 +50914,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXEYE_DAISY: Self = Self {
@@ -50963,7 +50963,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_CHISELED_COPPER: Self = Self {
@@ -51012,7 +51012,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER: Self = Self {
@@ -51061,7 +51061,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER_BARS: Self = Self {
@@ -51110,7 +51110,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER_BULB: Self = Self {
@@ -51159,7 +51159,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER_CHAIN: Self = Self {
@@ -51208,7 +51208,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER_CHEST: Self = Self {
@@ -51257,7 +51257,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER_DOOR: Self = Self {
@@ -51306,7 +51306,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER_GOLEM_STATUE: Self = Self {
@@ -51364,7 +51364,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER_GRATE: Self = Self {
@@ -51413,7 +51413,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER_LANTERN: Self = Self {
@@ -51462,7 +51462,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_COPPER_TRAPDOOR: Self = Self {
@@ -51511,7 +51511,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_CUT_COPPER: Self = Self {
@@ -51560,7 +51560,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_CUT_COPPER_SLAB: Self = Self {
@@ -51609,7 +51609,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_CUT_COPPER_STAIRS: Self = Self {
@@ -51658,7 +51658,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const OXIDIZED_LIGHTNING_ROD: Self = Self {
@@ -51707,7 +51707,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PACKED_ICE: Self = Self {
@@ -51756,7 +51756,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PACKED_MUD: Self = Self {
@@ -51805,7 +51805,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PAINTING: Self = Self {
@@ -51854,7 +51854,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_HANGING_MOSS: Self = Self {
@@ -51903,7 +51903,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_MOSS_BLOCK: Self = Self {
@@ -51952,7 +51952,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_MOSS_CARPET: Self = Self {
@@ -52001,7 +52001,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_BOAT: Self = Self {
@@ -52050,7 +52050,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_BUTTON: Self = Self {
@@ -52099,7 +52099,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_CHEST_BOAT: Self = Self {
@@ -52148,7 +52148,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_DOOR: Self = Self {
@@ -52197,7 +52197,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_FENCE: Self = Self {
@@ -52246,7 +52246,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_FENCE_GATE: Self = Self {
@@ -52295,7 +52295,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_HANGING_SIGN: Self = Self {
@@ -52344,7 +52344,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_LEAVES: Self = Self {
@@ -52393,7 +52393,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_LOG: Self = Self {
@@ -52442,7 +52442,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_PLANKS: Self = Self {
@@ -52491,7 +52491,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_PRESSURE_PLATE: Self = Self {
@@ -52540,7 +52540,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_SAPLING: Self = Self {
@@ -52589,7 +52589,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_SHELF: Self = Self {
@@ -52639,7 +52639,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_SIGN: Self = Self {
@@ -52688,7 +52688,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_SLAB: Self = Self {
@@ -52737,7 +52737,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_STAIRS: Self = Self {
@@ -52786,7 +52786,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_TRAPDOOR: Self = Self {
@@ -52835,7 +52835,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PALE_OAK_WOOD: Self = Self {
@@ -52884,7 +52884,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PANDA_SPAWN_EGG: Self = Self {
@@ -52934,7 +52934,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PAPER: Self = Self {
@@ -52983,7 +52983,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PARCHED_SPAWN_EGG: Self = Self {
@@ -53033,7 +53033,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PARROT_SPAWN_EGG: Self = Self {
@@ -53083,7 +53083,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PEARLESCENT_FROGLIGHT: Self = Self {
@@ -53132,7 +53132,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PEONY: Self = Self {
@@ -53181,7 +53181,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PETRIFIED_OAK_SLAB: Self = Self {
@@ -53230,7 +53230,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PHANTOM_MEMBRANE: Self = Self {
@@ -53279,7 +53279,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PHANTOM_SPAWN_EGG: Self = Self {
@@ -53329,7 +53329,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PIG_SPAWN_EGG: Self = Self {
@@ -53379,7 +53379,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PIGLIN_BANNER_PATTERN: Self = Self {
@@ -53429,7 +53429,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PIGLIN_BRUTE_SPAWN_EGG: Self = Self {
@@ -53479,7 +53479,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PIGLIN_HEAD: Self = Self {
@@ -53550,7 +53550,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PIGLIN_SPAWN_EGG: Self = Self {
@@ -53600,7 +53600,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PILLAGER_SPAWN_EGG: Self = Self {
@@ -53650,7 +53650,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_BANNER: Self = Self {
@@ -53700,7 +53700,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_BED: Self = Self {
@@ -53749,7 +53749,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_BUNDLE: Self = Self {
@@ -53799,7 +53799,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_CANDLE: Self = Self {
@@ -53848,7 +53848,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_CARPET: Self = Self {
@@ -53916,7 +53916,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_CONCRETE: Self = Self {
@@ -53965,7 +53965,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_CONCRETE_POWDER: Self = Self {
@@ -54014,7 +54014,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_DYE: Self = Self {
@@ -54064,7 +54064,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_GLAZED_TERRACOTTA: Self = Self {
@@ -54113,7 +54113,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_HARNESS: Self = Self {
@@ -54178,7 +54178,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_PETALS: Self = Self {
@@ -54227,7 +54227,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_SHULKER_BOX: Self = Self {
@@ -54277,7 +54277,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_STAINED_GLASS: Self = Self {
@@ -54326,7 +54326,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_STAINED_GLASS_PANE: Self = Self {
@@ -54375,7 +54375,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_TERRACOTTA: Self = Self {
@@ -54424,7 +54424,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_TULIP: Self = Self {
@@ -54473,7 +54473,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PINK_WOOL: Self = Self {
@@ -54522,7 +54522,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PISTON: Self = Self {
@@ -54571,7 +54571,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PITCHER_PLANT: Self = Self {
@@ -54620,7 +54620,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PITCHER_POD: Self = Self {
@@ -54669,7 +54669,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PLAYER_HEAD: Self = Self {
@@ -54740,7 +54740,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PLENTY_POTTERY_SHERD: Self = Self {
@@ -54789,7 +54789,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PODZOL: Self = Self {
@@ -54838,7 +54838,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POINTED_DRIPSTONE: Self = Self {
@@ -54887,7 +54887,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POISONOUS_POTATO: Self = Self {
@@ -54964,7 +54964,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLAR_BEAR_SPAWN_EGG: Self = Self {
@@ -55014,7 +55014,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_ANDESITE: Self = Self {
@@ -55063,7 +55063,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_ANDESITE_SLAB: Self = Self {
@@ -55112,7 +55112,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_ANDESITE_STAIRS: Self = Self {
@@ -55161,7 +55161,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BASALT: Self = Self {
@@ -55210,7 +55210,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE: Self = Self {
@@ -55259,7 +55259,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE_BRICK_SLAB: Self = Self {
@@ -55308,7 +55308,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE_BRICK_STAIRS: Self = Self {
@@ -55357,7 +55357,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE_BRICK_WALL: Self = Self {
@@ -55406,7 +55406,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE_BRICKS: Self = Self {
@@ -55455,7 +55455,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE_BUTTON: Self = Self {
@@ -55504,7 +55504,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE_PRESSURE_PLATE: Self = Self {
@@ -55553,7 +55553,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE_SLAB: Self = Self {
@@ -55602,7 +55602,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE_STAIRS: Self = Self {
@@ -55651,7 +55651,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_BLACKSTONE_WALL: Self = Self {
@@ -55700,7 +55700,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_CINNABAR: Self = Self {
@@ -55749,7 +55749,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_CINNABAR_SLAB: Self = Self {
@@ -55798,7 +55798,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_CINNABAR_STAIRS: Self = Self {
@@ -55847,7 +55847,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_CINNABAR_WALL: Self = Self {
@@ -55896,7 +55896,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_DEEPSLATE: Self = Self {
@@ -55945,7 +55945,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_DEEPSLATE_SLAB: Self = Self {
@@ -55994,7 +55994,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_DEEPSLATE_STAIRS: Self = Self {
@@ -56043,7 +56043,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_DEEPSLATE_WALL: Self = Self {
@@ -56092,7 +56092,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_DIORITE: Self = Self {
@@ -56141,7 +56141,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_DIORITE_SLAB: Self = Self {
@@ -56190,7 +56190,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_DIORITE_STAIRS: Self = Self {
@@ -56239,7 +56239,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_GRANITE: Self = Self {
@@ -56288,7 +56288,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_GRANITE_SLAB: Self = Self {
@@ -56337,7 +56337,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_GRANITE_STAIRS: Self = Self {
@@ -56386,7 +56386,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_SULFUR: Self = Self {
@@ -56435,7 +56435,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_SULFUR_SLAB: Self = Self {
@@ -56484,7 +56484,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_SULFUR_STAIRS: Self = Self {
@@ -56533,7 +56533,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_SULFUR_WALL: Self = Self {
@@ -56582,7 +56582,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_TUFF: Self = Self {
@@ -56631,7 +56631,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_TUFF_SLAB: Self = Self {
@@ -56680,7 +56680,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_TUFF_STAIRS: Self = Self {
@@ -56729,7 +56729,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POLISHED_TUFF_WALL: Self = Self {
@@ -56778,7 +56778,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POPPED_CHORUS_FRUIT: Self = Self {
@@ -56827,7 +56827,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POPPY: Self = Self {
@@ -56876,7 +56876,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PORKCHOP: Self = Self {
@@ -56943,7 +56943,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POTATO: Self = Self {
@@ -57010,7 +57010,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POTENT_SULFUR: Self = Self {
@@ -57059,7 +57059,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POTION: Self = Self {
@@ -57127,7 +57127,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
             (
                 UseRemainder,
                 &UseRemainderImpl {
@@ -57182,7 +57182,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const POWERED_RAIL: Self = Self {
@@ -57231,7 +57231,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRISMARINE: Self = Self {
@@ -57280,7 +57280,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRISMARINE_BRICK_SLAB: Self = Self {
@@ -57329,7 +57329,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRISMARINE_BRICK_STAIRS: Self = Self {
@@ -57378,7 +57378,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRISMARINE_BRICKS: Self = Self {
@@ -57427,7 +57427,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRISMARINE_CRYSTALS: Self = Self {
@@ -57476,7 +57476,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRISMARINE_SHARD: Self = Self {
@@ -57525,7 +57525,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRISMARINE_SLAB: Self = Self {
@@ -57574,7 +57574,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRISMARINE_STAIRS: Self = Self {
@@ -57623,7 +57623,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRISMARINE_WALL: Self = Self {
@@ -57672,7 +57672,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PRIZE_POTTERY_SHERD: Self = Self {
@@ -57721,7 +57721,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PUFFERFISH: Self = Self {
@@ -57816,7 +57816,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PUFFERFISH_BUCKET: Self = Self {
@@ -57874,7 +57874,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PUFFERFISH_SPAWN_EGG: Self = Self {
@@ -57924,7 +57924,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PUMPKIN: Self = Self {
@@ -57973,7 +57973,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PUMPKIN_PIE: Self = Self {
@@ -58040,7 +58040,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PUMPKIN_SEEDS: Self = Self {
@@ -58089,7 +58089,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_BANNER: Self = Self {
@@ -58139,7 +58139,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_BED: Self = Self {
@@ -58188,7 +58188,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_BUNDLE: Self = Self {
@@ -58238,7 +58238,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_CANDLE: Self = Self {
@@ -58287,7 +58287,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_CARPET: Self = Self {
@@ -58355,7 +58355,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_CONCRETE: Self = Self {
@@ -58404,7 +58404,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_CONCRETE_POWDER: Self = Self {
@@ -58453,7 +58453,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_DYE: Self = Self {
@@ -58503,7 +58503,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_GLAZED_TERRACOTTA: Self = Self {
@@ -58552,7 +58552,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_HARNESS: Self = Self {
@@ -58617,7 +58617,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_SHULKER_BOX: Self = Self {
@@ -58667,7 +58667,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_STAINED_GLASS: Self = Self {
@@ -58716,7 +58716,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_STAINED_GLASS_PANE: Self = Self {
@@ -58765,7 +58765,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_TERRACOTTA: Self = Self {
@@ -58814,7 +58814,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPLE_WOOL: Self = Self {
@@ -58863,7 +58863,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPUR_BLOCK: Self = Self {
@@ -58912,7 +58912,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPUR_PILLAR: Self = Self {
@@ -58961,7 +58961,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPUR_SLAB: Self = Self {
@@ -59010,7 +59010,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const PURPUR_STAIRS: Self = Self {
@@ -59059,7 +59059,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const QUARTZ: Self = Self {
@@ -59109,7 +59109,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const QUARTZ_BLOCK: Self = Self {
@@ -59158,7 +59158,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const QUARTZ_BRICKS: Self = Self {
@@ -59207,7 +59207,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const QUARTZ_PILLAR: Self = Self {
@@ -59256,7 +59256,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const QUARTZ_SLAB: Self = Self {
@@ -59305,7 +59305,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const QUARTZ_STAIRS: Self = Self {
@@ -59354,7 +59354,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RABBIT: Self = Self {
@@ -59421,7 +59421,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RABBIT_FOOT: Self = Self {
@@ -59470,7 +59470,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RABBIT_HIDE: Self = Self {
@@ -59519,7 +59519,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RABBIT_SPAWN_EGG: Self = Self {
@@ -59569,7 +59569,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RABBIT_STEW: Self = Self {
@@ -59636,7 +59636,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
             (
                 UseRemainder,
                 &UseRemainderImpl {
@@ -59691,7 +59691,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RAISER_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -59740,7 +59740,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RAVAGER_SPAWN_EGG: Self = Self {
@@ -59790,7 +59790,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RAW_COPPER: Self = Self {
@@ -59839,7 +59839,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RAW_COPPER_BLOCK: Self = Self {
@@ -59888,7 +59888,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RAW_GOLD: Self = Self {
@@ -59937,7 +59937,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RAW_GOLD_BLOCK: Self = Self {
@@ -59986,7 +59986,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RAW_IRON: Self = Self {
@@ -60035,7 +60035,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RAW_IRON_BLOCK: Self = Self {
@@ -60084,7 +60084,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RECOVERY_COMPASS: Self = Self {
@@ -60133,7 +60133,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_BANNER: Self = Self {
@@ -60183,7 +60183,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_BED: Self = Self {
@@ -60232,7 +60232,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_BUNDLE: Self = Self {
@@ -60282,7 +60282,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_CANDLE: Self = Self {
@@ -60331,7 +60331,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_CARPET: Self = Self {
@@ -60399,7 +60399,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_CONCRETE: Self = Self {
@@ -60448,7 +60448,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_CONCRETE_POWDER: Self = Self {
@@ -60497,7 +60497,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_DYE: Self = Self {
@@ -60547,7 +60547,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_GLAZED_TERRACOTTA: Self = Self {
@@ -60596,7 +60596,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_HARNESS: Self = Self {
@@ -60661,7 +60661,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_MUSHROOM: Self = Self {
@@ -60710,7 +60710,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_MUSHROOM_BLOCK: Self = Self {
@@ -60759,7 +60759,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_NETHER_BRICK_SLAB: Self = Self {
@@ -60808,7 +60808,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_NETHER_BRICK_STAIRS: Self = Self {
@@ -60857,7 +60857,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_NETHER_BRICK_WALL: Self = Self {
@@ -60906,7 +60906,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_NETHER_BRICKS: Self = Self {
@@ -60955,7 +60955,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_SAND: Self = Self {
@@ -61004,7 +61004,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_SANDSTONE: Self = Self {
@@ -61053,7 +61053,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_SANDSTONE_SLAB: Self = Self {
@@ -61102,7 +61102,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_SANDSTONE_STAIRS: Self = Self {
@@ -61151,7 +61151,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_SANDSTONE_WALL: Self = Self {
@@ -61200,7 +61200,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_SHULKER_BOX: Self = Self {
@@ -61250,7 +61250,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_STAINED_GLASS: Self = Self {
@@ -61299,7 +61299,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_STAINED_GLASS_PANE: Self = Self {
@@ -61348,7 +61348,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_TERRACOTTA: Self = Self {
@@ -61397,7 +61397,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_TULIP: Self = Self {
@@ -61446,7 +61446,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RED_WOOL: Self = Self {
@@ -61495,7 +61495,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const REDSTONE: Self = Self {
@@ -61545,7 +61545,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const REDSTONE_BLOCK: Self = Self {
@@ -61594,7 +61594,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const REDSTONE_LAMP: Self = Self {
@@ -61643,7 +61643,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const REDSTONE_ORE: Self = Self {
@@ -61692,7 +61692,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const REDSTONE_TORCH: Self = Self {
@@ -61741,7 +61741,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const REINFORCED_DEEPSLATE: Self = Self {
@@ -61790,7 +61790,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const REPEATER: Self = Self {
@@ -61839,7 +61839,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const REPEATING_COMMAND_BLOCK: Self = Self {
@@ -61888,7 +61888,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RESIN_BLOCK: Self = Self {
@@ -61937,7 +61937,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RESIN_BRICK: Self = Self {
@@ -61987,7 +61987,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RESIN_BRICK_SLAB: Self = Self {
@@ -62036,7 +62036,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RESIN_BRICK_STAIRS: Self = Self {
@@ -62085,7 +62085,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RESIN_BRICK_WALL: Self = Self {
@@ -62134,7 +62134,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RESIN_BRICKS: Self = Self {
@@ -62183,7 +62183,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RESIN_CLUMP: Self = Self {
@@ -62232,7 +62232,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RESPAWN_ANCHOR: Self = Self {
@@ -62281,7 +62281,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const RIB_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -62330,7 +62330,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ROOTED_DIRT: Self = Self {
@@ -62379,7 +62379,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ROSE_BUSH: Self = Self {
@@ -62428,7 +62428,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ROTTEN_FLESH: Self = Self {
@@ -62505,7 +62505,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SADDLE: Self = Self {
@@ -62570,7 +62570,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SALMON: Self = Self {
@@ -62637,7 +62637,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SALMON_BUCKET: Self = Self {
@@ -62695,7 +62695,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SALMON_SPAWN_EGG: Self = Self {
@@ -62745,7 +62745,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SAND: Self = Self {
@@ -62794,7 +62794,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SANDSTONE: Self = Self {
@@ -62843,7 +62843,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SANDSTONE_SLAB: Self = Self {
@@ -62892,7 +62892,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SANDSTONE_STAIRS: Self = Self {
@@ -62941,7 +62941,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SANDSTONE_WALL: Self = Self {
@@ -62990,7 +62990,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SCAFFOLDING: Self = Self {
@@ -63039,7 +63039,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SCRAPE_POTTERY_SHERD: Self = Self {
@@ -63088,7 +63088,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SCULK: Self = Self {
@@ -63137,7 +63137,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SCULK_CATALYST: Self = Self {
@@ -63186,7 +63186,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SCULK_SENSOR: Self = Self {
@@ -63235,7 +63235,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SCULK_SHRIEKER: Self = Self {
@@ -63284,7 +63284,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SCULK_VEIN: Self = Self {
@@ -63333,7 +63333,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SEA_LANTERN: Self = Self {
@@ -63382,7 +63382,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SEA_PICKLE: Self = Self {
@@ -63431,7 +63431,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SEAGRASS: Self = Self {
@@ -63480,7 +63480,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SENTRY_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -63529,7 +63529,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHAPER_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -63578,7 +63578,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHEAF_POTTERY_SHERD: Self = Self {
@@ -63627,7 +63627,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHEARS: Self = Self {
@@ -63708,7 +63708,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHEEP_SPAWN_EGG: Self = Self {
@@ -63758,7 +63758,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHELTER_POTTERY_SHERD: Self = Self {
@@ -63807,7 +63807,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHIELD: Self = Self {
@@ -63902,7 +63902,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHORT_DRY_GRASS: Self = Self {
@@ -63951,7 +63951,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHORT_GRASS: Self = Self {
@@ -64000,7 +64000,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHROOMLIGHT: Self = Self {
@@ -64049,7 +64049,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHULKER_BOX: Self = Self {
@@ -64099,7 +64099,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHULKER_SHELL: Self = Self {
@@ -64148,7 +64148,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SHULKER_SPAWN_EGG: Self = Self {
@@ -64198,7 +64198,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SILENCE_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -64247,7 +64247,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SILVERFISH_SPAWN_EGG: Self = Self {
@@ -64297,7 +64297,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SKELETON_HORSE_SPAWN_EGG: Self = Self {
@@ -64347,7 +64347,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SKELETON_SKULL: Self = Self {
@@ -64418,7 +64418,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SKELETON_SPAWN_EGG: Self = Self {
@@ -64468,7 +64468,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SKULL_BANNER_PATTERN: Self = Self {
@@ -64518,7 +64518,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SKULL_POTTERY_SHERD: Self = Self {
@@ -64567,7 +64567,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SLIME_BALL: Self = Self {
@@ -64616,7 +64616,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SLIME_BLOCK: Self = Self {
@@ -64665,7 +64665,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SLIME_SPAWN_EGG: Self = Self {
@@ -64715,7 +64715,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMALL_AMETHYST_BUD: Self = Self {
@@ -64764,7 +64764,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMALL_DRIPLEAF: Self = Self {
@@ -64813,7 +64813,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMITHING_TABLE: Self = Self {
@@ -64862,7 +64862,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOKER: Self = Self {
@@ -64912,7 +64912,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_BASALT: Self = Self {
@@ -64961,7 +64961,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_QUARTZ: Self = Self {
@@ -65010,7 +65010,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_QUARTZ_SLAB: Self = Self {
@@ -65059,7 +65059,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_QUARTZ_STAIRS: Self = Self {
@@ -65108,7 +65108,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_RED_SANDSTONE: Self = Self {
@@ -65157,7 +65157,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_RED_SANDSTONE_SLAB: Self = Self {
@@ -65206,7 +65206,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_RED_SANDSTONE_STAIRS: Self = Self {
@@ -65255,7 +65255,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_SANDSTONE: Self = Self {
@@ -65304,7 +65304,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_SANDSTONE_SLAB: Self = Self {
@@ -65353,7 +65353,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_SANDSTONE_STAIRS: Self = Self {
@@ -65402,7 +65402,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_STONE: Self = Self {
@@ -65451,7 +65451,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SMOOTH_STONE_SLAB: Self = Self {
@@ -65500,7 +65500,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SNIFFER_EGG: Self = Self {
@@ -65549,7 +65549,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SNIFFER_SPAWN_EGG: Self = Self {
@@ -65599,7 +65599,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SNORT_POTTERY_SHERD: Self = Self {
@@ -65648,7 +65648,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SNOUT_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -65697,7 +65697,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SNOW: Self = Self {
@@ -65746,7 +65746,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SNOW_BLOCK: Self = Self {
@@ -65795,7 +65795,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SNOW_GOLEM_SPAWN_EGG: Self = Self {
@@ -65845,7 +65845,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SNOWBALL: Self = Self {
@@ -65894,7 +65894,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SOUL_CAMPFIRE: Self = Self {
@@ -65944,7 +65944,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SOUL_LANTERN: Self = Self {
@@ -65993,7 +65993,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SOUL_SAND: Self = Self {
@@ -66042,7 +66042,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SOUL_SOIL: Self = Self {
@@ -66091,7 +66091,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SOUL_TORCH: Self = Self {
@@ -66140,7 +66140,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPAWNER: Self = Self {
@@ -66189,7 +66189,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPECTRAL_ARROW: Self = Self {
@@ -66238,7 +66238,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPIDER_EYE: Self = Self {
@@ -66315,7 +66315,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPIDER_SPAWN_EGG: Self = Self {
@@ -66365,7 +66365,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPIRE_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -66414,7 +66414,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPLASH_POTION: Self = Self {
@@ -66472,7 +66472,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPONGE: Self = Self {
@@ -66521,7 +66521,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPORE_BLOSSOM: Self = Self {
@@ -66570,7 +66570,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_BOAT: Self = Self {
@@ -66619,7 +66619,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_BUTTON: Self = Self {
@@ -66668,7 +66668,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_CHEST_BOAT: Self = Self {
@@ -66717,7 +66717,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_DOOR: Self = Self {
@@ -66766,7 +66766,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_FENCE: Self = Self {
@@ -66815,7 +66815,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_FENCE_GATE: Self = Self {
@@ -66864,7 +66864,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_HANGING_SIGN: Self = Self {
@@ -66913,7 +66913,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_LEAVES: Self = Self {
@@ -66962,7 +66962,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_LOG: Self = Self {
@@ -67011,7 +67011,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_PLANKS: Self = Self {
@@ -67060,7 +67060,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_PRESSURE_PLATE: Self = Self {
@@ -67109,7 +67109,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_SAPLING: Self = Self {
@@ -67158,7 +67158,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_SHELF: Self = Self {
@@ -67208,7 +67208,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_SIGN: Self = Self {
@@ -67257,7 +67257,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_SLAB: Self = Self {
@@ -67306,7 +67306,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_STAIRS: Self = Self {
@@ -67355,7 +67355,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_TRAPDOOR: Self = Self {
@@ -67404,7 +67404,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPRUCE_WOOD: Self = Self {
@@ -67453,7 +67453,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SPYGLASS: Self = Self {
@@ -67502,7 +67502,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SQUID_SPAWN_EGG: Self = Self {
@@ -67552,7 +67552,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STICK: Self = Self {
@@ -67601,7 +67601,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STICKY_PISTON: Self = Self {
@@ -67650,7 +67650,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE: Self = Self {
@@ -67699,7 +67699,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_AXE: Self = Self {
@@ -67799,7 +67799,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_BRICK_SLAB: Self = Self {
@@ -67848,7 +67848,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_BRICK_STAIRS: Self = Self {
@@ -67897,7 +67897,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_BRICK_WALL: Self = Self {
@@ -67946,7 +67946,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_BRICKS: Self = Self {
@@ -67995,7 +67995,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_BUTTON: Self = Self {
@@ -68044,7 +68044,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_HOE: Self = Self {
@@ -68144,7 +68144,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_PICKAXE: Self = Self {
@@ -68244,7 +68244,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_PRESSURE_PLATE: Self = Self {
@@ -68293,7 +68293,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_SHOVEL: Self = Self {
@@ -68393,7 +68393,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_SLAB: Self = Self {
@@ -68442,7 +68442,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_SPEAR: Self = Self {
@@ -68578,7 +68578,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl { can_sprint: true, interact_vibrations: false, speed_multiplier: 1.0 }),
         ],
     };
     pub const STONE_STAIRS: Self = Self {
@@ -68627,7 +68627,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONE_SWORD: Self = Self {
@@ -68732,7 +68732,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STONECUTTER: Self = Self {
@@ -68781,7 +68781,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRAY_SPAWN_EGG: Self = Self {
@@ -68831,7 +68831,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIDER_SPAWN_EGG: Self = Self {
@@ -68881,7 +68881,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRING: Self = Self {
@@ -68930,7 +68930,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_ACACIA_LOG: Self = Self {
@@ -68979,7 +68979,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_ACACIA_WOOD: Self = Self {
@@ -69028,7 +69028,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_BAMBOO_BLOCK: Self = Self {
@@ -69077,7 +69077,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_BIRCH_LOG: Self = Self {
@@ -69126,7 +69126,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_BIRCH_WOOD: Self = Self {
@@ -69175,7 +69175,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_CHERRY_LOG: Self = Self {
@@ -69224,7 +69224,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_CHERRY_WOOD: Self = Self {
@@ -69273,7 +69273,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_CRIMSON_HYPHAE: Self = Self {
@@ -69322,7 +69322,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_CRIMSON_STEM: Self = Self {
@@ -69371,7 +69371,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_DARK_OAK_LOG: Self = Self {
@@ -69420,7 +69420,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_DARK_OAK_WOOD: Self = Self {
@@ -69469,7 +69469,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_JUNGLE_LOG: Self = Self {
@@ -69518,7 +69518,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_JUNGLE_WOOD: Self = Self {
@@ -69567,7 +69567,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_MANGROVE_LOG: Self = Self {
@@ -69616,7 +69616,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_MANGROVE_WOOD: Self = Self {
@@ -69665,7 +69665,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_OAK_LOG: Self = Self {
@@ -69714,7 +69714,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_OAK_WOOD: Self = Self {
@@ -69763,7 +69763,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_PALE_OAK_LOG: Self = Self {
@@ -69812,7 +69812,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_PALE_OAK_WOOD: Self = Self {
@@ -69861,7 +69861,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_SPRUCE_LOG: Self = Self {
@@ -69910,7 +69910,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_SPRUCE_WOOD: Self = Self {
@@ -69959,7 +69959,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_WARPED_HYPHAE: Self = Self {
@@ -70008,7 +70008,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRIPPED_WARPED_STEM: Self = Self {
@@ -70057,7 +70057,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRUCTURE_BLOCK: Self = Self {
@@ -70106,7 +70106,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const STRUCTURE_VOID: Self = Self {
@@ -70155,7 +70155,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SUGAR: Self = Self {
@@ -70204,7 +70204,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SUGAR_CANE: Self = Self {
@@ -70253,7 +70253,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR: Self = Self {
@@ -70302,7 +70302,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_BRICK_SLAB: Self = Self {
@@ -70351,7 +70351,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_BRICK_STAIRS: Self = Self {
@@ -70400,7 +70400,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_BRICK_WALL: Self = Self {
@@ -70449,7 +70449,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_BRICKS: Self = Self {
@@ -70498,7 +70498,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_CUBE_BUCKET: Self = Self {
@@ -70548,7 +70548,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_CUBE_SPAWN_EGG: Self = Self {
@@ -70598,7 +70598,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_SLAB: Self = Self {
@@ -70647,7 +70647,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_SPIKE: Self = Self {
@@ -70696,7 +70696,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_STAIRS: Self = Self {
@@ -70745,7 +70745,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SULFUR_WALL: Self = Self {
@@ -70794,7 +70794,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SUNFLOWER: Self = Self {
@@ -70843,7 +70843,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SUSPICIOUS_GRAVEL: Self = Self {
@@ -70892,7 +70892,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SUSPICIOUS_SAND: Self = Self {
@@ -70941,7 +70941,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const SUSPICIOUS_STEW: Self = Self {
@@ -71009,7 +71009,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
             (
                 UseRemainder,
                 &UseRemainderImpl {
@@ -71082,7 +71082,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TADPOLE_BUCKET: Self = Self {
@@ -71132,7 +71132,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TADPOLE_SPAWN_EGG: Self = Self {
@@ -71182,7 +71182,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TALL_DRY_GRASS: Self = Self {
@@ -71231,7 +71231,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TALL_GRASS: Self = Self {
@@ -71280,7 +71280,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TARGET: Self = Self {
@@ -71329,7 +71329,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TERRACOTTA: Self = Self {
@@ -71378,7 +71378,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TEST_BLOCK: Self = Self {
@@ -71433,7 +71433,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TEST_INSTANCE_BLOCK: Self = Self {
@@ -71482,7 +71482,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TIDE_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -71531,7 +71531,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TINTED_GLASS: Self = Self {
@@ -71580,7 +71580,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TIPPED_ARROW: Self = Self {
@@ -71642,7 +71642,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TNT: Self = Self {
@@ -71691,7 +71691,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TNT_MINECART: Self = Self {
@@ -71740,7 +71740,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TORCH: Self = Self {
@@ -71789,7 +71789,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TORCHFLOWER: Self = Self {
@@ -71838,7 +71838,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TORCHFLOWER_SEEDS: Self = Self {
@@ -71887,7 +71887,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TOTEM_OF_UNDYING: Self = Self {
@@ -71937,7 +71937,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TRADER_LLAMA_SPAWN_EGG: Self = Self {
@@ -71987,7 +71987,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TRAPPED_CHEST: Self = Self {
@@ -72037,7 +72037,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TRIAL_KEY: Self = Self {
@@ -72086,7 +72086,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TRIAL_SPAWNER: Self = Self {
@@ -72135,7 +72135,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TRIDENT: Self = Self {
@@ -72218,7 +72218,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TRIPWIRE_HOOK: Self = Self {
@@ -72267,7 +72267,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TROPICAL_FISH: Self = Self {
@@ -72334,7 +72334,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TROPICAL_FISH_BUCKET: Self = Self {
@@ -72392,7 +72392,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TROPICAL_FISH_SPAWN_EGG: Self = Self {
@@ -72442,7 +72442,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUBE_CORAL: Self = Self {
@@ -72491,7 +72491,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUBE_CORAL_BLOCK: Self = Self {
@@ -72540,7 +72540,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUBE_CORAL_FAN: Self = Self {
@@ -72589,7 +72589,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUFF: Self = Self {
@@ -72638,7 +72638,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUFF_BRICK_SLAB: Self = Self {
@@ -72687,7 +72687,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUFF_BRICK_STAIRS: Self = Self {
@@ -72736,7 +72736,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUFF_BRICK_WALL: Self = Self {
@@ -72785,7 +72785,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUFF_BRICKS: Self = Self {
@@ -72834,7 +72834,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUFF_SLAB: Self = Self {
@@ -72883,7 +72883,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUFF_STAIRS: Self = Self {
@@ -72932,7 +72932,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TUFF_WALL: Self = Self {
@@ -72981,7 +72981,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TURTLE_EGG: Self = Self {
@@ -73030,7 +73030,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TURTLE_HELMET: Self = Self {
@@ -73119,7 +73119,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TURTLE_SCUTE: Self = Self {
@@ -73168,7 +73168,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TURTLE_SPAWN_EGG: Self = Self {
@@ -73218,7 +73218,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const TWISTING_VINES: Self = Self {
@@ -73267,7 +73267,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const VAULT: Self = Self {
@@ -73316,7 +73316,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const VERDANT_FROGLIGHT: Self = Self {
@@ -73365,7 +73365,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const VEX_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -73414,7 +73414,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const VEX_SPAWN_EGG: Self = Self {
@@ -73464,7 +73464,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const VILLAGER_SPAWN_EGG: Self = Self {
@@ -73514,7 +73514,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const VINDICATOR_SPAWN_EGG: Self = Self {
@@ -73564,7 +73564,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const VINE: Self = Self {
@@ -73613,7 +73613,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WANDERING_TRADER_SPAWN_EGG: Self = Self {
@@ -73663,7 +73663,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARD_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -73712,7 +73712,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARDEN_SPAWN_EGG: Self = Self {
@@ -73762,7 +73762,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_BUTTON: Self = Self {
@@ -73811,7 +73811,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_DOOR: Self = Self {
@@ -73860,7 +73860,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_FENCE: Self = Self {
@@ -73909,7 +73909,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_FENCE_GATE: Self = Self {
@@ -73958,7 +73958,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_FUNGUS: Self = Self {
@@ -74007,7 +74007,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_FUNGUS_ON_A_STICK: Self = Self {
@@ -74058,7 +74058,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_HANGING_SIGN: Self = Self {
@@ -74107,7 +74107,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_HYPHAE: Self = Self {
@@ -74156,7 +74156,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_NYLIUM: Self = Self {
@@ -74205,7 +74205,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_PLANKS: Self = Self {
@@ -74254,7 +74254,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_PRESSURE_PLATE: Self = Self {
@@ -74303,7 +74303,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_ROOTS: Self = Self {
@@ -74352,7 +74352,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_SHELF: Self = Self {
@@ -74402,7 +74402,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_SIGN: Self = Self {
@@ -74451,7 +74451,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_SLAB: Self = Self {
@@ -74500,7 +74500,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_STAIRS: Self = Self {
@@ -74549,7 +74549,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_STEM: Self = Self {
@@ -74598,7 +74598,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_TRAPDOOR: Self = Self {
@@ -74647,7 +74647,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WARPED_WART_BLOCK: Self = Self {
@@ -74696,7 +74696,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WATER_BUCKET: Self = Self {
@@ -74745,7 +74745,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_CHISELED_COPPER: Self = Self {
@@ -74794,7 +74794,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_BARS: Self = Self {
@@ -74843,7 +74843,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_BLOCK: Self = Self {
@@ -74892,7 +74892,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_BULB: Self = Self {
@@ -74941,7 +74941,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_CHAIN: Self = Self {
@@ -74990,7 +74990,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_CHEST: Self = Self {
@@ -75039,7 +75039,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_DOOR: Self = Self {
@@ -75088,7 +75088,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_GOLEM_STATUE: Self = Self {
@@ -75146,7 +75146,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_GRATE: Self = Self {
@@ -75195,7 +75195,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_LANTERN: Self = Self {
@@ -75244,7 +75244,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_COPPER_TRAPDOOR: Self = Self {
@@ -75293,7 +75293,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_CUT_COPPER: Self = Self {
@@ -75342,7 +75342,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_CUT_COPPER_SLAB: Self = Self {
@@ -75391,7 +75391,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_CUT_COPPER_STAIRS: Self = Self {
@@ -75440,7 +75440,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_CHISELED_COPPER: Self = Self {
@@ -75489,7 +75489,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER: Self = Self {
@@ -75538,7 +75538,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER_BARS: Self = Self {
@@ -75587,7 +75587,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER_BULB: Self = Self {
@@ -75636,7 +75636,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER_CHAIN: Self = Self {
@@ -75685,7 +75685,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER_CHEST: Self = Self {
@@ -75734,7 +75734,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER_DOOR: Self = Self {
@@ -75783,7 +75783,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER_GOLEM_STATUE: Self = Self {
@@ -75841,7 +75841,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER_GRATE: Self = Self {
@@ -75890,7 +75890,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER_LANTERN: Self = Self {
@@ -75939,7 +75939,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_COPPER_TRAPDOOR: Self = Self {
@@ -75988,7 +75988,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_CUT_COPPER: Self = Self {
@@ -76037,7 +76037,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_CUT_COPPER_SLAB: Self = Self {
@@ -76086,7 +76086,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_CUT_COPPER_STAIRS: Self = Self {
@@ -76135,7 +76135,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_EXPOSED_LIGHTNING_ROD: Self = Self {
@@ -76184,7 +76184,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_LIGHTNING_ROD: Self = Self {
@@ -76233,7 +76233,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_CHISELED_COPPER: Self = Self {
@@ -76282,7 +76282,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER: Self = Self {
@@ -76331,7 +76331,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER_BARS: Self = Self {
@@ -76380,7 +76380,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER_BULB: Self = Self {
@@ -76429,7 +76429,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER_CHAIN: Self = Self {
@@ -76478,7 +76478,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER_CHEST: Self = Self {
@@ -76527,7 +76527,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER_DOOR: Self = Self {
@@ -76576,7 +76576,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER_GOLEM_STATUE: Self = Self {
@@ -76634,7 +76634,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER_GRATE: Self = Self {
@@ -76683,7 +76683,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER_LANTERN: Self = Self {
@@ -76732,7 +76732,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_COPPER_TRAPDOOR: Self = Self {
@@ -76781,7 +76781,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_CUT_COPPER: Self = Self {
@@ -76830,7 +76830,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_CUT_COPPER_SLAB: Self = Self {
@@ -76879,7 +76879,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_CUT_COPPER_STAIRS: Self = Self {
@@ -76928,7 +76928,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_OXIDIZED_LIGHTNING_ROD: Self = Self {
@@ -76977,7 +76977,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_CHISELED_COPPER: Self = Self {
@@ -77026,7 +77026,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER: Self = Self {
@@ -77075,7 +77075,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER_BARS: Self = Self {
@@ -77124,7 +77124,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER_BULB: Self = Self {
@@ -77173,7 +77173,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER_CHAIN: Self = Self {
@@ -77222,7 +77222,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER_CHEST: Self = Self {
@@ -77271,7 +77271,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER_DOOR: Self = Self {
@@ -77320,7 +77320,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER_GOLEM_STATUE: Self = Self {
@@ -77378,7 +77378,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER_GRATE: Self = Self {
@@ -77427,7 +77427,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER_LANTERN: Self = Self {
@@ -77476,7 +77476,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_COPPER_TRAPDOOR: Self = Self {
@@ -77525,7 +77525,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_CUT_COPPER: Self = Self {
@@ -77574,7 +77574,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_CUT_COPPER_SLAB: Self = Self {
@@ -77623,7 +77623,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_CUT_COPPER_STAIRS: Self = Self {
@@ -77672,7 +77672,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAXED_WEATHERED_LIGHTNING_ROD: Self = Self {
@@ -77721,7 +77721,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WAYFINDER_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -77770,7 +77770,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_CHISELED_COPPER: Self = Self {
@@ -77819,7 +77819,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER: Self = Self {
@@ -77868,7 +77868,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER_BARS: Self = Self {
@@ -77917,7 +77917,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER_BULB: Self = Self {
@@ -77966,7 +77966,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER_CHAIN: Self = Self {
@@ -78015,7 +78015,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER_CHEST: Self = Self {
@@ -78064,7 +78064,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER_DOOR: Self = Self {
@@ -78113,7 +78113,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER_GOLEM_STATUE: Self = Self {
@@ -78171,7 +78171,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER_GRATE: Self = Self {
@@ -78220,7 +78220,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER_LANTERN: Self = Self {
@@ -78269,7 +78269,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_COPPER_TRAPDOOR: Self = Self {
@@ -78318,7 +78318,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_CUT_COPPER: Self = Self {
@@ -78367,7 +78367,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_CUT_COPPER_SLAB: Self = Self {
@@ -78416,7 +78416,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_CUT_COPPER_STAIRS: Self = Self {
@@ -78465,7 +78465,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEATHERED_LIGHTNING_ROD: Self = Self {
@@ -78514,7 +78514,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WEEPING_VINES: Self = Self {
@@ -78563,7 +78563,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WET_SPONGE: Self = Self {
@@ -78612,7 +78612,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHEAT: Self = Self {
@@ -78661,7 +78661,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHEAT_SEEDS: Self = Self {
@@ -78710,7 +78710,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_BANNER: Self = Self {
@@ -78760,7 +78760,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_BED: Self = Self {
@@ -78809,7 +78809,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_BUNDLE: Self = Self {
@@ -78859,7 +78859,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_CANDLE: Self = Self {
@@ -78908,7 +78908,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_CARPET: Self = Self {
@@ -78976,7 +78976,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_CONCRETE: Self = Self {
@@ -79025,7 +79025,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_CONCRETE_POWDER: Self = Self {
@@ -79074,7 +79074,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_DYE: Self = Self {
@@ -79124,7 +79124,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_GLAZED_TERRACOTTA: Self = Self {
@@ -79173,7 +79173,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_HARNESS: Self = Self {
@@ -79238,7 +79238,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_SHULKER_BOX: Self = Self {
@@ -79288,7 +79288,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_STAINED_GLASS: Self = Self {
@@ -79337,7 +79337,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_STAINED_GLASS_PANE: Self = Self {
@@ -79386,7 +79386,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_TERRACOTTA: Self = Self {
@@ -79435,7 +79435,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_TULIP: Self = Self {
@@ -79484,7 +79484,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WHITE_WOOL: Self = Self {
@@ -79533,7 +79533,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WILD_ARMOR_TRIM_SMITHING_TEMPLATE: Self = Self {
@@ -79582,7 +79582,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WILDFLOWERS: Self = Self {
@@ -79631,7 +79631,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WIND_CHARGE: Self = Self {
@@ -79687,7 +79687,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WITCH_SPAWN_EGG: Self = Self {
@@ -79737,7 +79737,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WITHER_ROSE: Self = Self {
@@ -79786,7 +79786,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WITHER_SKELETON_SKULL: Self = Self {
@@ -79857,7 +79857,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WITHER_SKELETON_SPAWN_EGG: Self = Self {
@@ -79907,7 +79907,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WITHER_SPAWN_EGG: Self = Self {
@@ -79957,7 +79957,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WOLF_ARMOR: Self = Self {
@@ -80047,7 +80047,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WOLF_SPAWN_EGG: Self = Self {
@@ -80097,7 +80097,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WOODEN_AXE: Self = Self {
@@ -80197,7 +80197,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WOODEN_HOE: Self = Self {
@@ -80297,7 +80297,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WOODEN_PICKAXE: Self = Self {
@@ -80397,7 +80397,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WOODEN_SHOVEL: Self = Self {
@@ -80497,7 +80497,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WOODEN_SPEAR: Self = Self {
@@ -80633,7 +80633,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl { can_sprint: true, interact_vibrations: false, speed_multiplier: 1.0 }),
         ],
     };
     pub const WOODEN_SWORD: Self = Self {
@@ -80738,7 +80738,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const WRITABLE_BOOK: Self = Self {
@@ -80787,7 +80787,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
             (
                 WritableBookContent,
                 &WritableBookContentImpl { pages: Vec::new() },
@@ -80841,7 +80841,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_BANNER: Self = Self {
@@ -80891,7 +80891,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_BED: Self = Self {
@@ -80940,7 +80940,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_BUNDLE: Self = Self {
@@ -80990,7 +80990,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_CANDLE: Self = Self {
@@ -81039,7 +81039,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_CARPET: Self = Self {
@@ -81107,7 +81107,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_CONCRETE: Self = Self {
@@ -81156,7 +81156,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_CONCRETE_POWDER: Self = Self {
@@ -81205,7 +81205,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_DYE: Self = Self {
@@ -81255,7 +81255,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_GLAZED_TERRACOTTA: Self = Self {
@@ -81304,7 +81304,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_HARNESS: Self = Self {
@@ -81369,7 +81369,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_SHULKER_BOX: Self = Self {
@@ -81419,7 +81419,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_STAINED_GLASS: Self = Self {
@@ -81468,7 +81468,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_STAINED_GLASS_PANE: Self = Self {
@@ -81517,7 +81517,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_TERRACOTTA: Self = Self {
@@ -81566,7 +81566,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const YELLOW_WOOL: Self = Self {
@@ -81615,7 +81615,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ZOGLIN_SPAWN_EGG: Self = Self {
@@ -81665,7 +81665,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ZOMBIE_HEAD: Self = Self {
@@ -81736,7 +81736,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ZOMBIE_HORSE_SPAWN_EGG: Self = Self {
@@ -81786,7 +81786,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ZOMBIE_NAUTILUS_SPAWN_EGG: Self = Self {
@@ -81836,7 +81836,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ZOMBIE_SPAWN_EGG: Self = Self {
@@ -81886,7 +81886,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ZOMBIE_VILLAGER_SPAWN_EGG: Self = Self {
@@ -81936,7 +81936,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     pub const ZOMBIFIED_PIGLIN_SPAWN_EGG: Self = Self {
@@ -81986,7 +81986,7 @@ impl Item {
                 },
             ),
             (TooltipDisplay, &TooltipDisplayImpl),
-            (UseEffects, &UseEffectsImpl),
+            (UseEffects, &UseEffectsImpl::DEFAULT),
         ],
     };
     #[must_use]

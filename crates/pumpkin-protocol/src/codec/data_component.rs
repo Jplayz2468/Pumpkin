@@ -1431,16 +1431,16 @@ impl DataComponentCodec<Self> for MaxDamageImpl {
 
 impl DataComponentCodec<Self> for UseEffectsImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_bool(false)?;
-        seq.write_bool(true)?;
-        seq.write_f32(0.2)
+        seq.write_bool(self.can_sprint)?;
+        seq.write_bool(self.interact_vibrations)?;
+        seq.write_f32(self.speed_multiplier)
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let _can_sprint = seq.get_bool()?;
-        let _interact_vibrations = seq.get_bool()?;
-        let _speed_multiplier = seq.get_f32()?;
-        Ok(Self)
+        Ok(Self {
+            can_sprint: seq.get_bool()?,
+            interact_vibrations: seq.get_bool()?,
+            speed_multiplier: seq.get_f32()?,
+        })
     }
 }
 
