@@ -176,8 +176,7 @@ impl BlockBehaviour for CampfireBlock {
             args.world.set_block_state(
                 args.position,
                 props.to_state_id(args.block),
-                pumpkin_world::world::BlockFlags::NOTIFY_ALL
-                    | pumpkin_world::world::BlockFlags::SKIP_DROPS,
+                pumpkin_world::world::BlockFlags::NOTIFY_ALL,
             );
         }
     }

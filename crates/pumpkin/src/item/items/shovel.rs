@@ -59,11 +59,7 @@ impl ItemBehaviour for ShovelItem {
                 world.sync_world_event(particle, location, 0);
             }
 
-            world.set_block_state(
-                &location,
-                result.new_state_id,
-                BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
-            );
+            world.set_block_state(&location, result.new_state_id, BlockFlags::NOTIFY_ALL);
             damage = result.entry.item_damage_per_use;
             changed = true;
         } else if block == &Block::CAMPFIRE || block == &Block::SOUL_CAMPFIRE {
@@ -82,7 +78,7 @@ impl ItemBehaviour for ShovelItem {
                 world.set_block_state(
                     &location,
                     campfire_props.to_state_id(block),
-                    BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
+                    BlockFlags::NOTIFY_ALL,
                 );
                 changed = true;
             }

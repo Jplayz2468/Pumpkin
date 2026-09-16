@@ -697,3 +697,29 @@ so they must not be used to reconstruct audit completion.
 - Source and format review only; no builds/tests. Experimental redstone orientation,
   custom block-set definitions, generic event/shape ordering and protocol-version
   coverage remain open alongside all other unaudited families and item paths.
+
+## Continued source port: doors, trapdoors and gates
+
+- Door hinge selection uses the actual upper-left/upper-right neighbors and exact
+  center-hit comparisons. Placement checks upper space and initial power; only
+  setPlacedBy creates the upper half. Survival distinguishes upper/lower halves.
+  Shape updates synchronize both state and door material, including copper aging,
+  instead of manually overwriting the other half on every interaction/removal.
+- Door pre-break handling suppresses the lower-half drop when an upper half is
+  destroyed creatively or with an unsuitable tool. Hand-openable copper doors now
+  participate in the historical isWoodenDoor query. Sounds/events and redstone
+  updates follow source order, with wood-specific sounds and random pitch.
+- Trapdoors distinguish clicked-block replacement from side placement, use actual
+  source water, schedule water on toggles/power/shape updates and emit open/close
+  events. Gates initialize their wall attachment, preserve it on irrelevant shape
+  updates, and send state changes before sounds/events. All three families handle
+  eligible unpowered wind-charge toggles; copper wrappers delegate the new hooks.
+- Corrected a flag mapping while reviewing these paths: Java flag 8 is immediate
+  client rendering, whereas Pumpkin's numeric 8 suppresses drops. The campfire and
+  shovel changes no longer mistake that rendering hint for drop suppression.
+- World sound packets now use their own legacy random stream, matching Level's
+  separate soundSeedGenerator rather than consuming gameplay random. Initial RNG
+  seeding, sound range filtering and protocol-specific effects remain broader gaps.
+- Source/format review only, no builds or tests. Dynamic/custom door types, exact
+  contextual support shapes, placement replacement predicates, non-player event
+  attribution and the remaining block/item pipeline are still open.

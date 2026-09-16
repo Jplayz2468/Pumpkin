@@ -258,6 +258,8 @@ impl PumpkinError for GetBlockError {
 pub struct World {
     /// Weak ownership lets block-entity inventories perform synchronous world callbacks.
     self_reference: Weak<World>,
+    /// Level owns a separate thread-safe legacy stream for sound packet seeds.
+    sound_random: std::sync::Mutex<pumpkin_util::random::legacy_rand::LegacyRand>,
     /// Java-compatible Level random stream. Spawn finalization uses this owner;
     /// remaining world RNG consumers are migrated separately.
     pub random: std::sync::Mutex<pumpkin_util::random::legacy_rand::LegacyRand>,
@@ -410,6 +412,9 @@ impl World {
 
         Arc::new_cyclic(|self_reference| Self {
             self_reference: self_reference.clone(),
+            sound_random: std::sync::Mutex::new(
+                pumpkin_util::random::legacy_rand::LegacyRand::from_seed(get_seed()),
+            ),
             random: std::sync::Mutex::new(
                 pumpkin_util::random::legacy_rand::LegacyRand::from_seed(get_seed()),
             ),
@@ -1311,6 +1316,13 @@ impl World {
         }
     }
 
+    fn next_sound_seed(&self) -> i64 {
+        self.sound_random
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .next_i64()
+    }
+
     pub fn play_sound(&self, sound: Sound, category: SoundCategory, position: &Vector3<f64>) {
         self.play_sound_raw(sound as u16, category, position, 1.0, 1.0);
     }
@@ -1342,7 +1354,7 @@ impl World {
             position,
             volume,
             pitch,
-            rng().random::<i64>(),
+            self.next_sound_seed(),
         );
         self.broadcast_packet_all(&packet);
     }
@@ -1356,7 +1368,7 @@ impl World {
         category: SoundCategory,
         position: &Vector3<f64>,
     ) {
-        let seed = rng().random::<i64>();
+        let seed = self.next_sound_seed();
         let packet = CSoundEffect::new(
             data_to_proto_sound(sound),
             category,
@@ -1388,7 +1400,7 @@ impl World {
         volume: f32,
         pitch: f32,
     ) {
-        let seed = rand::random::<i64>();
+        let seed = self.next_sound_seed();
         let packet = CSoundEffect::new(
             pumpkin_protocol::IdOr::Value(pumpkin_protocol::SoundEvent {
                 sound_name: sound_name.into(),
@@ -1472,7 +1484,7 @@ impl World {
         volume: f32,
         pitch: f32,
     ) {
-        let seed = rand::rng().random::<i64>();
+        let seed = self.next_sound_seed();
         let packet = CSoundEffect::new(IdOr::Id(sound_id), category, position, volume, pitch, seed);
 
         // Calculate the number of chunks the sound can be heard from based on its volume.
@@ -1499,7 +1511,7 @@ impl World {
         volume: f32,
         pitch: f32,
     ) {
-        let seed = rand::rng().random::<i64>();
+        let seed = self.next_sound_seed();
         let packet = CSoundEffect::new(IdOr::Id(sound_id), category, position, volume, pitch, seed);
 
         let audible_chunks = f64::from(volume.max(1.0)).ceil() as i32;

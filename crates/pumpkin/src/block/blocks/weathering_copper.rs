@@ -23,9 +23,10 @@ use crate::block::blocks::trapdoor::TrapDoorBlock;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
     BlockBehaviour, BlockMetadata, BrokenArgs, CanPlaceAtArgs, CanUpdateAtArgs,
-    EmitsRedstonePowerArgs, GetComparatorOutputArgs, GetRedstonePowerArgs,
+    EmitsRedstonePowerArgs, ExplodeArgs, GetComparatorOutputArgs, GetRedstonePowerArgs,
     GetStateForNeighborUpdateArgs, NormalUseArgs, OnNeighborUpdateArgs, OnPlaceArgs,
-    OnScheduledTickArgs, OnStateReplacedArgs, PathComputationType, PlacedArgs, RandomTickArgs,
+    OnScheduledTickArgs, OnStateReplacedArgs, PathComputationType, PlacedArgs, PlayerPlacedArgs,
+    RandomTickArgs,
 };
 use crate::world::World;
 
@@ -575,21 +576,8 @@ pub fn change_over_time(
 
     world.set_block_state(position, new_state_id, BlockFlags::NOTIFY_ALL);
 
-    // Special handling for multi-block structures:
-    // Door: update upper half if present
-    if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_DOORS) {
-        let door_props = OakDoorLikeProperties::from_state_id(current_state_id);
-        if door_props.half == DoubleBlockHalf::Lower {
-            let top_pos = position.up();
-            let (top_block, top_state_id) = world.get_block_and_state_id(&top_pos);
-            if top_block == block {
-                let top_new_state_id = with_properties_of(top_block, top_state_id, next_block);
-                world.set_block_state(&top_pos, top_new_state_id, BlockFlags::NOTIFY_ALL);
-            }
-        }
-    }
-    // Chest: update right companion chest if double chest
-    else if block == &Block::COPPER_CHEST
+    // Doors synchronize through their shape callbacks; double chests need their companion update.
+    if block == &Block::COPPER_CHEST
         || block == &Block::EXPOSED_COPPER_CHEST
         || block == &Block::WEATHERED_COPPER_CHEST
     {
@@ -961,6 +949,17 @@ impl BlockMetadata for WeatheringCopperTrapDoorBlock {
 }
 
 impl BlockBehaviour for WeatheringCopperTrapDoorBlock {
+    fn explode(&self, args: ExplodeArgs<'_>) {
+        TrapDoorBlock.explode(args);
+    }
+
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        TrapDoorBlock.get_state_for_neighbor_update(args)
+    }
+
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         TrapDoorBlock.on_place(args)
     }
@@ -1093,12 +1092,12 @@ impl BlockBehaviour for WeatheringCopperDoorBlock {
         DoorBlock.can_place_at(args)
     }
 
-    fn placed(&self, args: PlacedArgs<'_>) {
-        DoorBlock.placed(args);
+    fn player_placed(&self, args: PlayerPlacedArgs<'_>) {
+        DoorBlock.player_placed(args);
     }
 
-    fn broken(&self, args: BrokenArgs<'_>) {
-        DoorBlock.broken(args);
+    fn player_will_destroy(&self, args: BrokenArgs<'_>) {
+        DoorBlock.player_will_destroy(args);
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
@@ -1112,8 +1111,8 @@ impl BlockBehaviour for WeatheringCopperDoorBlock {
         DoorBlock.get_state_for_neighbor_update(args)
     }
 
-    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
-        DoorBlock.on_state_replaced(args);
+    fn explode(&self, args: ExplodeArgs<'_>) {
+        DoorBlock.explode(args);
     }
 
     fn random_tick(&self, mut args: RandomTickArgs<'_>) {
