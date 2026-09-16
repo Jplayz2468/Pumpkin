@@ -1627,27 +1627,6 @@ impl Entity {
             .store(supporting.is_none(), Ordering::Relaxed);
     }
 
-    #[expect(clippy::float_cmp)]
-    fn adjust_movement_for_collisions(
-        &self,
-        movement: Vector3<f64>,
-        caller: &dyn EntityBase,
-    ) -> Vector3<f64> {
-        let was_grounded = self.on_ground.load(Ordering::Relaxed);
-        let adjusted = self.collide_movement(caller, movement, was_grounded);
-        use crate::entity::ai::control::collision_response;
-        self.horizontal_collision.store(
-            collision_response::clipped(movement.x, adjusted.x)
-                || collision_response::clipped(movement.z, adjusted.z),
-            Ordering::Relaxed,
-        );
-        self.on_ground.store(
-            movement.y < 0.0 && movement.y != adjusted.y,
-            Ordering::Relaxed,
-        );
-        adjusted
-    }
-
     fn collide_movement(
         &self,
         caller: &dyn EntityBase,
@@ -2534,21 +2513,35 @@ impl Entity {
                 return;
             }
         }
+        if !self.no_physics.load(Ordering::Relaxed)
+            && self
+                .movement_multiplier
+                .swap(Vector3::default())
+                .length_squared()
+                > 1.0e-7
+        {
+            // Piston motion ignores the stuck multiplier but still consumes it
+            // and clears the entity's own velocity, like Entity.move(PISTON).
+            self.velocity.store(Vector3::default());
+        }
         let adjusted = if self.no_physics.load(Ordering::Relaxed) {
             motion
         } else {
             self.collide_movement(caller, motion, self.on_ground.load(Ordering::Relaxed))
         };
         let from = self.pos.load();
-        self.move_pos(adjusted);
-        if !self.no_physics.load(Ordering::Relaxed)
-            && (motion.y != 0.0 || caller.get_player().is_none())
+        if self.no_physics.load(Ordering::Relaxed)
+            || crate::entity::ai::control::collision_response::applies_position(
+                motion.length_squared(),
+                adjusted.length_squared(),
+            )
         {
-            self.set_on_ground_with_movement(
-                caller,
-                motion.y < 0.0 && motion.y != adjusted.y,
-                Some(adjusted),
-            );
+            self.move_pos(adjusted);
+        }
+        if self.no_physics.load(Ordering::Relaxed) {
+            self.horizontal_collision.store(false, Ordering::Relaxed);
+        } else {
+            self.finish_movement(caller, motion, adjusted);
         }
         if let Some(server) = self.world.load().server.upgrade() {
             self.apply_inside_movements(
@@ -2568,110 +2561,113 @@ impl Entity {
         if caller.get_player().is_some() {
             return;
         }
-
         if self.no_physics.load(Ordering::Relaxed) {
             self.move_pos(motion);
             self.horizontal_collision.store(false, Ordering::Relaxed);
-            self.set_on_ground_with_movement(caller, false, None);
-
             return;
         }
-
         let movement_multiplier = self.movement_multiplier.swap(Vector3::default());
-
         if movement_multiplier.length_squared() > 1.0e-7 {
             motion = motion.multiply(
                 movement_multiplier.x,
                 movement_multiplier.y,
                 movement_multiplier.z,
             );
-
             self.velocity.store(Vector3::default());
         }
-
-        let final_move = self.adjust_movement_for_collisions(motion, caller);
+        let final_move =
+            self.collide_movement(caller, motion, self.on_ground.load(Ordering::Relaxed));
         let from = self.pos.load();
-        self.record_inside_movement(from, from + final_move, Some(motion));
+        if crate::entity::ai::control::collision_response::applies_position(
+            motion.length_squared(),
+            final_move.length_squared(),
+        ) {
+            self.record_inside_movement(from, from + final_move, Some(motion));
+            self.move_pos(final_move);
+        }
+        self.finish_movement(caller, motion, final_move);
+    }
 
-
-        self.move_pos(final_move);
-        self.set_on_ground_with_movement(caller, self.on_ground.load(Ordering::Relaxed), Some(final_move));
-        self.emit_movement_events(caller, final_move);
-
-        if let Some(living) = caller.get_living_entity()
-            && living.controlled_speed.load().is_some()
-        {
-            use crate::entity::ai::control::{collision_response, travel_input};
-            use pumpkin_data::attributes::Attributes;
-            let collision_x = collision_response::clipped(motion.x, final_move.x);
-            let collision_z = collision_response::clipped(motion.z, final_move.z);
-            self.horizontal_collision
-                .store(collision_x || collision_z, Ordering::Relaxed);
+    /// Shared rest phase of Entity.move for ordinary travel and piston displacement.
+    /// Collision response modifies the entity's travel velocity, not the external push.
+    fn finish_movement(&self, caller: &dyn EntityBase, motion: Vector3<f64>, actual: Vector3<f64>) {
+        use crate::entity::ai::control::{collision_response, travel_input};
+        use pumpkin_data::attributes::Attributes;
+        let collision_x = collision_response::clipped(motion.x, actual.x);
+        let collision_z = collision_response::clipped(motion.z, actual.z);
+        self.horizontal_collision
+            .store(collision_x || collision_z, Ordering::Relaxed);
+        let vertical = motion.y != actual.y;
+        let server_controls = caller.get_player().is_none();
+        if motion.y != 0.0 || server_controls {
+            self.set_on_ground_with_movement(caller, motion.y < 0.0 && vertical, Some(actual));
+        }
+        let living = caller.get_living_entity();
+        if server_controls && let Some(living) = living {
             living.fall(
                 caller,
-                final_move.y,
+                actual.y,
                 self.on_ground.load(Ordering::Relaxed),
                 false,
             );
-            if self.is_removed() {
-                return;
-            }
-            let vertical = motion.y != final_move.y;
-            if vertical || collision_x || collision_z {
-                let block = self.get_block_with_y_offset(0.2).1;
-                let velocity = self.velocity.load();
-                let (velocity, bounced) =
-                    collision_response::restitute(collision_response::Facts {
-                        velocity: [velocity.x, velocity.y, velocity.z],
-                        actual: [final_move.x, final_move.y, final_move.z],
-                        collision_x,
-                        collision_z,
-                        vertical,
-                        below: vertical && motion.y < 0.0,
-                        suppress: self.is_sneaking(),
-                        block_suppresses: block.has_tag(&tag::Block::MINECRAFT_SUPPRESSES_BOUNCE),
-                        bounce: living.get_attribute_value(&Attributes::BOUNCINESS),
-                        block_bounce: collision_response::block_bounce(block.name),
-                        gravity: living.get_effective_gravity(caller),
-                        drag: travel_input::modified_friction(
+        }
+        if self.is_removed() {
+            return;
+        }
+        // Server players also simulate restitution (Player.canSimulateMovement),
+        // although their fall/ground authority differs for horizontal pushes.
+        if vertical || collision_x || collision_z {
+            let block = self.get_block_with_y_offset(0.2).1;
+            let velocity = self.velocity.load();
+            let (bounce, gravity, drag) = living.map_or_else(
+                || (0.0, caller.get_gravity(), 0.98_f32),
+                |living| {
+                    (
+                        living.get_attribute_value(&Attributes::BOUNCINESS),
+                        living.get_effective_gravity(caller),
+                        travel_input::modified_friction(
                             0.98,
                             living.get_attribute_value(&Attributes::AIR_DRAG_MODIFIER) as f32,
                         ),
-                    });
-                self.velocity
-                    .store(Vector3::new(velocity[0], velocity[1], velocity[2]));
-                if bounced {
-                    self.world.load().emit_game_event_with_source(
-                        "minecraft:bounce",
-                        self.pos.load(),
-                        Some(self.entity_id),
-                    );
-                    self.velocity_dirty.store(true, Ordering::Relaxed);
-                }
+                    )
+                },
+            );
+            let mut block_bounce = collision_response::block_bounce(block.name);
+            if living.is_none() {
+                block_bounce *= 0.8_f32;
             }
-            let multiplier = f64::from(caller.get_block_speed_factor());
-            let velocity = self.velocity.load();
+            let (velocity, bounced) = collision_response::restitute(collision_response::Facts {
+                velocity: [velocity.x, velocity.y, velocity.z],
+                actual: [actual.x, actual.y, actual.z],
+                collision_x,
+                collision_z,
+                vertical,
+                below: vertical && motion.y < 0.0,
+                suppress: self.is_sneaking(),
+                block_suppresses: block.has_tag(&tag::Block::MINECRAFT_SUPPRESSES_BOUNCE),
+                bounce,
+                block_bounce,
+                gravity,
+                drag,
+            });
             self.velocity
-                .store(velocity.multiply(multiplier, 1.0, multiplier));
-            return;
+                .store(Vector3::new(velocity[0], velocity[1], velocity[2]));
+            if bounced {
+                self.world.load().emit_game_event_with_source(
+                    "minecraft:bounce",
+                    self.pos.load(),
+                    Some(self.entity_id),
+                );
+                self.velocity_dirty.store(true, Ordering::Relaxed);
+            }
         }
-
-        let velocity_multiplier = f64::from(caller.get_block_speed_factor());
-
-        self.velocity.store(final_move * velocity_multiplier);
-
-        if let Some(living) = caller.get_living_entity() {
-            let on_ground = self.on_ground.load(Ordering::SeqCst);
-            living.fall(caller, final_move.y, on_ground, false);
+        if !self.has_vehicle() {
+            self.emit_movement_events(caller, actual);
         }
-
-        if motion.y != final_move.y {
-            let world = self.world.load();
-            let block = self.get_block_with_y_offset(0.2).1;
-            world
-                .block_registry
-                .update_entity_movement_after_fall_on(block, caller);
-        }
+        let multiplier = f64::from(caller.get_block_speed_factor());
+        let velocity = self.velocity.load();
+        self.velocity
+            .store(velocity.multiply(multiplier, 1.0, multiplier));
     }
 
     pub fn push_out_of_blocks(&self, center_pos: Vector3<f64>) {

@@ -171,12 +171,46 @@ whole inside-effect pipeline matches Java yet.
   background library run 6 passed **469 tests**, with the two previously separately
   passing socket tests excluded. No live gameplay or full mob pass was performed.
 
-Next D01 work: ordinary and piston movement still have divergent post-collision
-side effects. Entity.move_by_piston omits stuck-speed reset, horizontal collision
-flags, fall handling, restitution, movement emissions and block-speed factors;
-ordinary movement only uses the full restitution helper for controlled living
-entities. Port shared post-move response with client-authority handling and verify
-full world integration. Other contextual shapes still need their own source probes.
+## Shared movement response
+
+- Ordinary travel and piston displacement now share their post-collision phase:
+  horizontal flags, support/ground state, living fall handling, velocity restitution,
+  bounce events and horizontal block-speed factors. The former full restitution
+  path was limited to controlled living entities; other entities now use it too.
+- Piston pushes consume stuck-block multipliers and reset travel velocity without
+  scaling the external push. Unobstructed displacement preserves the entity's own
+  travel velocity; collision restitution changes that velocity rather than replacing
+  it with the requested displacement. Non-living block bounce scales by 0.8F.
+- Players retain separate horizontal-push ground/fall handling, but server-side
+  Player.canSimulateMovement still allows their restitution. Riding-vehicle authority
+  remains an explicit missing shared API; see next work below.
+- Dropped-item friction uses the correct supporting-block offset and one float
+  drag factor (removing the extra drag multiplication); residual downward ground
+  velocity rebounds by -0.5 as in ItemEntity.tick.
+- Movement emissions skip passengers. No-physics movement preserves onGround while
+  clearing horizontal collisions. Position changes and movement recording honor
+  Java's tiny-clipped-motion threshold.
+- Java's actual private restitution method matches **800 seeded cases**, including
+  non-living block bounce, suppression, gravity/drag compensation and NaN results.
+  The oracle explicitly binds honey's suppresses_bounce tag because Bootstrap alone
+  does not load datapack tags. Background library run 2 passed **471 tests**, excluding
+  the two previously separately passing socket tests. Final call-site and item
+  friction run 5 also passed **471 tests** with the same exclusions.
+
+Next D01 work: shared controlling-passenger/client-authority API, large-movement
+fall-distance-reset ray checks, minor collision flags, omnidirectional air drag,
+remaining contextual shape probes and live world integration. The current shared
+post-move path treats non-player vehicles as server-authoritative; ridden vehicles
+need the source controlling-passenger override before parity can be claimed.
+Other direct movement and portal/passenger paths also remain to be reconciled.
 
 The remaining D02–D06 and block-system gates above remain open. Do not treat this
 bounded collision/climbing checkpoint as full engine or block parity.
+
+Controlling-passenger source map for the next shared-engine pass: Entity defaults
+null; Mob accepts its first Mob passenger only when AI is enabled and the passenger
+canControlVehicle; AbstractBoat accepts its first LivingEntity. AbstractHorse and
+AbstractNautilus accept a saddled first Player; Pig/Strider also require the matching
+steering item; HappyGhast requires body armor and no still timeout. Player overrides
+canSimulateMovement to true on the server even though it is client-authoritative.
+These are shared control hooks, not authorization for full per-mob passes.

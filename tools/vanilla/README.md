@@ -93,3 +93,23 @@ normalized). Counts precede each axis and the box sequence. Rust invokes its rea
 piston shape constructor and compares without sorting boxes. These cases prove
 bounded shape construction; they do not certify entity displacement, packet
 handling or a running piston contraption.
+
+
+## Collision restitution
+
+`CollisionRestitutionOracle.java` invokes Java 26.2 Entity's actual private
+`restituteMovementAfterCollisions` method on a non-living probe with controlled
+velocity, gravity, drag and bounciness. 800 seeded cases cover collision axes,
+slime/bed/honey/ordinary blocks, suppression and gravity/drag compensation.
+Bootstrap does not load datapack tags, so the probe explicitly binds honey to
+`suppresses_bounce`, matching the vanilla JSON's sole entry. It overrides the bounce
+event sink rather than loading a world. Output vectors use raw binary64 bits;
+Rust compares them exactly except NaN payloads, for which it checks NaN semantics.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/CollisionRestitutionOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' CollisionRestitutionOracle > crates/pumpkin/src/entity/ai/control/collision_restitution_cases.json
+```
+
+This verifies restitution math, not movement authority, fall damage, vehicle
+control or full world dispatch. Those integration gates remain in ENGINE_GAPS.md.

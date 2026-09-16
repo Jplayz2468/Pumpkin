@@ -1319,3 +1319,11 @@ restored for tagged blocks and aligned open trapdoors, with the scaffolding/snea
 exception and exact Java float movement cap. Degenerate border collision is fixed.
 Post-move side effects and the other engine gates remain open in ENGINE_GAPS.md;
 full mob passes remain paused.
+
+
+### Shared collision response
+
+Ordinary and piston movement share landing/restitution/velocity effects, including
+non-living block bounce and stuck-block reset. 800 Java restitution reference cases
+match. Ridden-vehicle authority and full world integration remain open; this is a
+shared-engine checkpoint, not a mob pass or a claim of complete block parity.

@@ -444,19 +444,25 @@ impl ItemEntity {
         entity.move_entity(caller, move_velo);
         entity.tick_block_collisions(caller);
 
-        let mut friction = 0.98;
+        let air_drag = 0.98_f32;
         let on_ground = entity.on_ground.load(Ordering::SeqCst);
-
-        let mut velo = entity.velocity.load();
-        if on_ground {
-            let block_affecting_velo = entity.get_block_with_y_offset(0.999_999).1;
-            friction *= f64::from(block_affecting_velo.slipperiness) * 0.98;
-        }
-
-        velo = velo.multiply(friction, 0.98, friction);
-
+        let friction = if on_ground {
+            air_drag
+                * entity
+                    .world
+                    .load()
+                    .get_block(&entity.get_block_pos_below_that_affects_my_movement())
+                    .slipperiness
+        } else {
+            air_drag
+        };
+        let mut velo = entity.velocity.load().multiply(
+            f64::from(friction),
+            f64::from(air_drag),
+            f64::from(friction),
+        );
         if on_ground && velo.y < 0.0 {
-            velo.y = 0.0;
+            velo.y *= -0.5;
         }
 
         entity.velocity.store(velo);
