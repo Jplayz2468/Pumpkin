@@ -12,7 +12,7 @@ use pumpkin_world::chunk::ChunkData;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    block::{ExplodeArgs, drop_explosion_loot},
+    block::{ExplodeArgs, collect_explosion_loot},
     entity::{Entity, EntityBase},
     world::loot::LootContextParameters,
 };
@@ -89,7 +89,7 @@ pub trait ExplosionDamageCalculator: Send + Sync {
         entity: &dyn EntityBase,
         exposure: f32,
     ) -> f32 {
-        let radius = explosion.power as f64 * 2.0;
+        let radius = f64::from(explosion.power * 2.0);
         let distance = (entity
             .get_entity()
             .pos
@@ -98,10 +98,8 @@ pub trait ExplosionDamageCalculator: Send + Sync {
         .sqrt()
             / radius;
         let damage_multiplier = (1.0 - distance) * exposure as f64;
-        (f64::midpoint(damage_multiplier * damage_multiplier, damage_multiplier)
-            * 7.0
-            * explosion.power as f64
-            + 1.0) as f32
+        ((damage_multiplier * damage_multiplier + damage_multiplier) / 2.0 * 7.0 * radius + 1.0)
+            as f32
     }
 }
 
@@ -184,6 +182,51 @@ impl ExplosionDamageCalculator for SimpleExplosionDamageCalculator {
     }
 }
 
+/// Ordered hash buckets for the source's HashSet<BlockPos> ray collection.
+/// Ordinary collision bins preserve insertion order through table doubling.
+struct ExplosionPositions {
+    buckets: Vec<Vec<BlockPos>>,
+    len: usize,
+}
+impl ExplosionPositions {
+    fn new() -> Self {
+        Self {
+            buckets: vec![Vec::new(); 16],
+            len: 0,
+        }
+    }
+    fn hash(pos: BlockPos) -> usize {
+        let h = pos
+            .0
+            .y
+            .wrapping_add(pos.0.z.wrapping_mul(31))
+            .wrapping_mul(31)
+            .wrapping_add(pos.0.x) as u32;
+        (h ^ (h >> 16)) as usize
+    }
+    fn insert(&mut self, pos: BlockPos) {
+        let index = Self::hash(pos) & (self.buckets.len() - 1);
+        if self.buckets[index].contains(&pos) {
+            return;
+        }
+        self.buckets[index].push(pos);
+        self.len += 1;
+        if self.len > self.buckets.len() * 3 / 4 {
+            let mut grown = vec![Vec::new(); self.buckets.len() * 2];
+            let mask = grown.len() - 1;
+            for bucket in &self.buckets {
+                for pos in bucket {
+                    grown[Self::hash(*pos) & mask].push(*pos);
+                }
+            }
+            self.buckets = grown;
+        }
+    }
+    fn into_vec(self) -> Vec<BlockPos> {
+        self.buckets.into_iter().flatten().collect()
+    }
+}
+
 pub struct Explosion<'a> {
     pub source: Option<&'a dyn EntityBase>,
     power: f32,
@@ -191,6 +234,8 @@ pub struct Explosion<'a> {
     block_interaction: BlockInteraction,
     damage_calculator: Option<Arc<dyn ExplosionDamageCalculator>>,
     preserve_rails: bool,
+    create_fire: bool,
+    damage_type: DamageType,
     /// Whether this explosion's indirect source entity is a player. Vanilla decides this
     /// with `explosion.getIndirectSourceEntity() instanceof Player`
     /// (`BlockBehaviour.java:180`), where `getIndirectSourceEntity` resolves to: the
@@ -211,6 +256,8 @@ impl<'a> Explosion<'a> {
             block_interaction,
             damage_calculator: None,
             preserve_rails: false,
+            create_fire: false,
+            damage_type: DamageType::EXPLOSION,
             caused_by_player: false,
         }
     }
@@ -242,6 +289,13 @@ impl<'a> Explosion<'a> {
         self
     }
 
+    #[must_use]
+    pub const fn bad_respawn_point(mut self) -> Self {
+        self.create_fire = true;
+        self.damage_type = DamageType::BAD_RESPAWN_POINT;
+        self
+    }
+
     fn protects_rail(&self, world: &World, pos: &BlockPos, block: &Block) -> bool {
         self.preserve_rails && (Self::is_rail(block) || Self::is_rail(world.get_block(&pos.up())))
     }
@@ -254,11 +308,8 @@ impl<'a> Explosion<'a> {
     }
 
     #[allow(clippy::too_many_lines)]
-    fn get_blocks_to_destroy(
-        &self,
-        world: &World,
-    ) -> FxHashMap<BlockPos, (&'static Block, &'static BlockState)> {
-        let mut map = FxHashMap::default();
+    fn get_blocks_to_destroy(&self, world: &World) -> Vec<BlockPos> {
+        let mut positions = ExplosionPositions::new();
 
         let mut chunk_cache: FxHashMap<
             pumpkin_util::math::vector2::Vector2<i32>,
@@ -278,9 +329,9 @@ impl<'a> Explosion<'a> {
                         continue;
                     }
 
-                    let mut dir_x = f64::from(x) / 7.5 - 1.0;
-                    let mut dir_y = f64::from(y) / 7.5 - 1.0;
-                    let mut dir_z = f64::from(z) / 7.5 - 1.0;
+                    let mut dir_x = f64::from(x as f32 / 15.0 * 2.0 - 1.0);
+                    let mut dir_y = f64::from(y as f32 / 15.0 * 2.0 - 1.0);
+                    let mut dir_z = f64::from(z as f32 / 15.0 * 2.0 - 1.0);
 
                     let length = (dir_x * dir_x + dir_y * dir_y + dir_z * dir_z).sqrt();
                     dir_x /= length;
@@ -291,8 +342,7 @@ impl<'a> Explosion<'a> {
                     let mut pos_y = self.pos.y;
                     let mut pos_z = self.pos.z;
 
-                    let random_val = rand::random::<f32>();
-                    let mut h = self.power * random_val.mul_add(0.6, 0.7);
+                    let mut h = self.power * (0.7 + world.rand_f32() * 0.6);
 
                     while h > 0.0 {
                         let block_pos = BlockPos::floored(pos_x, pos_y, pos_z);
@@ -322,57 +372,40 @@ impl<'a> Explosion<'a> {
                             Block::AIR.default_state.id
                         };
 
-                        let (block, state) = BlockState::from_id_with_block(state_id);
+                        let (block, _state) = BlockState::from_id_with_block(state_id);
 
-                        let (_fluid, fluid_state) = Fluid::from_state_id(state_id).map_or_else(
-                            || {
-                                if block.is_waterlogged(state_id) {
-                                    (&Fluid::FLOWING_WATER, &Fluid::FLOWING_WATER.states[0])
-                                } else {
-                                    (&Fluid::EMPTY, &Fluid::EMPTY.states[0])
-                                }
-                            },
-                            |raw_fluid| {
-                                let f = raw_fluid.to_flowing();
-                                (f, &f.states[0])
-                            },
-                        );
-
-                        if !state.is_air() || !fluid_state.is_empty {
-                            let protects_rail = self.protects_rail(world, &block_pos, block);
-                            let resistance = if protects_rail {
-                                Some(0.0)
-                            } else {
-                                calc.get_block_explosion_resistance(
-                                    self,
-                                    world,
-                                    &block_pos,
-                                    block,
-                                    fluid_state,
-                                )
-                            };
-
-                            if let Some(resistance) = resistance {
-                                h -= (resistance + 0.3) * 0.3;
-                            }
-
-                            if h > 0.0
-                                && !protects_rail
-                                && calc.should_block_explode(self, world, &block_pos, block, h)
-                            {
-                                map.insert(block_pos, (block, state));
-                            }
+                        let (_, fluid_state) = World::fluid_state_from_block_state(state_id);
+                        let protects_rail = self.protects_rail(world, &block_pos, block);
+                        let resistance = if protects_rail {
+                            Some(0.0)
+                        } else {
+                            calc.get_block_explosion_resistance(
+                                self,
+                                world,
+                                &block_pos,
+                                block,
+                                &fluid_state,
+                            )
+                        };
+                        if let Some(resistance) = resistance {
+                            h -= (resistance + 0.3) * 0.3;
+                        }
+                        if h > 0.0
+                            && !protects_rail
+                            && calc.should_block_explode(self, world, &block_pos, block, h)
+                        {
+                            positions.insert(block_pos);
                         }
 
-                        pos_x += dir_x * 0.3;
-                        pos_y += dir_y * 0.3;
-                        pos_z += dir_z * 0.3;
+                        pos_x += dir_x * f64::from(0.3_f32);
+                        pos_y += dir_y * f64::from(0.3_f32);
+                        pos_z += dir_z * f64::from(0.3_f32);
                         h -= 0.225_000_01;
                     }
                 }
             }
         }
-        map
+        positions.into_vec()
     }
 
     fn damage_entities(&self, world: &Arc<World>) {
@@ -431,14 +464,17 @@ impl<'a> Explosion<'a> {
                 Self::calculate_exposure(&self.pos, entity, world) as f64
             };
 
-            if exposure == 0.0 {
-                continue;
-            }
-
             if should_damage {
                 let damage =
                     calc.get_entity_damage_amount(self, entity_base.as_ref(), exposure as f32);
-                entity.damage(entity_base.as_ref(), damage, DamageType::EXPLOSION);
+                entity_base.damage_with_context(
+                    entity_base.as_ref(),
+                    damage,
+                    self.damage_type,
+                    Some(self.pos),
+                    self.source,
+                    self.source,
+                );
             }
 
             // Calculate and apply knockback
@@ -448,8 +484,11 @@ impl<'a> Explosion<'a> {
                 entity.get_eye_pos()
             };
             let direction = (dir_pos - self.pos).normalize();
-            // TODO: entity explosion knockback resistance attribute
-            let knockback_resistance = 0.0;
+            let knockback_resistance = entity_base.get_living_entity().map_or(0.0, |living| {
+                living.get_attribute_value(
+                    &pumpkin_data::attributes::Attributes::EXPLOSION_KNOCKBACK_RESISTANCE,
+                )
+            });
 
             let knockback_power =
                 (1.0 - distance) * exposure * knockback_multiplier * (1.0 - knockback_resistance);
@@ -516,15 +555,22 @@ impl<'a> Explosion<'a> {
         visible_points as f32 / total_points as f32
     }
 
-    /// Returns the removed block count
+    /// Returns the number of positions reached by explosion rays.
     pub fn explode(&self, world: &Arc<World>) -> u32 {
+        let mut blocks = self.get_blocks_to_destroy(world);
         self.damage_entities(world);
-
+        if self.block_interaction != BlockInteraction::Keep {
+            for i in (1..blocks.len()).rev() {
+                let j = world.rand_bounded_i32((i + 1) as i32) as usize;
+                blocks.swap(i, j);
+            }
+        }
+        let mut drops: Vec<(BlockPos, pumpkin_data::item_stack::ItemStack)> = Vec::new();
         match self.block_interaction {
-            BlockInteraction::Keep => 0,
+            BlockInteraction::Keep => {}
             BlockInteraction::TriggerBlock => {
-                let blocks = self.get_blocks_to_destroy(world);
-                for (pos, (block, _state)) in &blocks {
+                for pos in &blocks {
+                    let (block, state) = world.get_block_and_state(pos);
                     let pumpkin_block = world.block_registry.get_pumpkin_block(block.id);
                     if let Some(pumpkin_block) = pumpkin_block {
                         pumpkin_block.explode(ExplodeArgs {
@@ -533,12 +579,11 @@ impl<'a> Explosion<'a> {
                             position: pos,
                             caused_by_player: self.caused_by_player,
                             source: self.source,
-                            state: _state,
+                            state,
                             can_trigger_blocks: true,
                         });
                     }
                 }
-                0
             }
             BlockInteraction::Destroy | BlockInteraction::DestroyWithDecay => {
                 let center_pos = BlockPos::floored(self.pos.x, self.pos.y, self.pos.z);
@@ -558,11 +603,14 @@ impl<'a> Explosion<'a> {
                     return 0;
                 }
 
-                let blocks = self.get_blocks_to_destroy(world);
                 let decay_drops = self.block_interaction == BlockInteraction::DestroyWithDecay;
                 let explosion_radius = decay_drops.then_some(self.power);
 
-                for (pos, (block, state)) in &blocks {
+                for pos in &blocks {
+                    let (block, state) = world.get_block_and_state(pos);
+                    if state.is_air() {
+                        continue;
+                    }
                     let pumpkin_block = world.block_registry.get_pumpkin_block(block.id);
 
                     if pumpkin_block.is_none_or(|s| s.should_drop_items_on_explosion()) {
@@ -594,7 +642,33 @@ impl<'a> Explosion<'a> {
                         // Vanilla: `doDropExperienceHack = explosion.getIndirectSourceEntity()
                         // instanceof Player` (BlockBehaviour.java:180), passed into
                         // `state.spawnAfterBreak(..., doDropExperienceHack)` (line 192).
-                        drop_explosion_loot(world, block, pos, self.caused_by_player, &params);
+                        for mut item in collect_explosion_loot(
+                            world,
+                            block,
+                            pos,
+                            self.caused_by_player,
+                            &params,
+                        ) {
+                            for (_, stored) in &mut drops {
+                                if u16::from(stored.item_count) + u16::from(item.item_count)
+                                    <= u16::from(item.get_max_stack_size())
+                                    && stored.are_items_and_components_equal(&item)
+                                {
+                                    let delta = (i32::from(stored.get_max_stack_size().min(16))
+                                        - i32::from(stored.item_count))
+                                    .min(i32::from(item.item_count));
+                                    stored.item_count =
+                                        (i32::from(stored.item_count) + delta) as u8;
+                                    item.item_count = (i32::from(item.item_count) - delta) as u8;
+                                }
+                                if item.is_empty() {
+                                    break;
+                                }
+                            }
+                            if !item.is_empty() {
+                                drops.push((*pos, item));
+                            }
+                        }
                     }
                     world.set_block_state(pos, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
                     world.close_container_screens_at(pos);
@@ -610,10 +684,25 @@ impl<'a> Explosion<'a> {
                         });
                     }
                 }
-                // TODO: fire
-                blocks.len() as u32
             }
         }
+        for (pos, item) in drops {
+            world.drop_block_stack(&pos, item);
+        }
+        if self.create_fire {
+            for pos in &blocks {
+                if world.rand_bounded_i32(3) == 0
+                    && world.get_block_state(pos).is_air()
+                    && world.get_block_state(&pos.down()).is_solid_render()
+                {
+                    let fire = crate::block::blocks::fire::FireBlockBase::get_fire_type(world, pos);
+                    let state = crate::block::blocks::fire::fire::FireBlock
+                        .get_state_for_position(world, &fire, pos);
+                    world.set_block_state(pos, state, BlockFlags::NOTIFY_ALL);
+                }
+            }
+        }
+        blocks.len() as u32
     }
 }
 

@@ -542,7 +542,7 @@ pub fn drop_loot(
     experience: bool,
     params: &LootContextParameters,
 ) {
-    drop_loot_inner(world, block, pos, experience, params, false);
+    drop_loot_inner(world, block, pos, experience, params, false, None);
 }
 
 pub fn drop_explosion_loot(
@@ -552,7 +552,27 @@ pub fn drop_explosion_loot(
     experience: bool,
     params: &LootContextParameters,
 ) {
-    drop_loot_inner(world, block, pos, experience, params, true);
+    drop_loot_inner(world, block, pos, experience, params, true, None);
+}
+
+pub fn collect_explosion_loot(
+    world: &Arc<World>,
+    block: &Block,
+    pos: &BlockPos,
+    experience: bool,
+    params: &LootContextParameters,
+) -> Vec<ItemStack> {
+    let mut items = Vec::new();
+    drop_loot_inner(
+        world,
+        block,
+        pos,
+        experience,
+        params,
+        true,
+        Some(&mut items),
+    );
+    items
 }
 
 fn drop_loot_inner(
@@ -562,6 +582,7 @@ fn drop_loot_inner(
     experience: bool,
     params: &LootContextParameters,
     explosion: bool,
+    mut collector: Option<&mut Vec<ItemStack>>,
 ) {
     if explosion {
         spawn_after_break(world, block, pos, experience, params);
@@ -648,8 +669,12 @@ fn drop_loot_inner(
                 server.plugin_manager.fire_blocking(&server, &mut event);
             }
             if !event.cancelled {
-                for stack in event.items {
-                    world.drop_block_stack(pos, stack);
+                if let Some(collector) = collector.as_mut() {
+                    collector.extend(event.items);
+                } else {
+                    for stack in event.items {
+                        world.drop_block_stack(pos, stack);
+                    }
                 }
             }
         }

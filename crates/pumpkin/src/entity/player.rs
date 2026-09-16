@@ -1899,8 +1899,8 @@ impl Player {
             let anchor_props = AnchorProperties::from_state_id(state_id);
             let charges = anchor_props.charges;
 
-            // Anchor needs at least 1 charge to work
-            if charges == 0 {
+            // Both charge and the position's environment attribute must permit respawn.
+            if charges == 0 || !world.respawn_anchor_works(pos) {
                 return None;
             }
 

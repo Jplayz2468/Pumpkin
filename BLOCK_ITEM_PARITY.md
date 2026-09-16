@@ -816,3 +816,27 @@ so they must not be used to reconstruct audit completion.
 - No compilation, tests or code generation. Shared item ownership/visual rotation,
   component hashes, custom environment/shape behavior, broader movement use-effect
   application, loot/pick-block handling and the rest of the parity ledger remain.
+
+## Continued source port: respawn anchors and their explosion dependencies
+
+- Uncharged anchors now pass without exploding or displaying a sleep message.
+  Main-hand use defers to offhand glowstone while charging is possible; other
+  items fall through to setting spawn/exploding. Charging emits its source/state
+  event before sound and consumption. Spawn saves zero rotation and unchanged
+  spawn consumes. Both use and respawn check the position's environment attribute.
+- Invalid-dimension anchors remove themselves without mining drops and use the
+  bad-respawn-point damage source, ignition and source water-neighbor resistance
+  override. The central air cell is included in resistance calculation, so the
+  water shield can actually stop terrain rays while retaining entity damage.
+- Shared explosions collect rays before entity damage, use world legacy random,
+  source float direction/step arithmetic and actual fluid states, and retain air
+  positions for fire. Ordinary Java hash-bin ordering and list shuffling replace
+  the arbitrary map iteration. Target states are read again during destruction.
+- Damage now scales by the full diameter, includes the source's minimum damage at
+  zero exposure, carries explosion position/source, and applies living explosion
+  knockback resistance. Block drops collect/merge up to the source stack limit
+  before spawning, then ignition draws from the same level random stream.
+- Source review/format/diff checks only, no builds/tests. Large/pathological Java
+  treeified hash-bin ordering, entity/projectile hit reactions, explosion loot
+  sequence fidelity, generic damage attribution and respawn dismount collision/
+  danger checks remain open. Bed use/removal still needs its matching source pass.

@@ -4450,6 +4450,23 @@ impl World {
         self.run_explosion(&explosion, position, power);
     }
 
+    pub fn explode_bad_respawn_point(
+        self: &Arc<Self>,
+        position: Vector3<f64>,
+        calculator: Option<Arc<dyn ExplosionDamageCalculator>>,
+    ) {
+        let mut explosion = Explosion::new(
+            5.0,
+            position,
+            self.get_block_interaction(ExplosionInteraction::Block),
+        )
+        .bad_respawn_point();
+        if let Some(calculator) = calculator {
+            explosion = explosion.with_damage_calculator(calculator);
+        }
+        self.run_explosion(&explosion, position, 5.0);
+    }
+
     pub fn explode_tnt_minecart(
         self: &Arc<Self>,
         position: Vector3<f64>,
@@ -6174,6 +6191,14 @@ impl World {
     pub fn creaking_active(&self, pos: &BlockPos) -> bool {
         self.environment_attributes().get_value_bool(
             pumpkin_data::environment_attribute::EnvironmentAttribute::GameplayCreakingActive,
+            pos,
+        )
+    }
+
+    #[must_use]
+    pub fn respawn_anchor_works(&self, pos: &BlockPos) -> bool {
+        self.environment_attributes().get_value_bool(
+            pumpkin_data::environment_attribute::EnvironmentAttribute::GameplayRespawnAnchorWorks,
             pos,
         )
     }
