@@ -282,6 +282,46 @@ pub struct CraftingShapedRecipeStruct {
     result: RecipeResultStruct,
 }
 
+/// Strips all-blank border rows and columns, as Java's `ShapedRecipePattern`
+/// does when it parses a recipe.
+///
+/// Vanilla patterns may be padded to a 3x3 box, for example the mace's
+/// `[" # ", " I "]`. The matcher compares a pattern against the bounding box of
+/// the items the player placed, which can never be wider than the items
+/// themselves, so an untrimmed pattern never matches and the recipe cannot be
+/// crafted at all.
+fn trim_pattern(pattern: &[String]) -> Vec<String> {
+    let rows: Vec<&String> = pattern.iter().collect();
+    let first_row = rows.iter().position(|row| row.contains(|c| c != ' '));
+    let Some(first_row) = first_row else {
+        return Vec::new();
+    };
+    let last_row = rows
+        .iter()
+        .rposition(|row| row.contains(|c| c != ' '))
+        .unwrap_or(first_row);
+    let width = rows.iter().map(|row| row.chars().count()).max().unwrap_or(0);
+    let column_used = |x: usize| {
+        rows[first_row..=last_row]
+            .iter()
+            .any(|row| row.chars().nth(x).is_some_and(|c| c != ' '))
+    };
+    let Some(first_column) = (0..width).find(|x| column_used(*x)) else {
+        return Vec::new();
+    };
+    let last_column = (0..width).rfind(|x| column_used(*x)).unwrap_or(first_column);
+
+    rows[first_row..=last_row]
+        .iter()
+        .map(|row| {
+            let chars: Vec<char> = row.chars().collect();
+            (first_column..=last_column)
+                .map(|x| chars.get(x).copied().unwrap_or(' '))
+                .collect()
+        })
+        .collect()
+}
+
 impl ToTokens for CraftingShapedRecipeStruct {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let category = match &self.category {
@@ -302,8 +342,7 @@ impl ToTokens for CraftingShapedRecipeStruct {
                 quote! { (#key, #ingredient) }
             })
             .collect::<Vec<_>>();
-        let pattern = self
-            .pattern
+        let pattern = trim_pattern(&self.pattern)
             .iter()
             .map(quote::ToTokens::to_token_stream)
             .collect::<Vec<_>>();

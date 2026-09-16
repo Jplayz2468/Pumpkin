@@ -28,6 +28,7 @@ public class WorkstationSupport {
     public static Unsafe unsafe;
     public static Registry<Enchantment> enchantments;
     public static Registry<net.minecraft.world.level.block.entity.BannerPattern> bannerPatterns;
+    public static RegistryAccess.Frozen registries;
     public static RegistryOps<JsonElement> ops;
 
     protected WorkstationSupport() {}
@@ -132,6 +133,12 @@ public class WorkstationSupport {
         registry.bindTags(tags("enchantment", registry));
         registry.freeze();
         enchantments = registry;
+
+        List<Registry<?>> all = new ArrayList<>();
+        BuiltInRegistries.REGISTRY.forEach(all::add);
+        all.add(registry);
+        all.add(patterns);
+        registries = new RegistryAccess.ImmutableRegistryAccess(all).freeze();
 
         var items = JsonParser.parseString(Files.readString(Path.of("assets/items.json"))).getAsJsonObject();
         for (Item item : BuiltInRegistries.ITEM) {

@@ -636,3 +636,72 @@ impl ScreenHandler for CraftingTableScreenHandler {
 }
 
 impl CraftingScreenHandler<CraftingInventory> for CraftingTableScreenHandler {}
+
+/// Differential comparison against the real Java 26.2 crafting recipes.
+/// Fixtures come from `tools/vanilla/CraftingOracle.java`.
+#[cfg(test)]
+mod java_parity_tests {
+    use super::*;
+    use crate::crafting::crafting_inventory::CraftingInventory;
+    use pumpkin_data::item::Item;
+    use serde_json::Value;
+
+    /// Scope: matching and the produced item/count. `RecipeResult` carries no
+    /// remainders, so the bucket/bottle returns are not covered here.
+    #[test]
+    fn crafting_results_match_java() {
+        let cases: Vec<Value> = serde_json::from_str(include_str!("crafting_cases.json"))
+            .expect("crafting fixtures");
+        assert!(cases.len() > 1000, "fixture looks truncated");
+
+        let mut mismatches: Vec<String> = Vec::new();
+        for case in &cases {
+            let width = case["width"].as_u64().expect("width") as usize;
+            let grid = case["grid"].as_array().expect("grid");
+
+            // Java sizes the input to the recipe; pumpkin derives the bounding
+            // box itself, so the same items are placed at the grid origin.
+            let inventory = CraftingInventory::new(3, 3);
+            for (index, entry) in grid.iter().enumerate() {
+                let Some(id) = entry.as_str() else { continue };
+                let item = Item::from_registry_key(id.trim_start_matches("minecraft:"))
+                    .unwrap_or_else(|| panic!("unknown item {id}"));
+                let slot = (index / width) * 3 + (index % width);
+                inventory.set_stack(slot, ItemStack::new(1, item));
+            }
+
+            let rust = match_crafting_recipe(&inventory, None).map(|result| {
+                format!(
+                    "{}x{}",
+                    result.item_id.trim_start_matches("minecraft:"),
+                    result.count
+                )
+            });
+            let java = case["result"].as_object().map(|result| {
+                format!(
+                    "{}x{}",
+                    result["item"].as_str().expect("item").trim_start_matches("minecraft:"),
+                    result["count"].as_i64().expect("count")
+                )
+            });
+
+            if rust != java {
+                mismatches.push(format!(
+                    "{}: java={:?} rust={:?}\n  grid={}",
+                    case["recipe"].as_str().unwrap_or("?"),
+                    java,
+                    rust,
+                    case["grid"]
+                ));
+            }
+        }
+
+        assert!(
+            mismatches.is_empty(),
+            "{} of {} crafting recipes differ from Java:\n{}",
+            mismatches.len(),
+            cases.len(),
+            mismatches.iter().take(20).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
+}
