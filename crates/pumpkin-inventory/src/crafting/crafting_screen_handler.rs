@@ -24,6 +24,7 @@ use crate::crafting::crafting_inventory::CraftingInventory;
 use crate::player::player_inventory::PlayerInventory;
 use crate::screen_handler::{
     InventoryPlayer, ScreenHandler, ScreenHandlerBehaviour, ScreenHandlerListener,
+    offer_or_drop_stack,
 };
 use crate::slot::{NormalSlot, Slot};
 
@@ -445,8 +446,30 @@ impl Slot for ResultSlot {
             stack.item.id as i32,
             stack.item_count as i32,
         );
+        // Mirrors ResultSlot.onTake: consume one of each ingredient, then put
+        // any crafting remainder back. Without this the buckets from a cake and
+        // the bottles from a honey block are destroyed.
         for i in 0..self.inventory.size() {
+            let consumed = self.inventory.get_stack(i);
+            if consumed.is_empty() {
+                continue;
+            }
+            let remainder = consumed.crafting_remainder();
             self.inventory.remove_stack_specific(i, 1);
+
+            let Some(remainder) = remainder else {
+                continue;
+            };
+            let mut replacement = ItemStack::new(1, remainder);
+            let leftover = self.inventory.get_stack(i);
+            if leftover.is_empty() {
+                self.inventory.set_stack(i, replacement);
+            } else if leftover.are_items_and_components_equal(&replacement) {
+                replacement.item_count = replacement.item_count.saturating_add(leftover.item_count);
+                self.inventory.set_stack(i, replacement);
+            } else {
+                offer_or_drop_stack(player, replacement);
+            }
         }
         self.mark_dirty();
     }
@@ -702,6 +725,115 @@ mod java_parity_tests {
             mismatches.len(),
             cases.len(),
             mismatches.iter().take(20).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
+}
+
+/// Item-conservation checks for taking a crafted result.
+#[cfg(test)]
+mod remainder_tests {
+    use super::*;
+    use crate::test_support::recording_player::RecordingPlayer;
+    use pumpkin_data::item::Item;
+
+    fn grid_with(items: &[(usize, &'static Item)]) -> Arc<CraftingInventory> {
+        let inventory = Arc::new(CraftingInventory::new(3, 3));
+        for (slot, item) in items {
+            inventory.set_stack(*slot, ItemStack::new(1, item));
+        }
+        inventory
+    }
+
+    fn take(inventory: Arc<CraftingInventory>, player: &RecordingPlayer) -> ItemStack {
+        let slot = ResultSlot::new(inventory, None);
+        // The result is computed lazily; the framework refills it when the grid
+        // changes, before the player can take anything.
+        let crafted = slot.refill_output();
+        assert!(!crafted.is_empty(), "the grid should match a recipe");
+        slot.on_take_item(player, &crafted);
+        crafted
+    }
+
+    /// The bug this guards: taking the result only decremented each ingredient,
+    /// so a cake silently destroyed three iron buckets.
+    #[test]
+    fn crafting_a_cake_returns_the_buckets() {
+        let inventory = grid_with(&[
+            (0, &Item::MILK_BUCKET),
+            (1, &Item::MILK_BUCKET),
+            (2, &Item::MILK_BUCKET),
+            (3, &Item::SUGAR),
+            (4, &Item::EGG),
+            (5, &Item::SUGAR),
+            (6, &Item::WHEAT),
+            (7, &Item::WHEAT),
+            (8, &Item::WHEAT),
+        ]);
+        let player = RecordingPlayer::new();
+        let crafted = take(inventory.clone(), &player);
+
+        assert_eq!(crafted.item, &Item::CAKE);
+        // Java puts the remainder back into the slot it came from.
+        for slot in 0..3 {
+            let left = inventory.get_stack(slot);
+            assert_eq!(left.item, &Item::BUCKET, "slot {slot} should hold a bucket");
+            assert_eq!(left.item_count, 1);
+        }
+        // Ingredients without a remainder are simply consumed.
+        for slot in 3..9 {
+            assert!(inventory.get_stack(slot).is_empty(), "slot {slot} not consumed");
+        }
+    }
+
+    /// Four bottles in, four bottles back.
+    #[test]
+    fn crafting_a_honey_block_returns_the_bottles() {
+        let inventory = grid_with(&[
+            (0, &Item::HONEY_BOTTLE),
+            (1, &Item::HONEY_BOTTLE),
+            (3, &Item::HONEY_BOTTLE),
+            (4, &Item::HONEY_BOTTLE),
+        ]);
+        let player = RecordingPlayer::new();
+        let crafted = take(inventory.clone(), &player);
+
+        assert_eq!(crafted.item, &Item::HONEY_BLOCK);
+        for slot in [0, 1, 3, 4] {
+            assert_eq!(inventory.get_stack(slot).item, &Item::GLASS_BOTTLE);
+        }
+    }
+
+    /// A remainder that cannot go back to its slot must reach the player rather
+    /// than be dropped on the floor of the void.
+    #[test]
+    fn a_remainder_that_cannot_fit_goes_to_the_player() {
+        let inventory = Arc::new(CraftingInventory::new(3, 3));
+        // Two milk buckets stacked in one slot: one is consumed, the other stays,
+        // so the bucket has nowhere to go in that slot.
+        let mut stacked = ItemStack::new(2, &Item::MILK_BUCKET);
+        stacked.item_count = 2;
+        inventory.set_stack(0, stacked);
+        inventory.set_stack(1, ItemStack::new(1, &Item::MILK_BUCKET));
+        inventory.set_stack(2, ItemStack::new(1, &Item::MILK_BUCKET));
+        inventory.set_stack(3, ItemStack::new(1, &Item::SUGAR));
+        inventory.set_stack(4, ItemStack::new(1, &Item::EGG));
+        inventory.set_stack(5, ItemStack::new(1, &Item::SUGAR));
+        inventory.set_stack(6, ItemStack::new(1, &Item::WHEAT));
+        inventory.set_stack(7, ItemStack::new(1, &Item::WHEAT));
+        inventory.set_stack(8, ItemStack::new(1, &Item::WHEAT));
+
+        let player = RecordingPlayer::new();
+        take(inventory.clone(), &player);
+
+        // Slot 0 still holds the surviving milk bucket, so its bucket went to
+        // the player; the other two went back into their own slots.
+        assert_eq!(inventory.get_stack(0).item, &Item::MILK_BUCKET);
+        assert_eq!(inventory.get_stack(1).item, &Item::BUCKET);
+        assert_eq!(inventory.get_stack(2).item, &Item::BUCKET);
+        assert_eq!(
+            player.total_of(&Item::BUCKET),
+            1,
+            "the displaced bucket must not be destroyed"
         );
     }
 }

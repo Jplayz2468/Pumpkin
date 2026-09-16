@@ -100,6 +100,16 @@ impl ScreenHandler for StonecutterScreenHandler {
         self
     }
 
+    /// Mirrors StonecutterMenu.removed: the offered result is discarded and the
+    /// input is handed back. Without this the default close only drops the
+    /// cursor stack and whatever sits in the input slot is destroyed.
+    fn on_closed(&mut self, player: &dyn InventoryPlayer) {
+        self.default_on_closed(player);
+        self.output_inventory
+            .set_stack(0, ItemStack::EMPTY.clone());
+        self.drop_inventory(player, self.input_inventory.clone());
+    }
+
     fn on_slot_click(
         &mut self,
         slot_index: i32,
@@ -288,6 +298,47 @@ mod java_parity_tests {
             mismatches.len(),
             cases.len(),
             mismatches.iter().take(8).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
+}
+
+/// Item-conservation checks for the close path.
+#[cfg(test)]
+mod close_tests {
+    use super::*;
+    use crate::entity_equipment::EntityEquipment;
+    use crate::test_support::recording_player::RecordingPlayer;
+    use std::sync::Mutex;
+
+    /// The bug this guards: the stonecutter had no `on_closed`, so the default
+    /// dropped only the cursor stack and the input was destroyed on close.
+    #[test]
+    fn closing_returns_the_input_and_clears_the_offer() {
+        let player = RecordingPlayer::new();
+        let inventory = Arc::new(PlayerInventory::new(
+            Arc::new(Mutex::new(EntityEquipment::new())),
+            Arc::new(rustc_hash::FxHashMap::default()),
+        ));
+        let mut handler = StonecutterScreenHandler::new(1, &inventory);
+
+        handler
+            .input_inventory
+            .set_stack(0, ItemStack::new(37, &Item::STONE));
+        handler.selected_recipe.store(0, Ordering::Relaxed);
+        handler.update_output();
+        assert!(!handler.output_inventory.get_stack(0).is_empty());
+
+        handler.on_closed(&player);
+
+        assert!(
+            handler.input_inventory.get_stack(0).is_empty(),
+            "the input must not be left in the block"
+        );
+        assert!(handler.output_inventory.get_stack(0).is_empty());
+        assert_eq!(
+            player.total_of(&Item::STONE),
+            37,
+            "every input item must come back to the player"
         );
     }
 }

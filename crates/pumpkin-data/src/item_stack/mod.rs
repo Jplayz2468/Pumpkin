@@ -281,6 +281,22 @@ impl ItemStack {
     }
 
     #[must_use]
+    /// The item left behind when this one is consumed by a crafting recipe.
+    ///
+    /// Vanilla sets this with `Item.Properties.craftRemainder`, which is Java
+    /// code rather than datapack data, so it is not present in `items.json` and
+    /// cannot be generated. The five entries below are every use of
+    /// `craftRemainder` in `Items.java` for 26.2.
+    #[must_use]
+    pub fn crafting_remainder(&self) -> Option<&'static Item> {
+        let remainder = match self.item.registry_key {
+            "water_bucket" | "lava_bucket" | "milk_bucket" => &Item::BUCKET,
+            "dragon_breath" | "honey_bottle" => &Item::GLASS_BOTTLE,
+            _ => return None,
+        };
+        Some(remainder)
+    }
+
     pub fn get_max_stack_size(&self) -> u8 {
         self.get_data_component::<MaxStackSizeImpl>()
             .map_or(1, |value| value.size)

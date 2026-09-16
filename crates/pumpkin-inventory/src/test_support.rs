@@ -147,3 +147,152 @@ pub mod java_parity {
         )
     }
 }
+
+/// A player that accepts offered items and records dropped ones, so a test can
+/// assert that a menu conserved every item it was given.
+pub mod recording_player {
+    use crate::entity_equipment::EntityEquipment;
+    use crate::player::player_inventory::PlayerInventory;
+    use crate::screen_handler::InventoryPlayer;
+    use pumpkin_data::item::Item;
+    use pumpkin_data::item_stack::ItemStack;
+    use pumpkin_data::screen::WindowType;
+    use pumpkin_protocol::java::client::play::{
+        CSetContainerContent, CSetContainerProperty, CSetContainerSlot, CSetCursorItem,
+        CSetPlayerInventory, CSetSelectedSlot,
+    };
+    use std::sync::atomic::{AtomicI32, Ordering};
+    use std::sync::{Arc, Mutex};
+
+    pub struct RecordingPlayer {
+        pub inventory: Arc<PlayerInventory>,
+        pub dropped: Mutex<Vec<ItemStack>>,
+        pub experience: AtomicI32,
+        pub creative: bool,
+    }
+
+    impl RecordingPlayer {
+        #[must_use]
+        pub fn new() -> Self {
+            Self {
+                inventory: Arc::new(PlayerInventory::new(
+                    Arc::new(Mutex::new(EntityEquipment::new())),
+                    Arc::new(rustc_hash::FxHashMap::default()),
+                )),
+                dropped: Mutex::new(Vec::new()),
+                experience: AtomicI32::new(0),
+                creative: false,
+            }
+        }
+
+        /// Every copy of `item` the player ended up holding or dropping.
+        #[must_use]
+        pub fn total_of(&self, item: &'static Item) -> u32 {
+            let mut total = 0u32;
+            for index in 0..PlayerInventory::MAIN_SIZE {
+                let stack = crate::inventory::Inventory::get_stack(&*self.inventory, index);
+                if stack.item.id == item.id {
+                    total += u32::from(stack.item_count);
+                }
+            }
+            for stack in self
+                .dropped
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .iter()
+            {
+                if stack.item.id == item.id {
+                    total += u32::from(stack.item_count);
+                }
+            }
+            total
+        }
+    }
+
+    impl Default for RecordingPlayer {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
+    impl InventoryPlayer for RecordingPlayer {
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
+
+        fn drop_item(&self, item: ItemStack, _retain_ownership: bool) {
+            self.dropped
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(item);
+        }
+
+        fn is_creative(&self) -> bool {
+            self.creative
+        }
+
+        fn has_infinite_materials(&self) -> bool {
+            self.creative
+        }
+
+        fn experience_level(&self) -> i32 {
+            self.experience.load(Ordering::Relaxed)
+        }
+
+        fn add_experience_levels(&self, levels: i32) {
+            self.experience.fetch_add(levels, Ordering::Relaxed);
+        }
+
+        fn enchantment_seed(&self) -> i32 {
+            0
+        }
+
+        fn set_enchantment_seed(&self, _seed: i32) {}
+
+        fn get_inventory(&self) -> Arc<PlayerInventory> {
+            self.inventory.clone()
+        }
+
+        fn enqueue_inventory_packet(
+            &self,
+            _packet: &CSetContainerContent,
+            _window_type: Option<WindowType>,
+        ) {
+        }
+
+        fn enqueue_slot_packet(
+            &self,
+            _packet: &CSetContainerSlot,
+            _window_type: Option<WindowType>,
+            _total_slots: usize,
+        ) {
+        }
+
+        fn enqueue_cursor_packet(&self, _packet: &CSetCursorItem) {}
+
+        fn enqueue_property_packet(&self, _packet: &CSetContainerProperty) {}
+
+        fn enqueue_slot_set_packet(&self, _packet: &CSetPlayerInventory) {}
+
+        fn enqueue_set_held_item_packet(&self, _packet: &CSetSelectedSlot) {}
+
+        fn enqueue_equipment_change(
+            &self,
+            _slot: &pumpkin_data::data_component_impl::EquipmentSlot,
+            _stack: &ItemStack,
+        ) {
+        }
+
+        fn award_experience(&self, _amount: i32) {}
+
+        fn increment_stat(
+            &self,
+            _category: pumpkin_data::statistic::StatisticCategory,
+            _stat_id: i32,
+            _amount: i32,
+        ) {
+        }
+
+        fn play_block_sound(&self, _sound: pumpkin_data::sound::Sound, _pitch: f32) {}
+    }
+}
