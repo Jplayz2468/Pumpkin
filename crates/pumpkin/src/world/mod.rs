@@ -18,6 +18,7 @@ use std::{
 use tracing::{debug, error, info, trace, warn};
 
 mod active_chunks;
+mod block_events;
 mod block_ray;
 mod fluid_flow;
 mod sound_delivery;
@@ -298,7 +299,7 @@ pub struct World {
     /// Block Behaviour
     pub block_registry: Arc<BlockRegistry>,
     pub server: Weak<Server>,
-    synced_block_event_queue: std::sync::Mutex<std::collections::VecDeque<BlockEvent>>,
+    synced_block_event_queue: std::sync::Mutex<block_events::BlockEventQueue>,
     /// A map of unsent block changes, keyed by block position.
     unsent_block_changes: std::sync::Mutex<HashMap<BlockPos, BlockStateId>>,
     /// Persisted vanilla POI storage for portal and villager lookups.
@@ -311,7 +312,9 @@ pub struct World {
     pub dragon_fight: Option<std::sync::Mutex<dragon_fight::DragonFight>>,
     pub spawn_state: ArcSwap<SpawnState>,
     pub active_chunks: RwLock<FxHashSet<Vector2<i32>>>,
+    pub block_ticking_chunks: RwLock<FxHashSet<Vector2<i32>>>,
     active_chunk_tracker: std::sync::Mutex<ActiveChunkTracker>,
+    block_chunk_tracker: std::sync::Mutex<ActiveChunkTracker>,
     pub forced_chunks: std::sync::Mutex<FxHashSet<Vector2<i32>>>,
     pub(crate) portal_tickets: std::sync::Mutex<portal::tickets::PortalTickets>,
     /// Block entities indexed by chunk, so ticking only visits the currently
@@ -417,6 +420,8 @@ impl World {
         };
 
         let worldborder = Worldborder::load(&level.level_folder.dim_folder, &level_info.load());
+        let (portal_tickets, forced_chunks) =
+            portal::tickets::PortalTickets::load(&level.level_folder.dim_folder, 0);
         Arc::new_cyclic(|self_reference| Self {
             self_reference: self_reference.clone(),
             sound_random: std::sync::Mutex::new(
@@ -439,7 +444,7 @@ impl World {
             block_registry,
             sea_level: generation_settings.sea_level,
             min_y: i32::from(generation_settings.shape.min_y),
-            synced_block_event_queue: std::sync::Mutex::new(std::collections::VecDeque::new()),
+            synced_block_event_queue: std::sync::Mutex::default(),
             unsent_block_changes: std::sync::Mutex::new(HashMap::new()),
             portal_poi: std::sync::Mutex::new(portal_poi),
             villager_poi: std::sync::Mutex::new(villager_poi::VillagerPoiStorage::default()),
@@ -447,9 +452,11 @@ impl World {
             dragon_fight,
             spawn_state: ArcSwap::new(Arc::new(SpawnState::empty())),
             active_chunks: RwLock::new(FxHashSet::default()),
+            block_ticking_chunks: RwLock::new(FxHashSet::default()),
             active_chunk_tracker: std::sync::Mutex::new(ActiveChunkTracker::default()),
-            forced_chunks: std::sync::Mutex::new(FxHashSet::default()),
-            portal_tickets: std::sync::Mutex::default(),
+            block_chunk_tracker: std::sync::Mutex::new(ActiveChunkTracker::default()),
+            forced_chunks: std::sync::Mutex::new(forced_chunks),
+            portal_tickets: std::sync::Mutex::new(portal_tickets),
             server,
             block_entities: DashMap::new(),
             pending_block_entity_migrations: crossbeam::queue::SegQueue::new(),
@@ -464,53 +471,48 @@ impl World {
         let sim_dist = self.server.upgrade().map_or(10, |s| {
             s.advanced_config.networking.java.simulation_distance.get()
         }) as i32;
-        let players = self.players.load();
-        let mut forced_chunks = self
+        let simulates_spectators = self.level_info.load().game_rules.spectators_generate_chunks;
+        let player_areas: Vec<_> = self
+            .players
+            .load()
+            .iter()
+            .filter(|player| !player.is_spectator() || simulates_spectators)
+            .map(|player| {
+                (
+                    player.gameprofile.id,
+                    ActivePlayerArea {
+                        center: player.get_entity().chunk_pos.load(),
+                        simulation_distance: sim_dist.min(31),
+                    },
+                )
+            })
+            .collect();
+        let forced = self
             .forced_chunks
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone();
-        forced_chunks.extend(self.portal_ticking_chunks());
+        let (entity_forced, block_forced) = self.ticket_ticking_chunks(&forced);
+        {
+            let mut tracker = self
+                .active_chunk_tracker
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            let mut chunks = self
+                .active_chunks
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            tracker.sync_areas(&player_areas, 0, &entity_forced, &mut chunks);
+        }
         let mut tracker = self
-            .active_chunk_tracker
+            .block_chunk_tracker
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let mut active_chunks = self
-            .active_chunks
+            .block_ticking_chunks
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut newly_active = Vec::new();
-        let mut current_players = FxHashSet::default();
-
-        let spectators_generate_chunks =
-            self.level_info.load().game_rules.spectators_generate_chunks;
-
-        for player in players.iter() {
-            if player.is_spectator() && !spectators_generate_chunks {
-                continue;
-            }
-            let id = player.gameprofile.id;
-            current_players.insert(id);
-            tracker.update_player(
-                id,
-                ActivePlayerArea {
-                    center: player.get_entity().chunk_pos.load(),
-                    simulation_distance: sim_dist,
-                },
-                &mut active_chunks,
-                &mut newly_active,
-            );
-        }
-        let removed_players: Vec<_> = tracker
-            .players
-            .keys()
-            .filter(|id| !current_players.contains(id))
-            .copied()
-            .collect();
-        for id in removed_players {
-            tracker.remove_player(id, &mut active_chunks);
-        }
-        tracker.sync_forced_chunks(&forced_chunks, &mut active_chunks, &mut newly_active);
+        let newly_active = tracker.sync_areas(&player_areas, 1, &block_forced, &mut active_chunks);
 
         for pos in newly_active {
             if self.level.is_chunk_loaded(&pos) && tracker.loaded_active_chunks.insert(pos) {
@@ -613,6 +615,7 @@ impl World {
     }
 
     pub async fn shutdown(&self) {
+        self.save_chunk_tickets();
         for entity in self.entities.load().iter() {
             self.save_entity(entity).await;
         }
@@ -909,11 +912,17 @@ impl World {
     }
 
     pub fn add_synced_block_event(&self, pos: BlockPos, r#type: u8, data: u8) {
+        let block_id = self.get_block(&pos).id.as_u16();
         let mut queue = self
             .synced_block_event_queue
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        queue.push_back(BlockEvent { pos, r#type, data });
+        queue.push_back(BlockEvent {
+            block_id,
+            pos,
+            r#type,
+            data,
+        });
     }
 
     pub fn flush_synced_block_events(self: &Arc<Self>) {
@@ -928,6 +937,7 @@ impl World {
         // handlers re-enter through `add_synced_block_event`, and holding it there would
         // deadlock the non-reentrant Mutex.
         let mut processed: u32 = 0;
+        let mut deferred = Vec::new();
         loop {
             let Some(event) = ({
                 let mut queue = self
@@ -938,6 +948,16 @@ impl World {
             }) else {
                 break;
             };
+
+            if !self
+                .block_ticking_chunks
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .contains(&event.pos.chunk_position())
+            {
+                deferred.push(event);
+                continue;
+            }
 
             // Not a vanilla rule: vanilla's drain is unbounded and relies on block logic
             // terminating. A Pumpkin-side bug that re-enqueues forever would hang the
@@ -957,6 +977,9 @@ impl World {
             }
 
             let block = self.get_block(&event.pos);
+            if block.id.as_u16() != event.block_id {
+                continue;
+            }
             if !self.block_registry.on_synced_block_event(
                 block,
                 self,
@@ -981,6 +1004,13 @@ impl World {
                     event_value: event.data.into(),
                 },
             );
+        }
+        let mut queue = self
+            .synced_block_event_queue
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for event in deferred {
+            queue.push_back(event);
         }
     }
 
@@ -1837,6 +1867,12 @@ impl World {
         // Reference: Vanilla Java 26.2 `ServerLevel.java:458-460` (`entityManager`)
         self.entity_tracker.update_all(self);
 
+        drop(active_chunks);
+        let active_chunks = self
+            .block_ticking_chunks
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+
         // 11. Block entities tick & comparators
         // Reference: Vanilla Java 26.2 `ServerLevel.java:453-455` (`blockEntities`)
         let mut block_entities: Vec<Arc<dyn BlockEntity>> = Vec::new();
@@ -2095,7 +2131,7 @@ impl World {
     }
 
     pub fn tick_environment(self: &Arc<Self>) {
-        let (world_age, is_night, time_of_day) = {
+        let (world_age, is_night, time_of_day, autosave_due) = {
             let mut level_time = self
                 .level_time
                 .lock()
@@ -2126,20 +2162,23 @@ impl World {
                     }
                 }
             }
-            if self.level.autosave_ticks > 0 && self.level.save_enabled.load(Relaxed) {
-                let autosave = self.level.autosave_ticks as i64;
-                if autosave > 0 && level_time.world_age % autosave == 0 {
-                    self.save_world_border();
-                    self.level.should_save.store(true, Relaxed);
-                    self.level.level_channel.notify();
-                }
-            }
+            let autosave_due = self.level.autosave_ticks > 0
+                && self.level.save_enabled.load(Relaxed)
+                && level_time.world_age % self.level.autosave_ticks as i64 == 0;
             (
                 level_time.world_age,
                 level_time.is_night(),
                 level_time.time_of_day,
+                autosave_due,
             )
         };
+        // Saving tickets reads world age; release the time lock before saving.
+        if autosave_due {
+            self.save_world_border();
+            self.save_chunk_tickets();
+            self.level.should_save.store(true, Relaxed);
+            self.level.level_channel.notify();
+        }
 
         let (should_reset_weather, weather_cycle_enabled) = {
             let mut weather = self
@@ -2190,7 +2229,14 @@ impl World {
     ///
     /// Reference: Vanilla Java 26.2 `ServerLevel.java:385-394` (`tickPending` phase).
     pub fn tick_scheduled_ticks(self: &Arc<Self>, server: &Arc<Server>) {
-        let (block_ticks, fluid_ticks) = self.level.get_scheduled_ticks();
+        let block_ticks = {
+            let ticking = self
+                .block_ticking_chunks
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            self.level
+                .get_scheduled_block_ticks_if(|pos| ticking.contains(pos))
+        };
         let handle = server.runtime.clone();
 
         // 1. Scheduled Block Ticks
@@ -2216,17 +2262,30 @@ impl World {
             );
         }
 
-        // 2. Fluid Ticks -- sequential, in the order level.rs sorted them.
-        let fluid_handle = handle.clone();
+        // Collect fluids after block callbacks: a block may schedule a fluid tick
+        // for this same game tick. Revalidate the fluid type before each callback.
+        let fluid_ticks = {
+            let ticking = self
+                .block_ticking_chunks
+                .read()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            self.level
+                .get_scheduled_fluid_ticks_if(|pos| ticking.contains(pos))
+        };
         {
-            let _guard = fluid_handle.enter();
-            for scheduled_tick in &fluid_ticks {
-                let pos = scheduled_tick.position;
-                let fluid = self.get_fluid(&pos);
-                if let Some(pumpkin_fluid) = self.block_registry.get_pumpkin_fluid(fluid.id) {
-                    pumpkin_fluid.on_scheduled_tick(self, fluid, &pos);
-                }
-            }
+            let _guard = handle.enter();
+            scheduled_dispatch::dispatch(
+                fluid_ticks
+                    .into_iter()
+                    .map(|tick| (tick.position, tick.value)),
+                |pos| self.get_fluid(pos),
+                |current, expected| current.id == expected.id,
+                |fluid, pos| {
+                    if let Some(pumpkin_fluid) = self.block_registry.get_pumpkin_fluid(fluid.id) {
+                        pumpkin_fluid.on_scheduled_tick(self, fluid, pos);
+                    }
+                },
+            );
         }
     }
 
@@ -5828,7 +5887,11 @@ impl World {
         &self,
         chunks: impl IntoIterator<Item = impl std::borrow::Borrow<Vector2<i32>>>,
     ) {
-        let chunks_set: FxHashSet<_> = chunks.into_iter().map(|c| *c.borrow()).collect();
+        let chunks_set: FxHashSet<_> = chunks
+            .into_iter()
+            .map(|c| *c.borrow())
+            .filter(|pos| !self.level.should_retain_entity_chunk(pos))
+            .collect();
         if chunks_set.is_empty() {
             return;
         }
@@ -7938,6 +8001,7 @@ impl World {
     }
 
     pub async fn save(&self) {
+        self.save_chunk_tickets();
         self.save_world_border();
         for entity in self.entities.load().iter() {
             self.save_entity(entity).await;

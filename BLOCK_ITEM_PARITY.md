@@ -1429,3 +1429,13 @@ riding relationships. Temporary portal loading/ticking tickets support arrivals
 without nearby players. The two-world integration test and Java transition
 comparisons are documented in ENGINE_GAPS.md, alongside remaining ticket
 persistence, End rules, scheduling and client gates. Full mob passes remain paused.
+
+### Ticket persistence and queued block work
+
+Portal/forced tickets now persist and keep distinct entity/block ticking areas.
+Block entities, scheduled work and block events use the block area; inactive work
+is retained. Scheduled queues respect Java's container merge and independent
+block/fluid limits, and fluid collection follows block callbacks. Block events
+retain their target type and deduplicate while pending. ENGINE_GAPS.md records
+Java differential and World integration evidence, plus remaining ticket-only
+entity loading/readiness and live lifecycle gates. Full mob passes remain paused.

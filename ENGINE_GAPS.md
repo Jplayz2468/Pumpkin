@@ -651,3 +651,40 @@ whole inside-effect pipeline matches Java yet.
   older Java/Bedrock live packet verification. Shared serialization limitations
   still affect entity replacement where a type's own saved payload is incomplete.
   This closes the missing basic world transfer, not all portal or engine parity.
+
+## Persistent tickets, activation ranges and queued world work
+
+- Portal tickets and ordinary `/forceload` tickets now save/load each dimension's
+  canonical `data/minecraft/chunk_tickets.dat`. Portal refreshes merge by chunk
+  and level; loading restores the remaining lifetime. Autosave runs after releasing
+  the world-time lock. Unknown/malformed entries are retained for round-trip safety.
+- Entity and block activation use separate trackers: portal level 30 activates
+  3×3 entity chunks and 5×5 block chunks; forced level 31 activates the center for
+  entities and a 3×3 block area. Player block ticking extends one ring beyond
+  entity ticking, with Java's level-zero clamp. Block entities use the block area.
+- Scheduled block/fluid work only drains eligible block chunks. Inactive loaded
+  queues age and retain overdue ticks. Collection merges each chunk's earliest
+  trigger head by priority/sequence, and preserves work beyond the separate
+  65,536 block/fluid budgets. Fluids are collected after block callbacks and their
+  current type is checked before delivery.
+- Block events deduplicate while queued, retain their original block type, permit
+  reentrant scheduling after removal, and defer inactive-chunk events until a later
+  drain. Events for a replacement block are discarded. The existing one-million
+  event emergency cap and chunk-recipient broadcast remain Pumpkin differences.
+- Entity cleanup now respects full-chunk loading tickets in addition to player
+  watchers, and rechecks retention before asynchronous entity removal. This keeps
+  portal/forced-ticket residents from being unloaded merely because viewers leave.
+- Evidence: 128 actual Java LevelTicks traces (48 ticks, four chunks, 25 varying
+  activation/budget steps each); 182 actual TicketStorage codec/activation cases;
+  real World integration for ticket load, separate rings, deferred/deduplicated
+  events, scheduled eligibility, ticket-aware storage retention and periodic save.
+- Final background run 5: **504 engine tests and 227 world tests passed**, with
+  the same two previously separately passing localhost socket tests excluded.
+  No live client/contraption comparison or full mob pass was performed.
+- Remaining D03: entity storage loading/activation is still tied to the player
+  chunk receiver; ticket-only startup must load and activate saved residents before
+  scheduled callbacks, matching Java's entity-loaded/readiness gate. Portal expiry
+  still lacks Java's pause while a chunk holder is not ready for saving. Nonstandard
+  saved forced-ticket levels, global tick time/reload delays, equal restored order
+  ties across chunks, live neighbor/redstone ordering and client event recipients
+  remain unverified. These are shared engine gates; full mob passes remain paused.

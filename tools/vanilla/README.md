@@ -197,3 +197,18 @@ world registration lifetime or network delivery across dimensions.
 javac -cp '../comparison/downloads/classpath/*:/tmp' -d /tmp tools/vanilla/EntityReferenceOracle.java
 java -cp '/tmp:../comparison/downloads/classpath/*' EntityReferenceOracle > crates/pumpkin/src/entity/entity_reference_cases.json
 ```
+
+## Chunk tickets and scheduled container ordering
+
+`ChunkTickOracle.java` runs unmodified Java 26.2 `LevelTicks` for 128 seeded cases.
+Each schedules 48 ticks across four chunks, then changes activation masks and
+budgets over 25 ticks. Rust compares exact delivery order, including overdue work.
+`ChunkTicketOracle.java` exercises `TicketStorage.CODEC` and activation, checking
+182 numeric NBT/coercion and duplicate-refresh cases for canonical portal/forced
+levels. Neither probe models a running chunk holder or connected client.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/ChunkTickOracle.java tools/vanilla/ChunkTicketOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' ChunkTickOracle > crates/pumpkin-world/src/tick/chunk_tick_cases.json
+java -cp '/tmp:../comparison/downloads/classpath/*' ChunkTicketOracle > crates/pumpkin/src/world/portal/chunk_ticket_cases.json
+```

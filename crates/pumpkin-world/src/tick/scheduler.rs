@@ -1,7 +1,10 @@
-use std::collections::BTreeMap;
 use std::sync::{
     Mutex,
     atomic::{AtomicU64, Ordering},
+};
+use std::{
+    cmp::Reverse,
+    collections::{BTreeMap, BinaryHeap},
 };
 
 use pumpkin_util::math::position::BlockPos;
@@ -20,9 +23,9 @@ use crate::tick::{OrderedTick, ScheduledTick};
 /// hydration steps every 5000, `DriedGhastBlock.java`). A `BTreeMap` keyed by trigger
 /// tick has no such ceiling.
 ///
-/// Because a drain removes exactly one trigger-tick bucket, the trigger time is implicit
-/// within a bucket and `OrderedTick`'s `(priority, sub_tick_order)` ordering remains the
-/// correct intra-tick comparator, unchanged from the ring implementation.
+/// Each trigger bucket is a priority heap. Inactive chunks retain overdue ticks;
+/// collection merges eligible chunk heads without reordering a chunk by priority
+/// ahead of an earlier trigger time. Unprocessed ticks remain queued at the budget.
 pub struct ChunkTickScheduler<T> {
     inner: Mutex<Option<Box<ChunkTickSchedulerInner<T>>>>,
     /// Absolute tick this chunk's queue has advanced to. Monotonic; never wraps.
@@ -30,35 +33,57 @@ pub struct ChunkTickScheduler<T> {
 }
 
 struct ChunkTickSchedulerInner<T> {
-    tick_queue: BTreeMap<u64, Vec<OrderedTick<T>>>,
+    tick_queue: BTreeMap<u64, BinaryHeap<Reverse<OrderedTick<T>>>>,
     queued_ticks: FxHashSet<(BlockPos, T)>,
 }
 
 impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
     pub fn step_tick(&self) -> Vec<OrderedTick<&'a T>> {
-        let due_at = self.current_tick.fetch_add(1, Ordering::SeqCst);
+        let due_at = self.advance_tick();
+        let mut due = Vec::new();
+        while let Some(tick) = self.poll_due(due_at) {
+            due.push(tick);
+        }
+        due
+    }
 
-        let mut inner_guard = self
+    fn advance_tick(&self) -> u64 {
+        self.current_tick.fetch_add(1, Ordering::SeqCst)
+    }
+
+    fn peek_due(&self, due_at: u64) -> Option<(crate::tick::TickPriority, i64)> {
+        let guard = self
             .inner
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let Some(inner) = inner_guard.as_mut() else {
-            return Vec::new();
-        };
-
-        let res = inner.tick_queue.remove(&due_at).unwrap_or_default();
-
-        if !res.is_empty() {
-            for next_tick in &res {
-                inner
-                    .queued_ticks
-                    .remove(&(next_tick.position, next_tick.value));
-            }
-            if inner.queued_ticks.is_empty() {
-                *inner_guard = None;
-            }
+        let inner = guard.as_ref()?;
+        let (trigger, queue) = inner.tick_queue.first_key_value()?;
+        if *trigger > due_at {
+            return None;
         }
-        res
+        let Reverse(tick) = queue.peek()?;
+        Some((tick.priority, tick.sub_tick_order))
+    }
+
+    fn poll_due(&self, due_at: u64) -> Option<OrderedTick<&'a T>> {
+        let mut guard = self
+            .inner
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let inner = guard.as_mut()?;
+        let mut entry = inner.tick_queue.first_entry()?;
+        if *entry.key() > due_at {
+            return None;
+        }
+        let Reverse(tick) = entry.get_mut().pop()?;
+        if entry.get().is_empty() {
+            entry.remove();
+        }
+        inner.queued_ticks.remove(&(tick.position, tick.value));
+        if inner.queued_ticks.is_empty() {
+            *guard = None;
+        }
+        Some(tick)
     }
 
     pub fn schedule_tick(&self, tick: &ScheduledTick<&'a T>, sub_tick_order: i64) {
@@ -78,12 +103,16 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
         });
 
         if inner.queued_ticks.insert((tick.position, tick.value)) {
-            inner.tick_queue.entry(trigger).or_default().push(OrderedTick {
-                priority: tick.priority,
-                sub_tick_order,
-                position: tick.position,
-                value: tick.value,
-            });
+            inner
+                .tick_queue
+                .entry(trigger)
+                .or_default()
+                .push(Reverse(OrderedTick {
+                    priority: tick.priority,
+                    sub_tick_order,
+                    position: tick.position,
+                    value: tick.value,
+                }));
         }
     }
 
@@ -113,7 +142,7 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
         };
 
         for queue in inner.tick_queue.values_mut() {
-            queue.retain(|tick| !contains(&tick.position));
+            queue.retain(|Reverse(tick)| !contains(&tick.position));
         }
         inner.tick_queue.retain(|_, queue| !queue.is_empty());
         inner
@@ -149,7 +178,7 @@ impl<'a, T: std::hash::Hash + Eq> ChunkTickScheduler<&'a T> {
         for (trigger, queue) in &inner.tick_queue {
             // Saved delays are relative to now, as `ScheduledTick.toSavedTick` does.
             let delay = trigger.saturating_sub(now) as u32;
-            ordered.extend(queue.iter().map(|tick| (tick, delay)));
+            ordered.extend(queue.iter().map(|Reverse(tick)| (tick, delay)));
         }
         // Java LevelChunkTicks::pack saves by sequence, not by trigger time.
         // Restoring the saved list then preserves its relative sequence numbers.
@@ -209,10 +238,105 @@ impl<T> Default for ChunkTickScheduler<T> {
     }
 }
 
+/// LevelTicks' container merge: choose a chunk by its head's priority/sequence,
+/// while keeping each chunk's trigger-time order. Inactive queues still age.
+pub fn collect_ticks<T: std::hash::Hash + Eq + 'static>(
+    queues: &[(&ChunkTickScheduler<&'static T>, bool)],
+    limit: usize,
+) -> Vec<OrderedTick<&'static T>> {
+    let mut ready = BinaryHeap::new();
+    let mut cutoffs = Vec::with_capacity(queues.len());
+    for (index, (queue, active)) in queues.iter().enumerate() {
+        let cutoff = queue.advance_tick();
+        cutoffs.push(cutoff);
+        if *active && let Some((priority, order)) = queue.peek_due(cutoff) {
+            ready.push(Reverse((priority, order, index)));
+        }
+    }
+    let mut result = Vec::new();
+    while result.len() < limit {
+        let Some(Reverse((_, _, index))) = ready.pop() else {
+            break;
+        };
+        let (queue, _) = queues[index];
+        if let Some(tick) = queue.poll_due(cutoffs[index]) {
+            result.push(tick);
+        }
+        if let Some((priority, order)) = queue.peek_due(cutoffs[index]) {
+            ready.push(Reverse((priority, order, index)));
+        }
+    }
+    result
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::tick::TickPriority;
+
+    #[test]
+    fn java_container_merge_activation_and_budget_traces() {
+        // Unmodified 26.2 LevelTicks: 128 seeded cases, 48 scheduled ticks,
+        // four chunks and 25 activation/budget changes per case.
+        let cases: serde_json::Value =
+            serde_json::from_str(include_str!("chunk_tick_cases.json")).unwrap();
+        for (case_index, case) in cases.as_array().unwrap().iter().enumerate() {
+            let queues: [ChunkTickScheduler<&u8>; 4] =
+                std::array::from_fn(|_| ChunkTickScheduler::default());
+            for tick in case["ticks"].as_array().unwrap() {
+                let number = |i: usize| tick[i].as_i64().unwrap();
+                queues[number(0) as usize].schedule_tick(
+                    &ScheduledTick {
+                        position: BlockPos::new(number(1) as i32, number(2) as i32, 0),
+                        delay: number(3) as u32,
+                        priority: TickPriority::try_from(number(4) as i32).unwrap(),
+                        value: &0u8,
+                    },
+                    number(5),
+                );
+            }
+            for (time, step) in case["steps"].as_array().unwrap().iter().enumerate() {
+                let mask = step["mask"].as_u64().unwrap();
+                let active: Vec<_> = queues
+                    .iter()
+                    .enumerate()
+                    .map(|(i, q)| (q, mask & (1 << i) != 0))
+                    .collect();
+                let actual = collect_ticks(&active, step["budget"].as_u64().unwrap() as usize);
+                let orders: Vec<_> = actual.iter().map(|t| t.sub_tick_order).collect();
+                let expected: Vec<_> = step["output"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|n| n.as_i64().unwrap())
+                    .collect();
+                assert_eq!(orders, expected, "case {case_index}, time {time}");
+            }
+            assert!(queues.iter().all(|q| !q.has_ticks()));
+        }
+    }
+
+    #[test]
+    fn inactive_and_budget_deferred_ticks_remain_deduplicated() {
+        let queue = ChunkTickScheduler::default();
+        let tick = ScheduledTick {
+            delay: 0,
+            priority: TickPriority::Normal,
+            position: BlockPos::new(1, 64, 1),
+            value: &0u8,
+        };
+        queue.schedule_tick(&tick, 0);
+        assert!(collect_ticks(&[(&queue, false)], 65536).is_empty());
+        queue.schedule_tick(&tick, 1);
+        assert!(collect_ticks(&[(&queue, true)], 0).is_empty());
+        assert!(queue.is_scheduled(tick.position, tick.value));
+        let due = collect_ticks(&[(&queue, true)], 1);
+        assert_eq!(due.len(), 1);
+        assert_eq!(due[0].sub_tick_order, 0);
+        assert!(!queue.is_scheduled(tick.position, tick.value));
+        queue.schedule_tick(&tick, 2);
+        assert_eq!(collect_ticks(&[(&queue, true)], 1)[0].sub_tick_order, 2);
+    }
 
     #[test]
     fn restored_ticks_precede_new_ticks_across_chunk_collection_orders() {

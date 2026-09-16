@@ -17,6 +17,40 @@ pub(super) struct ActiveChunkTracker {
 }
 
 impl ActiveChunkTracker {
+    pub fn sync_areas(
+        &mut self,
+        players: &[(Uuid, ActivePlayerArea)],
+        extra_radius: i32,
+        forced: &FxHashSet<Vector2<i32>>,
+        chunks: &mut FxHashSet<Vector2<i32>>,
+    ) -> Vec<Vector2<i32>> {
+        let mut added = Vec::new();
+        let mut current = FxHashSet::default();
+        for (id, area) in players {
+            current.insert(*id);
+            self.update_player(
+                *id,
+                ActivePlayerArea {
+                    center: area.center,
+                    simulation_distance: area.simulation_distance + extra_radius,
+                },
+                chunks,
+                &mut added,
+            );
+        }
+        let removed: Vec<_> = self
+            .players
+            .keys()
+            .filter(|id| !current.contains(id))
+            .copied()
+            .collect();
+        for id in removed {
+            self.remove_player(id, chunks);
+        }
+        self.sync_forced_chunks(forced, chunks, &mut added);
+        added
+    }
+
     fn add_chunk(
         &mut self,
         pos: Vector2<i32>,

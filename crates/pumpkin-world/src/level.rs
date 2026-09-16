@@ -494,13 +494,7 @@ impl Level {
             .into_iter()
             .filter_map(|pos_borrow| {
                 let pos = pos_borrow.borrow();
-                // Only include chunks with no watchers
-                let has_watchers = self
-                    .chunk_watchers
-                    .get(pos)
-                    .is_some_and(|count| *count != 0);
-
-                if has_watchers {
+                if self.should_retain_entity_chunk(pos) {
                     return None;
                 }
 
@@ -553,35 +547,66 @@ impl Level {
         Vec<OrderedTick<&'static Block>>,
         Vec<OrderedTick<&'static Fluid>>,
     ) {
-        let mut block_ticks = Vec::new();
-        let mut fluid_ticks = Vec::new();
+        self.get_scheduled_ticks_if(|_| true)
+    }
 
-        // Process chunks with scheduled ticks
-        // We collect keys first to avoid holding DashSet shard lock while accessing loaded_chunks (deadlock risk)
-        let scheduled_chunk_pos: Vec<_> = self
+    pub fn get_scheduled_ticks_if(
+        &self,
+        eligible: impl Fn(&Vector2<i32>) -> bool,
+    ) -> (
+        Vec<OrderedTick<&'static Block>>,
+        Vec<OrderedTick<&'static Fluid>>,
+    ) {
+        (
+            self.get_scheduled_block_ticks_if(&eligible),
+            self.get_scheduled_fluid_ticks_if(eligible),
+        )
+    }
+
+    pub fn get_scheduled_block_ticks_if(
+        &self,
+        eligible: impl Fn(&Vector2<i32>) -> bool,
+    ) -> Vec<OrderedTick<&'static Block>> {
+        self.collect_scheduled_ticks_if(eligible, |chunk| &chunk.block_ticks)
+    }
+
+    pub fn get_scheduled_fluid_ticks_if(
+        &self,
+        eligible: impl Fn(&Vector2<i32>) -> bool,
+    ) -> Vec<OrderedTick<&'static Fluid>> {
+        self.collect_scheduled_ticks_if(eligible, |chunk| &chunk.fluid_ticks)
+    }
+
+    fn collect_scheduled_ticks_if<T: std::hash::Hash + Eq + 'static>(
+        &self,
+        eligible: impl Fn(&Vector2<i32>) -> bool,
+        queue: impl Fn(&ChunkData) -> &crate::tick::scheduler::ChunkTickScheduler<&'static T>,
+    ) -> Vec<OrderedTick<&'static T>> {
+        // Release the index shard before reading chunk storage or removing entries.
+        let positions: Vec<_> = self
             .chunks_with_scheduled_ticks
             .iter()
             .map(|p| *p)
             .collect();
-        for pos in scheduled_chunk_pos {
+        let mut chunks = Vec::new();
+        for pos in positions {
             if let Some(chunk) = self.loaded_chunks.get(&pos) {
-                let chunk = chunk.value();
-                block_ticks.append(&mut chunk.block_ticks.step_tick());
-                fluid_ticks.append(&mut chunk.fluid_ticks.step_tick());
-
-                // Remove from set if it no longer has ticks
-                if !chunk.block_ticks.has_ticks() && !chunk.fluid_ticks.has_ticks() {
-                    self.chunks_with_scheduled_ticks.remove(&pos);
-                }
+                chunks.push((pos, chunk.value().clone()));
             } else {
-                self.chunks_with_scheduled_ticks.remove(&pos); // Chunk unloaded
+                self.chunks_with_scheduled_ticks.remove(&pos);
             }
         }
-
-        block_ticks.sort_unstable();
-        fluid_ticks.sort_unstable();
-
-        (block_ticks, fluid_ticks)
+        let queues: Vec<_> = chunks
+            .iter()
+            .map(|(pos, chunk)| (queue(chunk), eligible(pos)))
+            .collect();
+        let ticks = crate::tick::scheduler::collect_ticks(&queues, 65536);
+        for (pos, chunk) in chunks {
+            if !chunk.block_ticks.has_ticks() && !chunk.fluid_ticks.has_ticks() {
+                self.chunks_with_scheduled_ticks.remove(&pos);
+            }
+        }
+        ticks
     }
 
     pub fn get_random_ticks(
@@ -667,14 +692,29 @@ impl Level {
         self.chunk_watchers.get(chunk).is_some()
     }
 
+    pub fn should_retain_entity_chunk(&self, pos: &Vector2<i32>) -> bool {
+        if self.chunk_watchers.get(pos).is_some_and(|count| *count > 0) {
+            return true;
+        }
+        self.chunk_loading
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .pos_level
+            .get(pos)
+            .is_some_and(|level| *level <= ChunkLoading::FULL_CHUNK_LEVEL)
+    }
+
     pub fn clean_memory(self: &Arc<Self>) -> Vec<Vector2<i32>> {
         self.chunk_watchers.retain(|_, watcher| *watcher != 0);
 
-        let entity_chunks_to_remove: Vec<_> = self
+        let candidates: Vec<_> = self
             .loaded_entity_chunks
             .iter()
-            .filter(|entry| !self.chunk_watchers.contains_key(entry.key()))
             .map(|entry| *entry.key())
+            .collect();
+        let entity_chunks_to_remove: Vec<_> = candidates
+            .into_iter()
+            .filter(|pos| !self.should_retain_entity_chunk(pos))
             .collect();
 
         // We do not clean them here because we want the caller to save any active entities in them first.
@@ -1065,6 +1105,33 @@ mod tests {
     use super::*;
     use pumpkin_config::world::LevelConfig;
     use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn block_callbacks_can_enqueue_same_tick_fluids() {
+        let dir = TempDir::new().unwrap();
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let pos = BlockPos::new(0, 64, 0);
+        level
+            .loaded_chunks
+            .insert(Vector2::new(0, 0), ChunkData::empty_sync(0, 0));
+        level.schedule_block_tick(&Block::STONE, pos, 0, TickPriority::Normal);
+        assert_eq!(level.get_scheduled_block_ticks_if(|_| true).len(), 1);
+        // This is the ordering in World::tick_scheduled_ticks: dispatch blocks,
+        // then collect fluids, including work scheduled by those block callbacks.
+        level.schedule_fluid_tick(&Fluid::WATER, pos, 0, TickPriority::Normal);
+        assert!(level.get_scheduled_fluid_ticks_if(|_| false).is_empty());
+        assert!(level.is_fluid_tick_scheduled(&pos, &Fluid::WATER));
+        let due = level.get_scheduled_fluid_ticks_if(|_| true);
+        assert_eq!(due.len(), 1);
+        assert_eq!(due[0].position, pos);
+        assert!(!level.is_fluid_tick_scheduled(&pos, &Fluid::WATER));
+        level.shutdown().await;
+    }
 
     #[tokio::test]
     async fn dimension_paths_26_2() {
