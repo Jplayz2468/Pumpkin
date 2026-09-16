@@ -1265,3 +1265,16 @@ source references, verification and remaining dependencies.
   repeat scheduling when command execution is disabled.
 
 These changes do not close the exhaustive block or engine parity gates.
+
+
+### Swept inside-block engine work
+
+The endpoint-only inside-block loop now traverses recorded movement segments using
+the Java 26.2 cell algorithm. Direct unmodified-server oracle evidence covers 120
+cases of exact ordering/iteration numbers. Bubble precise-contact and filled
+cauldron shape unions are wired into the shared dispatcher. Teleports clear
+recorded paths; piston motion applies its own swept path immediately.
+
+Step-based effect aggregation and ordinary fluid-phase integration remain open;
+see ENGINE_GAPS.md and tools/vanilla/README.md. No full mob pass or final parity
+certification was performed.

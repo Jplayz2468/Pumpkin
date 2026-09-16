@@ -43,6 +43,11 @@ impl BedrockClient {
             let world = player.world();
 
             if pos_changed {
+                player.get_entity().record_inside_movement(
+                    player.get_entity().pos.load(),
+                    new_pos,
+                    None,
+                );
                 player.get_entity().set_pos(new_pos);
             }
             if rot_changed {

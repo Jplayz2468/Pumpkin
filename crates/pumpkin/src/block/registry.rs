@@ -967,9 +967,24 @@ impl BlockRegistry {
         state: &BlockState,
         server: &Server,
     ) {
+        self.on_entity_collision_precise(block, world, entity, position, state, server, true);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn on_entity_collision_precise(
+        &self,
+        block: &Block,
+        world: &Arc<World>,
+        entity: &dyn EntityBase,
+        position: &BlockPos,
+        state: &BlockState,
+        server: &Server,
+        is_precise: bool,
+    ) {
         let pumpkin_block = self.get_pumpkin_block(block.id);
         if let Some(pumpkin_block) = pumpkin_block {
             pumpkin_block.on_entity_collision(OnEntityCollisionArgs {
+                is_precise,
                 server,
                 world,
                 block,
@@ -1601,6 +1616,29 @@ impl BlockRegistry {
             });
         }
         0
+    }
+
+    pub(crate) fn get_inside_collision_boxes(
+        &self,
+        block: &Block,
+        world: &World,
+        state: &BlockState,
+        position: &BlockPos,
+        entity: &dyn EntityBase,
+    ) -> Vec<BoundingBox> {
+        if let Some(shapes) =
+            crate::block::blocks::cauldron::inside_collision_shapes(block, state, position)
+        {
+            return shapes;
+        }
+        if block == &Block::POWDER_SNOW {
+            return vec![
+                crate::block::blocks::powder_snow::inside_collision_shape_for_entity(
+                    entity, position,
+                ),
+            ];
+        }
+        vec![self.get_inside_collision_shape(block, world, state, position)]
     }
 
     pub fn get_inside_collision_shape(

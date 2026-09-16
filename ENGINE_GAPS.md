@@ -37,8 +37,8 @@ BaseCommandBlock.performCommand and CommandBlock.executeChain.
 
 ## Still open, in priority order
 
-1. **D01: movement and inside effects.** Swept traversal and ordered effect
-   aggregation/deduplication; full piston movement side effects, step-up/entity
+1. **D01: movement and inside effects.** Ordered effect aggregation, fluid-phase
+   integration and replay semantics; full piston movement side effects, step-up/entity
    collision interactions, nearest-support selection, scaffolding climbing.
 2. **D02: loot engine.** Full function/predicate/component contexts, reloadable
    tables and persistent named random streams. Vault now uses the existing loot
@@ -55,3 +55,29 @@ BaseCommandBlock.performCommand and CommandBlock.executeChain.
    detailed spawner/trial-spawner/beacon behavior and exhaustive data/shape comparison.
 
 Do not mark these remaining dependencies complete from passing helper tests.
+
+
+## Swept inside-block traversal continuation
+
+- Ported Java `BlockGetter.forEachBlockIntersectedBetween`, directional cell order,
+  corner DDA, entering-face clipping and `AABB.collidedAlongVector`.
+- Verified exact visited-cell order and step numbers against the unmodified Java
+  server for 120 cases; fixtures preserve raw double bits to avoid parse rounding.
+- Recorded ordinary server movement with its original axis order, accepted Java/
+  Bedrock player motion, Java vehicle movement and thrown-item motion. The world
+  drains pending movement after entity/player ticks; existing collision phases
+  drain their own records. Teleports/world changes clear records.
+- Inside-block dispatch traverses movement segments, deduplicates cells across
+  records, honors the 16-iteration budget and checks the destination on exhaustion.
+- Piston pushes apply their own swept effects immediately. Bubble columns receive
+  Java's precise-contact flag. Cauldrons expose wall/content shape unions so crossed
+  basins can trigger even when the entity has already left their endpoint box.
+- Background library verification: 454 tests passed, with the two previously
+  separately passing localhost socket tests excluded. Final run 6 passed after
+  the vehicle/projectile recording and world end-of-tick drain changes.
+
+Remaining for this pipeline: StepBasedCollector ordering/before-after callbacks,
+fluid effects currently still run through the existing update-fluid phase for
+ordinary movement, exact freeze/fire lifecycle, movement replay and other direct
+entity-specific position changes. Swept geometry coverage is not proof that the
+whole inside-effect pipeline matches Java yet.

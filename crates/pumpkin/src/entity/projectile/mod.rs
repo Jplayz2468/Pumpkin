@@ -230,6 +230,7 @@ impl ThrownItemEntity {
 
         // Update position
         let new_pos = start_pos.add(&delta);
+        entity.record_inside_movement(start_pos, new_pos, None);
         entity.set_pos(new_pos);
 
         // Send updated velocity to clients

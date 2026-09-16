@@ -194,7 +194,8 @@ fn bubble_column_velocity(
 
 impl BlockBehaviour for BubbleColumnBlock {
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
-        if args.block != &Block::BUBBLE_COLUMN
+        if !args.is_precise
+            || args.block != &Block::BUBBLE_COLUMN
             || args
                 .entity
                 .get_player()

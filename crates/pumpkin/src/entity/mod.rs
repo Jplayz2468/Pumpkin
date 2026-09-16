@@ -1,4 +1,5 @@
 pub mod baby_dimensions;
+mod inside_blocks;
 mod baby_dimensions_data;
 pub mod spawn;
 use crate::{
@@ -904,6 +905,7 @@ pub struct Entity {
     /// The last movement vector
     pub movement: AtomicCell<Vector3<f64>>,
     piston_movement: std::sync::Mutex<(i64, Vector3<f64>)>,
+    inside_movements: std::sync::Mutex<Vec<inside_blocks::Movement>>,
     /// The entity's position rounded to the nearest block coordinates
     pub block_pos: AtomicCell<BlockPos>,
     /// The block supporting the entity
@@ -1093,6 +1095,7 @@ impl Entity {
             last_pos: AtomicCell::new(position),
             movement: AtomicCell::new(Vector3::default()),
             piston_movement: std::sync::Mutex::new((0, Vector3::default())),
+            inside_movements: std::sync::Mutex::new(Vec::new()),
             block_pos: AtomicCell::new(BlockPos(Vector3::new(floor_x, floor_y, floor_z))),
             supporting_block_pos: AtomicCell::new(None),
             chunk_pos: AtomicCell::new(Vector2::new(
@@ -1174,6 +1177,7 @@ impl Entity {
     /// Updates the world reference for this entity.
     /// Called when the entity changes dimensions (e.g., through a nether portal).
     pub fn set_world(&self, world: Arc<World>) {
+        self.clear_inside_movements();
         let block_pos = self.block_pos.load();
         let biome = world.level.get_rough_biome(&block_pos);
         self.current_biome.store(Arc::new(biome));
@@ -1722,6 +1726,10 @@ impl Entity {
 
     pub fn tick_block_collisions(&self, caller: &dyn EntityBase) -> bool {
         if !self.is_affected_by_blocks() {
+            self.inside_movements
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clear();
             return false;
         }
 
@@ -1768,29 +1776,34 @@ impl Entity {
                     }
                 },
             );
-
-            let collision_shape = if block == &Block::POWDER_SNOW {
-                crate::block::blocks::powder_snow::inside_collision_shape_for_entity(caller, &pos)
-            } else {
-                world
-                    .block_registry
-                    .get_inside_collision_shape(block, &world, state, &pos)
+        }
+        if let Some(server) = world.server.upgrade() {
+            let mut movements = {
+                let mut pending = self
+                    .inside_movements
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                std::mem::take(&mut *pending)
             };
-
-            if bounding_box.intersects(&collision_shape.at_pos(pos)) {
-                if block == &Block::POWDER_SNOW {
-                    self.is_in_powder_snow.store(true, Relaxed);
-                }
-                if let Some(server_arc) = world.server.upgrade() {
-                    world.block_registry.on_entity_collision(
-                        block,
-                        &world,
-                        caller,
-                        &pos,
-                        state,
-                        &server_arc,
-                    );
-                }
+            let position = self.pos.load();
+            if movements.is_empty() {
+                movements.push(inside_blocks::Movement {
+                    from: position,
+                    to: position,
+                    original: None,
+                });
+            } else if let Some(last) = movements.last()
+                && last.to.squared_distance_to_vec(&position) > f64::from(9.9999994e-11_f32)
+            {
+                movements.push(inside_blocks::Movement {
+                    from: last.to,
+                    to: position,
+                    original: None,
+                });
+            }
+            let mut visited = rustc_hash::FxHashSet::default();
+            for movement in movements {
+                self.apply_inside_movement(caller, &server, movement, &mut visited, false);
             }
         }
 
@@ -2474,9 +2487,20 @@ impl Entity {
                 collision_shapes::collide([motion.x, motion.y, motion.z], to_box(&bounds), &shapes);
             Vector3::new(movement[0], movement[1], movement[2])
         };
+        let from = self.pos.load();
         self.move_pos(adjusted);
         if let Some(server) = self.world.load().server.upgrade() {
-            Self::check_block_collision(caller, &server);
+            self.apply_inside_movement(
+                caller,
+                &server,
+                inside_blocks::Movement {
+                    from,
+                    to: self.pos.load(),
+                    original: None,
+                },
+                &mut rustc_hash::FxHashSet::default(),
+                true,
+            );
         }
         self.send_pos();
     }
@@ -2507,6 +2531,9 @@ impl Entity {
         }
 
         let final_move = self.adjust_movement_for_collisions(motion, caller);
+        let from = self.pos.load();
+        self.record_inside_movement(from, from + final_move, Some(motion));
+
 
         self.move_pos(final_move);
         self.emit_movement_events(caller, final_move);
@@ -3620,62 +3647,199 @@ impl Entity {
         self.invulnerable.store(invulnerable, Relaxed);
     }
 
-    pub fn check_block_collision(entity: &dyn EntityBase, server: &Server) {
-        if !entity.get_entity().is_affected_by_blocks() {
+    /// Entity implementations that move after their own collision phase still
+    /// drain recorded movement before the world finishes their tick.
+    pub(crate) fn flush_pending_inside_effects(&self, caller: &dyn EntityBase) {
+        let pending = !self
+            .inside_movements
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .is_empty();
+        if pending {
+            self.tick_block_collisions(caller);
+        }
+    }
+
+    pub(crate) fn clear_inside_movements(&self) {
+        self.inside_movements
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clear();
+    }
+
+    pub(crate) fn record_inside_movement(
+        &self,
+        from: Vector3<f64>,
+        to: Vector3<f64>,
+        original: Option<Vector3<f64>>,
+    ) {
+        if from != to {
+            self.inside_movements
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(inside_blocks::Movement { from, to, original });
+        }
+    }
+
+    fn apply_inside_movement(
+        &self,
+        caller: &dyn EntityBase,
+        server: &Server,
+        movement: inside_blocks::Movement,
+        visited: &mut rustc_hash::FxHashSet<BlockPos>,
+        include_fluids: bool,
+    ) {
+        if !self.is_affected_by_blocks() {
             return;
         }
-        let aabb = entity.get_entity().bounding_box.load();
-        let blockpos = BlockPos::new(
-            (aabb.min.x + f64::from(1.0e-5_f32)).floor() as i32,
-            (aabb.min.y + f64::from(1.0e-5_f32)).floor() as i32,
-            (aabb.min.z + f64::from(1.0e-5_f32)).floor() as i32,
-        );
-        let blockpos1 = BlockPos::new(
-            (aabb.max.x - f64::from(1.0e-5_f32)).floor() as i32,
-            (aabb.max.y - f64::from(1.0e-5_f32)).floor() as i32,
-            (aabb.max.z - f64::from(1.0e-5_f32)).floor() as i32,
-        );
-        let world = entity.get_entity().world.load();
-
-        for x in blockpos.0.x..=blockpos1.0.x {
-            for y in blockpos.0.y..=blockpos1.0.y {
-                for z in blockpos.0.z..=blockpos1.0.z {
-                    let pos = BlockPos::new(x, y, z);
-                    let (block, state) = world.get_block_and_state(&pos);
-                    let inside_shape = if block == &Block::POWDER_SNOW {
-                        crate::block::blocks::powder_snow::inside_collision_shape_for_entity(
-                            entity, &pos,
-                        )
-                    } else {
-                        world
-                            .block_registry
-                            .get_inside_collision_shape(block, &world, state, &pos)
-                    };
-                    if inside_shape.at_pos(pos).intersects(&aabb) {
-                        if block == &Block::POWDER_SNOW {
-                            entity
-                                .get_entity()
-                                .is_in_powder_snow
-                                .store(true, Ordering::Relaxed);
-                        }
-                        world
-                            .block_registry
-                            .on_entity_collision(block, &world, entity, &pos, state, server);
-                    }
-                    // Fluid effects are independent of the solid block's inside shape.
-                    let (fluid, fluid_state) = world.get_fluid_and_fluid_state(&pos);
-                    if !fluid_state.is_empty
-                        && aabb.min.y
-                            < f64::from(pos.0.y)
-                                + f64::from(world.get_fluid_height(&pos, fluid, &fluid_state))
-                    {
-                        world
-                            .block_registry
-                            .on_entity_collision_fluid(fluid, entity);
-                    }
+        let mut remaining = 16;
+        let delta = movement.to - movement.from;
+        if let Some(original) = movement.original
+            && delta.length_squared() > 0.0
+        {
+            let mut from = movement.from;
+            for axis in inside_blocks::axis_order(original) {
+                let axis = [Axis::X, Axis::Y, Axis::Z][axis];
+                let amount = delta.get_axis(axis);
+                if amount != 0.0 {
+                    let mut to = from;
+                    to.set_axis(axis, to.get_axis(axis) + amount);
+                    remaining -= self.apply_inside_segment(
+                        caller,
+                        server,
+                        from,
+                        to,
+                        visited,
+                        remaining,
+                        include_fluids,
+                    );
+                    from = to;
                 }
             }
+        } else {
+            remaining -= self.apply_inside_segment(
+                caller,
+                server,
+                movement.from,
+                movement.to,
+                visited,
+                remaining,
+                include_fluids,
+            );
         }
+        if remaining <= 0 {
+            self.apply_inside_segment(
+                caller,
+                server,
+                movement.to,
+                movement.to,
+                visited,
+                1,
+                include_fluids,
+            );
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn apply_inside_segment(
+        &self,
+        caller: &dyn EntityBase,
+        server: &Server,
+        from: Vector3<f64>,
+        to: Vector3<f64>,
+        visited: &mut rustc_hash::FxHashSet<BlockPos>,
+        limit: i32,
+        include_fluids: bool,
+    ) -> i32 {
+        let world = self.world.load();
+        let dimensions = self.entity_dimension.load();
+        let bounds_from = BoundingBox::new_from_pos(from.x, from.y, from.z, &dimensions);
+        let target = BoundingBox::new_from_pos(to.x, to.y, to.z, &dimensions).expand(
+            -inside_blocks::SKIN,
+            -inside_blocks::SKIN,
+            -inside_blocks::SKIN,
+        );
+        let travel = to - from;
+        let moved_far = travel.length_squared() > (1.0 - inside_blocks::SKIN).powi(2);
+        let mut iterations = 0;
+        inside_blocks::visit_swept(from, to, target, |pos, step| {
+            if self.is_removed()
+                || caller
+                    .get_living_entity()
+                    .is_some_and(|living| living.health.load() <= 0.0)
+                || step >= limit
+            {
+                return false;
+            }
+            iterations = step;
+            let (block, state) = world.get_block_and_state(&pos);
+            if state.is_air() {
+                return true;
+            }
+            let shapes = world
+                .block_registry
+                .get_inside_collision_boxes(block, &world, state, &pos, caller);
+            let inside = shapes.iter().any(|shape| {
+                let is_full = shape.min == Vector3::new(0.0, 0.0, 0.0)
+                    && shape.max == Vector3::new(1.0, 1.0, 1.0);
+                is_full || inside_blocks::collided_along(bounds_from, travel, shape.at_pos(pos))
+            });
+            let (fluid, fluid_state) = world.get_fluid_and_fluid_state(&pos);
+            let in_fluid = include_fluids
+                && !fluid_state.is_empty
+                && inside_blocks::collided_along(
+                    bounds_from,
+                    travel,
+                    BoundingBox::new_array(
+                        [0.0, 0.0, 0.0],
+                        [
+                            1.0,
+                            f64::from(world.get_fluid_height(&pos, fluid, &fluid_state)),
+                            1.0,
+                        ],
+                    )
+                    .at_pos(pos),
+                );
+            if (inside || in_fluid) && visited.insert(pos) {
+                if inside {
+                    if block == &Block::POWDER_SNOW {
+                        self.is_in_powder_snow.store(true, Ordering::Relaxed);
+                    }
+                    world.block_registry.on_entity_collision_precise(
+                        block,
+                        &world,
+                        caller,
+                        &pos,
+                        state,
+                        server,
+                        moved_far || target.intersects(&BoundingBox::from_block(&pos)),
+                    );
+                }
+                if in_fluid {
+                    world
+                        .block_registry
+                        .on_entity_collision_fluid(fluid, caller);
+                }
+            }
+            true
+        });
+        iterations + 1
+    }
+
+    pub fn check_block_collision(entity: &dyn EntityBase, server: &Server) {
+        let base = entity.get_entity();
+        let pos = base.pos.load();
+        base.apply_inside_movement(
+            entity,
+            server,
+            inside_blocks::Movement {
+                from: pos,
+                to: pos,
+                original: None,
+            },
+            &mut rustc_hash::FxHashSet::default(),
+            true,
+        );
     }
 
     pub fn teleport(
@@ -3685,6 +3849,8 @@ impl Entity {
         pitch: Option<f32>,
         world: &World,
     ) {
+        // Teleporting does not traverse the intervening block effects.
+        self.clear_inside_movements();
         // Update server-side position and bounding box
         self.set_pos(position);
         if let Some(yaw) = yaw {

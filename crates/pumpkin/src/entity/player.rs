@@ -4038,6 +4038,7 @@ impl Player {
             }
         }
 
+        self.living_entity.entity.clear_inside_movements();
         self.last_client_movement.store(Vector3::default());
         let i = self.teleport_id_count.fetch_add(1, Ordering::Relaxed);
         self.chunk_send_epoch.fetch_add(1, Ordering::Relaxed);

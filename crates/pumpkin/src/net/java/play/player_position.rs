@@ -104,6 +104,7 @@ impl JavaClient {
                 let entity = &player.get_entity();
                 let last_pos = entity.pos.load();
                 let previous_movement = player.last_client_movement.swap(pos - last_pos);
+                entity.record_inside_movement(last_pos, pos, None);
                 player.get_entity().set_pos(pos);
 
                 let distance = last_pos.squared_distance_to_vec(&pos).sqrt();
@@ -248,6 +249,7 @@ impl JavaClient {
                 let entity = &player.get_entity();
                 let last_pos = entity.pos.load();
                 let previous_movement = player.last_client_movement.swap(pos - last_pos);
+                entity.record_inside_movement(last_pos, pos, None);
                 player.get_entity().set_pos(pos);
 
                 let distance = last_pos.squared_distance_to_vec(&pos).sqrt();

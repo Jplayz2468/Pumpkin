@@ -1722,6 +1722,7 @@ impl World {
         let _player_guard = player_handle.enter();
         for player in players.iter() {
             player.tick(server);
+            player.get_entity().flush_pending_inside_effects(player.as_ref());
         }
         drop(_player_guard);
         let player_elapsed = t_players.elapsed();
@@ -1764,6 +1765,7 @@ impl World {
                     entity.get_entity().tick_count.fetch_add(1, Relaxed);
                     crate::entity::projectile::emit_shoot_event(entity.as_ref());
                     entity.tick(entity.as_ref(), server_ref);
+                    entity.get_entity().flush_pending_inside_effects(entity.as_ref());
 
                     let entity_inner = entity.get_entity();
                     let entity_pos = entity_inner.pos.load();

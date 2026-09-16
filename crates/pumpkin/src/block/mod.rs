@@ -297,6 +297,7 @@ pub struct OnEntityCollisionArgs<'a> {
     pub state: &'a BlockState,
     pub position: &'a BlockPos,
     pub entity: &'a dyn EntityBase,
+    pub is_precise: bool,
 }
 
 pub struct OnProjectileHitArgs<'a> {

@@ -32,6 +32,28 @@ impl BlockMetadata for CauldronBlock {
     }
 }
 
+/// Filled cauldrons use a union of the basin walls and their current contents.
+/// The engine must test this union along the movement, not only at its endpoint.
+pub(crate) fn inside_collision_shapes(
+    block: &Block,
+    state: &BlockState,
+    pos: &BlockPos,
+) -> Option<Vec<BoundingBox>> {
+    if block != &Block::WATER_CAULDRON
+        && block != &Block::LAVA_CAULDRON
+        && block != &Block::POWDER_SNOW_CAULDRON
+    {
+        return None;
+    }
+    let level = fill_level(block, state);
+    let mut shapes: Vec<_> = state.get_block_collision_shapes_at(pos).collect();
+    shapes.push(BoundingBox::new_array(
+        [0.125, 0.25, 0.125],
+        [0.875, f64::from(6 + 3 * level) / 16.0, 0.875],
+    ));
+    Some(shapes)
+}
+
 fn fire_cauldron_change(
     world: &std::sync::Arc<crate::world::World>,
     pos: pumpkin_util::math::position::BlockPos,
@@ -362,22 +384,6 @@ impl BlockBehaviour for CauldronBlock {
             return;
         }
         let entity = args.entity.get_entity();
-        let body = entity.bounding_box.load();
-        let contents = BoundingBox::new_array(
-            [0.125, 0.25, 0.125],
-            [0.875, f64::from(6 + 3 * level) / 16.0, 0.875],
-        )
-        .at_pos(*args.position);
-        // The engine supplies one broad inside box; filter the filled-shape union here.
-        if !body.intersects(&contents)
-            && !args
-                .world
-                .block_collision_boxes(args.position)
-                .iter()
-                .any(|shape| body.intersects(&shape.at_pos(*args.position)))
-        {
-            return;
-        }
         if args.block == &Block::LAVA_CAULDRON {
             entity.set_frozen_ticks(0);
             if !entity.fire_immune.load(Ordering::Relaxed) {

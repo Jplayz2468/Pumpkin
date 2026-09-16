@@ -16,9 +16,11 @@ impl JavaClient {
             .clone();
         if let Some(vehicle) = vehicle {
             let vehicle_entity = vehicle.get_entity();
+            vehicle_entity.record_inside_movement(vehicle_entity.pos.load(), pos, None);
             vehicle_entity.set_pos(pos);
             vehicle_entity.set_rotation(packet.yaw, packet.pitch);
         }
+        entity.record_inside_movement(last_pos, pos, None);
         entity.set_pos(pos);
         let distance = last_pos.squared_distance_to_vec(&pos).sqrt();
         let cm = (distance * 100.0).round() as i32;
