@@ -13,7 +13,7 @@
 | Batch | Scope | Source files | State |
 | --- | --- | ---: | --- |
 | B01 | Workstations | 8 | Reviewed; menu dependencies queued |
-| B02 | Inventory automation | 4 | Pending batch closure; reuse prior ports |
+| B02 | Inventory automation | 4 | Reviewed; container/recipe dependencies queued |
 | B03 | Special gameplay blocks | 8 | Pending batch closure; reuse prior ports |
 | B04 | Signs, banners, heads and light | 4 | Pending batch closure; reuse prior ports |
 | B05 | Portals and gateways | 4 | Pending batch closure; reuse prior ports |
@@ -43,10 +43,10 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B01 | [loom.rs](crates/pumpkin/src/block/blocks/loom.rs) | Reviewed |
 | B01 | [smithing_table.rs](crates/pumpkin/src/block/blocks/smithing_table.rs) | Reviewed |
 | B01 | [stonecutter.rs](crates/pumpkin/src/block/blocks/stonecutter.rs) | Reviewed |
-| B02 | [hopper.rs](crates/pumpkin/src/block/blocks/hopper.rs) | Pending |
-| B02 | [redstone/crafter.rs](crates/pumpkin/src/block/blocks/redstone/crafter.rs) | Pending |
-| B02 | [redstone/dispenser.rs](crates/pumpkin/src/block/blocks/redstone/dispenser.rs) | Pending |
-| B02 | [redstone/dropper.rs](crates/pumpkin/src/block/blocks/redstone/dropper.rs) | Pending |
+| B02 | [hopper.rs](crates/pumpkin/src/block/blocks/hopper.rs) | Reviewed |
+| B02 | [redstone/crafter.rs](crates/pumpkin/src/block/blocks/redstone/crafter.rs) | Reviewed |
+| B02 | [redstone/dispenser.rs](crates/pumpkin/src/block/blocks/redstone/dispenser.rs) | Reviewed |
+| B02 | [redstone/dropper.rs](crates/pumpkin/src/block/blocks/redstone/dropper.rs) | Reviewed |
 | B03 | [beacon.rs](crates/pumpkin/src/block/blocks/beacon.rs) | Pending |
 | B03 | [carved_pumpkin.rs](crates/pumpkin/src/block/blocks/carved_pumpkin.rs) | Pending |
 | B03 | [creaking_heart.rs](crates/pumpkin/src/block/blocks/creaking_heart.rs) | Pending |
@@ -356,3 +356,15 @@ Item source inventory:
 - First attempt stopped on a PotDecorations NBT string type mismatch; fixed `String` → `Box<str>` conversion.
 - Second attempt exposed cached generated asset paths from a removed worktree and a removed tall-flower tag. Refreshed the build script output and selected the actual DoublePlantBlock families.
 - Third attempt reached the main crate and exposed prior API/import/type integration failures; log: `/tmp/pumpkin-block-pass-tests-3.log`. D07 is active. No passing result is claimed.
+
+### B02 open dependencies
+
+- D02/D05: hopper, dropper, dispenser and crafter stored loot, custom names,
+  item components, locks and menu-access checks still need the shared container
+  pass; their simple inventory BEs do not yet implement RandomizableContainer.
+- D03: exact hopper transfer atomicity/order and shape-fullness obstruction,
+  crafter bulk insertion versus one-at-a-time insertion, BE removal/tick order.
+- I01/I04: per-item dispenser behaviors (including missing sulfur-cube handling).
+- I02: crafter recipe assembly/components, recipe-specific remainders and crafted
+  callbacks/advancements; the existing matcher only returns item ID/count.
+- D06: item-stack synchronization after partial hopper pickup and client BE data.

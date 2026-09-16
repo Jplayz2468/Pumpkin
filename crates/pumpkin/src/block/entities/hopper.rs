@@ -1,4 +1,6 @@
 use crate::block::entities::BlockEntity;
+use crate::entity::EntityBase;
+use crate::entity::item::ItemEntity;
 use crate::world::World;
 use pumpkin_data::block_properties::{FacingHopper, HopperLikeProperties};
 use pumpkin_data::item_stack::ItemStack;
@@ -8,6 +10,7 @@ use pumpkin_data::{BlockId, BlockStateId};
 use pumpkin_inventory::{Clearable, Inventory, sync_write_items_to_nbt};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_nbt::tag::NbtTag;
+use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use std::any::Any;
@@ -124,7 +127,6 @@ impl BlockEntity for HopperBlockEntity {
     }
 
     fn set_block_state(&mut self, block_state: BlockStateId) {
-        // TODO !!!IMPORTANT!!! set block state when loading the chunk
         self.facing = HopperLikeProperties::from_state_id(block_state).facing;
     }
 
@@ -178,6 +180,15 @@ impl HopperBlockEntity {
         }
     }
     fn try_move_items(&self, state: HopperLikeProperties, world: &Arc<World>) {
+        self.try_move_items_with(state, world, || self.suck_in_items(world));
+    }
+
+    fn try_move_items_with(
+        &self,
+        state: HopperLikeProperties,
+        world: &Arc<World>,
+        action: impl FnOnce() -> bool,
+    ) {
         if self.cooldown_time.load(Ordering::Relaxed) <= 0 && state.enabled {
             let mut success = if self.is_empty() {
                 false
@@ -185,7 +196,7 @@ impl HopperBlockEntity {
                 self.eject_items(world, state.facing)
             };
             if !self.inventory_full() {
-                success |= self.suck_in_items(world);
+                success |= action();
             }
             if success {
                 self.cooldown_time.store(8, Ordering::Relaxed);
@@ -246,63 +257,77 @@ impl HopperBlockEntity {
         }
         let (block, state) = world.get_block_and_state(pos_up);
         if !state.is_solid() || block.has_tag(&tag::Block::MINECRAFT_DOES_NOT_BLOCK_HOPPERS) {
-            let pos_up_f = pos_up.to_f64();
-            let search_box = pumpkin_util::math::boundingbox::BoundingBox::new(
-                pos_up_f,
-                pos_up_f.add_raw(1.0, 1.0, 1.0),
-            );
-            let entities = world.get_entities_at_box(&search_box);
-            for entity_base in entities {
-                if let Some(item_entity) = entity_base.get_item_entity() {
-                    let (is_empty, registry_key) = {
-                        let stack = item_entity
-                            .get_item_stack()
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner);
-                        (stack.is_empty(), stack.item.registry_key.to_string())
-                    };
-                    if !is_empty {
-                        let mut pickup_event =
-                            crate::plugin::api::events::inventory::inventory_pickup_item::InventoryPickupItemEvent::new(
-                                self.position,
-                                item_entity.get_entity().entity_id,
-                                registry_key,
-                            );
-                        if let Some(server) = world.server.upgrade() {
-                            server
-                                .plugin_manager
-                                .fire_blocking(&server, &mut pickup_event);
-                        }
-                        if pickup_event.cancelled {
-                            continue;
-                        }
-                        let mut stack = item_entity
-                            .get_item_stack()
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner);
-                        let mut moved = false;
-                        while !stack.is_empty() {
-                            let mut one = stack.clone();
-                            one.item_count = 1;
-                            if !Self::add_one_item(self, self, &one) {
-                                break;
-                            }
-                            let _ = stack.split(1);
-                            moved = true;
-                        }
-                        if moved {
-                            let empty = stack.is_empty();
-                            drop(stack);
-                            if empty {
-                                item_entity.get_entity().remove();
-                            }
-                            return true;
-                        }
-                    }
+            for entity in world.get_entities_at_box(&self.suck_box()) {
+                if !entity.get_entity().is_removed()
+                    && let Some(item) = entity.get_item_entity()
+                    && self.pick_up_item(world, item)
+                {
+                    return true;
                 }
             }
         }
         false
+    }
+
+    fn suck_box(&self) -> BoundingBox {
+        BoundingBox::new_array([0.0, 11.0 / 16.0, 0.0], [1.0, 2.0, 1.0]).at_pos(self.position)
+    }
+
+    pub(crate) fn entity_inside(
+        &self,
+        world: &Arc<World>,
+        state: HopperLikeProperties,
+        entity: &dyn EntityBase,
+    ) {
+        if !entity.get_entity().is_removed()
+            && let Some(item) = entity.get_item_entity()
+            && entity
+                .get_entity()
+                .bounding_box
+                .load()
+                .intersects(&self.suck_box())
+        {
+            self.try_move_items_with(state, world, || self.pick_up_item(world, item));
+        }
+    }
+
+    fn pick_up_item(&self, world: &Arc<World>, item: &ItemEntity) -> bool {
+        let registry_key = {
+            let stack = item
+                .get_item_stack()
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if stack.is_empty() {
+                return false;
+            }
+            stack.item.registry_key.to_string()
+        };
+        let mut event = crate::plugin::api::events::inventory::inventory_pickup_item::InventoryPickupItemEvent::new(
+            self.position, item.get_entity().entity_id, registry_key);
+        if let Some(server) = world.server.upgrade() {
+            server.plugin_manager.fire_blocking(&server, &mut event);
+        }
+        if event.cancelled {
+            return false;
+        }
+        let mut stack = item
+            .get_item_stack()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        while !stack.is_empty() {
+            let one = stack.copy_with_count(1);
+            if !Self::insert_one(None, self, &one, None) {
+                break;
+            }
+            stack.decrement(1);
+        }
+        let empty = stack.is_empty();
+        drop(stack);
+        if empty {
+            item.get_entity().remove();
+        }
+        // Vanilla reports success only when the entire item entity was absorbed.
+        empty
     }
 
     /// Splits one item off `slot`. One lock for read and write, so the snapshot is the state the
@@ -440,13 +465,13 @@ impl HopperBlockEntity {
                 min.add_raw(1.0, 1.0, 1.0),
             ))
             .into_iter()
+            .filter(|entity| !entity.get_entity().is_removed())
             .filter_map(|entity| entity.container_inventory())
             .collect();
         if candidates.is_empty() {
             None
         } else {
-            use rand::RngExt;
-            Some(candidates[rand::rng().random_range(0..candidates.len())].clone())
+            Some(candidates[world.rand_bounded_i32(candidates.len() as i32) as usize].clone())
         }
     }
 
@@ -455,6 +480,15 @@ impl HopperBlockEntity {
     }
     pub fn add_one_item_from(
         from: &dyn Inventory,
+        to: &dyn Inventory,
+        item: &ItemStack,
+        side: Option<pumpkin_data::BlockDirection>,
+    ) -> bool {
+        Self::insert_one(Some(from), to, item, side)
+    }
+
+    fn insert_one(
+        from: Option<&dyn Inventory>,
         to: &dyn Inventory,
         item: &ItemStack,
         side: Option<pumpkin_data::BlockDirection>,
@@ -468,7 +502,8 @@ impl HopperBlockEntity {
                     dst = item.clone();
                     to.set_stack(j, dst);
                     success = true;
-                } else if dst.item_count < dst.get_max_stack_size()
+                } else if dst.item_count
+                    < dst.get_max_stack_size().min(to.get_max_count_per_stack())
                     && dst.are_items_and_components_equal(item)
                 {
                     dst.item_count += 1;
@@ -480,7 +515,9 @@ impl HopperBlockEntity {
                         && let Some(hopper) = to.as_any().downcast_ref::<Self>()
                         && hopper.cooldown_time.load(Ordering::Relaxed) <= 8
                     {
-                        if let Some(from_hopper) = from.as_any().downcast_ref::<Self>() {
+                        if let Some(from_hopper) =
+                            from.and_then(|inventory| inventory.as_any().downcast_ref::<Self>())
+                        {
                             if hopper.ticked_game_time.load(Ordering::Relaxed)
                                 >= from_hopper.ticked_game_time.load(Ordering::Relaxed)
                             {

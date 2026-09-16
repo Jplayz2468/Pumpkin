@@ -4,7 +4,7 @@ use std::sync::Mutex;
 use crate::block::blocks::redstone::block_receives_redstone_power;
 use crate::block::{
     GetComparatorOutputArgs, GetScreenHandlerFactoryArgs, OnNeighborUpdateArgs, OnPlaceArgs,
-    PathComputationType, PlacedArgs,
+    OnStateReplacedArgs, PathComputationType, PlacedArgs,
 };
 use crate::block::{
     registry::BlockActionResult,
@@ -63,13 +63,13 @@ impl BlockBehaviour for HopperBlock {
             position: args.position,
             player: args.player,
         }) {
+            args.player
+                .open_handled_screen(factory.as_ref(), Some(*args.position));
             args.player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::Custom,
                 pumpkin_data::statistic::CustomStatistic::InspectHopper as i32,
                 1,
             );
-            args.player
-                .open_handled_screen(factory.as_ref(), Some(*args.position));
         }
 
         BlockActionResult::Success
@@ -80,6 +80,7 @@ impl BlockBehaviour for HopperBlock {
         args: GetScreenHandlerFactoryArgs<'_>,
     ) -> Option<Box<dyn ScreenHandlerFactory>> {
         let block_entity = args.world.get_block_entity(args.position)?;
+        block_entity.as_any().downcast_ref::<HopperBlockEntity>()?;
         let inventory = block_entity.get_inventory()?;
         Some(Box::new(HopperBlockScreenFactory(inventory)))
     }
@@ -98,9 +99,6 @@ impl BlockBehaviour for HopperBlock {
     }
 
     fn placed(&self, args: PlacedArgs<'_>) {
-        let props = HopperLikeProperties::from_state_id(args.state_id);
-        let hopper_block_entity = HopperBlockEntity::new(*args.position, props.facing);
-        args.world.add_block_entity(Arc::new(hopper_block_entity));
         if Block::from_state_id(args.old_state_id) != Block::from_state_id(args.state_id) {
             check_powered_state(args.world, args.position, args.state_id, args.block);
         }
@@ -118,6 +116,23 @@ impl BlockBehaviour for HopperBlock {
             args.world.get_block_state_id(args.position),
             args.block,
         );
+    }
+
+    fn on_entity_collision(&self, args: crate::block::OnEntityCollisionArgs<'_>) {
+        if let Some(entity) = args.world.get_block_entity(args.position)
+            && let Some(hopper) = entity.as_any().downcast_ref::<HopperBlockEntity>()
+        {
+            hopper.entity_inside(
+                args.world,
+                HopperLikeProperties::from_state_id(args.state.id),
+                args.entity,
+            );
+        }
+    }
+
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
+        args.world
+            .update_neighbour_for_output_signal(args.position, args.block);
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {

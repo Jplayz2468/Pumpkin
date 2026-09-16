@@ -11,7 +11,7 @@ use crate::block::blocks::wither_skull::find_wither_pattern;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
     BlockBehaviour, GetComparatorOutputArgs, GetScreenHandlerFactoryArgs, NormalUseArgs,
-    OnNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs, PlacedArgs,
+    OnNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs, OnStateReplacedArgs,
 };
 use crate::entity::ageable::AgeableMob;
 use crate::entity::decoration::armor_stand::ArmorStandEntity;
@@ -211,13 +211,13 @@ impl BlockBehaviour for DispenserBlock {
             position: args.position,
             player: args.player,
         }) {
+            args.player
+                .open_handled_screen(factory.as_ref(), Some(*args.position));
             args.player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::Custom,
                 pumpkin_data::statistic::CustomStatistic::InspectDispenser as i32,
                 1,
             );
-            args.player
-                .open_handled_screen(factory.as_ref(), Some(*args.position));
         }
         BlockActionResult::Success
     }
@@ -227,6 +227,9 @@ impl BlockBehaviour for DispenserBlock {
         args: GetScreenHandlerFactoryArgs<'_>,
     ) -> Option<Box<dyn ScreenHandlerFactory>> {
         let block_entity = args.world.get_block_entity(args.position)?;
+        block_entity
+            .as_any()
+            .downcast_ref::<DispenserBlockEntity>()?;
         let inventory = block_entity.get_inventory()?;
         Some(Box::new(DispenserScreenFactory(inventory)))
     }
@@ -237,13 +240,11 @@ impl BlockBehaviour for DispenserBlock {
         props.to_state_id(args.block)
     }
 
-    fn placed(&self, args: PlacedArgs<'_>) {
-        let dispenser_block_entity = DispenserBlockEntity::new(*args.position);
-        args.world
-            .add_block_entity(Arc::new(dispenser_block_entity));
-    }
-
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+
         let powered = block_receives_redstone_power(args.world, args.position)
             || block_receives_redstone_power(args.world, &args.position.up());
 
@@ -277,7 +278,7 @@ impl BlockBehaviour for DispenserBlock {
                 return;
             };
 
-            if let Some((slot_index, mut item)) = dispenser.get_random_slot() {
+            if let Some((slot_index, mut item)) = dispenser.get_random_slot(args.world) {
                 let props = DispenserLikeProperties::from_state_id(state.id);
                 let ctx = DispenseContext {
                     world: args.world,
@@ -289,8 +290,19 @@ impl BlockBehaviour for DispenserBlock {
             } else {
                 args.world
                     .sync_world_event(WorldEvent::SoundDispenserFail, *args.position, 0);
+                args.world.emit_game_event_with_context(
+                    "minecraft:block_activate",
+                    args.position.to_centered_f64(),
+                    None,
+                    Some(state.id),
+                );
             }
         }
+    }
+
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
+        args.world
+            .update_neighbour_for_output_signal(args.position, args.block);
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
@@ -1282,24 +1294,41 @@ impl DispenserBlock {
     }
 
     fn eject_item(ctx: &DispenseContext<'_>, stack: ItemStack) {
-        let facing = to_normal(ctx.facing);
-        let mut position = ctx.position.to_centered_f64().add(&(facing * 0.7));
-
-        position.y -= match ctx.facing {
-            Facing::Up | Facing::Down => 0.125,
-            _ => 0.15625,
-        };
-
-        let entity = Entity::new(ctx.world.clone(), position, &EntityType::ITEM);
-        let rd = rng().random::<f64>().mul_add(0.1, 0.2);
-
-        let velocity = Vector3::new(
-            triangle(&mut rng(), facing.x * rd, 0.017_227_5 * 6.),
-            triangle(&mut rng(), 0.2, 0.017_227_5 * 6.),
-            triangle(&mut rng(), facing.z * rd, 0.017_227_5 * 6.),
+        spawn_default_item(
+            ctx.world,
+            ctx.position,
+            ctx.facing.to_block_direction(),
+            stack,
         );
-
-        let item_entity = Arc::new(ItemEntity::new_with_velocity(entity, stack, velocity, 40));
-        ctx.world.spawn_entity(item_entity);
     }
+}
+
+/// DefaultDispenseItemBehavior.spawnItem, including level RNG and zero pickup delay.
+pub(super) fn spawn_default_item(
+    world: &Arc<World>,
+    pos: &BlockPos,
+    direction: pumpkin_data::BlockDirection,
+    stack: ItemStack,
+) {
+    let facing = direction.to_offset().to_f64();
+    let mut position = pos.to_centered_f64().add(&(facing * 0.7));
+    position.y -= if matches!(
+        direction,
+        pumpkin_data::BlockDirection::Up | pumpkin_data::BlockDirection::Down
+    ) {
+        0.125
+    } else {
+        0.15625
+    };
+    let entity = Entity::new(world.clone(), position, &EntityType::ITEM);
+    let power = world.rand_f64() * 0.1 + 0.2;
+    let triangle = |mean: f64| mean + 0.017_227_5 * 6.0 * (world.rand_f64() - world.rand_f64());
+    let velocity = Vector3::new(
+        triangle(facing.x * power),
+        triangle(0.2),
+        triangle(facing.z * power),
+    );
+    world.spawn_entity(Arc::new(ItemEntity::new_with_velocity(
+        entity, stack, velocity, 0,
+    )));
 }

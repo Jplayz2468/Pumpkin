@@ -1,4 +1,3 @@
-use rand::{Rng, RngExt, rng};
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -6,16 +5,14 @@ use crate::block::blocks::redstone::block_receives_redstone_power;
 use crate::block::registry::BlockActionResult;
 use crate::block::{
     BlockBehaviour, GetComparatorOutputArgs, GetScreenHandlerFactoryArgs, NormalUseArgs,
-    OnNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs, PlacedArgs,
+    OnNeighborUpdateArgs, OnPlaceArgs, OnScheduledTickArgs, OnStateReplacedArgs,
 };
-use crate::entity::item::ItemEntity;
-use crate::entity::{Entity, EntityBase};
+use crate::entity::EntityBase;
 
 use crate::block::entities::dropper::DropperBlockEntity;
 use crate::block::entities::hopper::HopperBlockEntity;
 use pumpkin_data::BlockStateId;
 use pumpkin_data::block_properties::Facing;
-use pumpkin_data::entity::EntityType;
 use pumpkin_data::world::WorldEvent;
 use pumpkin_data::{FacingExt, translation};
 use pumpkin_inventory::Inventory;
@@ -25,7 +22,6 @@ use pumpkin_inventory::screen_handler::{
     InventoryPlayer, ScreenHandlerFactory, SharedScreenHandler,
 };
 use pumpkin_macros::pumpkin_block;
-use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
 use pumpkin_world::tick::TickPriority;
 use pumpkin_world::world::BlockFlags;
@@ -58,21 +54,6 @@ pub struct DropperBlock;
 
 type DispenserLikeProperties = pumpkin_data::block_properties::DispenserLikeProperties;
 
-fn triangle<R: Rng>(rng: &mut R, min: f64, max: f64) -> f64 {
-    (rng.random::<f64>() - rng.random::<f64>()).mul_add(max, min)
-}
-
-const fn to_normal(facing: Facing) -> Vector3<f64> {
-    match facing {
-        Facing::North => Vector3::new(0., 0., -1.),
-        Facing::East => Vector3::new(1., 0., 0.),
-        Facing::South => Vector3::new(0., 0., 1.),
-        Facing::West => Vector3::new(-1., 0., 0.),
-        Facing::Up => Vector3::new(0., 1., 0.),
-        Facing::Down => Vector3::new(0., -1., 0.),
-    }
-}
-
 const fn to_data3d(facing: Facing) -> i32 {
     match facing {
         Facing::North => 2,
@@ -93,13 +74,13 @@ impl BlockBehaviour for DropperBlock {
             position: args.position,
             player: args.player,
         }) {
+            args.player
+                .open_handled_screen(factory.as_ref(), Some(*args.position));
             args.player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::Custom,
                 pumpkin_data::statistic::CustomStatistic::InspectDropper as i32,
                 1,
             );
-            args.player
-                .open_handled_screen(factory.as_ref(), Some(*args.position));
         }
         BlockActionResult::Success
     }
@@ -109,6 +90,7 @@ impl BlockBehaviour for DropperBlock {
         args: GetScreenHandlerFactoryArgs<'_>,
     ) -> Option<Box<dyn ScreenHandlerFactory>> {
         let block_entity = args.world.get_block_entity(args.position)?;
+        block_entity.as_any().downcast_ref::<DropperBlockEntity>()?;
         let inventory = block_entity.get_inventory()?;
         Some(Box::new(DropperScreenFactory(inventory)))
     }
@@ -119,12 +101,11 @@ impl BlockBehaviour for DropperBlock {
         props.to_state_id(args.block)
     }
 
-    fn placed(&self, args: PlacedArgs<'_>) {
-        let dropper_block_entity = DropperBlockEntity::new(*args.position);
-        args.world.add_block_entity(Arc::new(dropper_block_entity));
-    }
-
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+
         let powered = block_receives_redstone_power(args.world, args.position)
             || block_receives_redstone_power(args.world, &args.position.up());
 
@@ -157,7 +138,7 @@ impl BlockBehaviour for DropperBlock {
                 return;
             };
 
-            if let Some((slot_index, mut item)) = dropper.get_random_slot() {
+            if let Some((slot_index, mut item)) = dropper.get_random_slot(args.world) {
                 let props = DispenserLikeProperties::from_state_id(state.id);
 
                 let target_pos = args
@@ -168,7 +149,12 @@ impl BlockBehaviour for DropperBlock {
                     let backup = item.clone();
                     let one_item = item.split(1);
 
-                    if HopperBlockEntity::add_one_item(dropper, container.as_ref(), &one_item) {
+                    if HopperBlockEntity::add_one_item_from(
+                        dropper,
+                        container.as_ref(),
+                        &one_item,
+                        Some(props.facing.to_block_direction().opposite()),
+                    ) {
                         dropper.set_stack(slot_index, item);
                         return;
                     }
@@ -180,27 +166,12 @@ impl BlockBehaviour for DropperBlock {
                 // No container found, dispense item into the world
                 let drop_item = item.split(1);
                 dropper.set_stack(slot_index, item);
-                let facing = to_normal(props.facing);
-                let mut pos = args.position.to_centered_f64().add(&(facing * 0.7));
-
-                pos.y -= match props.facing {
-                    Facing::Up | Facing::Down => 0.125,
-                    _ => 0.15625,
-                };
-
-                let entity = Entity::new(args.world.clone(), pos, &EntityType::ITEM);
-                let rd = rng().random::<f64>().mul_add(0.1, 0.2);
-
-                let velocity = Vector3::new(
-                    triangle(&mut rng(), facing.x * rd, 0.017_227_5 * 6.),
-                    triangle(&mut rng(), 0.2, 0.017_227_5 * 6.),
-                    triangle(&mut rng(), facing.z * rd, 0.017_227_5 * 6.),
+                super::dispenser::spawn_default_item(
+                    args.world,
+                    args.position,
+                    props.facing.to_block_direction(),
+                    drop_item,
                 );
-
-                let item_entity = Arc::new(ItemEntity::new_with_velocity(
-                    entity, drop_item, velocity, 40,
-                ));
-                args.world.spawn_entity(item_entity);
 
                 args.world
                     .sync_world_event(WorldEvent::SoundDispenserDispense, *args.position, 0);
@@ -212,9 +183,14 @@ impl BlockBehaviour for DropperBlock {
                 );
             } else {
                 args.world
-                    .sync_world_event(WorldEvent::SoundDispenserDispense, *args.position, 0);
+                    .sync_world_event(WorldEvent::SoundDispenserFail, *args.position, 0);
             }
         }
+    }
+
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
+        args.world
+            .update_neighbour_for_output_signal(args.position, args.block);
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {

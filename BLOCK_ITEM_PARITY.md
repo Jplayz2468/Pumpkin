@@ -1082,3 +1082,22 @@ so they must not be used to reconstruct audit completion.
   across the earlier block/bee ports. No plugin submodule edits.
 - Focused block-entity tests are rebuilding in the background. The previous
   attempt failed during compilation; no passing test result is claimed.
+
+## B02: inventory automation source pass
+
+- Compared HopperBlock, DispenserBlock, DropperBlock and CrafterBlock plus their
+  relevant BE methods and DefaultDispenseItemBehavior against local 26.2 source.
+- Preserved existing inventories on placement; initialized new BEs from actual
+  state; fixed menu-before-stat order/type checks and removal comparator updates.
+- Dispenser/dropper slot selection now uses vanilla reservoir sampling on level
+  RNG; empty droppers fail-click and empty dispensers emit block_activate.
+- All three ejectors share source position/velocity and zero pickup delay.
+  Dropper/crafter insertion respects the destination face, and crafters find
+  automation containers (including double chests and inventory entities).
+- Hopper collection covers Y=11/16 through Y=2 and entity-entry callbacks, skips
+  removed entities, and reports pickup success only for complete absorption.
+  Container entity selection uses level RNG; crafter automation balances slots.
+- Open dependencies are listed under B02 in PARITY_PLAN.md; this does not claim
+  complete container, recipe or per-item dispenser parity.
+- D07 repairs passed 28 existing block-entity tests and then all 123 existing block
+  tests. The B02 changes are rebuilding in a background test run.

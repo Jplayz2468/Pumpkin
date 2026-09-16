@@ -1273,9 +1273,12 @@ impl BlockRegistry {
         let state = world.get_block_state(position);
         if state.block_entity_type != u16::MAX
             && world.get_block_entity(position).is_none()
-            && let Some(entity) =
+            && let Some(mut entity) =
                 crate::block::entities::create_block_entity(state.block_entity_type, *position)
         {
+            if let Some(new_entity) = Arc::get_mut(&mut entity) {
+                new_entity.set_block_state(state.id);
+            }
             world.add_block_entity(entity);
         }
 

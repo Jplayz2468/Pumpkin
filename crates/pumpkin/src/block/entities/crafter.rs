@@ -101,6 +101,9 @@ impl BlockEntity for CrafterBlockEntity {
             self.crafting_ticks_remaining.store(next, Ordering::Relaxed);
             if next == 0 {
                 let state = world.get_block_state(&self.position);
+                if state.id.to_block() != &pumpkin_data::Block::CRAFTER {
+                    return;
+                }
                 let mut props = CrafterLikeProperties::from_state_id(state.id);
                 if props.crafting {
                     props.crafting = false;
@@ -112,6 +115,13 @@ impl BlockEntity for CrafterBlockEntity {
                 }
             }
         }
+    }
+
+    fn set_block_state(&mut self, block_state: pumpkin_data::BlockStateId) {
+        self.triggered.store(
+            CrafterLikeProperties::from_state_id(block_state).triggered,
+            Ordering::Relaxed,
+        );
     }
 
     fn resource_location(&self) -> &'static str {
@@ -314,7 +324,7 @@ impl Inventory for CrafterBlockEntity {
     }
 
     fn set_stack(&self, slot: usize, stack: ItemStack) {
-        if self.is_slot_disabled(slot) {
+        if !stack.is_empty() && self.is_slot_disabled(slot) {
             self.set_slot_state(slot, true);
         }
         let mut items = self
@@ -326,7 +336,25 @@ impl Inventory for CrafterBlockEntity {
     }
 
     fn is_valid_slot_for(&self, slot: usize, _stack: &ItemStack) -> bool {
-        !self.is_slot_disabled(slot)
+        if self.is_slot_disabled(slot) {
+            return false;
+        }
+        let current = self.get_stack(slot);
+        if current.item_count >= current.get_max_stack_size() {
+            return false;
+        }
+        if current.is_empty() {
+            return true;
+        }
+        !(slot + 1..Self::INVENTORY_SIZE).any(|other| {
+            if self.is_slot_disabled(other) {
+                return false;
+            }
+            let stack = self.get_stack(other);
+            stack.is_empty()
+                || (stack.item_count < current.item_count
+                    && stack.are_items_and_components_equal(&current))
+        })
     }
 
     fn mark_dirty(&self) {

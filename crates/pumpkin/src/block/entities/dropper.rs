@@ -1,9 +1,9 @@
 use crate::block::entities::BlockEntity;
+use crate::world::World;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_inventory::{Clearable, Inventory, sync_write_items_to_nbt};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::position::BlockPos;
-use rand::{RngExt, rng};
 use std::any::Any;
 use std::array::from_fn;
 use std::sync::Arc;
@@ -99,23 +99,22 @@ impl DropperBlockEntity {
         }
     }
 
-    pub fn get_random_slot(&self) -> Option<(usize, ItemStack)> {
+    pub fn get_random_slot(&self, world: &World) -> Option<(usize, ItemStack)> {
         let items = self
             .items
             .read()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let mut non_empty = Vec::new();
-        for (i, stack) in items.iter().enumerate() {
+        let mut selected = None;
+        let mut odds = 1;
+        for (slot, stack) in items.iter().enumerate() {
             if !stack.is_empty() {
-                non_empty.push((i, stack.clone()));
+                if world.rand_bounded_i32(odds) == 0 {
+                    selected = Some((slot, stack.clone()));
+                }
+                odds += 1;
             }
         }
-        if non_empty.is_empty() {
-            None
-        } else {
-            let selected = rng().random_range(0..non_empty.len());
-            Some(non_empty[selected].clone())
-        }
+        selected
     }
 }
 
