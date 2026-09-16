@@ -301,7 +301,7 @@ impl BedBlock {
             .into_iter()
             .any(|pos| {
                 let (block, state) = world.get_block_and_state(&pos);
-                bed_is_obstructed(block, state)
+                bed_is_obstructed(world, &pos, block, state)
             })
         {
             player.send_system_message_raw(
@@ -445,7 +445,18 @@ fn entity_prevents_sleep(entity: &dyn EntityBase, player: &Player) -> bool {
 }
 
 // Blocks.java overrides the default suffocation predicate for these built-in families.
-fn bed_is_obstructed(block: &Block, state: &BlockState) -> bool {
+fn bed_is_obstructed(world: &World, pos: &BlockPos, block: &Block, state: &BlockState) -> bool {
+    if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_SHULKER_BOXES) {
+        return world
+            .get_block_entity(pos)
+            .and_then(|entity| {
+                entity
+                    .as_any()
+                    .downcast_ref::<crate::block::entities::shulker_box::ShulkerBoxBlockEntity>()
+                    .map(|shulker| shulker.is_closed())
+            })
+            .unwrap_or(true);
+    }
     if matches!(block.name, "farmland" | "dirt_path" | "soul_sand" | "mud") {
         return true;
     }

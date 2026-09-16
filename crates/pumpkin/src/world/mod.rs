@@ -2530,6 +2530,24 @@ impl World {
         }
     }
 
+    /// Local collision boxes, including block entities with a moving lid.
+    pub(crate) fn block_collision_boxes(&self, pos: &BlockPos) -> Vec<BoundingBox> {
+        let state = self.get_block_state(pos);
+        if state
+            .id
+            .to_block()
+            .has_tag(&pumpkin_data::tag::Block::MINECRAFT_SHULKER_BOXES)
+            && let Some(entity) = self.get_block_entity(pos)
+            && let Some(shulker) = entity
+                .as_any()
+                .downcast_ref::<crate::block::entities::shulker_box::ShulkerBoxBlockEntity>(
+            )
+        {
+            return vec![shulker.bounding_box(state.id)];
+        }
+        state.get_block_collision_shapes_at(pos).collect()
+    }
+
     // For adjusting movement
     pub fn get_block_collisions(
         &self,
@@ -2540,8 +2558,8 @@ impl World {
 
         let mut positions = Vec::new();
 
-        let min = BlockPos::floored_v(bounding_box.min.add_raw(0.0, -0.50001, 0.0));
-        let max = bounding_box.max_block_pos();
+        let min = BlockPos::floored_v(bounding_box.min.add_raw(-1.0, -1.0, -1.0));
+        let max = BlockPos::floored_v(bounding_box.max.add_raw(1.0, 1.0, 1.0));
         let pos_iter = BlockPos::iterate(min, max);
 
         for pos in pos_iter {
@@ -2565,7 +2583,7 @@ impl World {
                     }
                 }
             } else {
-                for shape in state.get_block_collision_shapes_at(&pos) {
+                for shape in self.block_collision_boxes(&pos) {
                     let shape = shape.at_pos(pos);
                     if shape.intersects(&bounding_box) {
                         collided = true;
@@ -2583,12 +2601,14 @@ impl World {
     }
 
     pub fn is_space_empty(&self, bounding_box: BoundingBox) -> bool {
-        let min = bounding_box.min_block_pos();
-        let max = bounding_box.max_block_pos();
+        let min = BlockPos::floored_v(bounding_box.min.add_raw(-1.0, -1.0, -1.0));
+        let max = BlockPos::floored_v(bounding_box.max.add_raw(1.0, 1.0, 1.0));
 
         for pos in BlockPos::iterate(min, max) {
-            let state = self.get_block_state(&pos);
-            let collided = Self::check_collision(&bounding_box, pos, state, false, |_| ());
+            let collided = self
+                .block_collision_boxes(&pos)
+                .iter()
+                .any(|shape| shape.at_pos(pos).intersects(&bounding_box));
 
             if collided {
                 return false;
@@ -2612,8 +2632,8 @@ impl World {
             {
                 f64::NEG_INFINITY
             } else {
-                state
-                    .get_block_collision_shapes_at(pos)
+                self.block_collision_boxes(pos)
+                    .into_iter()
                     .map(|shape| shape.max.y)
                     .fold(f64::NEG_INFINITY, f64::max)
             }
@@ -2634,9 +2654,9 @@ impl World {
     /// Returns the Y surface height for dismounting at the given block position,
     /// or `f64::NEG_INFINITY` if no valid surface exists.
     pub fn get_dismount_height(&self, pos: &BlockPos) -> f64 {
-        let state = self.get_block_state(pos);
-        let max_y = state
-            .get_block_collision_shapes_at(pos)
+        let max_y = self
+            .block_collision_boxes(pos)
+            .into_iter()
             .map(|s| s.max.y)
             .fold(f64::NEG_INFINITY, f64::max);
         if max_y != f64::NEG_INFINITY {
@@ -2644,9 +2664,9 @@ impl World {
         }
         // No collision at pos — check block below
         let below = BlockPos(Vector3::new(pos.0.x, pos.0.y - 1, pos.0.z));
-        let below_state = self.get_block_state(&below);
-        let below_max_y = below_state
-            .get_block_collision_shapes_at(&below)
+        let below_max_y = self
+            .block_collision_boxes(&below)
+            .into_iter()
             .map(|s| s.max.y)
             .fold(f64::NEG_INFINITY, f64::max);
         if below_max_y >= 1.0 {
@@ -6421,7 +6441,7 @@ impl World {
         }
     }
 
-    fn drop_stack_at(self: &Arc<Self>, spawn_pos: Vector3<f64>, stack: ItemStack) {
+    pub(crate) fn drop_stack_at(self: &Arc<Self>, spawn_pos: Vector3<f64>, stack: ItemStack) {
         let entity = Entity::new(self.clone(), spawn_pos, &EntityType::ITEM);
         let mut item_event = crate::plugin::api::events::entity::item_spawn::ItemSpawnEvent::new(
             entity.entity_id,

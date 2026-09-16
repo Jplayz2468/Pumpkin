@@ -871,3 +871,28 @@ so they must not be used to reconstruct audit completion.
   contexts, custom environment rules/messages, persistent universal mob anger,
   broader villager sleep AI and sleeping-position NBT, world-border interpolation,
   and other shared engine/item gaps. This does not establish complete 1:1 parity.
+
+## Continued source port: shulker boxes and moving collision geometry
+
+- Removed placement-time block-entity recreation. Closed boxes now require
+  clear space for their opening lid; already animating boxes remain accessible.
+  Use opens the menu before awarding its stat, and destruction notifies comparators.
+  Creative breaking of a nonempty box drops its carried contents at block center.
+- Server lid states now process open-count events, advance by source float steps,
+  issue start/end shape and neighbor updates, and push intersecting entities while
+  opening with the source direction/delta box. Ignore-push entity types and marker
+  armor stands are excluded. Open/close events precede centered, volume-0.5 sounds
+  with level-random pitch. Removed entities ignore viewer refreshes.
+- World movement/empty-space/dismount queries now include dynamic shulker boxes
+  and search the neighboring cells containing overhanging collision geometry.
+  Bed suffocation checks read the shulker's actual closed state.
+- Boxes preserve custom names and deferred loot tables/seeds through NBT/item
+  components. Menu access unpacks with player luck/context; spectators cannot
+  generate unopened loot. Inventory access unpacks once, raw saves do not unpack,
+  and empty inventories omit Items. No-update removals no longer mark dirty;
+  setters clamp to the inventory/item limit, and menu validity checks identity.
+- Source review/rustfmt/diff checks only; no compilation or tests. Still open:
+  complete lock predicates, piglin anger, loot-generation advancement and exact
+  loot RNG, dynamic support/outline/raycast geometry, mover-type-specific motion,
+  all item entity initialization randomness, negative/large open counts and
+  protocol/Bedrock-specific updates. These are source ports, not parity closure.
