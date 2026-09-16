@@ -325,6 +325,7 @@ pub struct OnEntityStepArgs<'a> {
 }
 
 pub struct ExplodeArgs<'a> {
+    pub indirect_source: Option<&'a dyn EntityBase>,
     pub source: Option<&'a dyn EntityBase>,
     pub state: &'a BlockState,
     pub world: &'a Arc<World>,
@@ -332,8 +333,7 @@ pub struct ExplodeArgs<'a> {
     pub position: &'a BlockPos,
     /// Whether the triggering explosion's indirect source entity is a player
     /// (`Explosion.getIndirectSourceEntity() instanceof Player` in `BlockBehaviour.java:180`).
-    /// Used by chain-reacting TNT to propagate ownership like vanilla's
-    /// `TntBlock#wasExploded`.
+    /// Used for player-attributed block rewards; TNT ownership uses indirect_source.
     pub caused_by_player: bool,
     pub can_trigger_blocks: bool,
 }

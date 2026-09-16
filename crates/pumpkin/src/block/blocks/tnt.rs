@@ -26,18 +26,12 @@ use crate::world::World;
 #[pumpkin_block("minecraft:tnt")]
 pub struct TNTBlock;
 
-const DEFAULT_FUSE: u32 = 80;
+const DEFAULT_FUSE: i32 = 80;
 const DEFAULT_POWER: f32 = 4.0;
 
 impl TNTBlock {
-    /// Primes TNT at `location`. `primed_by_player` mirrors vanilla's
-    /// `TntBlock#prime(Level, BlockPos, LivingEntity)` owner argument: it is only `true`
-    /// when a player directly ignites the TNT (flint and steel / fire charge), matching
-    /// `TntBlock.java`'s `useItemOn` (passes `player`) versus its redstone/`playerWillDestroy`
-    /// call sites (pass no source). This is later used to decide whether the resulting
-    /// explosion drops experience from broken ore (`BlockBehaviour.java:180`).
-    pub fn prime(world: &Arc<World>, location: &BlockPos, primed_by_player: bool) -> bool {
-        let primed = Self::prime_with_source(world, location, primed_by_player, None);
+    pub fn prime(world: &Arc<World>, location: &BlockPos) -> bool {
+        let primed = Self::prime_with_source(world, location, None);
         if primed {
             world.set_block_state(location, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
         }
@@ -47,7 +41,6 @@ impl TNTBlock {
     fn prime_with_source(
         world: &Arc<World>,
         location: &BlockPos,
-        primed_by_player: bool,
         source: Option<&dyn EntityBase>,
     ) -> bool {
         if !world.level_info.load().game_rules.tnt_explodes {
@@ -86,11 +79,11 @@ impl TNTBlock {
             return false;
         }
 
-        let tnt = Arc::new(TNTEntity::new(
+        let tnt = Arc::new(TNTEntity::primed(
             entity,
             DEFAULT_POWER,
             DEFAULT_FUSE,
-            primed_by_player,
+            source,
         ));
         world.spawn_entity(tnt);
         world.play_sound(
@@ -115,7 +108,7 @@ impl BlockBehaviour for TNTBlock {
             return BlockActionResult::PassToDefaultBlockAction;
         }
 
-        if Self::prime_with_source(args.world, args.position, true, Some(args.player.as_ref())) {
+        if Self::prime_with_source(args.world, args.position, Some(args.player.as_ref())) {
             args.world
                 .set_block_state(args.position, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
             if args.player.gamemode.load() != GameMode::Creative {
@@ -146,7 +139,7 @@ impl BlockBehaviour for TNTBlock {
         if args.block != Block::from_state_id(args.old_state_id)
             && block_receives_redstone_power(args.world, args.position)
         {
-            Self::prime(args.world, args.position, false);
+            Self::prime(args.world, args.position);
         }
     }
 
@@ -154,7 +147,7 @@ impl BlockBehaviour for TNTBlock {
         if args.world.get_block(args.position) == args.block
             && block_receives_redstone_power(args.world, args.position)
         {
-            Self::prime(args.world, args.position, false);
+            Self::prime(args.world, args.position);
         }
     }
 
@@ -165,7 +158,7 @@ impl BlockBehaviour for TNTBlock {
                 // Vanilla's `playerWillDestroy` calls the no-source `prime` overload
                 // (`TntBlock.java`'s public `prime(Level, BlockPos)`), so the breaking
                 // player is NOT credited as the indirect source here either.
-                Self::prime_with_source(args.world, args.position, false, None);
+                Self::prime_with_source(args.world, args.position, None);
             }
         }
     }
@@ -178,12 +171,7 @@ impl BlockBehaviour for TNTBlock {
             let source = owner
                 .as_deref()
                 .filter(|entity| entity.get_living_entity().is_some());
-            if Self::prime_with_source(
-                args.world,
-                args.position,
-                source.is_some_and(|entity| entity.get_player().is_some()),
-                source,
-            ) {
+            if Self::prime_with_source(args.world, args.position, source) {
                 args.world.set_block_state(
                     args.position,
                     BlockStateId::AIR,
@@ -203,16 +191,16 @@ impl BlockBehaviour for TNTBlock {
             args.position.0.z as f64 + 0.5,
         );
         let entity = Entity::new(args.world.clone(), spawn_pos, &EntityType::TNT);
-        let fuse = args.world.rand_bounded_i32((DEFAULT_FUSE / 4) as i32) as u32 + DEFAULT_FUSE / 8;
         // Vanilla propagates the triggering explosion's indirect source entity onto the
         // newly spawned PrimedTnt (`TntBlock.java` `wasExploded`), so a chain reaction
         // that started with a player-primed explosion keeps crediting that player.
-        let tnt = Arc::new(TNTEntity::new(
+        let tnt = Arc::new(TNTEntity::primed(
             entity,
             DEFAULT_POWER,
-            fuse,
-            args.caused_by_player,
+            DEFAULT_FUSE,
+            args.indirect_source,
         ));
+        tnt.shorten_fuse_after_explosion();
         args.world.spawn_entity(tnt);
     }
 

@@ -1407,3 +1407,14 @@ fixed-range handling. Trident launch sounds follow their source entity; generic
 entity/impact sounds use source category, silence and sound-seed rules. Byte-level
 Java packet comparisons and boundary checks are recorded in ENGINE_GAPS.md; legacy
 client/Bedrock compatibility and live playback remain open.
+
+
+### TNT ownership and shared reload motion
+
+Primed TNT now persists fuse/block/power/owner and carries living-owner identity
+through chain reactions and explosion damage. Priming RNG, gravity/drag/bounce,
+explosion height and teleport-specific portal protection follow the inspected
+Java paths. Chunk loading preserves saved motion; numeric codec and motion limits
+are shared by all entities. ENGINE_GAPS.md records the differential fixtures and
+remaining world-transfer, TNT-minecart and live-gameplay gates. Full mob passes
+remain paused.

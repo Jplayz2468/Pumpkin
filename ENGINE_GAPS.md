@@ -47,8 +47,8 @@ BaseCommandBlock.performCommand and CommandBlock.executeChain.
 3. **D03: world lifecycle.** Exact neighbor/scheduled update ordering at chunk
    boundaries, experimental redstone orientation and block-entity integration.
 4. **D04: entity foundations.** Per-entity Java random streams, dynamic environment
-   attributes, full persistent TNT ownership, piglin anger and linked entity
-   lifecycles. This work precedes full per-mob passes.
+   attributes, remaining linked-entity ownership/lifecycles, piglin anger and entity-specific
+   random draw ordering. This work precedes full per-mob passes.
 5. **D05/D06: containers and clients.** Lock predicates, component-form names/output,
    raw comparator values, menu/protocol details and Bedrock verification.
 6. **Remaining block systems:** creaking-heart/resin/protector lifecycle, structure
@@ -576,3 +576,34 @@ whole inside-effect pipeline matches Java yet.
 - Final background run 4 passed **495 engine + 114 protocol tests** after the
   spawn-packet adjustment, with the same two socket-test exclusions. No live
   cross-dimension server/client test was performed.
+
+
+## TNT identity, explosions and saved motion
+
+- Primed TNT saves/restores Java's signed-short fuse, displayed block state,
+  clamped explosion power and lowercase `owner` UUID. Unknown block names fall
+  back to default TNT; malformed properties retain the block's valid defaults.
+  Owner lookup uses the shared UUID resolver across worlds and accepts living
+  entities only. Chain reactions propagate the actual owner rather than a boolean.
+- Explosions now keep direct source and indirect living owner separately for
+  damage attribution, damage type, block rewards and chained TNT. This does not
+  implement TNT-minecart ignition DamageSource snapshots.
+- Launch happens at priming, using the world Java random stream, rather than in
+  metadata initialization. Chain-reaction launch consumes its random draw before
+  the shortened-fuse draw. Loading/summoning no longer adds a random impulse.
+- TNT stores gravity-adjusted velocity before movement, applies float air drag
+  before grounded bounce, decrements/synchronizes the signed fuse, and explodes at
+  Java's height offset. Teleport callbacks select the portal-preserving explosion
+  calculator; its transient flag is not serialized, matching Java.
+- Removed the shared chunk loader's unconditional velocity reset. Saved motion
+  uses numeric NBT coercion, partial Vec3 codec results and Java's per-axis ten-block
+  limit. Missing/invalid vectors reset motion rather than retaining an old value.
+- Evidence: actual PrimedTnt load/save oracle covers **612 cases**; actual
+  ValueInput/Vec3 codecs with Entity.load's source limit cover **240 motion cases**.
+  Final background run 3 passed **497 engine tests**, excluding the same two
+  previously separately passing localhost socket tests. No live gameplay run.
+- Remaining: live TNT chain/reload tests, non-player cross-world transfer and
+  portal transition/passenger integration, TNT-minecart source/RNG/physics work,
+  other linked-entity identity and projectile lifecycle gaps. The current generic
+  non-player teleport changes coordinates but does not transfer world membership;
+  the portal calculator alone does not close that engine gap. No full mob pass.

@@ -119,8 +119,10 @@ pub mod passive;
 pub mod player;
 pub mod projectile;
 pub mod projectile_deflection;
+mod saved_motion;
 pub mod synched_entity_data;
 pub mod tnt;
+mod tnt_state;
 pub mod r#type;
 pub mod variant;
 pub mod vehicle;
@@ -270,6 +272,14 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         let owner = self.get_projectile_owner()?;
         let entity = owner.get_entity();
         entity.world.load().get_player_by_uuid(entity.entity_uuid)
+    }
+
+    fn get_explosion_owner(&self) -> Option<Arc<dyn EntityBase>> {
+        if !projectile::is_projectile(self.get_entity().entity_type) {
+            return None;
+        }
+        self.get_projectile_owner()
+            .filter(|owner| owner.get_living_entity().is_some())
     }
 
     fn get_owner_id(&self) -> Option<i32> {
@@ -5347,14 +5357,7 @@ impl Entity {
             self.set_pos(pos);
             self.last_sent_pos.store(pos);
         }
-        if let Some(velocity) = nbt.get_list("Motion")
-            && velocity.len() >= 3
-        {
-            let x = velocity[0].extract_double().unwrap_or(0.0);
-            let y = velocity[1].extract_double().unwrap_or(0.0);
-            let z = velocity[2].extract_double().unwrap_or(0.0);
-            self.velocity.store(Vector3::new(x, y, z));
-        }
+        self.velocity.store(saved_motion::read(nbt));
         if let Some(rotation) = nbt.get_list("Rotation")
             && rotation.len() >= 2
         {

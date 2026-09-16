@@ -108,6 +108,39 @@ pub struct DefaultExplosionDamageCalculator;
 
 impl ExplosionDamageCalculator for DefaultExplosionDamageCalculator {}
 
+/// TNT that has teleported neither consumes blast energy at nether portals nor
+/// destroys them. The flag is transient, matching PrimedTnt.usedPortal.
+pub struct PortalTntExplosionDamageCalculator;
+
+impl ExplosionDamageCalculator for PortalTntExplosionDamageCalculator {
+    fn get_block_explosion_resistance(
+        &self,
+        explosion: &Explosion<'_>,
+        world: &World,
+        pos: &BlockPos,
+        block: &Block,
+        fluid: &pumpkin_data::fluid::FluidState,
+    ) -> Option<f32> {
+        if block.id == Block::NETHER_PORTAL.id {
+            None
+        } else {
+            DefaultExplosionDamageCalculator
+                .get_block_explosion_resistance(explosion, world, pos, block, fluid)
+        }
+    }
+
+    fn should_block_explode(
+        &self,
+        _explosion: &Explosion<'_>,
+        _world: &World,
+        _pos: &BlockPos,
+        block: &Block,
+        _power: f32,
+    ) -> bool {
+        block.id != Block::NETHER_PORTAL.id
+    }
+}
+
 /// A configurable explosion damage calculator (e.g. for wind charges, mace wind bursts).
 pub struct SimpleExplosionDamageCalculator {
     pub damages_entities: bool,
@@ -229,6 +262,7 @@ impl ExplosionPositions {
 
 pub struct Explosion<'a> {
     pub source: Option<&'a dyn EntityBase>,
+    indirect_owner: Option<Arc<dyn EntityBase>>,
     power: f32,
     pos: Vector3<f64>,
     block_interaction: BlockInteraction,
@@ -251,6 +285,7 @@ impl<'a> Explosion<'a> {
     pub const fn new(power: f32, pos: Vector3<f64>, block_interaction: BlockInteraction) -> Self {
         Self {
             source: None,
+            indirect_owner: None,
             power,
             pos,
             block_interaction,
@@ -263,9 +298,25 @@ impl<'a> Explosion<'a> {
     }
 
     #[must_use]
-    pub const fn with_source(mut self, source: Option<&'a dyn EntityBase>) -> Self {
+    pub fn with_source(mut self, source: Option<&'a dyn EntityBase>) -> Self {
         self.source = source;
+        self.indirect_owner = source.and_then(|source| source.get_explosion_owner());
+        self.caused_by_player = self
+            .indirect_source()
+            .is_some_and(|owner| owner.get_player().is_some());
+        self.damage_type = if source.is_some() && self.indirect_source().is_some() {
+            DamageType::PLAYER_EXPLOSION
+        } else {
+            DamageType::EXPLOSION
+        };
         self
+    }
+
+    pub fn indirect_source(&self) -> Option<&dyn EntityBase> {
+        self.indirect_owner.as_deref().or_else(|| {
+            self.source
+                .filter(|source| source.get_living_entity().is_some())
+        })
     }
 
     #[must_use]
@@ -473,7 +524,7 @@ impl<'a> Explosion<'a> {
                     self.damage_type,
                     Some(self.pos),
                     self.source,
-                    self.source,
+                    self.indirect_source(),
                 );
             }
 
@@ -495,8 +546,14 @@ impl<'a> Explosion<'a> {
             let knockback = direction * knockback_power;
             entity.add_velocity(knockback);
             if let Some(player) = entity_base.get_player() {
-                let ignore = self.source.is_some_and(|source| source.get_entity().entity_type == &EntityType::WIND_CHARGE);
-                player.living_entity.impulse_context.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+                let ignore = self.source.is_some_and(|source| {
+                    source.get_entity().entity_type == &EntityType::WIND_CHARGE
+                });
+                player
+                    .living_entity
+                    .impulse_context
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .set_ignore(ignore, entity.pos.load());
             }
         }
@@ -587,6 +644,7 @@ impl<'a> Explosion<'a> {
                             position: pos,
                             caused_by_player: self.caused_by_player,
                             source: self.source,
+                            indirect_source: self.indirect_source(),
                             state,
                             can_trigger_blocks: true,
                         });
@@ -631,6 +689,7 @@ impl<'a> Explosion<'a> {
                                 state,
                                 caused_by_player: self.caused_by_player,
                                 source: self.source,
+                                indirect_source: self.indirect_source(),
                                 can_trigger_blocks: false,
                             });
                         }
@@ -687,6 +746,7 @@ impl<'a> Explosion<'a> {
                             position: pos,
                             caused_by_player: self.caused_by_player,
                             source: self.source,
+                            indirect_source: self.indirect_source(),
                             state,
                             can_trigger_blocks: false,
                         });

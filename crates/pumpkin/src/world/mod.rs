@@ -4581,12 +4581,7 @@ impl World {
     ) {
         let block_interaction = self.get_block_interaction(interaction);
         let mut explosion = Explosion::new(power, position, block_interaction).with_source(source);
-        let player_source = source.is_some_and(|source| {
-            source.get_player().is_some()
-                || (crate::entity::projectile::is_projectile(source.get_entity().entity_type)
-                    && source.get_projectile_owner_player().is_some())
-        });
-        if caused_by_player || player_source {
+        if caused_by_player {
             explosion = explosion.caused_by_player();
         }
         if let Some(calc) = damage_calculator {
@@ -5194,11 +5189,8 @@ impl World {
                         entity.read_nbt_non_mut(entity_nbt);
                         entity.init_data_tracker();
 
-                        let base_entity = entity.get_entity();
-                        // Clear velocity so the client does not replay the drop
-                        // animation; residual velocity from the original drop is
-                        // stale data.
-                        base_entity.velocity.store(Vector3::default());
+                        // Motion loaded from NBT is authoritative. Resetting it
+                        // here strands falling blocks, TNT and other moving entities.
 
                         player.client.enqueue_spawn_packet(&entity);
                         player.try_restore_vehicle(&entity);

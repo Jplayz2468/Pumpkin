@@ -1126,6 +1126,7 @@ impl BlockRegistry {
                 position,
                 caused_by_player,
                 source: None,
+                indirect_source: None,
                 state: world.get_block_state(position),
                 can_trigger_blocks: false,
             });
