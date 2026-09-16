@@ -70,13 +70,6 @@ pub fn temperature_variant_from_name(name: &str) -> u8 {
 /// `PigSoundVariants.pickRandomSoundVariant` (PigSoundVariants.java:34), which is
 /// `Registry.getRandom` — an unweighted draw over every entry.
 ///
-/// Registry order is alphabetical, as it is sent to the client:
-/// `pig_sound_variant` = big, classic, mini; `cow_sound_variant` = classic, moody;
-/// `chicken_sound_variant` = classic, picky.
-pub fn random_sound_variant(count: i32) -> i32 {
-    rand::rng().random_range(0..count)
-}
-
 // -- Sheep -----------------------------------------------------------------------------
 
 /// Dye colour ids, in `DyeColor` ordinal order — the ids stored in the sheep's wool byte.
@@ -203,8 +196,8 @@ const CLAYFISH: i32 = fish_pattern(FISH_BASE_LARGE, 5);
 
 /// `Pattern.values()` order — the uniform draw in `finalizeSpawn` walks this array.
 const FISH_PATTERNS: [i32; 12] = [
-    KOB, SUNSTREAK, SNOOPER, DASHER, BRINELY, SPOTTY, FLOPPER, STRIPEY, GLITTER, BLOCKFISH,
-    BETTY, CLAYFISH,
+    KOB, SUNSTREAK, SNOOPER, DASHER, BRINELY, SPOTTY, FLOPPER, STRIPEY, GLITTER, BLOCKFISH, BETTY,
+    CLAYFISH,
 ];
 
 /// `TropicalFish.packVariant` (TropicalFish.java:84).
@@ -282,11 +275,7 @@ mod tests {
     fn sheep_weight_tables_total_one_hundred() {
         // Each configuration is a percentage table; if one drifts off 100 the nested
         // "common colours" branch stops being the 82% case vanilla documents.
-        for config in [
-            TEMPERATE_SHEEP_COLORS,
-            WARM_SHEEP_COLORS,
-            COLD_SHEEP_COLORS,
-        ] {
+        for config in [TEMPERATE_SHEEP_COLORS, WARM_SHEEP_COLORS, COLD_SHEEP_COLORS] {
             assert_eq!(config.iter().map(|(_, w)| *w).sum::<i32>(), 100);
         }
     }
@@ -319,7 +308,10 @@ mod tests {
             );
         }
         // Unqualified names are accepted too, because that is what older saves hold.
-        assert_eq!(temperature_variant_from_name("warm"), TEMPERATURE_VARIANT_WARM);
+        assert_eq!(
+            temperature_variant_from_name("warm"),
+            TEMPERATURE_VARIANT_WARM
+        );
     }
 
     #[test]
@@ -405,9 +397,7 @@ fn mix_dye_colors(first: u8, second: u8) -> Option<u8> {
         // Shapeless: either order counts as a match.
         let matches = (named[0] == wanted[0] && named[1] == wanted[1])
             || (named[0] == wanted[1] && named[1] == wanted[0]);
-        if matches
-            && let Some(color) = dye_color_from_item_name(result.id)
-        {
+        if matches && let Some(color) = dye_color_from_item_name(result.id) {
             return Some(color);
         }
     }

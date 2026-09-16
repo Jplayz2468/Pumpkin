@@ -25,8 +25,6 @@ use crate::entity::{
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
 
-const TEMPT_ITEMS: &[&Item] = &[&Item::WHEAT];
-
 pub struct SheepEntity {
     pub mob_entity: MobEntity,
     color_and_sheared: AtomicU8,
@@ -57,10 +55,16 @@ impl SheepEntity {
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(1, EscapeDangerGoal::new(1.25));
             goal_selector.add_goal(2, BreedGoal::new(1.0));
-            goal_selector.add_goal(3, Box::new(TemptGoal::new(1.1, TEMPT_ITEMS)));
+            goal_selector.add_goal(
+                3,
+                Box::new(TemptGoal::with_tag(
+                    1.1,
+                    &pumpkin_data::tag::Item::MINECRAFT_SHEEP_FOOD,
+                )),
+            );
             goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.1)));
             goal_selector.add_goal(5, Box::new(EatGrassGoal::default()));
-            goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(6, Box::new(WanderAroundGoal::water_avoiding(1.0)));
             goal_selector.add_goal(
                 7,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
@@ -118,7 +122,6 @@ impl Animal for SheepEntity {
         item_stack
             .item
             .has_tag(&pumpkin_data::tag::Item::MINECRAFT_SHEEP_FOOD)
-            || TEMPT_ITEMS.iter().any(|i| i.id == item_stack.item.id)
     }
 }
 
@@ -190,7 +193,6 @@ impl Mob for SheepEntity {
         let item = item_stack.get_item();
 
         if item == &Item::SHEARS && !self.is_sheared() && !self.is_baby() {
-            self.set_sheared(true);
             let entity = self.get_entity();
             let world = entity.world.load();
             let pos = entity.pos.load();
@@ -203,22 +205,34 @@ impl Mob for SheepEntity {
             let wool_item = get_wool_item_for_color(self.get_color());
             let mut rng = rand::rng();
             let count = rng.random_range(1..=3);
-            let item_entity = Arc::new(crate::entity::item::ItemEntity::new(
-                Entity::new(world.clone(), pos, &EntityType::ITEM),
-                ItemStack::new(count, wool_item),
-            ));
-            world.spawn_entity(item_entity);
-            if player.gamemode.load() != pumpkin_util::GameMode::Creative {
-                let _ = item_stack.damage_item(1);
+            for _ in 0..count {
+                let item_entity = Arc::new(crate::entity::item::ItemEntity::new(
+                    Entity::new(world.clone(), pos.add_raw(0.0, 1.0, 0.0), &EntityType::ITEM),
+                    ItemStack::new(1, wool_item),
+                ));
+                let item = item_entity.get_entity();
+                item.velocity.store(item.velocity.load().add_raw(
+                    f64::from((rng.random::<f32>() - rng.random::<f32>()) * 0.1),
+                    f64::from(rng.random::<f32>() * 0.05),
+                    f64::from((rng.random::<f32>() - rng.random::<f32>()) * 0.1),
+                ));
+                world.spawn_entity(item_entity);
             }
+            self.set_sheared(true);
             world.emit_game_event_with_source(
                 "shear",
                 pos,
                 Some(player.living_entity.entity.entity_id),
             );
+            if player.gamemode.load() != pumpkin_util::GameMode::Creative {
+                let _ = item_stack.damage_item(1);
+            }
             return true;
         }
 
+        if item == &Item::SHEARS {
+            return true;
+        }
         self.animal_interact(player, item_stack, Sound::EntitySheepAmbient)
     }
 }

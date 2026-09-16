@@ -24,13 +24,6 @@ use crate::entity::{
 };
 use pumpkin_nbt::compound::NbtCompound;
 
-const PIG_FOOD: &[&Item] = &[
-    &Item::CARROT,
-    &Item::POTATO,
-    &Item::BEETROOT,
-    &Item::CARROT_ON_A_STICK,
-];
-
 use crate::entity::EntityBase;
 use crate::entity::item_steerable::{ItemBasedSteering, ItemSteerable};
 
@@ -54,7 +47,7 @@ impl PigEntity {
         let pig = Self {
             mob_entity,
             variant: AtomicU8::new(variant::TEMPERATURE_VARIANT_TEMPERATE),
-            sound_variant: AtomicI32::new(0),
+            sound_variant: AtomicI32::new(1),
             ageable_data: crate::entity::ageable::AgeableData::default(),
             steering: ItemBasedSteering::default(),
             saddled: std::sync::atomic::AtomicBool::new(false),
@@ -77,11 +70,19 @@ impl PigEntity {
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(1, EscapeDangerGoal::new(1.25));
             goal_selector.add_goal(3, BreedGoal::new(1.0));
-            // Pig.java:84-85 combines two TemptGoal instances (carrot-on-a-stick, then the
-            // PIG_FOOD tag) at the same priority; PIG_FOOD here already carries both.
-            goal_selector.add_goal(4, Box::new(TemptGoal::new(1.2, PIG_FOOD)));
+            goal_selector.add_goal(
+                4,
+                Box::new(TemptGoal::new(1.2, &[&Item::CARROT_ON_A_STICK])),
+            );
+            goal_selector.add_goal(
+                4,
+                Box::new(TemptGoal::with_tag(
+                    1.2,
+                    &pumpkin_data::tag::Item::MINECRAFT_PIG_FOOD,
+                )),
+            );
             goal_selector.add_goal(5, Box::new(FollowParentGoal::new(1.1)));
-            goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(6, Box::new(WanderAroundGoal::water_avoiding(1.0)));
             goal_selector.add_goal(
                 7,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
@@ -94,7 +95,7 @@ impl PigEntity {
 }
 
 /// `pig_sound_variant` registry size: big, classic, mini.
-const PIG_SOUND_VARIANTS: i32 = 3;
+const PIG_SOUND_VARIANTS: &[&str] = &["minecraft:big", "minecraft:classic", "minecraft:mini"];
 
 impl PigEntity {
     /// Pushes both variant fields to the client.
@@ -171,7 +172,7 @@ impl Mob for PigEntity {
             Ordering::Relaxed,
         );
         self.sound_variant.store(
-            variant::random_sound_variant(PIG_SOUND_VARIANTS),
+            world.rand_bounded_i32(PIG_SOUND_VARIANTS.len() as i32),
             Ordering::Relaxed,
         );
         self.sync_variant();
@@ -195,7 +196,11 @@ impl Mob for PigEntity {
             "variant",
             variant::temperature_variant_name(self.variant.load(Ordering::Relaxed)).to_string(),
         );
-        nbt.put_int("sound_variant", self.sound_variant.load(Ordering::Relaxed));
+        if let Some(name) =
+            PIG_SOUND_VARIANTS.get(self.sound_variant.load(Ordering::Relaxed) as usize)
+        {
+            nbt.put_string("sound_variant", (*name).to_owned());
+        }
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
@@ -208,7 +213,19 @@ impl Mob for PigEntity {
                 Ordering::Relaxed,
             );
         }
-        if let Some(sound) = nbt.get_int("sound_variant") {
+        let sound = nbt
+            .get_string("sound_variant")
+            .and_then(|name| {
+                PIG_SOUND_VARIANTS.iter().position(|candidate| {
+                    *candidate == name || candidate.strip_prefix("minecraft:") == Some(name)
+                })
+            })
+            .map(|index| index as i32)
+            .or_else(|| {
+                nbt.get_int("sound_variant")
+                    .filter(|id| (0..PIG_SOUND_VARIANTS.len() as i32).contains(id))
+            });
+        if let Some(sound) = sound {
             self.sound_variant.store(sound, Ordering::Relaxed);
         }
     }
@@ -254,7 +271,11 @@ impl Mob for PigEntity {
             return true;
         }
 
-        if self.is_saddled() && !self.is_food(item_stack) {
+        if self.is_saddled()
+            && !self.is_food(item_stack)
+            && !self.get_entity().has_passengers()
+            && !player.get_entity().is_sneaking()
+        {
             let world = player.world();
             if let Some(vehicle) = world.get_entity_by_id(self.get_entity().entity_id)
                 && let Some(passenger) = world.get_player_by_id(player.entity_id())

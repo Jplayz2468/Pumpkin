@@ -459,3 +459,5 @@ Item source inventory:
   request to prioritize mobs does not turn this unfinished gate into a pass.
 - Next active work: mobs; item batches remain queued. All block source files now
   have a reviewed or carried source-pass disposition, not a 1:1 certification.
+
+Mob work has started; see [MOB_PARITY.md](MOB_PARITY.md) for the active batch and remaining scope.

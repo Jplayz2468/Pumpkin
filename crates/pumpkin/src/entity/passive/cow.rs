@@ -24,8 +24,6 @@ use crate::entity::{
     variant,
 };
 
-const TEMPT_ITEMS: &[&Item] = &[&Item::WHEAT];
-
 /// Represents a Cow, a common passive mob that provides milk, leather, and beef.
 ///
 /// Wiki: <https://minecraft.wiki/w/Cow>
@@ -39,7 +37,7 @@ pub struct CowEntity {
 }
 
 /// `cow_sound_variant` registry size: classic, moody.
-const COW_SOUND_VARIANTS: i32 = 2;
+const COW_SOUND_VARIANTS: &[&str] = &["minecraft:classic", "minecraft:moody"];
 
 impl CowEntity {
     pub fn new(entity: Entity) -> Arc<Self> {
@@ -66,9 +64,15 @@ impl CowEntity {
             goal_selector.add_goal(0, Box::new(SwimGoal::default()));
             goal_selector.add_goal(1, EscapeDangerGoal::new(2.0));
             goal_selector.add_goal(2, BreedGoal::new(1.0));
-            goal_selector.add_goal(3, Box::new(TemptGoal::new(1.25, TEMPT_ITEMS)));
+            goal_selector.add_goal(
+                3,
+                Box::new(TemptGoal::with_tag(
+                    1.25,
+                    &pumpkin_data::tag::Item::MINECRAFT_COW_FOOD,
+                )),
+            );
             goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.25)));
-            goal_selector.add_goal(5, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(5, Box::new(WanderAroundGoal::water_avoiding(1.0)));
             goal_selector.add_goal(
                 6,
                 LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
@@ -107,7 +111,6 @@ impl Animal for CowEntity {
         item_stack
             .item
             .has_tag(&pumpkin_data::tag::Item::MINECRAFT_COW_FOOD)
-            || TEMPT_ITEMS.iter().any(|i| i.id == item_stack.item.id)
     }
 }
 
@@ -146,7 +149,7 @@ impl Mob for CowEntity {
             Ordering::Relaxed,
         );
         self.sound_variant.store(
-            variant::random_sound_variant(COW_SOUND_VARIANTS),
+            world.rand_bounded_i32(COW_SOUND_VARIANTS.len() as i32),
             Ordering::Relaxed,
         );
         self.sync_variant();
@@ -169,7 +172,11 @@ impl Mob for CowEntity {
             "variant",
             variant::temperature_variant_name(self.variant.load(Ordering::Relaxed)).to_string(),
         );
-        nbt.put_int("sound_variant", self.sound_variant.load(Ordering::Relaxed));
+        if let Some(name) =
+            COW_SOUND_VARIANTS.get(self.sound_variant.load(Ordering::Relaxed) as usize)
+        {
+            nbt.put_string("sound_variant", (*name).to_owned());
+        }
     }
 
     fn mob_read_nbt(&self, nbt: &NbtCompound) {
@@ -179,7 +186,19 @@ impl Mob for CowEntity {
                 Ordering::Relaxed,
             );
         }
-        if let Some(sound) = nbt.get_int("sound_variant") {
+        let sound = nbt
+            .get_string("sound_variant")
+            .and_then(|name| {
+                COW_SOUND_VARIANTS.iter().position(|candidate| {
+                    *candidate == name || candidate.strip_prefix("minecraft:") == Some(name)
+                })
+            })
+            .map(|index| index as i32)
+            .or_else(|| {
+                nbt.get_int("sound_variant")
+                    .filter(|id| (0..COW_SOUND_VARIANTS.len() as i32).contains(id))
+            });
+        if let Some(sound) = sound {
             self.sound_variant.store(sound, Ordering::Relaxed);
         }
     }
