@@ -830,3 +830,185 @@ mod tests {
         assert!(!anvil_inv.get_stack(2).is_empty());
     }
 }
+
+/// Differential comparison against the real Java 26.2 `AnvilMenu.createResult`.
+/// Fixtures come from `tools/vanilla/AnvilOracle.java`; see that file for the
+/// case matrix and reproduction command.
+#[cfg(test)]
+mod java_parity_tests {
+    use super::*;
+    use crate::entity_equipment::EntityEquipment;
+    use crate::inventory::SimpleInventory;
+    use pumpkin_data::data_component_impl::{EnchantmentsImpl, StoredEnchantmentsImpl};
+    use pumpkin_data::enchantment::Enchantment;
+    use serde_json::Value;
+    use std::borrow::Cow;
+    use std::sync::Mutex;
+
+    fn enchantment(id: &str) -> &'static Enchantment {
+        Enchantment::from_name(id.trim_start_matches("minecraft:"))
+            .unwrap_or_else(|| panic!("unknown enchantment {id}"))
+    }
+
+    fn enchantment_list(value: &Value) -> Vec<(&'static Enchantment, i32)> {
+        value
+            .as_object()
+            .expect("enchantment map")
+            .iter()
+            .map(|(id, level)| (enchantment(id), level.as_i64().expect("level") as i32))
+            .collect()
+    }
+
+    /// Rebuilds the stack the Java probe placed in the slot.
+    fn build(spec: &Value) -> ItemStack {
+        if spec.is_null() {
+            return ItemStack::EMPTY.clone();
+        }
+        let id = spec["item"].as_str().expect("item id");
+        let item = Item::from_registry_key(id.trim_start_matches("minecraft:"))
+            .unwrap_or_else(|| panic!("unknown item {id}"));
+        let mut stack = ItemStack::new(spec["count"].as_i64().expect("count") as u8, item);
+
+        let damage = spec["damage"].as_i64().expect("damage") as i32;
+        if damage != 0 {
+            stack.set_damage(damage);
+        }
+        let repair_cost = spec["repair_cost"].as_i64().expect("repair cost") as i32;
+        if repair_cost != 0 {
+            stack.set_repair_cost(repair_cost);
+        }
+        let enchantments = enchantment_list(&spec["enchantments"]);
+        if !enchantments.is_empty() {
+            stack.set_data_component(EnchantmentsImpl {
+                enchantment: Cow::Owned(enchantments),
+            });
+        }
+        let stored = enchantment_list(&spec["stored_enchantments"]);
+        if !stored.is_empty() {
+            stack.set_data_component(StoredEnchantmentsImpl {
+                enchantment: Cow::Owned(stored),
+            });
+        }
+        stack
+    }
+
+    /// The same shape the probe records, so a mismatch prints both sides.
+    fn describe(stack: &ItemStack) -> String {
+        if stack.is_empty() {
+            return "<empty>".to_string();
+        }
+        let encode = |pairs: Vec<(&'static Enchantment, i32)>| {
+            let mut names: Vec<String> = pairs
+                .into_iter()
+                .map(|(e, level)| {
+                    format!("{}={level}", e.name.trim_start_matches("minecraft:"))
+                })
+                .collect();
+            names.sort();
+            names.join(",")
+        };
+        let enchantments = stack
+            .get_data_component::<EnchantmentsImpl>()
+            .map(|c| encode(c.enchantment.iter().map(|(e, l)| (*e, *l)).collect()))
+            .unwrap_or_default();
+        let stored = stack
+            .get_data_component::<StoredEnchantmentsImpl>()
+            .map(|c| encode(c.enchantment.iter().map(|(e, l)| (*e, *l)).collect()))
+            .unwrap_or_default();
+        format!(
+            "{} x{} damage={} repair_cost={} enchants=[{}] stored=[{}]",
+            stack.item.registry_key,
+            stack.item_count,
+            stack.get_damage(),
+            stack.get_repair_cost(),
+            enchantments,
+            stored
+        )
+    }
+
+    fn expected(result: &Value) -> String {
+        if result.is_null() {
+            return "<empty>".to_string();
+        }
+        let encode = |value: &Value| {
+            let mut names: Vec<String> = value
+                .as_object()
+                .expect("map")
+                .iter()
+                .map(|(id, level)| {
+                    format!(
+                        "{}={}",
+                        id.trim_start_matches("minecraft:"),
+                        level.as_i64().expect("level")
+                    )
+                })
+                .collect();
+            names.sort();
+            names.join(",")
+        };
+        format!(
+            "{} x{} damage={} repair_cost={} enchants=[{}] stored=[{}]",
+            result["item"].as_str().expect("item").trim_start_matches("minecraft:"),
+            result["count"].as_i64().expect("count"),
+            result["damage"].as_i64().expect("damage"),
+            result["repair_cost"].as_i64().expect("repair cost"),
+            encode(&result["enchantments"]),
+            encode(&result["stored_enchantments"])
+        )
+    }
+
+    #[test]
+    fn anvil_results_match_java() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("anvil_cases.json")).expect("anvil fixtures");
+        assert!(cases.len() > 2000, "fixture looks truncated");
+
+        let player_inventory = Arc::new(PlayerInventory::new(
+            Arc::new(Mutex::new(EntityEquipment::new())),
+            Arc::new(rustc_hash::FxHashMap::default()),
+        ));
+
+        let mut mismatches: Vec<String> = Vec::new();
+        for (index, case) in cases.iter().enumerate() {
+            let inventory = Arc::new(SimpleInventory::new(3));
+            let mut handler = AnvilScreenHandler::new(1, &player_inventory, inventory.clone());
+
+            inventory.set_stack(0, build(&case["left"]));
+            inventory.set_stack(1, build(&case["right"]));
+            handler.item_name = case["name"].as_str().map(ToString::to_string);
+
+            handler.create_result(case["creative"].as_bool().expect("creative"));
+
+            let cost = handler.get_cost();
+            let material = handler.repair_item_count_cost.load(Ordering::Relaxed);
+            let result = describe(&inventory.get_stack(2));
+
+            let want_cost = case["cost"].as_i64().expect("cost") as i32;
+            let want_material = case["material_cost"].as_i64().expect("material cost") as i32;
+            let want_result = expected(&case["result"]);
+
+            if cost != want_cost || material != want_material || result != want_result {
+                mismatches.push(format!(
+                    "case {index}: left={} right={} name={:?} creative={}\n  \
+                     cost java={want_cost} rust={cost}\n  \
+                     material java={want_material} rust={material}\n  \
+                     result java={want_result}\n         rust={result}",
+                    case["left"], case["right"], case["name"], case["creative"]
+                ));
+            }
+        }
+
+        assert!(
+            mismatches.is_empty(),
+            "{} of {} anvil cases differ from Java:\n{}",
+            mismatches.len(),
+            cases.len(),
+            mismatches
+                .iter()
+                .take(15)
+                .cloned()
+                .collect::<Vec<_>>()
+                .join("\n")
+        );
+    }
+}
