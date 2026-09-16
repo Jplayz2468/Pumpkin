@@ -225,3 +225,69 @@ impl Slot for StonecutterOutputSlot {
         self.inventory.mark_dirty();
     }
 }
+
+/// Differential comparison against the real Java 26.2 stonecutting recipes.
+/// Fixtures come from `tools/vanilla/StonecutterOracle.java`.
+#[cfg(test)]
+mod java_parity_tests {
+    use super::*;
+    use serde_json::Value;
+
+    /// The offered list is compared in order: the client selects a recipe by
+    /// index, so a reordering silently hands the player a different item.
+    #[test]
+    fn stonecutter_offers_match_java() {
+        let cases: Vec<Value> = serde_json::from_str(include_str!("stonecutter_cases.json"))
+            .expect("stonecutter fixtures");
+        assert!(cases.len() > 50, "fixture looks truncated");
+
+        let mut mismatches: Vec<String> = Vec::new();
+        for case in &cases {
+            let id = case["input"].as_str().expect("input id");
+            let item = Item::from_registry_key(id.trim_start_matches("minecraft:"))
+                .unwrap_or_else(|| panic!("unknown item {id}"));
+            let input = ItemStack::new(1, item);
+
+            let rust: Vec<String> = StonecutterScreenHandler::get_available_recipes(&input)
+                .iter()
+                .map(|recipe| {
+                    format!(
+                        "{}x{}",
+                        recipe.result.id.trim_start_matches("minecraft:"),
+                        recipe.result.count
+                    )
+                })
+                .collect();
+            let java: Vec<String> = case["offered"]
+                .as_array()
+                .expect("offered")
+                .iter()
+                .map(|entry| {
+                    format!(
+                        "{}x{}",
+                        entry["item"].as_str().expect("item").trim_start_matches("minecraft:"),
+                        entry["count"].as_i64().expect("count")
+                    )
+                })
+                .collect();
+
+            if rust != java {
+                mismatches.push(format!(
+                    "{id}:\n  java ({}) = {}\n  rust ({}) = {}",
+                    java.len(),
+                    java.join(", "),
+                    rust.len(),
+                    rust.join(", ")
+                ));
+            }
+        }
+
+        assert!(
+            mismatches.is_empty(),
+            "{} of {} stonecutter inputs differ from Java:\n{}",
+            mismatches.len(),
+            cases.len(),
+            mismatches.iter().take(8).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
+}
