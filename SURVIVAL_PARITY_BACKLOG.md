@@ -60,6 +60,54 @@ objective of full core-engine/block parity with only mobs left, nor certify ever
 - **Not exercised this session:** backlog items P0.2-P0.6 and P0.8. No two-client
   session was run; no live-client evidence is claimed.
 
+## Workstation parity oracles — 2026-09-16
+
+Eight Java 26.2 differential probes now live in `tools/vanilla/`, sharing
+`WorkstationSupport.java` (headless registry bootstrap, every item's real
+component map, banner patterns) and a Rust `test_support` replay module.
+None of the 49 pre-existing probes covered a workstation.
+
+| Station | Coverage | Result |
+| --- | --- | --- |
+| Anvil | 2419 cases | all match |
+| Crafting | 1056 recipes | **7 bugs fixed**, all match |
+| Grindstone | 669 cases | all match |
+| Smithing | 630 cases | all match |
+| Enchanting | 648 offers | all match |
+| Stonecutter | 65 inputs / 319 recipes | all match, order included |
+| Loom | 11 pattern sources | all match |
+| Cartography | no fixture | **known gap, see below** |
+
+**Fixed:** seven shaped recipes were uncraftable. Vanilla pads some patterns to
+a 3x3 box, such as the mace's `[" # ", " I "]`; Java's `ShapedRecipePattern`
+trims that at parse time, codegen stored it raw, and `recipe_matches` compares a
+pattern against the bounding box of the placed items, which can never be wider
+than the items. Mace, spyglass, creaking_heart and the four waxed chiseled
+copper variants could not be crafted at all. Codegen now trims, as Java does.
+
+**Known gap — cartography map-state guards.** Java's `setupResultSlot` needs
+`MapItemSavedData`: it makes no offer without saved data, refuses to zoom a
+locked map or one already at scale 4, and refuses to lock an already-locked map.
+`CartographyTableScreenHandler` is built from a sync id and the player inventory
+only, so it cannot reach the server's `MapManager` and offers all three
+unconditionally. A player can waste paper zooming a maximum-scale map or re-lock
+a locked one. Fixing it needs the map store plumbed into the handler. Current
+behaviour is pinned by
+`cartography_table_screen_handler::java_parity_tests::cartography_is_missing_javas_map_state_guards`,
+which fails once the guards land.
+
+**Known gap — damage clamping.** Java clamps damage to `[0, maxDamage]` in both
+`getDamageValue` and `setDamageValue`. `set_damage` clamps only the lower bound
+and `get_damage` does not clamp, so anvil repair diverges for a stack whose
+damage exceeds its maximum. Unreachable in ordinary survival; reachable through
+`/give` or a datapack. Not changed because `get_damage` is a hot accessor.
+
+**Not covered by these oracles:** recipe remainders (`RecipeResult` carries
+none, so bucket and bottle returns are untested), the banner layers the loom
+produces, the grindstone's random experience half, and every menu lifecycle
+concern — shift-click, drag, menu close and result-slot take paths. Those need
+the integration tests, not oracles.
+
 ## Status and evidence
 
 - **Known gap:** an implementation limitation is recorded.

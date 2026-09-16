@@ -393,3 +393,103 @@ impl Slot for CartographyResultSlot {
         self.inventory.mark_dirty();
     }
 }
+
+/// Comparison against the real Java 26.2 `CartographyTableMenu.setupResultSlot`.
+///
+/// Unlike the other workstations this has no generated fixture. Java's guards
+/// read `MapItemSavedData`, which this handler cannot reach: it is constructed
+/// with only a sync id and the player inventory, so it has no route to the
+/// server's `MapManager`. The three resulting gaps are asserted as the current
+/// behaviour below and recorded in `SURVIVAL_PARITY_BACKLOG.md`, rather than
+/// dressed up as parity.
+#[cfg(test)]
+mod java_parity_tests {
+    use super::*;
+    use crate::entity_equipment::EntityEquipment;
+    use pumpkin_data::data_component_impl::{MapIdImpl, MapPostProcessing};
+    use std::sync::Mutex;
+
+    fn handler() -> CartographyTableScreenHandler {
+        let player_inventory = Arc::new(PlayerInventory::new(
+            Arc::new(Mutex::new(EntityEquipment::new())),
+            Arc::new(rustc_hash::FxHashMap::default()),
+        ));
+        CartographyTableScreenHandler::new(1, &player_inventory)
+    }
+
+    fn filled_map(id: i32) -> ItemStack {
+        let mut stack = ItemStack::new(1, &Item::FILLED_MAP);
+        stack.set_data_component(MapIdImpl { id });
+        stack
+    }
+
+    fn result_for(map: ItemStack, additional: ItemStack) -> ItemStack {
+        let mut handler = handler();
+        handler.input_inventory.set_stack(0, map);
+        handler.input_inventory.set_stack(1, additional);
+        handler.setup_result_slot();
+        handler.output_inventory.get_stack(0)
+    }
+
+    /// The three accepted combinations, which agree with Java for an unlocked
+    /// map below the maximum scale.
+    #[test]
+    fn cartography_accepts_the_same_combinations_as_java() {
+        let zoomed = result_for(filled_map(0), ItemStack::new(1, &Item::PAPER));
+        assert_eq!(zoomed.item, &Item::FILLED_MAP);
+        assert_eq!(zoomed.item_count, 1);
+        assert_eq!(
+            zoomed
+                .get_data_component::<MapPostProcessingImpl>()
+                .and_then(|c| c.processing),
+            Some(MapPostProcessing::Scale)
+        );
+
+        let locked = result_for(filled_map(0), ItemStack::new(1, &Item::GLASS_PANE));
+        assert_eq!(
+            locked
+                .get_data_component::<MapPostProcessingImpl>()
+                .and_then(|c| c.processing),
+            Some(MapPostProcessing::Lock)
+        );
+
+        let copied = result_for(filled_map(0), ItemStack::new(1, &Item::MAP));
+        assert_eq!(copied.item_count, 2);
+
+        // Anything else clears the result, as Java does.
+        assert!(result_for(filled_map(0), ItemStack::new(1, &Item::STICK)).is_empty());
+        assert!(result_for(ItemStack::EMPTY.clone(), ItemStack::new(1, &Item::PAPER)).is_empty());
+        assert!(result_for(ItemStack::new(1, &Item::STICK), ItemStack::new(1, &Item::PAPER)).is_empty());
+    }
+
+    /// Known gap. Java requires saved map data and refuses to zoom a locked map
+    /// or one already at scale 4, and refuses to lock an already-locked map.
+    /// This handler consults none of that, so it offers all three regardless.
+    /// The assertions below pin that difference so the day the guards land this
+    /// test fails and gets updated deliberately.
+    #[test]
+    fn cartography_is_missing_javas_map_state_guards() {
+        // An unfilled map carries no map id and so has no saved data at all;
+        // Java's setupResultSlot returns without touching the result slot.
+        let no_saved_data = result_for(
+            ItemStack::new(1, &Item::FILLED_MAP),
+            ItemStack::new(1, &Item::PAPER),
+        );
+        assert!(
+            !no_saved_data.is_empty(),
+            "known gap: an offer is made for a map with no saved data"
+        );
+
+        // Java gates both of these on `!mapData.locked` and `mapData.scale < 4`,
+        // which need the server's map storage.
+        let already_locked_source = filled_map(7);
+        assert!(
+            !result_for(already_locked_source.clone(), ItemStack::new(1, &Item::PAPER)).is_empty(),
+            "known gap: zooming is offered without checking locked or scale"
+        );
+        assert!(
+            !result_for(already_locked_source, ItemStack::new(1, &Item::GLASS_PANE)).is_empty(),
+            "known gap: locking is offered without checking locked"
+        );
+    }
+}
