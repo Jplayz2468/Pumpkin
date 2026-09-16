@@ -240,7 +240,12 @@ impl ItemStack {
     pub fn remove_data_component(&mut self, to_remove_id: DataComponent) {
         // A removal is needed only to mask a prototype value. Removing a component
         // absent from the prototype deletes its patch entry, including old removals.
-        if !self.item.components.iter().any(|(id, _)| *id == to_remove_id) {
+        if !self
+            .item
+            .components
+            .iter()
+            .any(|(id, _)| *id == to_remove_id)
+        {
             self.patch.retain(|(id, _)| *id != to_remove_id);
             return;
         }
@@ -781,28 +786,31 @@ impl ItemStack {
     }
 
     pub fn write_item_stack(&self, compound: &mut NbtCompound) {
-        // Minecraft 1.21.4 uses "id" as string with namespaced ID (minecraft:diamond_sword)
-        compound.put_string("id", format!("minecraft:{}", self.item.registry_key));
-        compound.put_int("count", self.item_count as i32);
+        self.try_write_item_stack(compound);
+    }
 
-        // Create a tag compound for additional data
-        let mut tag = NbtCompound::new();
-
+    /// Encode atomically; a persistent-codec rejection leaves the destination untouched.
+    /// Callers saving optional item fields should omit the field on failure.
+    pub fn try_write_item_stack(&self, compound: &mut NbtCompound) -> bool {
+        let mut components = NbtCompound::new();
         for (id, data) in &self.patch {
-            // This component has only a network codec in Java.
+            // This transient component has only a network codec in Java.
             if *id == DataComponent::AdditionalTradeCost {
                 continue;
             }
             if let Some(data) = data {
-                tag.put(id.to_name(), data.write_data());
+                let Some(value) = data.try_write_data() else {
+                    return false;
+                };
+                components.put(id.to_name(), value);
             } else {
-                let name = '!'.to_string() + id.to_name();
-                tag.put(name.as_str(), NbtCompound::new());
+                components.put(&format!("!{}", id.to_name()), NbtCompound::new());
             }
         }
-
-        // Store custom data like enchantments, display name, etc. would go here
-        compound.put_compound("components", tag);
+        compound.put_string("id", format!("minecraft:{}", self.item.registry_key));
+        compound.put_int("count", i32::from(self.item_count));
+        compound.put_compound("components", components);
+        true
     }
 
     #[must_use]

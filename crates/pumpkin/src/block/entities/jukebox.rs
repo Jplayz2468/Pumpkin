@@ -1,12 +1,13 @@
 use std::any::Any;
-use std::sync::atomic::{AtomicBool, AtomicI64, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 
 use pumpkin_data::block_properties::JukeboxLikeProperties;
-use pumpkin_data::data_component_impl::{BlockEntityDataImpl, JukeboxPlayableImpl};
+use pumpkin_data::data_component_impl::{
+    BlockEntityDataImpl, JukeboxPlayableImpl, JukeboxPlayback,
+};
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::jukebox_song::JukeboxSong;
 use pumpkin_data::particle::Particle;
 use pumpkin_data::world::WorldEvent;
 use pumpkin_data::{Block, BlockStateId};
@@ -28,8 +29,9 @@ pub struct JukeboxBlockEntity {
     state: Mutex<BlockStateId>,
     record_stack: Mutex<ItemStack>,
     ticks_since_song_started: AtomicI64,
-    /// Zero means stopped; otherwise this includes the twenty-tick grace period.
-    playback_end_tick: AtomicU64,
+    playing: AtomicBool,
+    /// Java's signed int duration plus its twenty-tick grace period.
+    playback_end_tick: AtomicI64,
     dirty: AtomicBool,
     comparator_dirty: AtomicBool,
 }
@@ -66,14 +68,15 @@ impl BlockEntity for JukeboxBlockEntity {
             .unwrap_or_else(|| ItemStack::EMPTY.clone());
         if let Some(ticks) = nbt.get_long(TICKS_SINCE_SONG_STARTED_NBT_KEY)
             && let Some(song) = Self::song_from_stack(&record)
-            && ticks < (song.length_in_ticks() + 20) as i64
+            && !song.has_finished(ticks)
         {
             entity
                 .ticks_since_song_started
                 .store(ticks, Ordering::Relaxed);
             entity
                 .playback_end_tick
-                .store(song.length_in_ticks() + 20, Ordering::Relaxed);
+                .store(song.end_tick(), Ordering::Relaxed);
+            entity.playing.store(true, Ordering::Relaxed);
         }
         *entity.record_stack.lock().unwrap() = record;
         entity
@@ -97,6 +100,7 @@ impl BlockEntity for JukeboxBlockEntity {
             loaded.playback_end_tick.load(Ordering::Relaxed),
             Ordering::Relaxed,
         );
+        self.playing.store(loaded.is_playing(), Ordering::Relaxed);
         self.mark_dirty();
     }
 
@@ -104,8 +108,9 @@ impl BlockEntity for JukeboxBlockEntity {
         let record = self.get_record();
         if !record.is_empty() {
             let mut record_nbt = NbtCompound::new();
-            record.write_item_stack(&mut record_nbt);
-            nbt.put(RECORD_ITEM_NBT_KEY, record_nbt);
+            if record.try_write_item_stack(&mut record_nbt) {
+                nbt.put(RECORD_ITEM_NBT_KEY, record_nbt);
+            }
         }
         if self.is_playing() {
             nbt.put_long(
@@ -126,7 +131,7 @@ impl BlockEntity for JukeboxBlockEntity {
         }
         *self.state.lock().unwrap() = state;
         let ticks = self.ticks_since_song_started.load(Ordering::Relaxed);
-        if ticks >= self.playback_end_tick.load(Ordering::Relaxed) as i64 {
+        if ticks >= self.playback_end_tick.load(Ordering::Relaxed) {
             self.stop_playing();
             return;
         }
@@ -192,7 +197,8 @@ impl JukeboxBlockEntity {
             state: Mutex::new(Block::JUKEBOX.default_state.id),
             record_stack: Mutex::new(ItemStack::EMPTY.clone()),
             ticks_since_song_started: AtomicI64::new(0),
-            playback_end_tick: AtomicU64::new(0),
+            playing: AtomicBool::new(false),
+            playback_end_tick: AtomicI64::new(0),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
         }
@@ -202,14 +208,13 @@ impl JukeboxBlockEntity {
         self.world.lock().unwrap().upgrade()
     }
 
-    pub fn song_from_stack(stack: &ItemStack) -> Option<JukeboxSong> {
-        let playable = stack.get_data_component::<JukeboxPlayableImpl>()?;
-        // The generated registry contains vanilla keys only. Do not turn custom namespaces into vanilla songs.
-        let name = playable
-            .song
-            .strip_prefix("minecraft:")
-            .unwrap_or(playable.song);
-        JukeboxSong::from_name(name)
+    pub fn song_from_stack(stack: &ItemStack) -> Option<JukeboxPlayback> {
+        if stack.is_empty() {
+            return None;
+        }
+        stack
+            .get_data_component::<JukeboxPlayableImpl>()?
+            .playback()
     }
 
     pub fn get_record(&self) -> ItemStack {
@@ -243,7 +248,7 @@ impl JukeboxBlockEntity {
             self.notify_item_changed(&world, inserted);
         }
         if inserted && let Some(song) = song {
-            self.start_playing(song.length_in_ticks());
+            self.start_playing_until(song.end_tick());
         } else {
             self.stop_playing();
         }
@@ -263,15 +268,19 @@ impl JukeboxBlockEntity {
 
     /// Retained for the plugin API; ordinary insertion resolves its duration from the record.
     pub fn start_playing(&self, length_in_ticks: u64) {
+        self.start_playing_until(length_in_ticks.saturating_add(20).min(i64::MAX as u64) as i64);
+    }
+
+    fn start_playing_until(&self, end_tick: i64) {
         self.ticks_since_song_started.store(0, Ordering::Relaxed);
-        self.playback_end_tick
-            .store(length_in_ticks.saturating_add(20), Ordering::Relaxed);
+        self.playback_end_tick.store(end_tick, Ordering::Relaxed);
+        self.playing.store(true, Ordering::Relaxed);
         if let Some(world) = self.world() {
             if let Some(song) = Self::song_from_stack(&self.get_record()) {
                 world.sync_world_event(
                     WorldEvent::SoundPlayJukeboxSong,
                     self.position,
-                    song.get_id() as i32,
+                    song.registry_id,
                 );
             }
             self.on_song_changed(&world);
@@ -291,7 +300,7 @@ impl JukeboxBlockEntity {
     }
 
     pub fn stop_playing(&self) {
-        if self.playback_end_tick.swap(0, Ordering::Relaxed) == 0 {
+        if !self.playing.swap(false, Ordering::Relaxed) {
             return;
         }
         self.ticks_since_song_started.store(0, Ordering::Relaxed);
@@ -303,7 +312,7 @@ impl JukeboxBlockEntity {
     }
 
     pub fn is_playing(&self) -> bool {
-        self.playback_end_tick.load(Ordering::Relaxed) != 0
+        self.playing.load(Ordering::Relaxed)
     }
 
     pub fn pop_out_item(&self) {

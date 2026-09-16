@@ -50,7 +50,10 @@ impl BlockEntityComponents {
             } else {
                 format!("minecraft:{name}")
             };
-            components.put(&key, value.write_data());
+            let Some(data) = value.try_write_data() else {
+                return;
+            };
+            components.put(&key, data);
         }
         nbt.put_compound("components", components);
     }

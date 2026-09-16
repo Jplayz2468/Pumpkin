@@ -425,3 +425,27 @@ resolution, Unicode and length boundaries. Network comparison is byte-for-byte
 for string-only pages and semantic for text compounds whose field order may differ.
 Predicate fixtures do not yet cover attribute/jukebox codecs or malformed lock
 fallback. They are not live menu, packet feedback or all-component certification.
+
+### Jukebox holders and persistence failures
+
+`JukeboxComponentOracle.java` builds the actual 22-song registry and tests all
+registered holders plus 13 direct holders with both registry/custom sounds,
+optional ranges, fractional/nonpositive durations and floating-point extremes.
+It exports wire bytes, reference NBT/hashes, codec acceptance, 175 item-predicate
+results and 210 `JukeboxSongPlayer.setSongWithoutPlaying` boundary decisions.
+`TagValueOutput` confirms omitted item fields on direct-holder persistence errors;
+actual ItemStack codecs also cover bundle/container propagation.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*:/tmp' -d /tmp tools/vanilla/LootPatchTrimOracle.java tools/vanilla/JukeboxComponentOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' JukeboxComponentOracle
+cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- item
+```
+
+Java permits direct holders on the wire but its RegistryFixedCodec rejects them
+for persistence and HashOps. The fixture only claims hashes for references.
+Production tests compare all wire bytes and holder equality (including NaN),
+component playback, named/empty/direct predicates, item persistence failure,
+nested item rejection, actual jukebox save omission and registered-song reloads.
+This does not certify live sound delivery, registry reloads, every save caller,
+arbitrary inline identifiers or raw comparator propagation outside u8.

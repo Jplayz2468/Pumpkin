@@ -1598,3 +1598,14 @@ persistence check. Book state and Unicode strings are preserved; signing keeps i
 patches and honors the requested inventory slot. See ENGINE_GAPS.md for validation
 and the remaining lock codecs, names, text/context and live integration limits.
 Full mob passes remain paused; other engine/block gates are still open.
+
+### Jukebox component / persistence checkpoint
+
+Jukebox components now preserve registry references and inline network holders,
+use correct song registry IDs, and feed effective duration/comparator values into
+block playback. Fallible component/item encoding propagates invalid persistent
+holders through nested containers. Java coverage includes all 22 registered songs,
+13 inline holders, 175 predicate checks and 210 timing boundaries. Background full
+suite: 1,082 passed with the established two socket-test exclusions. Remaining
+codec, persistence-caller and live-integration limits are in ENGINE_GAPS.md.
+Full mob passes remain paused; engine/block parity is not yet complete.

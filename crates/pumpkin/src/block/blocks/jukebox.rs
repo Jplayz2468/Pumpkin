@@ -103,7 +103,7 @@ impl BlockBehaviour for JukeboxBlock {
                             JukeboxBlockEntity::song_from_stack(&jukebox.get_record())
                         })
                 })
-                .map_or(0, |song| song.comparator_output()),
+                .map_or(0, |song| song.comparator_output as u8),
         )
     }
 }

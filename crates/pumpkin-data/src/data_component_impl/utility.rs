@@ -226,14 +226,19 @@ impl BundleContentsImpl {
     }
 }
 impl DataComponentImpl for BundleContentsImpl {
-    fn write_data(&self) -> NbtTag {
+    fn try_write_data(&self) -> Option<NbtTag> {
         let mut list = Vec::new();
         for stack in &self.items {
-            let mut item_compound = NbtCompound::new();
-            stack.write_item_stack(&mut item_compound);
-            list.push(NbtTag::Compound(item_compound));
+            let mut item = NbtCompound::new();
+            if !stack.try_write_item_stack(&mut item) {
+                return None;
+            }
+            list.push(NbtTag::Compound(item));
         }
-        NbtTag::List(list)
+        Some(NbtTag::List(list))
+    }
+    fn write_data(&self) -> NbtTag {
+        self.try_write_data().unwrap_or(NbtTag::End)
     }
     default_impl!(BundleContents);
 }
@@ -606,22 +611,121 @@ impl DataComponentImpl for ProfileImpl {
     default_impl!(Profile);
 }
 
-#[derive(Clone, Debug, Hash, PartialEq, Eq)]
+/// RegistryFixedCodec persists references only; the stream codec also accepts direct holders.
+#[derive(Clone, Debug, PartialEq)]
+pub enum JukeboxSongValue {
+    Reference(std::borrow::Cow<'static, str>),
+    Inline(JukeboxSongData),
+}
+#[derive(Clone, Debug)]
+pub struct JukeboxSongData {
+    pub sound: super::IdOr<super::SoundEvent>,
+    pub description: pumpkin_util::text::TextComponent,
+    pub length_in_seconds: f32,
+    pub comparator_output: i32,
+}
+impl PartialEq for JukeboxSongData {
+    fn eq(&self, other: &Self) -> bool {
+        fn bits(value: f32) -> u32 {
+            if value.is_nan() {
+                f32::NAN.to_bits()
+            } else {
+                value.to_bits()
+            }
+        }
+        let sound_equal = match (&self.sound, &other.sound) {
+            (super::IdOr::Id(a), super::IdOr::Id(b)) => a == b,
+            (super::IdOr::Value(a), super::IdOr::Value(b)) => {
+                a.sound_name == b.sound_name && a.range.map(bits) == b.range.map(bits)
+            }
+            _ => false,
+        };
+        sound_equal
+            && self.description == other.description
+            && bits(self.length_in_seconds) == bits(other.length_in_seconds)
+            && self.comparator_output == other.comparator_output
+    }
+}
+impl JukeboxSongData {
+    pub fn length_in_ticks(&self) -> i32 {
+        (self.length_in_seconds * 20.0).ceil() as i32
+    }
+}
+#[derive(Clone, Debug, PartialEq)]
 pub struct JukeboxPlayableImpl {
-    pub song: &'static str,
+    pub song: JukeboxSongValue,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct JukeboxPlayback {
+    pub registry_id: i32,
+    pub length_in_ticks: i32,
+    pub comparator_output: i32,
+}
+impl JukeboxPlayback {
+    pub fn end_tick(&self) -> i64 {
+        i64::from(self.length_in_ticks.wrapping_add(20))
+    }
+    pub fn has_finished(&self, ticks: i64) -> bool {
+        ticks >= self.end_tick()
+    }
 }
 impl JukeboxPlayableImpl {
     pub fn read_data(data: &NbtTag) -> Option<Self> {
-        let compound = data.extract_compound()?;
-        let song = compound.get_string("song")?;
-        let static_song = crate::jukebox_song::JukeboxSong::from_name(
-            song.strip_prefix("minecraft:").unwrap_or(song),
-        )
-        .map_or("", |s| s.to_name());
-        Some(Self { song: static_song })
+        let name = data.extract_string()?;
+        let id = crate::registry_reference::id("jukebox_song", name)?;
+        Some(Self {
+            song: JukeboxSongValue::Reference(
+                crate::registry_reference::name("jukebox_song", id)?.into(),
+            ),
+        })
+    }
+    pub fn playback(&self) -> Option<JukeboxPlayback> {
+        match &self.song {
+            JukeboxSongValue::Reference(name) => {
+                let id = crate::registry_reference::id("jukebox_song", name)?;
+                let definition = crate::registry_reference::definition("jukebox_song", name)?;
+                let definition = definition.extract_compound()?;
+                let length = definition.get("length_in_seconds")?;
+                let length = match length {
+                    NbtTag::Float(v) => *v,
+                    NbtTag::Double(v) => *v as f32,
+                    NbtTag::Int(v) => *v as f32,
+                    _ => return None,
+                };
+                Some(JukeboxPlayback {
+                    registry_id: id,
+                    length_in_ticks: (length * 20.0).ceil() as i32,
+                    comparator_output: definition.get_int("comparator_output")?,
+                })
+            }
+            JukeboxSongValue::Inline(song) => Some(JukeboxPlayback {
+                registry_id: -1,
+                length_in_ticks: song.length_in_ticks(),
+                comparator_output: song.comparator_output,
+            }),
+        }
     }
 }
 impl DataComponentImpl for JukeboxPlayableImpl {
+    fn try_write_data(&self) -> Option<NbtTag> {
+        match &self.song {
+            JukeboxSongValue::Reference(_) => Some(self.write_data()),
+            JukeboxSongValue::Inline(_) => None,
+        }
+    }
+    fn write_data(&self) -> NbtTag {
+        match &self.song {
+            JukeboxSongValue::Reference(name) => NbtTag::String(name.to_string().into_boxed_str()),
+            // Java RegistryFixedCodec rejects direct holders for persistence.
+            JukeboxSongValue::Inline(_) => NbtTag::End,
+        }
+    }
+    fn get_hash(&self) -> i32 {
+        match &self.song {
+            JukeboxSongValue::Reference(name) => get_str_hash(name) as i32,
+            JukeboxSongValue::Inline(_) => 0,
+        }
+    }
     default_impl!(JukeboxPlayable);
 }
 

@@ -117,3 +117,6 @@ pub trait ItemBehaviour: Send + Sync {
 }
 
 pub mod predicate;
+
+#[cfg(test)]
+mod jukebox_component_tests;

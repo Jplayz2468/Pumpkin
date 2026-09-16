@@ -1265,3 +1265,45 @@ whole inside-effect pipeline matches Java yet.
   entity resolution, filtering-service integration, complete container naming and
   live client feedback. Other D01–D06/block gates remain open. These comparisons
   are not full-engine certification. No full mob pass was started.
+
+## Jukebox holders and fallible component persistence
+
+- Replaced the jukebox playable stub with registered-song references and direct
+  network holders. Network IDs use the advertised jukebox-song registry (including
+  its holder offset), not the sound registry. Inline holders retain sound holders,
+  descriptions, exact float values and comparator values; invalid song/sound IDs
+  reject without overflow. Generated disc prototypes use the new representation.
+- Java's `RegistryFixedCodec` accepts only registered references for saved data.
+  Reference NBT/hash values are preserved and aliases normalize, including `:cat`.
+  Inline values report persistent-codec failure rather than inventing saved data.
+  Added `try_write_data` / atomic `try_write_item_stack`; failure propagates through
+  bundles and containers. Shared inventory, jukebox and retained block-component
+  writers omit rejected values. Legacy void callers still need migration to
+  distinguish an omitted item field from an empty compound; this API does not
+  certify all component validation or error-reporting behavior.
+- Playback reads duration/comparator/event IDs from the effective component.
+  Float-to-tick conversion uses Java's ceiling and signed int overflow for the
+  twenty-tick ending grace period. A separate playing flag preserves zero and
+  negative deadlines. Reference items resume from saved elapsed ticks correctly.
+  Inline start events retain Java's unregistered-song ID of -1. No live client
+  sound/event comparison was performed.
+- `JukeboxComponentOracle` checks **35 holders**: all **22 registered songs** and
+  **13 direct holders**, including custom sounds/ranges, fractional/nonpositive
+  lengths, infinities, NaN and float overflow. Fixtures cover exact network bytes,
+  persistent codec acceptance/rejection, reference hashes, actual Java
+  `TagValueOutput` item omission, nested bundle/container failures, **175 item
+  predicate evaluations** and **210 playback boundary decisions**. Actual block
+  save/reload checks cover all registered songs and six elapsed-tick boundaries.
+- Fixed three code-generator patterns made incomplete by the earlier text fallback
+  addition; `pumpkin-codegen item` now runs successfully. Unrelated nondeterministic
+  Bedrock compound ordering from regeneration was excluded from the diff.
+- Background full six-package run 4 passed **1,082 tests**: 561 engine, 74 data,
+  23 inventory, 117 protocol, 66 utility and 241 world, with the same two previously
+  separately passing localhost tests excluded. The final targeted run passed both
+  jukebox tests, including the explicit Java `TagValueOutput` assertion added
+  after the full run.
+- Remaining: attribute component/predicate codecs; malformed lock codec fallback;
+  dynamic registry reloads; complete fallible persistence/hash plumbing and error
+  reporting; arbitrary inline sound identifier validation; raw comparator outputs
+  outside the engine's u8 interface; and live client/Bedrock integration. The other
+  D01–D06 and block gates remain open. No full mob pass was started.

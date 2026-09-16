@@ -9,7 +9,10 @@ pub fn entries(registry: &str) -> &'static [StaticRegistryEntry] {
         .map_or(&[], |registry| registry.entries)
 }
 pub fn id(registry: &str, name: &str) -> Option<i32> {
-    let name = name.strip_prefix("minecraft:").unwrap_or(name);
+    let name = name
+        .strip_prefix("minecraft:")
+        .or_else(|| name.strip_prefix(':'))
+        .unwrap_or(name);
     entries(registry)
         .iter()
         .position(|entry| entry.name == name)

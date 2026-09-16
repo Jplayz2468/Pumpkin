@@ -1069,6 +1069,7 @@ pub fn build() -> TokenStream {
             translate,
             bedrock_translate: _,
             with: _,
+            fallback: _,
         } = &*enchantment.description.0.content
         else {
             panic!()

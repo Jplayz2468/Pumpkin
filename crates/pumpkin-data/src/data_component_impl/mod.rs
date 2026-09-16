@@ -14,6 +14,10 @@ use std::any::Any;
 use std::borrow::Cow;
 
 pub trait DataComponentImpl: Send + Sync {
+    /// A persistent codec may reject an otherwise valid in-memory/network value.
+    fn try_write_data(&self) -> Option<NbtTag> {
+        Some(self.write_data())
+    }
     fn write_data(&self) -> NbtTag {
         NbtTag::End
     }

@@ -94,8 +94,9 @@ pub trait Inventory: Send + Sync + Clearable {
             if !stack.is_empty() {
                 let mut item_compound = NbtCompound::new();
                 item_compound.put_byte("Slot", i as i8);
-                stack.write_item_stack(&mut item_compound);
-                slots.push(NbtTag::Compound(item_compound));
+                if stack.try_write_item_stack(&mut item_compound) {
+                    slots.push(NbtTag::Compound(item_compound));
+                }
             }
         }
 
@@ -179,8 +180,9 @@ pub fn sync_write_items_to_nbt(items: &[ItemStack], nbt: &mut NbtCompound) {
         if !stack.is_empty() {
             let mut item_nbt = NbtCompound::new();
             item_nbt.put_byte("Slot", i as i8);
-            stack.write_item_stack(&mut item_nbt);
-            slots.push(NbtTag::Compound(item_nbt));
+            if stack.try_write_item_stack(&mut item_nbt) {
+                slots.push(NbtTag::Compound(item_nbt));
+            }
         }
     }
     if !slots.is_empty() {

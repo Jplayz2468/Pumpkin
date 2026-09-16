@@ -2721,13 +2721,77 @@ impl DataComponentCodec<Self> for OminousBottleAmplifierImpl {
 
 impl DataComponentCodec<Self> for JukeboxPlayableImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        let song_id = Sound::from_name(self.song).map_or(0, |s| s as i32);
-        seq.write_var_int(&VarInt::from(song_id))
+        match &self.song {
+            JukeboxSongValue::Reference(name) => {
+                let id = pumpkin_data::registry_reference::id("jukebox_song", name)
+                    .ok_or_else(|| WritingError::Message(format!("Unknown jukebox song {name}")))?;
+                seq.write_var_int(&VarInt(id + 1))
+            }
+            JukeboxSongValue::Inline(song) => {
+                seq.write_var_int(&VarInt(0))?;
+                match &song.sound {
+                    IdOr::Id(sound) => seq.write_var_int(&VarInt(*sound as i32 + 1))?,
+                    IdOr::Value(sound) => {
+                        seq.write_var_int(&VarInt(0))?;
+                        seq.write_string(&sound.sound_name)?;
+                        seq.write_option(&sound.range, |seq, range| seq.write_f32(*range))?;
+                    }
+                }
+                seq.write_slice(
+                    &song
+                        .description
+                        .encode_for_version(&JavaMinecraftVersion::V_26_2),
+                )?;
+                seq.write_f32(song.length_in_seconds)?;
+                seq.write_var_int(&VarInt(song.comparator_output))
+            }
+        }
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let _ = seq.get_var_int()?;
-        Ok(Self { song: "" })
+        let id = seq.get_var_int()?.0;
+        if id < 0 {
+            return Err(ReadingError::Message(
+                "Negative jukebox song holder id".into(),
+            ));
+        }
+        if id > 0 {
+            let name = pumpkin_data::registry_reference::name("jukebox_song", id - 1)
+                .ok_or_else(|| ReadingError::Message(format!("Invalid jukebox song id {id}")))?;
+            return Ok(Self {
+                song: JukeboxSongValue::Reference(name.into()),
+            });
+        }
+        let id = seq.get_var_int()?.0;
+        let sound = if id == 0 {
+            let sound_name = seq.get_str()?.to_string();
+            let range = if seq.get_bool()? {
+                Some(seq.get_f32()?)
+            } else {
+                None
+            };
+            IdOr::Value(SoundEvent::new(sound_name, range))
+        } else {
+            let sound = id
+                .checked_sub(1)
+                .and_then(|id| usize::try_from(id).ok())
+                .and_then(|id| Sound::NAMES.get(id))
+                .and_then(|name| Sound::from_name(name))
+                .ok_or_else(|| ReadingError::Message(format!("Invalid jukebox sound id {id}")))?;
+            IdOr::Id(sound)
+        };
+        let tag = seq
+            .get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?
+            .ok_or_else(|| ReadingError::Message("Missing song description".into()))?;
+        let description = pumpkin_util::text::TextComponent::try_from_nbt(&tag)
+            .ok_or_else(|| ReadingError::Message("Invalid song description".into()))?;
+        Ok(Self {
+            song: JukeboxSongValue::Inline(JukeboxSongData {
+                sound,
+                description,
+                length_in_seconds: seq.get_f32()?,
+                comparator_output: seq.get_var_int()?.0,
+            }),
+        })
     }
 }
 

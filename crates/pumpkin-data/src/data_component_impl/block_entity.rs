@@ -109,17 +109,22 @@ impl ContainerImpl {
     }
 }
 impl DataComponentImpl for ContainerImpl {
-    fn write_data(&self) -> NbtTag {
+    fn try_write_data(&self) -> Option<NbtTag> {
         let mut list = Vec::new();
         for (slot, stack) in &self.items {
+            let mut item = NbtCompound::new();
+            if !stack.try_write_item_stack(&mut item) {
+                return None;
+            }
             let mut entry = NbtCompound::new();
-            entry.put_int("slot", *slot as i32);
-            let mut item_compound = NbtCompound::new();
-            stack.write_item_stack(&mut item_compound);
-            entry.put_compound("item", item_compound);
+            entry.put_int("slot", i32::from(*slot));
+            entry.put_compound("item", item);
             list.push(NbtTag::Compound(entry));
         }
-        NbtTag::List(list)
+        Some(NbtTag::List(list))
+    }
+    fn write_data(&self) -> NbtTag {
+        self.try_write_data().unwrap_or(NbtTag::End)
     }
     default_impl!(Container);
 }
