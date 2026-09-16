@@ -429,6 +429,9 @@ impl WorldInfoWriter for AnvilLevelInfo {
         stamp_current_version(&mut level_data);
 
         // ── Write level.dat ───────────────────────────────────────────────────
+        // A brand-new world has no folder yet; creating level.dat_new inside a
+        // missing directory fails with NotFound, which maps to InfoNotFound.
+        std::fs::create_dir_all(level_folder)?;
         let path = level_folder.join(LEVEL_DAT_FILE_NAME);
         let path_new = level_folder.join("level.dat_new");
         let path_old = level_folder.join(LEVEL_DAT_BACKUP_FILE_NAME);
@@ -635,6 +638,36 @@ mod test {
                 .unwrap()
                 .get_long("Time"),
             Some(42)
+        );
+    }
+
+    #[test]
+    fn creates_the_level_folder_for_a_brand_new_world() {
+        // A first boot writes level.dat before anything creates the world folder.
+        let dir = TempDir::new().unwrap();
+        let level_folder = dir.path().join("brand_new_world");
+        assert!(!level_folder.exists());
+
+        let data = LevelData::default(Seed(262));
+        AnvilLevelInfo
+            .write_world_info(&data, &level_folder)
+            .unwrap();
+
+        assert!(level_folder.join(LEVEL_DAT_FILE_NAME).is_file());
+        assert!(level_folder.join("data/minecraft/game_rules.dat").is_file());
+        assert!(
+            level_folder
+                .join("data/minecraft/world_gen_settings.dat")
+                .is_file()
+        );
+        // The world must load back rather than being regenerated on restart.
+        assert_eq!(
+            AnvilLevelInfo
+                .read_world_info(&level_folder)
+                .unwrap()
+                .world_gen_settings
+                .seed,
+            262
         );
     }
 

@@ -1,5 +1,9 @@
 # Shared engine work — 2026-09-15
 
+For the consolidated unfinished work and survival-first priorities, see
+[SURVIVAL_PARITY_BACKLOG.md](SURVIVAL_PARITY_BACKLOG.md). Historical checkpoints below
+retain their original evidence and may contain gaps superseded by later entries.
+
 Current priority: fix block/shared-engine gaps before adding more mobs. Full mob
 passes are paused. This is an implementation checkpoint, not a 1:1 certification.
 

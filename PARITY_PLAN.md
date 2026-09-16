@@ -1,5 +1,9 @@
 # Block-first parity plan
 
+For the consolidated unfinished work and survival-first priorities, see
+[SURVIVAL_PARITY_BACKLOG.md](SURVIVAL_PARITY_BACKLOG.md). Historical checkpoints below
+retain their original evidence and may contain gaps superseded by later entries.
+
 ## Working agreement
 
 - Current user priority (2026-09-15): close block/shared-engine gaps before adding more mobs. Do not perform a full mob pass yet. Retain the item queue and reuse existing source work.
