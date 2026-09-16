@@ -58,6 +58,10 @@ pub struct Brain<A: ?Sized> {
     core_activities: Vec<Activity>,
     active_activities: Vec<Activity>,
     default_activity: Activity,
+    /// Checked every tick, highest priority first, the way vanilla mobs call
+    /// `updateActivity` from `customServerAiStep`. Without it a brain would keep whatever
+    /// activity it was built with and never switch into Fight or Panic.
+    activity_priority: Vec<Activity>,
 }
 
 impl<A: ?Sized> Brain<A> {
@@ -72,6 +76,7 @@ impl<A: ?Sized> Brain<A> {
             core_activities: Vec::new(),
             active_activities: Vec::new(),
             default_activity,
+            activity_priority: Vec::new(),
         }
     }
 
@@ -183,6 +188,13 @@ impl<A: ?Sized> Brain<A> {
         }
     }
 
+    /// The activity list re-evaluated every tick, highest priority first. This is the
+    /// species' `updateActivity` -- `FrogAi` passes tongue, lay-spawn, long-jump, swim
+    /// and idle, and the first whose requirements hold wins.
+    pub fn set_activity_priority(&mut self, activities: Vec<Activity>) {
+        self.activity_priority = activities;
+    }
+
     /// Vanilla `Brain.setActiveActivityIfPossible`, falling back to the default activity.
     pub fn set_active_activity_if_possible(&mut self, activity: Activity) {
         if self.activity_requirements_are_met(activity) {
@@ -212,6 +224,12 @@ impl<A: ?Sized> Brain<A> {
         let mut deferred = Vec::new();
         self.memories.tick();
         self.tick_sensors(actor, time);
+        // Vanilla re-picks the activity each tick, after the sensors have refreshed the
+        // memories the requirements are tested against.
+        if !self.activity_priority.is_empty() {
+            let priority = self.activity_priority.clone();
+            self.set_active_activity_to_first_valid(&priority);
+        }
         self.start_each_non_running_behavior(actor, time, rng, &mut deferred);
         self.tick_each_running_behavior(actor, time, &mut deferred);
         deferred

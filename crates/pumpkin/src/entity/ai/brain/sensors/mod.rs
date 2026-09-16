@@ -4,5 +4,6 @@
 //! Keeping the split means a behaviour never searches the world itself.
 
 pub mod hurt_by;
+pub mod is_in_water;
 pub mod nearest_players;
 pub mod temptations;

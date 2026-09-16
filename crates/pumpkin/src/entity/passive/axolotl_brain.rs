@@ -207,6 +207,12 @@ pub fn build() -> MobBrain {
     );
 
     brain.set_core_activities(vec![Activity::Core]);
+    // AxolotlAi.updateActivity.
+    brain.set_activity_priority(vec![
+        Activity::PlayDead,
+        Activity::Fight,
+        Activity::Idle,
+    ]);
     brain.set_active_activity_if_possible(Activity::Idle);
     brain
 }

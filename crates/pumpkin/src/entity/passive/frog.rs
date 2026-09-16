@@ -88,27 +88,14 @@ impl FrogEntity {
             tongue_target_id: AtomicI32::new(-1),
         };
         let mob_arc = Arc::new(frog);
-        let mob_weak: Weak<dyn Mob> = {
-            let mob_arc: Arc<dyn Mob> = mob_arc.clone();
-            Arc::downgrade(&mob_arc)
-        };
-
-        {
-            let mut goal_selector = mob_arc
-                .mob_entity
-                .goals_selector
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, Box::new(TemptGoal::new(1.0, FROG_FOOD)));
-            goal_selector.add_goal(2, Box::new(WanderAroundGoal::new(1.0)));
-            goal_selector.add_goal(
-                3,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
-            );
-            goal_selector.add_goal(4, Box::new(RandomLookAroundGoal::default()));
-        };
+        // `Frog` is a brain mob: FrogAi owns its movement, croaking, jumping, tongue and
+        // spawn-laying, so the goal selector does not run.
+        *mob_arc
+            .mob_entity
+            .brain
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some(super::frog_brain::build());
 
         mob_arc
     }
@@ -159,6 +146,15 @@ impl Mob for FrogEntity {
         if let Some(variant_str) = nbt.get_string("variant") {
             self.set_variant(FrogVariant::from_name(variant_str));
         }
+    }
+
+    /// `Frog` is a brain mob: `FrogAi` replaces the goal selector entirely.
+    fn run_goal_ai(&self) -> bool {
+        false
+    }
+
+    fn uses_brain_navigation(&self) -> bool {
+        true
     }
 
     fn get_mob_entity(&self) -> &MobEntity {

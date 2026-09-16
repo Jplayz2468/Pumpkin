@@ -16,6 +16,7 @@ pub mod dolphin;
 pub mod donkey;
 pub mod fox;
 pub mod frog;
+pub mod frog_brain;
 pub mod glow_squid;
 pub mod goat;
 pub mod happy_ghast;

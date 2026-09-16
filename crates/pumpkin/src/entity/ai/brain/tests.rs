@@ -498,6 +498,55 @@ fn generated_registries_match_the_jar_counts() {
 // `Behavior<MobActor>` and need a live world to resolve the mob, so they are
 // exercised on the server rather than in unit tests.
 
+mod activity_selection {
+    use super::*;
+    use crate::entity::ai::brain::memory::MemoryValue;
+
+    /// The bug this guards: brains used to pick an activity once at construction and
+    /// never re-pick. Every gated activity -- Fight, Panic, PlayDead -- was therefore
+    /// unreachable: the memory that unlocks it would be set, its requirements would hold,
+    /// and nothing would ever switch to it. Each piece behaved correctly on its own, so
+    /// only the composition was wrong.
+    #[test]
+    fn a_gated_activity_is_entered_once_its_memory_appears() {
+        let entries = log();
+        let mut brain: Brain<()> = Brain::new(Activity::Idle);
+        brain.register_memory(MemoryModuleType::AttackTarget);
+        brain.add_activity(
+            Activity::Idle,
+            vec![(0, BehaviorSlot::new(Box::new(Recorder::new("idle", entries.clone()))))],
+            vec![],
+            vec![],
+        );
+        brain.add_activity(
+            Activity::Fight,
+            vec![(0, BehaviorSlot::new(Box::new(Recorder::new("fight", entries.clone()))))],
+            vec![(MemoryModuleType::AttackTarget, MemoryStatus::ValuePresent)],
+            vec![],
+        );
+        brain.set_activity_priority(vec![Activity::Fight, Activity::Idle]);
+        brain.set_active_activity_if_possible(Activity::Idle);
+
+        let mut rng = |_: i32| 0;
+        brain.tick(&(), 0, &mut rng);
+        assert!(
+            entries.lock().unwrap().iter().any(|e| e.starts_with("idle:")),
+            "with no target the brain should be idle"
+        );
+
+        entries.lock().unwrap().clear();
+        brain
+            .memories_mut()
+            .set(MemoryModuleType::AttackTarget, MemoryValue::EntityId(1));
+        brain.tick(&(), 1, &mut rng);
+
+        assert!(
+            entries.lock().unwrap().iter().any(|e| e.starts_with("fight:")),
+            "the brain must switch to Fight the tick its memory appears"
+        );
+    }
+}
+
 mod deferred {
     use super::*;
     use crate::entity::ai::brain::behavior::DeferredWrite;

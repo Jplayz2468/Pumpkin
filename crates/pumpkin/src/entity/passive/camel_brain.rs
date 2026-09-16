@@ -148,6 +148,8 @@ pub fn build() -> MobBrain {
     );
 
     brain.set_core_activities(vec![Activity::Core]);
+    // CamelAi.updateActivity passes only IDLE.
+    brain.set_activity_priority(vec![Activity::Idle]);
     brain.set_active_activity_if_possible(Activity::Idle);
     brain
 }
