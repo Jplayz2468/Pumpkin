@@ -16,6 +16,8 @@ use std::fmt::Write;
 use std::sync::LazyLock;
 use style::Style;
 
+pub mod argument;
+pub use argument::TextArgument;
 pub mod click;
 pub mod color;
 pub mod hover;
@@ -79,6 +81,14 @@ impl Serialize for TextComponent {
     }
 }
 
+fn deserialize_fallback<'de, D: Deserializer<'de>>(
+    d: D,
+) -> Result<Option<Cow<'static, str>>, D::Error> {
+    Ok(serde_json::Value::deserialize(d)?
+        .as_str()
+        .map(|s| Cow::Owned(s.to_owned())))
+}
+
 fn deserialize_component_list<'de, D: Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Vec<TextComponentBase>, D::Error> {
@@ -125,15 +135,17 @@ impl TextComponentBase {
                 compound.put_string("text", text.to_string());
             }
             TextContent::Translate {
-                translate, with, ..
+                translate,
+                with,
+                fallback,
+                ..
             } => {
                 compound.put_string("translate", translate.to_string());
+                if let Some(fallback) = fallback {
+                    compound.put_string("fallback", fallback.to_string());
+                }
                 if !with.is_empty() {
-                    let list = with
-                        .iter()
-                        .map(|w| w.to_nbt_tag_for_version(version))
-                        .collect();
-                    compound.put_list("with", list);
+                    compound.put("with", argument::list_to_nbt(with, version));
                 }
             }
             TextContent::EntityNames {
@@ -456,12 +468,21 @@ impl TextComponentBase {
                 );
             }
             TextContent::Translate {
-                translate, with, ..
+                translate,
+                with,
+                fallback,
+                ..
             } => {
                 map.insert(
                     "translate".to_string(),
                     serde_json::Value::String(translate.to_string()),
                 );
+                if let Some(fallback) = fallback {
+                    map.insert(
+                        "fallback".into(),
+                        serde_json::Value::String(fallback.to_string()),
+                    );
+                }
                 if !with.is_empty() {
                     let list: Vec<serde_json::Value> = with
                         .iter()
@@ -1001,11 +1022,18 @@ impl TextComponentBase {
             TextContent::Text { text } => text.into_owned(),
             TextContent::Translate {
                 translate,
-                bedrock_translate,
+                bedrock_translate: _,
+                fallback,
                 with,
             } => {
-                let key = bedrock_translate.as_ref().unwrap_or(&translate);
-                translation_to_pretty(format!("minecraft:{key}"), Locale::EnUs, with)
+                let key = &translate;
+                crate::translation::resolve_java_translation(
+                    key,
+                    fallback.as_deref(),
+                    Locale::EnUs,
+                    &with,
+                    true,
+                )
             }
             TextContent::EntityNames {
                 selector,
@@ -1060,6 +1088,7 @@ impl TextComponentBase {
                 translate,
                 bedrock_translate,
                 with: _,
+                ..
             } => {
                 let key = bedrock_translate.as_deref().unwrap_or(translate.as_ref());
                 let _ = write!(text, "%{key}");
@@ -1124,10 +1153,17 @@ impl TextComponentBase {
             TextContent::Translate {
                 translate,
                 bedrock_translate,
+                fallback,
                 with,
             } => {
                 let key = bedrock_translate.as_ref().unwrap_or(translate);
-                text.push_str(&get_translation_text(key.to_string(), locale, with.clone()));
+                text.push_str(&crate::translation::resolve_component_translation(
+                    key,
+                    fallback.as_deref(),
+                    locale,
+                    with,
+                    false,
+                ));
             }
             TextContent::EntityNames { selector, .. } => text.push_str(selector),
             TextContent::Keybind { keybind } => text.push_str(keybind),
@@ -1165,11 +1201,18 @@ impl TextComponentBase {
             TextContent::Text { text } => text.into_owned(),
             TextContent::Translate {
                 translate,
-                bedrock_translate,
+                bedrock_translate: _,
+                fallback,
                 with,
             } => {
-                let key = bedrock_translate.as_ref().unwrap_or(&translate);
-                get_translation_text(format!("minecraft:{key}"), locale, with)
+                let key = &translate;
+                crate::translation::resolve_java_translation(
+                    key,
+                    fallback.as_deref(),
+                    locale,
+                    &with,
+                    false,
+                )
             }
             TextContent::EntityNames {
                 selector,
@@ -1243,6 +1286,7 @@ impl TextComponentBase {
             TextContent::Translate {
                 translate,
                 bedrock_translate,
+                fallback,
                 with,
             } => {
                 let mut translated_with = vec![];
@@ -1253,6 +1297,7 @@ impl TextComponentBase {
                     content: Box::new(TextContent::Translate {
                         translate,
                         bedrock_translate,
+                        fallback,
                         with: translated_with,
                     }),
                     style: self.style,
@@ -1341,7 +1386,31 @@ impl TextComponent {
     /// Parses a text component from its NBT representation
     #[must_use]
     pub fn from_nbt(tag: &pumpkin_nbt::tag::NbtTag) -> Self {
-        serde_json::from_value(nbt_tag_to_json(tag)).unwrap_or_else(|_| Self::empty())
+        use pumpkin_nbt::tag::NbtTag;
+        if let NbtTag::List(list) = tag {
+            let Some(first) = list.first() else {
+                return Self::empty();
+            };
+            let mut component = Self::from_nbt(first);
+            component
+                .0
+                .extra
+                .extend(list.iter().skip(1).map(|v| Self::from_nbt(v).0));
+            return component;
+        }
+        let mut component: Self =
+            serde_json::from_value(nbt_tag_to_json(tag)).unwrap_or_else(|_| Self::empty());
+        if let NbtTag::Compound(tag) = tag {
+            if let TextContent::Translate { with, .. } = component.0.content.as_mut()
+                && let Some(args) = tag.get("with").and_then(argument::list_from_nbt)
+            {
+                *with = args;
+            }
+            if let Some(NbtTag::List(extra)) = tag.get("extra") {
+                component.0.extra = extra.iter().map(|v| Self::from_nbt(v).0).collect();
+            }
+        }
+        component
     }
 
     /// Creates a new text component with plain text content.
@@ -1378,7 +1447,12 @@ impl TextComponent {
             content: Box::new(TextContent::Translate {
                 translate: key.into(),
                 bedrock_translate: None,
-                with: with.into().into_iter().map(|x| x.0).collect(),
+                fallback: None,
+                with: with
+                    .into()
+                    .into_iter()
+                    .map(|x| TextArgument::Component(x.0))
+                    .collect(),
             }),
             style: Box::new(Style::default()),
             extra: vec![],
@@ -1412,7 +1486,12 @@ impl TextComponent {
             content: Box::new(TextContent::Translate {
                 translate: java_key.into(),
                 bedrock_translate: Some(bedrock_key.into()),
-                with: with.into().into_iter().map(|x| x.0).collect(),
+                fallback: None,
+                with: with
+                    .into()
+                    .into_iter()
+                    .map(|x| TextArgument::Component(x.0))
+                    .collect(),
             }),
             style: Box::new(Style::default()),
             extra: vec![],
@@ -2039,13 +2118,15 @@ pub enum TextContent {
         /// Bedrock translation key. If specified, Bedrock clients receive an `SText::translation` packet.
         #[serde(skip, default)]
         bedrock_translate: Option<Cow<'static, str>>,
-        /// Substitution parameters for the translation.
         #[serde(
             default,
-            skip_serializing_if = "Vec::is_empty",
-            deserialize_with = "deserialize_component_list"
+            skip_serializing_if = "Option::is_none",
+            deserialize_with = "deserialize_fallback"
         )]
-        with: Vec<TextComponentBase>,
+        fallback: Option<Cow<'static, str>>,
+        /// Substitution parameters for the translation.
+        #[serde(default, skip_serializing_if = "Vec::is_empty")]
+        with: Vec<TextArgument>,
     },
     /// Displays the name of one or more entities found by a selector.
     EntityNames {

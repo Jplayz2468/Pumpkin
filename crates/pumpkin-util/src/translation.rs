@@ -679,3 +679,102 @@ impl FromStr for Locale {
         }
     }
 }
+
+/// Java TranslatableContents: invalid formats or argument indexes render the
+/// entire original template. Explicit indexes do not advance the implicit index.
+pub fn format_component_translation(
+    template: &str,
+    args: &[crate::text::TextArgument],
+    locale: Locale,
+    pretty: bool,
+) -> String {
+    fn render(
+        template: &str,
+        args: &[crate::text::TextArgument],
+        locale: Locale,
+        pretty: bool,
+    ) -> Option<String> {
+        let bytes = template.as_bytes();
+        let mut cursor = 0;
+        let mut implicit = 0;
+        let mut result = String::new();
+        while let Some(offset) = template[cursor..].find('%') {
+            let start = cursor + offset;
+            result.push_str(&template[cursor..start]);
+            let mut end = start + 1;
+            if bytes.get(end) == Some(&b'%') {
+                result.push('%');
+                cursor = end + 1;
+                continue;
+            }
+            let digits = end;
+            while bytes.get(end).is_some_and(u8::is_ascii_digit) {
+                end += 1;
+            }
+            let index = if end > digits {
+                if bytes.get(end) != Some(&b'$') {
+                    return None;
+                }
+                let n = template[digits..end].parse::<i32>().ok()?.checked_sub(1)?;
+                end += 1;
+                usize::try_from(n).ok()?
+            } else {
+                let n = implicit;
+                implicit += 1;
+                n
+            };
+            if bytes.get(end) != Some(&b's') {
+                return None;
+            }
+            let arg = args.get(index)?.component();
+            result.push_str(&if pretty {
+                arg.to_pretty_console()
+            } else {
+                arg.get_text(locale)
+            });
+            cursor = end + 1;
+        }
+        result.push_str(&template[cursor..]);
+        Some(result)
+    }
+    render(template, args, locale, pretty).unwrap_or_else(|| template.to_owned())
+}
+
+/// Server-side Java text uses the canonical, case-sensitive Java language keys.
+/// Keep it separate from the combined Java/Bedrock translation catalog.
+pub fn resolve_java_translation(
+    key: &str,
+    fallback: Option<&str>,
+    locale: Locale,
+    args: &[crate::text::TextArgument],
+    pretty: bool,
+) -> String {
+    static LANGUAGE: LazyLock<HashMap<String, String>> = LazyLock::new(|| {
+        serde_json::from_str(VANILLA_EN_US_JSON).expect("canonical Java language")
+    });
+    let template = LANGUAGE
+        .get(key)
+        .map(String::as_str)
+        .unwrap_or_else(|| fallback.unwrap_or(key));
+    format_component_translation(template, args, locale, pretty)
+}
+
+pub fn resolve_component_translation(
+    key: &str,
+    fallback: Option<&str>,
+    locale: Locale,
+    args: &[crate::text::TextArgument],
+    pretty: bool,
+) -> String {
+    let lookup = format!("minecraft:{key}").to_lowercase();
+    let template = {
+        let translations = TRANSLATIONS
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        translations[locale as usize]
+            .get(&lookup)
+            .or_else(|| translations[Locale::EnUs as usize].get(&lookup))
+            .map_or_else(|| fallback.unwrap_or(key).to_owned(), Clone::clone)
+    };
+    format_component_translation(&template, args, locale, pretty)
+}

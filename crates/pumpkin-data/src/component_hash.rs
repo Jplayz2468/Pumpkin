@@ -1,8 +1,8 @@
 //! CRC32C HashOps primitives used by Java's component codecs.
 use crate::data_component_impl::{get_i32_hash, get_str_hash};
 use crc_fast::{CrcAlgorithm::Crc32Iscsi, Digest};
-use pumpkin_util::{text::TextComponent, version::JavaMinecraftVersion};
 use pumpkin_util::serde_json::Value;
+use pumpkin_util::{text::TextComponent, version::JavaMinecraftVersion};
 
 fn digest(bytes: &[u8]) -> u32 {
     let mut digest = Digest::new(Crc32Iscsi);
@@ -46,9 +46,59 @@ pub fn json(value: &Value) -> u32 {
     }
 }
 pub fn text(value: &TextComponent) -> u32 {
-    json(
-        &value
-            .0
-            .to_json_value_for_version(&JavaMinecraftVersion::V_26_2),
-    )
+    text_base(&value.0)
+}
+fn argument(value: &pumpkin_util::text::TextArgument) -> u32 {
+    use pumpkin_util::text::TextArgument as A;
+    let mut bytes = Vec::new();
+    match value {
+        A::Component(v) => return text_base(v),
+        A::Boolean(v) => bytes.extend([13, u8::from(*v)]),
+        A::Byte(v) => bytes.extend([6, *v as u8]),
+        A::Short(v) => {
+            bytes.push(7);
+            bytes.extend(v.to_le_bytes());
+        }
+        A::Int(v) => {
+            bytes.push(8);
+            bytes.extend(v.to_le_bytes());
+        }
+        A::Long(v) => {
+            bytes.push(9);
+            bytes.extend(v.to_le_bytes());
+        }
+        A::Float(v) => {
+            bytes.push(10);
+            bytes.extend(v.to_le_bytes());
+        }
+        A::Double(v) => {
+            bytes.push(11);
+            bytes.extend(v.to_le_bytes());
+        }
+    }
+    digest(&bytes)
+}
+fn text_base(value: &pumpkin_util::text::TextComponentBase) -> u32 {
+    use pumpkin_util::text::TextContent;
+    let encoded = value.to_json_value_for_version(&JavaMinecraftVersion::V_26_2);
+    let Value::Object(fields) = encoded else {
+        return json(&encoded);
+    };
+    map(fields
+        .iter()
+        .map(|(key, encoded)| {
+            let hash = match key.as_str() {
+                "with" => {
+                    if let TextContent::Translate { with, .. } = value.content.as_ref() {
+                        list(with.iter().map(argument))
+                    } else {
+                        json(encoded)
+                    }
+                }
+                "extra" => list(value.extra.iter().map(text_base)),
+                _ => json(encoded),
+            };
+            (get_str_hash(key), hash)
+        })
+        .collect())
 }

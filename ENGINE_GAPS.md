@@ -1189,3 +1189,36 @@ whole inside-effect pipeline matches Java yet.
 - This is not full component-codec or engine certification: remaining stub codecs,
   exploration maps, dynamic registries/context producers, text forms, locks and
   live client/gameplay integration remain open. No full mob pass was started.
+
+## Translation argument and fallback continuation
+
+- Translation arguments retain booleans and all six Java/NBT numeric widths instead
+  of requiring every argument to be a text component. JSON, saved/network NBT and
+  component hashes preserve the appropriate representations, including arguments
+  nested in translations and siblings. Java's boolean-to-byte change during NBT
+  round trips is represented explicitly rather than coerced back into a boolean.
+- Translation fallback text is retained and used for missing keys. Invalid fallback
+  values are ignored as in Java's lenient codec. Server-side Java rendering now
+  uses canonical, case-sensitive Java language keys; Bedrock's combined catalog
+  does not override Java messages. Bedrock packet arguments handle primitives.
+- Shared Java translation rendering implements implicit/indexed `%s`, literal `%%`,
+  and whole-template fallback on unsupported formats, missing arguments, overflow
+  or invalid indexes. Malformed translations no longer index past the argument
+  vector in this path. The older custom Pumpkin translation formatter is separate.
+- `TextArgumentOracle` supplies **69 actual Java cases** for JSON, typed NBT,
+  CRC32C hashes and rendered output: primitive widths, booleans, nested arguments,
+  fallback keys/case sensitivity, malformed formats and numeric boundary values.
+- Final background run 6 passed **1,062 tests** across all six packages (545 engine,
+  73 data, 23 inventory, 114 protocol, 66 utility, 241 world), including the final
+  case-sensitive Java-language refinement. The same two previously separately
+  passing localhost tests were excluded.
+- Still open: entity-resolved selectors/NBT/score text, other unsupported text and
+  hover forms, complete component hashes, live older-client/Bedrock behavior and
+  the remaining engine/block gates. No mob pass was started.
+- Lock audit: Java 26.2 uses `LockCode`/`ItemPredicate`, exact component matchers and
+  15 specialized partial predicate types, plus presence checks. Pumpkin’s lock
+  item component retains raw predicate NBT, but shared container-open evaluation
+  is missing. Completion requires
+  the shared matcher layer, lock persistence/implicit components across container
+  families, both halves of double chests, spectator bypass and denial feedback.
+  That dependency remains open; it has not been replaced with a name-only lock.

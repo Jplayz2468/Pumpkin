@@ -1115,11 +1115,12 @@ impl World {
                 translate,
                 bedrock_translate,
                 with,
+                ..
             } => {
                 let key = bedrock_translate.as_deref().unwrap_or(translate.as_ref());
                 let parameters = with
                     .iter()
-                    .map(pumpkin_util::text::TextComponentBase::to_bedrock_string)
+                    .map(pumpkin_util::text::TextArgument::to_bedrock_string)
                     .collect();
                 SText::translation(key.to_string(), parameters)
             }
@@ -8526,3 +8527,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "text_argument_tests.rs"]
+mod text_argument_tests;

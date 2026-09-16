@@ -382,3 +382,23 @@ Registry-reference network bytes compare exactly; inline text compounds compare
 semantically because key order may differ. Nested ItemStackTemplate fixtures
 normalize omitted default count/components for comparison. These fixtures do not
 certify every component codec, registry reloads, live menus or full mob behavior.
+
+### Translation arguments and fallback rendering
+
+`TextArgumentOracle.java` compares Java's actual component codec, HashOps and
+`Component.getString()`. Its 69 cases cover string/styled/boolean/numeric arguments,
+all six NBT number widths, nested translations/siblings, lenient fallback values,
+case-sensitive language keys, implicit/indexed/escaped percent formatting,
+missing/invalid/overflow indexes and finite numeric boundaries.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/TextArgumentOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' TextArgumentOracle
+```
+
+Fixtures record both direct JSON decoding and the state after a Java NBT round
+trip. Boolean arguments become byte numbers in that round trip, changing their
+hash and rendered output; tests compare the respective Java states. NBT number
+widths remain distinct even when their JSON values appear equal. The fixture does
+not cover entity resolution, every hover/text form, all floating-point bit patterns
+or live clients. Full engine/block parity remains a separate integration gate.

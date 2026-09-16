@@ -523,3 +523,12 @@ prototype normalization match 828 Java cases. Trim wire/NBT/hash handling matche
 previously separately passing socket tests excluded. Broader component codecs,
 locks, reloads, live integration and other ENGINE_GAPS.md gates remain open.
 Full mob passes remain paused.
+
+### Translation argument / fallback checkpoint
+
+Shared text handling preserves primitive argument types, fallback text and typed
+NBT/hash values. Java rendering uses case-sensitive Java keys and safely handles
+indexed/invalid formats. The Java oracle covers 69 cases. Final background run 6
+passed 1,062 tests with the established two socket-test exclusions. Container lock predicates
+and remaining text/context/lifecycle integration remain open. Full mob passes
+remain paused.

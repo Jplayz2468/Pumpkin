@@ -269,12 +269,15 @@ impl TextComponent {
             TextContent::Translate {
                 translate,
                 bedrock_translate: _,
+                fallback,
                 with,
             } => {
-                text.push_str(&get_translation_text(
-                    format!("minecraft:{translate}"),
+                text.push_str(&crate::translation::resolve_java_translation(
+                    translate,
+                    fallback.as_deref(),
                     locale,
-                    with.clone(),
+                    with,
+                    false,
                 ));
             }
             TextContent::EntityNames { selector, .. } => text.push_str(selector),
