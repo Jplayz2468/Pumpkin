@@ -2737,15 +2737,28 @@ impl DataComponentCodec<Self> for BaseColorImpl {
 
 impl DataComponentCodec<Self> for PotDecorationsImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_var_int(&VarInt(0))
+        seq.write_var_int(&VarInt(4))?;
+        for id in self.sherds {
+            seq.write_var_int(&VarInt(i32::from(id)))?;
+        }
+        Ok(())
     }
 
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let len = seq.get_var_int()?.0 as usize;
-        for _ in 0..len {
-            let _ = seq.get_var_int()?;
+        let len = seq.get_var_int()?.0;
+        if !(0..=4).contains(&len) {
+            return Err(ReadingError::Message("Invalid pot decoration count".into()));
         }
-        Ok(Self)
+        let mut result = Self::EMPTY;
+        for slot in 0..len as usize {
+            let id = u16::try_from(seq.get_var_int()?.0)
+                .map_err(|_| ReadingError::Message("Invalid pot decoration item id".into()))?;
+            if pumpkin_data::item::Item::from_id(id).is_none() {
+                return Err(ReadingError::Message("Unknown pot decoration item".into()));
+            }
+            result.sherds[slot] = id;
+        }
+        Ok(result)
     }
 }
 

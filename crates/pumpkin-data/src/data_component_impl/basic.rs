@@ -524,14 +524,45 @@ impl DataComponentImpl for BannerPatternsImpl {
     default_impl!(BannerPatterns);
 }
 
+/// Back, left, right and front decorations, with brick representing an undecorated side.
 #[derive(Clone, Debug, Hash, PartialEq, Eq)]
-pub struct PotDecorationsImpl;
+pub struct PotDecorationsImpl {
+    pub sherds: [u16; 4],
+}
 impl PotDecorationsImpl {
-    pub const fn read_data(_data: &NbtTag) -> Option<Self> {
-        Some(Self)
+    pub const EMPTY: Self = Self {
+        sherds: [crate::item::Item::BRICK.id; 4],
+    };
+
+    pub fn read_data(data: &NbtTag) -> Option<Self> {
+        let NbtTag::List(items) = data else {
+            return None;
+        };
+        if items.len() > 4 {
+            return None;
+        }
+        let mut result = Self::EMPTY;
+        for (slot, item) in items.iter().enumerate() {
+            let NbtTag::String(name) = item else {
+                return None;
+            };
+            result.sherds[slot] = crate::item::Item::from_registry_key(name)?.id;
+        }
+        Some(result)
     }
 }
 impl DataComponentImpl for PotDecorationsImpl {
+    fn write_data(&self) -> NbtTag {
+        NbtTag::List(
+            self.sherds
+                .iter()
+                .map(|id| {
+                    let item = crate::item::Item::from_id(*id).unwrap_or(&crate::item::Item::BRICK);
+                    NbtTag::String(item.registry_key.to_string())
+                })
+                .collect(),
+        )
+    }
     default_impl!(PotDecorations);
 }
 

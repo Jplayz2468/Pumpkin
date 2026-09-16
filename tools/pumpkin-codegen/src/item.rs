@@ -925,8 +925,27 @@ impl ToTokens for ItemComponents {
                 }),
             });
         }
-        if self.pot_decorations.is_some() {
-            tokens.extend(quote! { (PotDecorations, &PotDecorationsImpl), });
+        if let Some(decorations) = &self.pot_decorations {
+            let decorations = decorations
+                .as_array()
+                .expect("pot decorations must be a list");
+            assert!(decorations.len() <= 4, "at most four pot decorations");
+            let sherds = (0..4).map(|slot| {
+                let name = decorations
+                    .get(slot)
+                    .and_then(serde_json::Value::as_str)
+                    .unwrap_or("minecraft:brick");
+                let item = format_ident!(
+                    "{}",
+                    name.strip_prefix("minecraft:")
+                        .unwrap_or(name)
+                        .to_shouty_snake_case()
+                );
+                quote! { Self::#item.id }
+            });
+            tokens.extend(
+                quote! { (PotDecorations, &PotDecorationsImpl { sherds: [#(#sherds),*] }), },
+            );
         }
         if self.potion_contents.is_some() {
             tokens.extend(quote! {

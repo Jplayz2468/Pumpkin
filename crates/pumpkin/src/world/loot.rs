@@ -320,7 +320,21 @@ pub fn fill_chest_inventory(
     table: &LootTable,
     seed: i64,
 ) {
-    let mut items_to_place = generate_loot(table, seed);
+    fill_inventory_with_context(
+        inventory.as_ref(),
+        table,
+        seed,
+        &LootContextParameters::default(),
+    );
+}
+
+pub fn fill_inventory_with_context(
+    inventory: &dyn pumpkin_inventory::Inventory,
+    table: &LootTable,
+    seed: i64,
+    context: &LootContextParameters,
+) {
+    let mut items_to_place = generate_loot_with_context(table, seed, context);
 
     if items_to_place.is_empty() {
         return;

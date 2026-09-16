@@ -22038,7 +22038,12 @@ impl Item {
                 },
             ),
             (Lore, &LoreImpl { lines: Vec::new() }),
-            (PotDecorations, &PotDecorationsImpl),
+            (
+                PotDecorations,
+                &PotDecorationsImpl {
+                    sherds: [Self::BRICK.id, Self::BRICK.id, Self::BRICK.id, Self::BRICK.id],
+                },
+            ),
             (
                 Rarity,
                 &RarityImpl {

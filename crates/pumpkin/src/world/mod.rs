@@ -6015,6 +6015,15 @@ impl World {
             });
         }
 
+        // playerWillDestroy may change properties (for example cracking a pot).
+        // Loot, break effects and replacement fluid must see that resulting state.
+        let current = self.get_block_state(position);
+        let broken_block_state = if current.id.to_block() == broken_block {
+            current
+        } else {
+            broken_block_state
+        };
+
         // Keep the old hive available after set_block_state removes its live BE.
         let mined_hive =
             if cause.is_some() && matches!(broken_block.id, BlockId::BEEHIVE | BlockId::BEE_NEST) {

@@ -768,3 +768,28 @@ so they must not be used to reconstruct audit completion.
 - No compilation/tests. Shared loot component collection/pick-block handling,
   generic automation transactions and item/drop initialization are still open;
   this source pass is not a declaration of complete block or item parity.
+
+## Continued source port: decorated pots and decoration components
+
+- Decorated pots face the player's placement direction, preserve source water,
+  schedule water ticks and retain their automatically created block entity.
+  Insertion compares item components, respects creative materials, awards the item
+  stat, wobbles, bends sound pitch by fullness, sends dust and emits BLOCK_CHANGE.
+  Failed/empty-hand use has the source fallback and negative wobble ordering.
+- Pot inventory is now available to automation, persists dirty/comparator state,
+  and scatters its contents during pre-removal. Assigned loot table/seed survives
+  NBT and unpacks on access through the existing container-loot engine; unassigned
+  pots stay empty. Full loot-function/random-sequence parity remains outstanding.
+- Tool/tag checks and eligible projectiles crack pots before destruction. Shared
+  player destruction now reads property changes made by playerWillDestroy before
+  evaluating loot. Removed the unconditional extra four bricks/shatter callback.
+  The built-in dynamic sherd alternative drops the four actual decorations when
+  cracked; intact pots copy decorations and spill contents separately.
+- Pot decoration components now retain four ordered item IDs, read/write NBT, and
+  serialize/validate their bounded network list. Updated the generator and its
+  checked-in default by hand without running code generation. Placement restores
+  decoration/container components; saves and drops preserve decorated sides.
+- Source review/rustfmt/diff checks only, no builds or tests. Generic dynamic loot
+  suppliers/custom tables, component hashes and protocol-version remapping,
+  pick-block/crafting component propagation, loot RNG and precise generic callback
+  ordering remain open. All-block/all-item parity is still incomplete.

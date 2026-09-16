@@ -574,13 +574,46 @@ fn drop_loot_inner(
     let key = format!("minecraft:blocks/{}", block.name);
     if let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(&key) {
         let seed: i64 = rand::random();
-        let mut items = crate::world::loot::generate_loot_with_context(loot_table, seed, params);
+        let mut items = if block == &Block::DECORATED_POT {
+            // This table's alternatives contain a dynamic sherd supplier, which
+            // the flat loot representation cannot express. Preserve its exact
+            // built-in alternatives while sharing the normal drop/plugin path.
+            let cracked = params.block_state.is_some_and(|state| {
+                pumpkin_data::block_properties::DecoratedPotLikeProperties::from_state_id(state.id)
+                    .cracked
+            });
+            if cracked {
+                world
+                    .get_block_entity(pos)
+                    .and_then(|entity| {
+                        entity
+                            .as_any()
+                            .downcast_ref::<entities::decorated_pot::DecoratedPotBlockEntity>()
+                            .map(|pot| {
+                                pot.decorations()
+                                    .sherds
+                                    .into_iter()
+                                    .filter_map(pumpkin_data::item::Item::from_id)
+                                    .map(|item| ItemStack::new(1, item))
+                                    .collect()
+                            })
+                    })
+                    .unwrap_or_default()
+            } else {
+                vec![ItemStack::new(1, &pumpkin_data::item::Item::DECORATED_POT)]
+            }
+        } else {
+            crate::world::loot::generate_loot_with_context(loot_table, seed, params)
+        };
         // Java applies the `copy_components` loot function with the
         // `block_entity` source here, while the block entity is still present.
         // Only the stack for this block itself receives them.
         if let Some(block_entity) = world.get_block_entity(pos) {
             for stack in &mut items {
-                if Block::from_item_id(stack.item.id) == Some(block) && (!is_hive || has_silk_touch)
+                if Block::from_item_id(stack.item.id) == Some(block)
+                    && (!is_hive || has_silk_touch)
+                    && !(block == &Block::DECORATED_POT && params.block_state.is_some_and(|state|
+                        pumpkin_data::block_properties::DecoratedPotLikeProperties::from_state_id(state.id).cracked))
                 {
                     block_entity.write_dropped_stack_components(stack);
                     // Both hive loot tables copy bees and honey only on their
