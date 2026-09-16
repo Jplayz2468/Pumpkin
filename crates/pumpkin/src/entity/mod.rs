@@ -1,5 +1,6 @@
 pub mod baby_dimensions;
 mod inside_blocks;
+mod climbing;
 pub mod inside_effects;
 pub(crate) mod support;
 mod baby_dimensions_data;

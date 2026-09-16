@@ -1,5 +1,6 @@
 use crate::entity::EntityBase;
-use pumpkin_data::block_properties::{PistonHeadLikeProperties, StickyPistonLikeProperties};
+use crate::entity::ai::control::collision_shapes::{Box3, VoxelShape};
+use pumpkin_data::block_properties::{PistonHeadLikeProperties, PistonType, StickyPistonLikeProperties};
 use std::sync::atomic::Ordering;
 use std::{cell::Cell, sync::Arc};
 
@@ -81,25 +82,30 @@ impl PistonBlockEntity {
 
     /// Collision boxes relative to the moving-piston cell, including its stationary
     /// base during retraction. Only the moving piece is suppressed while it pushes.
-    pub(crate) fn collision_boxes(&self) -> Vec<BoundingBox> {
+    pub(crate) fn collision_shape(&self) -> VoxelShape {
         let progress = self.current_progress.load();
-        let mut boxes = Vec::new();
+        let state_shape = |state: &'static BlockState| VoxelShape {
+            boxes: state
+                .get_block_collision_shapes_at(&self.position)
+                .map(|b| Box3 {
+                    min: [b.min.x, b.min.y, b.min.z],
+                    max: [b.max.x, b.max.y, b.max.z],
+                })
+                .collect(),
+            coordinates: state.collision_coordinates_at(&self.position),
+        };
+        let mut base = VoxelShape::from_boxes(Vec::new());
         if !self.extending && self.source {
             let block = self.pushed_block_state.id.to_block();
             if block == &Block::PISTON || block == &Block::STICKY_PISTON {
                 let mut props =
                     StickyPistonLikeProperties::from_state_id(self.pushed_block_state.id);
                 props.extended = true;
-                boxes.extend(
-                    props
-                        .to_state_id(block)
-                        .to_state()
-                        .get_block_collision_shapes_at(&self.position),
-                );
+                base = state_shape(props.to_state_id(block).to_state());
             }
         }
         if progress < 1.0 && NOCLIP.get() == Some(self.movement_direction()) {
-            return boxes;
+            return base;
         }
         let state = if self.source {
             self.head_state(self.extending != (1.0 - progress < 0.25))
@@ -107,16 +113,51 @@ impl PistonBlockEntity {
             self.pushed_block_state
         };
         let shift = Self::dir_vec(self.facing, f64::from(self.amount_extended(progress)));
-        boxes.extend(
-            state
-                .get_block_collision_shapes_at(&self.position)
-                .map(|b| b.shift(shift)),
-        );
-        boxes
+        base.union(state_shape(state).translated([shift.x, shift.y, shift.z]))
+    }
+
+    pub(crate) fn collision_boxes(&self) -> Vec<BoundingBox> {
+        self.collision_shape()
+            .boxes
+            .into_iter()
+            .map(|b| BoundingBox::new_array(b.min, b.max))
+            .collect()
+    }
+
+    fn collision_related_state(&self, progress: f32) -> &'static BlockState {
+        let block = self.pushed_block_state.id.to_block();
+        if !self.extending
+            && self.source
+            && (block == &Block::PISTON || block == &Block::STICKY_PISTON)
+        {
+            let base = StickyPistonLikeProperties::from_state_id(self.pushed_block_state.id);
+            let mut head = PistonHeadLikeProperties::default(&Block::PISTON_HEAD);
+            head.facing = base.facing;
+            head.short = progress > 0.25;
+            head.r#type = if block == &Block::STICKY_PISTON {
+                PistonType::Sticky
+            } else {
+                PistonType::Normal
+            };
+            head.to_state_id(&Block::PISTON_HEAD).to_state()
+        } else {
+            self.pushed_block_state
+        }
     }
 
     fn ignores_piston(entity: &dyn EntityBase) -> bool {
-        entity.get_entity().is_removed()
+        let base = entity.get_entity();
+        base.is_removed()
+            || matches!(
+                base.entity_type.resource_name,
+                "area_effect_cloud"
+                    | "block_display"
+                    | "item_display"
+                    | "text_display"
+                    | "interaction"
+                    | "marker"
+                    | "ominous_item_spawner"
+            )
             || entity
                 .cast_any()
                 .downcast_ref::<crate::entity::decoration::armor_stand::ArmorStandEntity>()
@@ -163,11 +204,7 @@ impl PistonBlockEntity {
         let direction = self.movement_direction();
         let shift = self.position.to_f64()
             + Self::dir_vec(self.facing, f64::from(self.amount_extended(last)));
-        let state = if !self.extending && self.source {
-            self.head_state(last > 0.25)
-        } else {
-            self.pushed_block_state
-        };
+        let state = self.collision_related_state(last);
         let boxes: Vec<_> = state
             .get_block_collision_shapes_at(&self.position)
             .map(|b| b.shift(shift))
@@ -529,6 +566,90 @@ impl BlockEntity for PistonBlockEntity {
 #[cfg(test)]
 mod block_state_nbt_tests {
     use super::*;
+
+    #[test]
+    fn retraction_push_shape_uses_moved_base_facing_and_type() {
+        let state = Block::STICKY_PISTON
+            .from_properties(&[("facing", "west")])
+            .to_state_id(&Block::STICKY_PISTON)
+            .to_state();
+        let mut piston = PistonBlockEntity {
+            position: BlockPos::new(0, 0, 0),
+            pushed_block_state: state,
+            facing: BlockDirection::East,
+            current_progress: 0.5.into(),
+            last_progress: 0.0.into(),
+            extending: false,
+            source: true,
+            last_ticked: 0.into(),
+        };
+        let head = PistonHeadLikeProperties::from_state_id(piston.collision_related_state(0.5).id);
+        assert_eq!(head.facing, BlockDirection::West.to_facing());
+        assert_eq!(head.r#type, PistonType::Sticky);
+        assert!(head.short);
+        assert!(
+            !PistonHeadLikeProperties::from_state_id(piston.collision_related_state(0.25).id).short
+        );
+        piston.pushed_block_state = &Block::STONE.default_state;
+        assert_eq!(
+            piston.collision_related_state(0.5).id,
+            Block::STONE.default_state.id
+        );
+    }
+
+    #[test]
+    fn dynamic_collision_shapes_match_java() {
+        let cases: Vec<(u16, String, bool, bool, f32, bool, u64)> =
+            serde_json::from_str(include_str!("piston_collision_cases.json")).unwrap();
+        for (id, direction, extending, source, progress, noclip, expected) in cases {
+            let facing = match direction.as_str() {
+                "down" => BlockDirection::Down,
+                "up" => BlockDirection::Up,
+                "north" => BlockDirection::North,
+                "south" => BlockDirection::South,
+                "west" => BlockDirection::West,
+                "east" => BlockDirection::East,
+                _ => unreachable!(),
+            };
+            let piston = PistonBlockEntity {
+                position: BlockPos::new(0, 0, 0),
+                pushed_block_state: pumpkin_data::BlockStateId::new(id).unwrap().to_state(),
+                facing,
+                current_progress: progress.into(),
+                last_progress: 0.0.into(),
+                extending,
+                source,
+                last_ticked: 0.into(),
+            };
+            let read = || piston.collision_shape();
+            let shape = if noclip {
+                with_piston_noclip(piston.movement_direction(), read)
+            } else {
+                read()
+            };
+            let mut hash = 0xcbf2_9ce4_8422_2325_u64;
+            let mut mix = |value: f64| {
+                let bits = if value == 0.0 { 0 } else { value.to_bits() };
+                hash = (hash ^ bits).wrapping_mul(0x100_0000_01b3);
+            };
+            for coords in &shape.coordinates {
+                mix(coords.len() as f64);
+                for &value in coords {
+                    mix(value);
+                }
+            }
+            mix(shape.boxes.len() as f64);
+            for b in &shape.boxes {
+                for value in b.min.into_iter().chain(b.max) {
+                    mix(value);
+                }
+            }
+            assert_eq!(
+                hash, expected,
+                "state={id} direction={direction} extending={extending} source={source} progress={progress} noclip={noclip}"
+            );
+        }
+    }
 
     #[test]
     fn moving_slab_preserves_empty_space_and_noclip_is_scoped() {

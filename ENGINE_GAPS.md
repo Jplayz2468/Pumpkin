@@ -38,7 +38,7 @@ BaseCommandBlock.performCommand and CommandBlock.executeChain.
 ## Still open, in priority order
 
 1. **D01: movement and inside effects.** Full piston movement side effects,
-   dynamic/contextual voxel-grid construction, scaffolding climbing and remaining
+   remaining contextual voxel-grid construction and remaining
    specialized movement/inside-effect lifecycle paths. Step-up and entity/border
    collision gathering are implemented below; gameplay integration remains unproven.
 2. **D02: loot engine.** Full function/predicate/component contexts, reloadable
@@ -147,12 +147,36 @@ whole inside-effect pipeline matches Java yet.
   contextual shapes, collision/query ordering under live movement, full piston
   restitution and packet validation. No live server/client comparison this pass.
 
-Next concrete D01 verification: generate moving-piston shape/grid cases using
-PistonMovingBlockEntity(BlockPos.ZERO, MOVING_PISTON, movedState, direction,
-extending, isSourcePiston), set its progress field and compare the complete
-optimized grid with Rust VoxelShape::from_boxes. Contextual/static-shape probes
-do not cover that union optimizer or its direction-specific NOCLIP branch.
+## Dynamic piston unions and shared climbing
 
-Also verify degenerate border extents when a custom absolute limit clamps both
-sides to one integer coordinate: Java's outside shape can become Shapes.INFINITY;
-the current four-plane construction needs that edge case covered.
+- Moving piston shapes now join the stationary base and moving block's original
+  voxel grids before Java's ordered union optimization. Epsilon-close planes retain
+  the source merge priority; nearly aligned boxes snap to Java's cube grid.
+  Movement gathering uses this complete shape directly rather than rebuilding it
+  from translated world boxes.
+- Java oracle fingerprints cover all coordinate values, box counts and ordered
+  box geometry for **100,656 cases**: every state of ten representative blocks,
+  all six directions, extension/retraction, source/non-source, nine progress values
+  including float precision boundaries, and matching direction-specific NOCLIP.
+- Retraction push geometry uses the moved base's facing, sticky type and short-head
+  threshold. Shared piston filtering now also excludes Java's non-physical display,
+  marker, interaction, area-effect-cloud and ominous-spawner entities.
+- Replaced the disabled climbing predicate with climbable tags, spectator/gliding
+  exclusions and open trapdoors aligned with the ladder beneath them. Climbing is
+  refreshed before travel and after moving; limits widen Java's 0.15F exactly.
+  Sneaking players hold ladders/vines while retaining downward scaffolding travel.
+- An absolutely clamped border with an empty rounded interior now produces one
+  infinite collision shape, matching the complement of Java's empty interior.
+- Verification: targeted Java piston comparison passed all 100,656 cases. Final
+  background library run 6 passed **469 tests**, with the two previously separately
+  passing socket tests excluded. No live gameplay or full mob pass was performed.
+
+Next D01 work: ordinary and piston movement still have divergent post-collision
+side effects. Entity.move_by_piston omits stuck-speed reset, horizontal collision
+flags, fall handling, restitution, movement emissions and block-speed factors;
+ordinary movement only uses the full restitution helper for controlled living
+entities. Port shared post-move response with client-authority handling and verify
+full world integration. Other contextual shapes still need their own source probes.
+
+The remaining D02–D06 and block-system gates above remain open. Do not treat this
+bounded collision/climbing checkpoint as full engine or block parity.

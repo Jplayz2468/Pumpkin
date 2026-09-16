@@ -2619,8 +2619,19 @@ impl World {
                 .iter()
                 .map(|shape| data(&shape.shift(pos.to_f64().multiply(-1.0, -1.0, -1.0))))
                 .collect();
-            let shape = if block == &Block::MOVING_PISTON
-                || block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_SHULKER_BOXES)
+            let piston_shape = if block == &Block::MOVING_PISTON {
+                self.get_block_entity(&pos).and_then(|entity| {
+                    entity
+                        .as_any()
+                        .downcast_ref::<crate::block::entities::piston::PistonBlockEntity>()
+                        .map(|piston| piston.collision_shape())
+                })
+            } else {
+                None
+            };
+            let shape = if let Some(shape) = piston_shape {
+                shape
+            } else if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_SHULKER_BOXES)
                 || block == &Block::POWDER_SNOW
                 || block == &Block::SCAFFOLDING
             {

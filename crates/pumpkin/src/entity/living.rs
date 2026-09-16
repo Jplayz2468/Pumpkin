@@ -1598,6 +1598,7 @@ impl LivingEntity {
     }
 
     fn tick_movement(&self, caller: &dyn EntityBase) {
+        self.check_climbing(caller);
         if self.jumping_cooldown.load(Relaxed) != 0 {
             self.jumping_cooldown.fetch_sub(1, Relaxed);
         }
@@ -2040,62 +2041,23 @@ impl LivingEntity {
     fn make_move(&self, caller: &dyn EntityBase) {
         self.entity.move_entity(caller, self.entity.velocity.load());
 
-        self.check_climbing();
+        self.check_climbing(caller);
     }
 
-    fn check_climbing(&self) {
-        // If spectator: return false
-
-        // TODO
-        // let mut pos = self.entity.block_pos.load();
-
-        // let world = self.entity.world.read().await;
-
-        // let (block, state) = world.get_block_and_state(&pos);
-
-        // let name = block.properties(state.id).map(|props| props.name());
-
-        // if let Some(name) = name {
-        //     if name == "LadderLikeProperties"
-        //         || name == "ScaffoldingLikeProperties"
-        //         || name == "CaveVinesLikeProperties"
-        //         || name == "CaveVinesPlantLikeProperties"
-        //     {
-        //         self.climbing.store(true, Relaxed);
-
-        //         self.climbing_pos.store(Some(pos));
-
-        //         return;
-        //     }
-
-        //     if name == "OakTrapdoorLikeProperties" {
-        //         let trapdoor = OakTrapdoorLikeProperties::from_state_id(state.id);
-
-        //         pos.0.y -= 1;
-
-        //         let (down_block, down_state) = world.get_block_and_state(&pos);
-
-        //         let is_ladder = down_block
-        //             .properties(down_state.id)
-        //             .is_some_and(|down_props| down_props.name() == "LadderLikeProperties");
-
-        //         if is_ladder {
-        //             let ladder = LadderLikeProperties::from_state_id(down_state.id);
-
-        //             if trapdoor.r#facing == ladder.r#facing {
-        //                 self.climbing.store(true, Relaxed);
-
-        //                 self.climbing_pos.store(Some(pos));
-
-        //                 return;
-        //             }
-        //         }
-        //     }
-        // }
-
-        self.climbing.store(false, Relaxed);
-
-        if self.entity.on_ground.load(SeqCst) {
+    fn check_climbing(&self, caller: &dyn EntityBase) {
+        let pos = self.entity.block_pos.load();
+        let world = self.entity.world.load();
+        let state = world.get_block_state(&pos);
+        let climbing = super::climbing::can_climb(
+            state.id,
+            || world.get_block_state(&pos.down()).id,
+            caller.is_spectator(),
+            self.entity.is_fall_flying(),
+        );
+        self.climbing.store(climbing, Relaxed);
+        if climbing {
+            self.climbing_pos.store(Some(pos));
+        } else if self.entity.on_ground.load(SeqCst) {
             self.climbing_pos.store(None);
         }
     }
@@ -2103,48 +2065,18 @@ impl LivingEntity {
     fn apply_climbing_speed(&self) {
         if self.climbing.load(Relaxed) {
             self.fall_distance.store(0.0);
-
-            let mut velo = self.entity.velocity.load();
-
-            let pos = 0.15;
-
-            let neg = -0.15;
-
-            if velo.x < neg {
-                velo.x = neg;
-            } else if velo.x > pos {
-                velo.x = pos;
-            }
-
-            if velo.z < neg {
-                velo.z = neg;
-            } else if velo.z > pos {
-                velo.z = pos;
-            }
-
-            velo.y = velo.y.max(neg);
-
-            // TODO
-            // if velo.y < 0.0
-            //     && self.entity.entity_type == &EntityType::PLAYER
-            //     && self.entity.sneaking.load(Relaxed)
-            // {
-            //     let block = self
-            //         .entity
-            //         .world
-            //         .read()
-            //         .await
-            //         .get_block(&self.entity.block_pos.load())
-            //         .await;
-
-            //     if let Some(props) = block.properties(block.default_state.id) {
-            //         if props.name() == "ScaffoldingLikeProperties" {
-            //             velo.y = 0.0;
-            //         }
-            //     }
-            // }
-
-            self.entity.velocity.store(velo);
+            let hold_ladder = self.entity.entity_type == &EntityType::PLAYER
+                && self.entity.is_sneaking()
+                && self
+                    .entity
+                    .world
+                    .load()
+                    .get_block(&self.entity.block_pos.load())
+                    != &Block::SCAFFOLDING;
+            self.entity.velocity.store(super::climbing::limit_velocity(
+                self.entity.velocity.load(),
+                hold_ladder,
+            ));
         }
     }
 

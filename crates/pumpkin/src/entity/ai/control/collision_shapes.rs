@@ -11,24 +11,59 @@ pub struct VoxelShape {
 }
 impl VoxelShape {
     pub fn from_box(bounds: Box3) -> Self {
-        Self {
-            boxes: vec![bounds],
-            coordinates: box_coordinates(bounds),
-        }
+        let coordinates = box_coordinates(bounds);
+        let boxes = if coordinates.iter().any(Vec::is_empty) {
+            Vec::new()
+        } else {
+            vec![snap_box(bounds, &coordinates)]
+        };
+        Self { boxes, coordinates }
     }
     pub fn from_boxes(boxes: Vec<Box3>) -> Self {
+        // Shapes.or(...).optimize() enumerates occupied boxes in Y/X/Z order,
+        // merging Z strips first, then X, then Y. Rebuilding the optimized grid
+        // from the original component boxes retains planes Java removes.
+        let mut boxes = merged_boxes(boxes);
         let mut coordinates: [Vec<f64>; 3] = std::array::from_fn(|_| Vec::new());
-        for bounds in &boxes {
-            for (axis, values) in box_coordinates(*bounds).into_iter().enumerate() {
-                coordinates[axis].extend(values);
+        for bounds in &mut boxes {
+            let grid = box_coordinates(*bounds);
+            *bounds = snap_box(*bounds, &grid);
+            for (axis, values) in grid.into_iter().enumerate() {
+                coordinates[axis] = merge_coordinates(&coordinates[axis], &values);
             }
         }
-        for values in &mut coordinates {
-            values.sort_unstable_by(f64::total_cmp);
-            values.dedup();
+        boxes = merged_boxes(
+            boxes
+                .into_iter()
+                .map(|b| snap_box(b, &coordinates))
+                .collect(),
+        );
+        if boxes.is_empty() {
+            coordinates = std::array::from_fn(|_| vec![0.0]);
         }
         Self { boxes, coordinates }
     }
+    /// Shapes.or joins the original grids before optimizing their occupied union.
+    /// In particular the stationary piston base wins epsilon-close grid planes.
+    pub fn union(self, other: Self) -> Self {
+        if self.boxes.is_empty() {
+            return Self::from_boxes(other.boxes);
+        }
+        if other.boxes.is_empty() {
+            return Self::from_boxes(self.boxes);
+        }
+        let coordinates = std::array::from_fn(|axis| {
+            merge_coordinates(&self.coordinates[axis], &other.coordinates[axis])
+        });
+        Self::from_boxes(
+            self.boxes
+                .into_iter()
+                .chain(other.boxes)
+                .map(|b| snap_box(b, &coordinates))
+                .collect(),
+        )
+    }
+
     pub fn translated(mut self, delta: [f64; 3]) -> Self {
         for shape in &mut self.boxes {
             *shape = shape.translated(delta);
@@ -104,6 +139,118 @@ impl VoxelShape {
         }
         distance
     }
+}
+
+fn snap_box(mut bounds: Box3, coordinates: &[Vec<f64>; 3]) -> Box3 {
+    for axis in 0..3 {
+        for edge in [&mut bounds.min[axis], &mut bounds.max[axis]] {
+            if let Some(&value) = coordinates[axis]
+                .iter()
+                .find(|&&value| value == *edge || (value - *edge).abs() < 1.0e-7)
+            {
+                *edge = value;
+            }
+        }
+    }
+    bounds
+}
+
+/// OR's IndirectMerger keeps the first list's coordinate when planes are within
+/// Java's shape epsilon; sorting and deduplicating changes that choice.
+fn merge_coordinates(first: &[f64], second: &[f64]) -> Vec<f64> {
+    let mut result = Vec::with_capacity(first.len() + second.len());
+    let (mut a, mut b) = (0, 0);
+    while a < first.len() || b < second.len() {
+        let value = if a < first.len() && (b == second.len() || first[a] < second[b] + 1.0e-7) {
+            a += 1;
+            first[a - 1]
+        } else {
+            b += 1;
+            second[b - 1]
+        };
+        if result.last().is_none_or(|last| !(*last >= value - 1.0e-7)) {
+            result.push(value);
+        }
+    }
+    result
+}
+
+fn merged_boxes(mut boxes: Vec<Box3>) -> Vec<Box3> {
+    boxes.retain(|b| (0..3).all(|axis| b.max[axis] - b.min[axis] >= 1.0e-7));
+    if boxes.len() <= 1 {
+        return boxes;
+    }
+    let coordinates: [Vec<f64>; 3] = std::array::from_fn(|axis| {
+        let mut values: Vec<_> = boxes
+            .iter()
+            .flat_map(|b| [b.min[axis], b.max[axis]])
+            .collect();
+        values.sort_unstable_by(f64::total_cmp);
+        values.dedup();
+        values
+    });
+    let [nx, ny, nz] = std::array::from_fn(|axis| coordinates[axis].len() - 1);
+    let index = |x, y, z| (x * ny + y) * nz + z;
+    let mut full = vec![false; nx * ny * nz];
+    for x in 0..nx {
+        for y in 0..ny {
+            for z in 0..nz {
+                let cell = [x, y, z];
+                full[index(x, y, z)] = boxes.iter().any(|b| {
+                    (0..3).all(|axis| {
+                        coordinates[axis][cell[axis]] >= b.min[axis]
+                            && coordinates[axis][cell[axis] + 1] <= b.max[axis]
+                    })
+                });
+            }
+        }
+    }
+    let mut result = Vec::new();
+    for y in 0..ny {
+        for x in 0..nx {
+            let mut z = 0;
+            while z < nz {
+                if !full[index(x, y, z)] {
+                    z += 1;
+                    continue;
+                }
+                let start = z;
+                while z < nz && full[index(x, y, z)] {
+                    z += 1;
+                }
+                for cz in start..z {
+                    full[index(x, y, cz)] = false;
+                }
+                let mut end_x = x + 1;
+                while end_x < nx && (start..z).all(|cz| full[index(end_x, y, cz)]) {
+                    for cz in start..z {
+                        full[index(end_x, y, cz)] = false;
+                    }
+                    end_x += 1;
+                }
+                let mut end_y = y + 1;
+                while end_y < ny
+                    && (x..end_x).all(|cx| (start..z).all(|cz| full[index(cx, end_y, cz)]))
+                {
+                    for cx in x..end_x {
+                        for cz in start..z {
+                            full[index(cx, end_y, cz)] = false;
+                        }
+                    }
+                    end_y += 1;
+                }
+                result.push(Box3 {
+                    min: [coordinates[0][x], coordinates[1][y], coordinates[2][start]],
+                    max: [
+                        coordinates[0][end_x],
+                        coordinates[1][end_y],
+                        coordinates[2][z],
+                    ],
+                });
+            }
+        }
+    }
+    result
 }
 
 pub fn collide(motion: [f64; 3], bounds: Box3, boxes: &[Box3]) -> ([f64; 3], Option<usize>) {

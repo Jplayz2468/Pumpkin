@@ -1309,3 +1309,13 @@ remain paused.
 Static collision verification now covers 81 motions per block state (all 32,366),
 matching Java output fingerprints. This verifies static clipping geometry and grids,
 not each block's gameplay lifecycle or contextual/dynamic shape behavior.
+
+
+### Dynamic piston grids and climbing
+
+Piston collision unions now preserve source grid priority, optimized box order and
+float-boundary snapping. 100,656 Java shape fingerprints pass. Shared climbing is
+restored for tagged blocks and aligned open trapdoors, with the scaffolding/sneak
+exception and exact Java float movement cap. Degenerate border collision is fixed.
+Post-move side effects and the other engine gates remain open in ENGINE_GAPS.md;
+full mob passes remain paused.

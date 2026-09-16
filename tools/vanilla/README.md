@@ -71,3 +71,25 @@ These probes verify bounded algorithms and static contexts. Dynamic/contextual
 shape construction, moving piston unions, server packet validation and gameplay
 must still be verified separately. The border's change to tick units is documented
 in [Mojang's 1.21.11 release notes](https://www.minecraft.net/en-us/article/minecraft-java-edition-1-21-11).
+
+
+## Dynamic piston collision union
+
+`PistonCollisionOracle.java` constructs real Java 26.2 moving-piston block entities,
+sets progress and the direction-specific NOCLIP context, and fingerprints their
+complete X/Y/Z grids and ordered optimized boxes. It covers 100,656 combinations
+across every state of ten representative blocks, six directions, both extension
+and source flags, nine progress values, and both suppression modes. Progress values
+include adjacent floats around shape boundaries, not only normal half-tick steps.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/PistonCollisionOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' PistonCollisionOracle > crates/pumpkin/src/block/entities/piston_collision_cases.json
+```
+
+Each fixture row contains state ID, direction, extending, source, float progress,
+NOCLIP enabled and an unsigned FNV-style fingerprint of binary64 values (zero signs
+normalized). Counts precede each axis and the box sequence. Rust invokes its real
+piston shape constructor and compares without sorting boxes. These cases prove
+bounded shape construction; they do not certify entity displacement, packet
+handling or a running piston contraption.

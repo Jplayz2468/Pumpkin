@@ -304,6 +304,10 @@ impl Worldborder {
         }
         let n = f64::NEG_INFINITY;
         let p = f64::INFINITY;
+        // The complement of an empty rounded interior is Shapes.INFINITY.
+        if min_x.floor() >= max_x.ceil() || min_z.floor() >= max_z.ceil() {
+            return vec![BoundingBox::new_array([n, n, n], [p, p, p])];
+        }
         vec![
             BoundingBox::new_array([n, n, n], [min_x.floor(), p, p]),
             BoundingBox::new_array([max_x.ceil(), n, n], [p, p, p]),
@@ -416,6 +420,17 @@ mod tests {
             Some(3.0)
         );
     }
+    #[test]
+    fn clamped_empty_border_has_one_infinite_collision_shape() {
+        let mut border = Worldborder::new(20.0, 0.0, 2.0, 0, 5, 300);
+        border.portal_teleport_boundary = 10;
+        let area = BoundingBox::new_array([9.7, 0.0, -0.3], [10.3, 1.8, 0.3]);
+        let shapes = border.collision_boxes(Vector3::new(10.0, 0.0, 0.0), area);
+        assert_eq!(shapes.len(), 1);
+        assert_eq!(shapes[0].min.x, f64::NEG_INFINITY);
+        assert_eq!(shapes[0].max.x, f64::INFINITY);
+    }
+
     #[test]
     fn collision_plane_rounding_and_outside_margin() {
         let border = Worldborder::new(0.25, 0.25, 10.5, 0, 5, 300);
