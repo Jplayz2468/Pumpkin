@@ -406,3 +406,103 @@ mod tests {
         assert!(!is_lapis(&ItemStack::new(1, &Item::DIRT)));
     }
 }
+
+/// Differential comparison against the real Java 26.2 enchanting table.
+/// Fixtures come from `tools/vanilla/EnchantingOracle.java`.
+#[cfg(test)]
+mod java_parity_tests {
+    use super::*;
+    use pumpkin_data::item::Item;
+    use serde_json::Value;
+
+    fn triple(value: &Value) -> Vec<i32> {
+        value
+            .as_array()
+            .expect("triple")
+            .iter()
+            .map(|entry| entry.as_i64().expect("int") as i32)
+            .collect()
+    }
+
+    /// Covers the offered level costs and the clue shown for each of the three
+    /// slots, which together exercise the whole shared RNG sequence: the cost
+    /// pass, the per-slot reseed, the selection, the book removal draw and the
+    /// clue draw.
+    #[test]
+    fn enchanting_offers_match_java() {
+        let cases: Vec<Value> = serde_json::from_str(include_str!("enchanting_cases.json"))
+            .expect("enchanting fixtures");
+        assert!(cases.len() > 600, "fixture looks truncated");
+
+        let mut mismatches: Vec<String> = Vec::new();
+        for case in &cases {
+            let id = case["item"].as_str().expect("item");
+            let item = Item::from_registry_key(id.trim_start_matches("minecraft:"))
+                .unwrap_or_else(|| panic!("unknown item {id}"));
+            let stack = ItemStack::new(1, item);
+            let seed = case["seed"].as_i64().expect("seed") as i32;
+            let bookshelves = case["bookshelves"].as_i64().expect("bookshelves") as i32;
+
+            let (costs, clue_id, clue_level) = offer(&stack, seed, bookshelves);
+
+            let want_costs = triple(&case["costs"]);
+            let want_id = triple(&case["clue_id"]);
+            let want_level = triple(&case["clue_level"]);
+
+            if costs != want_costs || clue_id != want_id || clue_level != want_level {
+                mismatches.push(format!(
+                    "{id} shelves={bookshelves} seed={seed}\n  \
+                     costs java={want_costs:?} rust={costs:?}\n  \
+                     clue_id java={want_id:?} rust={clue_id:?} ({})\n  \
+                     clue_level java={want_level:?} rust={clue_level:?}",
+                    case["clue_name"]
+                ));
+            }
+        }
+
+        assert!(
+            mismatches.is_empty(),
+            "{} of {} enchanting offers differ from Java:\n{}",
+            mismatches.len(),
+            cases.len(),
+            mismatches.iter().take(12).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
+
+    /// Mirrors `update_enchantments` without a player or sync handler.
+    fn offer(stack: &ItemStack, seed: i32, bookshelves: i32) -> (Vec<i32>, Vec<i32>, Vec<i32>) {
+        let mut costs = vec![0; 3];
+        let mut clue_id = vec![-1; 3];
+        let mut clue_level = vec![-1; 3];
+
+        if !stack.is_enchantable()
+            || stack
+                .get_data_component::<pumpkin_data::data_component_impl::EnchantableImpl>()
+                .is_none()
+        {
+            return (costs, clue_id, clue_level);
+        }
+
+        let mut random = LegacyRand::from_seed(seed as u64);
+        for i in 0..3 {
+            let level =
+                pumpkin_data::enchantment_helper::table_cost(&mut random, i, bookshelves, stack);
+            costs[i] = if level < i as i32 + 1 { 0 } else { level };
+        }
+        for i in 0..3 {
+            if costs[i] <= 0 {
+                continue;
+            }
+            let mut random = LegacyRand::from_seed(seed.wrapping_add(i as i32) as u64);
+            let list =
+                pumpkin_data::enchantment_helper::table_enchantments(&mut random, stack, costs[i]);
+            if list.is_empty() {
+                continue;
+            }
+            let chosen = list[random.next_bounded_i32(list.len() as i32) as usize];
+            clue_id[i] = chosen.0.id as i32;
+            clue_level[i] = chosen.1;
+        }
+        (costs, clue_id, clue_level)
+    }
+}
