@@ -159,7 +159,7 @@ impl Player {
             && (entity.is_in_water() || entity.is_in_lava());
         if ground || landed_in_liquid || self.living_entity.climbing.load(Ordering::Relaxed)
             || self.gamemode.load() == GameMode::Spectator || entity.is_fall_flying()
-            || Self::is_auto_spin_attack() {
+            || self.is_auto_spin_attack() {
             self.living_entity.try_reset_impulse_context();
         }
         self.update_gliding();

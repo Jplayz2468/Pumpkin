@@ -1391,3 +1391,11 @@ fluid/fire ticks and splash sound/vibration are connected. Shared world currents
 now include downward channels through empty neighbors and Java float/normalization
 semantics. See ENGINE_GAPS.md for bounded oracle coverage and remaining vehicle,
 RNG, environment, lifecycle and live gameplay gates; this is not whole-block parity.
+
+### Shared auto-spin state
+
+Riptide now starts the living spin lifecycle, adds its launch impulse, uses ordinary
+collision for ground lift, dispatches touch attacks, and clears state on expiry or
+contact. Player pose and impulse fall protection use that state. Trident release
+retains active-hand identity and uses enchantment-selected sounds. See ENGINE_GAPS.md
+for verification and the remaining shoulder/item-reference/client integration gates.

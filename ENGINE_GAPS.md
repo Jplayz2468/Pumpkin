@@ -414,3 +414,38 @@ whole inside-effect pipeline matches Java yet.
   FAST_LAVA attributes, swimming/auto-spin state, remaining RNG consumers, full
   teleport/passenger transitions, live chunk-edge/client gameplay, and the other
   D02–D06/block-system gates. No full mob pass was performed.
+
+## Auto-spin/riptide shared lifecycle
+
+- Added living auto-spin lifetime, damage/weapon context and synced flag. The push
+  phase checks the union of pre/post travel boxes before ordinary entity pushing,
+  hits the first living result, stops and rebounds velocity by -0.2. An empty query
+  plus horizontal collision stops the spin; a query containing only non-living
+  entities deliberately does not. Expiry clears the flag, damage and weapon.
+- Player pose and accepted-movement impulse reset now read actual auto-spin state
+  instead of the constant-false stub. Respawn clears it. Shared living flag changes
+  preserve other flag bits atomically and avoid unchanged metadata updates.
+- Trident launch uses Java lookup-table trig and float arithmetic, adds the impulse
+  to existing velocity, starts 20 ticks at damage 8, and applies the grounded
+  1.1999999F lift through normal collision movement. It schedules velocity sync.
+- Player touch attacks use the retained spin weapon and damage, with the currently
+  equipped attack-speed attribute. A hotbar swap no longer damages the replacement
+  item: durability follows the retained weapon UID within the player's inventory.
+  Trident release addresses its active hand and rejects a replaced active stack.
+- The enchantment generator/data now retain TRIDENT_SOUND lists. Selection uses the
+  highest applicable enchantment level, clamps to the list length, and falls back
+  to the throw sound. Launch/release awards the trident-used stat.
+- Actual Java LivingEntity.checkAutoSpinAttack matches 500 lifetime/contact/rebound
+  cases. Another 1,000 numeric cases check the source launch expression using real
+  Java Mth; they do not invoke the complete TridentItem release lifecycle. Background
+  run 2 passed 486 tests with the same two socket exclusions, before the final
+  active-hand/sound-selection/flag integration checks.
+  Final background run 4 passed **487 engine tests** after those changes; run 3
+  also passed **73 data tests**, and the updated code generator passed cargo check.
+  The same two previously separately passing socket tests remain excluded.
+- Still open here: shoulder-entity release (the player shoulder storage/lifecycle
+  is absent), complete shared item-reference identity when a spinning weapon leaves
+  the inventory, spatial-query ordering, sound recipient/attached-entity packets,
+  Bedrock spin metadata and live client collision/launch verification. These are
+  explicit integration gates, not grounds to call D01/D04/D06 complete. Full mob
+  passes remain paused.

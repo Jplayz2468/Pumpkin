@@ -35,9 +35,7 @@ impl ItemBehaviour for TridentItem {
         // TridentItem.java:135-137: a Riptide trident refuses to start charging unless the
         // player is already in water or rain.
         let riptide_strength =
-            crate::enchantment::EnchantmentHelper::modify_trident_spin_attack_strength(
-                &stack, 0.0,
-            );
+            crate::enchantment::EnchantmentHelper::modify_trident_spin_attack_strength(&stack, 0.0);
         if riptide_strength > 0.0 && !Self::is_in_water_or_rain(player) {
             return;
         }
@@ -47,7 +45,7 @@ impl ItemBehaviour for TridentItem {
             .set_active_hand(pumpkin_util::Hand::Right, stack, 72000);
     }
 
-    fn on_stopped_using(&self, _stack: &ItemStack, player: &Player) {
+    fn on_stopped_using(&self, stack: &ItemStack, player: &Player) {
         let use_ticks = player
             .living_entity
             .item_use_time
@@ -60,7 +58,22 @@ impl ItemBehaviour for TridentItem {
         }
 
         let world = player.world();
-        let stack_guard = player.inventory().held_item();
+        let hand = player
+            .living_entity
+            .active_hand
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .unwrap_or(pumpkin_util::Hand::Right);
+        let stack_guard = player.living_entity.get_stack_in_hand(player, hand);
+        if stack_guard.uid != stack.uid {
+            player.living_entity.clear_active_hand();
+            return;
+        }
+        let equipment_slot = if hand == pumpkin_util::Hand::Left {
+            pumpkin_data::data_component_impl::EquipmentSlot::OFF_HAND
+        } else {
+            pumpkin_data::data_component_impl::EquipmentSlot::MAIN_HAND
+        };
 
         // TridentItem.java:73: fully data-driven strength (Riptide), not a raw enchant level.
         let riptide_strength =
@@ -84,6 +97,9 @@ impl ItemBehaviour for TridentItem {
             return;
         }
 
+        let sound = crate::enchantment::EnchantmentHelper::trident_sound(&stack_guard);
+        let sound = Sound::from_name(sound.strip_prefix("minecraft:").unwrap_or(sound))
+            .unwrap_or(Sound::ItemTridentThrow);
         if riptide_strength > 0.0 {
             if let Some(player_arc) = world.get_player_by_uuid(player.gameprofile.id)
                 && let Some(server) = world.server.upgrade()
@@ -103,28 +119,33 @@ impl ItemBehaviour for TridentItem {
 
             // TridentItem.java:83: `hurtWithoutBreaking(1, player)` -- safe here since the
             // `next_damage_will_break` guard above already ruled out actually breaking it.
-            player.damage_held_item(1);
+            player.increment_stat(
+                crate::entity::player::statistics::StatisticCategory::Used,
+                Item::TRIDENT.id as i32,
+                1,
+            );
+            player.damage_item_in_slot(&equipment_slot, 1);
 
-            // TridentItem.java:98-108: push velocity is `riptideStrength / dist`, not a
-            // `(1.0 + strength * 0.75)` scaled multiplier.
-            let f = f64::from(riptide_strength);
             let (yaw, pitch) = player.rotation();
-            let f_yaw = f32::to_radians(yaw);
-            let f_pitch = f32::to_radians(pitch);
-
-            let vx = f64::from(-f32::sin(f_yaw) * f32::cos(f_pitch));
-            let vy = f64::from(-f32::sin(f_pitch));
-            let vz = f64::from(f32::cos(f_yaw) * f32::cos(f_pitch));
-
-            let sq = (vx * vx + vy * vy + vz * vz).sqrt();
-            if sq > 0.0 {
-                let mult = f / sq;
-                player.living_entity.entity.velocity.store(Vector3::new(
-                    vx * mult,
-                    vy * mult,
-                    vz * mult,
-                ));
+            let impulse = crate::entity::auto_spin::launch(yaw, pitch, riptide_strength);
+            let entity = player.get_entity();
+            entity.velocity.store(entity.velocity.load() + impulse);
+            entity
+                .velocity_dirty
+                .store(true, std::sync::atomic::Ordering::Relaxed);
+            player.living_entity.start_auto_spin_attack(
+                20,
+                8.0,
+                player.living_entity.get_stack_in_hand(player, hand),
+            );
+            if entity.on_ground.load(std::sync::atomic::Ordering::Relaxed) {
+                entity.move_entity(player, Vector3::new(0.0, f64::from(1.199_999_9_f32), 0.0));
             }
+            world.play_sound(
+                sound,
+                pumpkin_data::sound::SoundCategory::Players,
+                &player.position(),
+            );
 
             player.living_entity.clear_active_hand();
             return;
@@ -132,10 +153,18 @@ impl ItemBehaviour for TridentItem {
 
         // TridentItem.java:83-95: normal throw. `hurtWithoutBreaking` is applied first so the
         // thrown entity carries the same (now slightly more worn) item stack.
-        player.damage_held_item(1);
+        player.increment_stat(
+            crate::entity::player::statistics::StatisticCategory::Used,
+            Item::TRIDENT.id as i32,
+            1,
+        );
+        player.damage_item_in_slot(&equipment_slot, 1);
 
         let (yaw, pitch) = player.rotation();
-        let thrown_stack = player.inventory().held_item().copy_with_count(1);
+        let thrown_stack = player
+            .living_entity
+            .get_stack_in_hand(player, hand)
+            .copy_with_count(1);
         let entity = Entity::new(world.clone(), player.position(), &EntityType::TRIDENT);
         // TridentItem.java:89-91: a creative shooter's thrown trident can only be picked back
         // up in creative.
@@ -144,39 +173,29 @@ impl ItemBehaviour for TridentItem {
         } else {
             ArrowPickup::Allowed
         };
-        let trident = TridentEntity::new_shot(
-            entity,
-            player.get_entity(),
-            thrown_stack.clone(),
-            pickup,
-        );
+        let trident =
+            TridentEntity::new_shot(entity, player.get_entity(), thrown_stack.clone(), pickup);
         trident.set_velocity_from_rotation(pitch, yaw, 0.0, 2.5, 1.0);
         trident.apply_on_projectile_spawned(&thrown_stack);
         world.spawn_entity(Arc::new(trident));
 
         world.play_sound(
-            Sound::ItemTridentThrow,
+            sound,
             pumpkin_data::sound::SoundCategory::Players,
             &player.position(),
         );
 
         if player.gamemode.load() != GameMode::Creative {
             let inventory = player.inventory();
-            let selected_slot = inventory.get_selected_slot() as usize;
-
-            let main_hand_item = inventory.get_slot(selected_slot);
-            if main_hand_item.item.id == Item::TRIDENT.id {
-                inventory.set_slot(selected_slot, ItemStack::EMPTY.clone());
-                player.sync_hand_slot(selected_slot, ItemStack::EMPTY.clone());
+            let slot = if hand == pumpkin_util::Hand::Left {
+                pumpkin_inventory::player::player_inventory::PlayerInventory::OFF_HAND_SLOT
             } else {
-                let off_hand_slot =
-                    pumpkin_inventory::player::player_inventory::PlayerInventory::OFF_HAND_SLOT;
-                let off_hand_item = inventory.get_slot(off_hand_slot);
-                if off_hand_item.item.id == Item::TRIDENT.id {
-                    inventory.set_slot(off_hand_slot, ItemStack::EMPTY.clone());
-                    player.sync_hand_slot(off_hand_slot, ItemStack::EMPTY.clone());
-                }
-            }
+                inventory.get_selected_slot() as usize
+            };
+            let mut remaining = inventory.get_slot(slot);
+            remaining.decrement(1);
+            inventory.set_slot(slot, remaining.clone());
+            player.sync_hand_slot(slot, remaining);
         }
 
         player.living_entity.clear_active_hand();

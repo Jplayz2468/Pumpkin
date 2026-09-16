@@ -1164,7 +1164,16 @@ impl Player {
         let config = &server.advanced_config.pvp;
 
         let inventory = self.inventory();
-        let item_stack = inventory.held_item();
+        let spin_weapon = self.living_entity.auto_spin_weapon();
+        let item_stack = spin_weapon.as_ref().map_or_else(
+            || inventory.held_item(),
+            |(_, item)| {
+                (0..41)
+                    .map(|slot| inventory.get_slot(slot))
+                    .find(|current| !current.is_empty() && current.uid == item.uid)
+                    .unwrap_or_else(|| item.clone())
+            },
+        );
         // NOTE: the generic "used" stat for the held item is awarded further below,
         // only on a landed hit with a weapon - see `ItemStack.hurtEnemy`
         // (ItemStack.java:534-544), not unconditionally here.
@@ -1235,7 +1244,12 @@ impl Player {
             }
         }
 
-        let attack_speed = base_attack_speed + add_speed;
+        let attack_speed = if spin_weapon.is_some() {
+            self.living_entity
+                .get_attribute_value(&Attributes::ATTACK_SPEED)
+        } else {
+            base_attack_speed + add_speed
+        };
 
         let is_bedrock = matches!(self.client.as_ref(), ClientPlatform::Bedrock(_));
         let attack_cooldown_progress = if is_bedrock {
@@ -1252,17 +1266,22 @@ impl Player {
         let damage_multiplier = combat::base_damage_scale_factor(attack_cooldown_progress);
 
         // Modify the added damage based on the multiplier.
-        let mut damage = (base_damage + add_damage) * damage_multiplier;
+        let mut damage = spin_weapon
+            .as_ref()
+            .map_or(base_damage + add_damage, |(damage, _)| f64::from(*damage))
+            * damage_multiplier;
 
-        if let Some(strength) = self
-            .living_entity
-            .get_effect(&pumpkin_data::effect::StatusEffect::STRENGTH)
+        if spin_weapon.is_none()
+            && let Some(strength) = self
+                .living_entity
+                .get_effect(&pumpkin_data::effect::StatusEffect::STRENGTH)
         {
             damage += 3.0 * (f64::from(strength.amplifier) + 1.0);
         }
-        if let Some(weakness) = self
-            .living_entity
-            .get_effect(&pumpkin_data::effect::StatusEffect::WEAKNESS)
+        if spin_weapon.is_none()
+            && let Some(weakness) = self
+                .living_entity
+                .get_effect(&pumpkin_data::effect::StatusEffect::WEAKNESS)
         {
             damage -= 4.0 * (f64::from(weakness.amplifier) + 1.0);
         }
@@ -1347,16 +1366,26 @@ impl Player {
             // `postHurtEnemy` (MaceItem.java:86-90) then resets the attacker's fall
             // distance.
             {
-                let mut context = self.living_entity.impulse_context.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                let mut context = self
+                    .living_entity
+                    .impulse_context
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 let impact = context.mace_impact(self.position());
                 context.set_ignore(true, impact);
             }
             let entity = self.get_entity();
             let velocity = entity.velocity.load();
-            entity.velocity.store(Vector3::new(velocity.x, f64::from(0.01_f32), velocity.z));
+            entity
+                .velocity
+                .store(Vector3::new(velocity.x, f64::from(0.01_f32), velocity.z));
             entity.send_velocity();
             let victim_on_ground = victim_entity.on_ground.load(Ordering::Relaxed);
-            if victim_on_ground { self.living_entity.extra_particles_on_fall.store(true, Ordering::Relaxed); }
+            if victim_on_ground {
+                self.living_entity
+                    .extra_particles_on_fall
+                    .store(true, Ordering::Relaxed);
+            }
             world.play_sound(
                 if victim_on_ground {
                     if fall_distance > 5.0 {
@@ -1492,7 +1521,24 @@ impl Player {
                 1,
             );
         }
-        self.damage_held_item(Self::combat_weapon_durability_cost(&item_stack));
+        let cost = Self::combat_weapon_durability_cost(&item_stack);
+        if spin_weapon.is_some() {
+            if let Some(slot_index) = (0..41).find(|&slot| {
+                let current = self.inventory.get_slot(slot);
+                !current.is_empty() && current.uid == item_stack.uid
+            }) {
+                let equipped_slot = if slot_index == self.inventory.get_selected_slot() as usize {
+                    Some(EquipmentSlot::MAIN_HAND)
+                } else if slot_index == PlayerInventory::OFF_HAND_SLOT {
+                    Some(EquipmentSlot::OFF_HAND)
+                } else {
+                    None
+                };
+                self.damage_inventory_item(slot_index, equipped_slot.as_ref(), cost);
+            }
+        } else {
+            self.damage_held_item(cost);
+        }
 
         // Player.java:1076-1086 `damageStatsAndHearts`: spawn damage-indicator
         // particles sized by the health actually lost, when it exceeds 2 hearts.
@@ -1635,6 +1681,21 @@ impl Player {
             EquipmentSlot::Body(_) | EquipmentSlot::Saddle(_) => return false,
         };
 
+        self.damage_inventory_item(slot_index, Some(slot), amount)
+    }
+
+    fn damage_inventory_item(
+        &self,
+        slot_index: usize,
+        equipped_slot: Option<&EquipmentSlot>,
+        amount: i32,
+    ) -> bool {
+        if matches!(
+            self.gamemode.load(),
+            GameMode::Creative | GameMode::Spectator
+        ) {
+            return false;
+        }
         let mut stack = self.inventory.get_slot(slot_index);
         let original_item = stack.item;
         let result = stack.damage_item(amount);
@@ -1670,7 +1731,9 @@ impl Player {
                 );
                 self.world().send_entity_status(
                     &self.living_entity.entity,
-                    super::equipment_break_status(slot),
+                    super::equipment_break_status(
+                        equipped_slot.unwrap_or(&EquipmentSlot::MAIN_HAND),
+                    ),
                     None,
                 );
             }
@@ -1681,8 +1744,10 @@ impl Player {
             ));
             self.sync_inventory_to_client();
 
-            self.living_entity
-                .send_equipment_changes(&[(slot.clone(), updated_stack)]);
+            if let Some(slot) = equipped_slot {
+                self.living_entity
+                    .send_equipment_changes(&[(slot.clone(), updated_stack)]);
+            }
 
             return true;
         }
@@ -2193,9 +2258,8 @@ impl Player {
         }
     }
 
-    const fn is_auto_spin_attack() -> bool {
-        // TODO: Track active auto-spin/riptide state and return true while it is active.
-        false
+    pub fn is_auto_spin_attack(&self) -> bool {
+        self.living_entity.is_auto_spin_attack()
     }
 
     fn can_fit_pose(&self, pose: EntityPose) -> bool {
@@ -2218,7 +2282,7 @@ impl Player {
             EntityPose::Swimming
         } else if entity.is_fall_flying() {
             EntityPose::FallFlying
-        } else if Self::is_auto_spin_attack() {
+        } else if self.is_auto_spin_attack() {
             EntityPose::SpinAttack
         } else if entity.is_sneaking() && !self.is_flying() {
             EntityPose::Crouching

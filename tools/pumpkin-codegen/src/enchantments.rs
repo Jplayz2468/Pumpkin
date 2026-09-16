@@ -1108,6 +1108,8 @@ pub fn build() -> TokenStream {
         let trident_return_acceleration = parse_conditional_value_effects(
             effects_map.get("minecraft:trident_return_acceleration"),
         );
+        let trident_sounds: Vec<&str> = effects_map.get("minecraft:trident_sound")
+            .and_then(|value| value.as_array()).map(|values| values.iter().filter_map(|value| value.as_str()).collect()).unwrap_or_default();
         let trident_spin_attack_strength =
             parse_optional_value_effect(effects_map.get("minecraft:trident_spin_attack_strength"));
         let crossbow_charge_time =
@@ -1140,6 +1142,7 @@ pub fn build() -> TokenStream {
                 smash_damage_per_fallen_block: #smash_damage_per_fallen_block,
                 trident_return_acceleration: #trident_return_acceleration,
                 trident_spin_attack_strength: #trident_spin_attack_strength,
+                trident_sounds: &[#(#trident_sounds),*],
                 crossbow_charge_time: #crossbow_charge_time,
                 location_changed: #location_changed,
                 prevent_armor_change: #prevent_armor_change,
@@ -1578,6 +1581,7 @@ pub fn build() -> TokenStream {
             pub smash_damage_per_fallen_block: &'static [ConditionalEffect<EnchantmentValueEffect>],
             pub trident_return_acceleration: &'static [ConditionalEffect<EnchantmentValueEffect>],
             pub trident_spin_attack_strength: Option<EnchantmentValueEffect>,
+            pub trident_sounds: &'static [&'static str],
             pub crossbow_charge_time: Option<EnchantmentValueEffect>,
             pub location_changed: &'static [ConditionalEffect<EnchantmentEntityEffect>],
             pub prevent_armor_change: bool,

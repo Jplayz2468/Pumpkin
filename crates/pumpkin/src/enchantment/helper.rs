@@ -251,6 +251,19 @@ impl EnchantmentHelper {
         strength
     }
 
+    pub fn trident_sound(stack: &ItemStack) -> &'static str {
+        let mut best_level = 0;
+        let mut sound = "minecraft:item.trident.throw";
+        Self::run_iteration_on_item(stack, |enchantment, level| {
+            let sounds = enchantment.effects.trident_sounds;
+            if level > best_level && !sounds.is_empty() {
+                best_level = level;
+                sound = sounds[(level as usize).min(sounds.len()) - 1];
+            }
+        });
+        sound
+    }
+
     /// Modifies fishing time reduction using data-driven effects (e.g. Lure).
     #[must_use]
     pub fn modify_fishing_time_reduction(rod: &ItemStack, base_reduction: f32) -> f32 {
@@ -328,5 +341,22 @@ impl EnchantmentHelper {
                 );
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod trident_sound_tests {
+    use super::*;
+
+    #[test]
+    fn selects_enchantment_sound_and_clamps_level() {
+        let mut stack = ItemStack::new(1, &Item::TRIDENT);
+        assert_eq!(EnchantmentHelper::trident_sound(&stack), "minecraft:item.trident.throw");
+        for (level, suffix) in [(1, 1), (2, 2), (3, 3), (10, 3)] {
+            stack.set_data_component(EnchantmentsImpl {
+                enchantment: std::borrow::Cow::Owned(vec![(&Enchantment::RIPTIDE, level), (&Enchantment::UNBREAKING, 20)]),
+            });
+            assert_eq!(EnchantmentHelper::trident_sound(&stack), format!("minecraft:item.trident.riptide_{suffix}"));
+        }
     }
 }

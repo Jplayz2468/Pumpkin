@@ -7,6 +7,7 @@ mod fluid_current;
 mod fluid_interaction;
 mod splash;
 mod impulse_context;
+pub(crate) mod auto_spin;
 pub mod inside_effects;
 pub(crate) mod support;
 mod baby_dimensions_data;

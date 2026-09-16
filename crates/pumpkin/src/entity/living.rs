@@ -159,6 +159,7 @@ pub struct LivingEntity {
 
     water_movement_speed_multiplier: f32,
     livings_flags: AtomicU8,
+    auto_spin: std::sync::Mutex<super::auto_spin::AutoSpin>,
 
     /// The last block position the entity occupied, used to trigger location changed effects.
     pub last_block_pos: AtomicCell<Option<BlockPos>>,
@@ -264,7 +265,6 @@ impl LivingEntity {
     const USING_ITEM_FLAG: u8 = 1;
     const OFF_HAND_ACTIVE_FLAG: u8 = 2;
     const RANDOM_TELEPORT_ATTEMPTS: usize = 16;
-    #[expect(dead_code)]
     const USING_RIPTIDE_FLAG: u8 = 4;
 
     fn hurt_sound_for_entity(entity_type: &'static EntityType) -> Sound {
@@ -331,6 +331,7 @@ impl LivingEntity {
             active_hand: std::sync::Mutex::new(None),
             recent_kinetic_enemies: std::sync::Mutex::new(FxHashMap::default()),
             livings_flags: AtomicU8::new(0),
+            auto_spin: std::sync::Mutex::new(super::auto_spin::AutoSpin::default()),
             active_effects: std::sync::Mutex::new(FxHashMap::default()),
             entity_equipment: Arc::new(std::sync::Mutex::new(EntityEquipment::new())),
             equipment_drop_chances: Arc::new(std::sync::Mutex::new(FxHashMap::default())),
@@ -709,15 +710,105 @@ impl LivingEntity {
         self.set_living_flag(Self::OFF_HAND_ACTIVE_FLAG, hand == Hand::Left);
     }
 
-    fn set_living_flag(&self, flag: u8, value: bool) {
-        let index = flag;
-        let mut b = self.livings_flags.load(Ordering::Relaxed);
-        if value {
-            b |= index;
-        } else {
-            b &= !index;
+    pub fn start_auto_spin_attack(&self, ticks: i32, damage: f32, item: ItemStack) {
+        self.auto_spin
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .start(ticks, damage, item);
+        self.set_living_flag(Self::USING_RIPTIDE_FLAG, true);
+    }
+
+    pub fn is_auto_spin_attack(&self) -> bool {
+        self.livings_flags.load(Relaxed) & Self::USING_RIPTIDE_FLAG != 0
+    }
+
+    pub fn auto_spin_weapon(&self) -> Option<(f32, ItemStack)> {
+        if !self.is_auto_spin_attack() {
+            return None;
         }
-        self.livings_flags.store(b, Ordering::Relaxed);
+        let spin = self
+            .auto_spin
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        spin.item.clone().map(|item| (spin.damage, item))
+    }
+
+    fn tick_auto_spin(&self, caller: &dyn EntityBase, before: BoundingBox) {
+        if !self
+            .auto_spin
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .begin_tick()
+        {
+            return;
+        }
+        let after = self.entity.bounding_box.load();
+        let bounds = BoundingBox::new(
+            Vector3::new(
+                before.min.x.min(after.min.x),
+                before.min.y.min(after.min.y),
+                before.min.z.min(after.min.z),
+            ),
+            Vector3::new(
+                before.max.x.max(after.max.x),
+                before.max.y.max(after.max.y),
+                before.max.z.max(after.max.z),
+            ),
+        );
+        let entities: Vec<_> = self
+            .entity
+            .world
+            .load()
+            .get_all_at_box(&bounds)
+            .into_iter()
+            .filter(|entity| {
+                entity.get_entity().entity_id != self.entity.entity_id
+                    && !entity.get_entity().is_removed()
+                    && entity.get_player().is_none_or(|player| {
+                        player.gamemode.load() != pumpkin_util::GameMode::Spectator
+                    })
+            })
+            .collect();
+        let target = entities
+            .iter()
+            .find(|entity| entity.get_living_entity().is_some());
+        if let Some(target) = target {
+            if let Some(player) = caller.get_player() {
+                player.attack(target);
+            }
+            self.entity
+                .velocity
+                .store(self.entity.velocity.load() * -0.2);
+            self.entity.velocity_dirty.store(true, Relaxed);
+        }
+        let expired = self
+            .auto_spin
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .finish_tick(
+                !entities.is_empty(),
+                target.is_some(),
+                self.entity.horizontal_collision.load(Relaxed),
+            );
+        if expired {
+            self.set_living_flag(Self::USING_RIPTIDE_FLAG, false);
+        }
+    }
+
+    fn set_living_flag(&self, flag: u8, value: bool) {
+        let previous = if value {
+            self.livings_flags.fetch_or(flag, Ordering::Relaxed)
+        } else {
+            self.livings_flags.fetch_and(!flag, Ordering::Relaxed)
+        };
+        let b = if value {
+            previous | flag
+        } else {
+            previous & !flag
+        };
+        if b == previous {
+            return;
+        }
 
         let bedrock_meta = (flag == Self::USING_ITEM_FLAG).then(|| {
             let index =
@@ -1615,7 +1706,6 @@ impl LivingEntity {
             caller.damage(caller, 1.0, DamageType::IN_WALL);
         }
 
-        self.push_entities(caller);
     }
 
     fn push_entities(&self, dyn_self: &dyn EntityBase) {
@@ -2872,6 +2962,12 @@ impl LivingEntity {
     }
 
     pub fn reset_state(&self) {
+        *self
+            .auto_spin
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            super::auto_spin::AutoSpin::default();
+        self.set_living_flag(Self::USING_RIPTIDE_FLAG, false);
         self.reset_impulse_context();
         self.extra_particles_on_fall.store(false, Relaxed);
         self.entity.reset_state();
@@ -3846,6 +3942,7 @@ impl EntityBase for LivingEntity {
         let is_alive = !self.dead.load(Relaxed) && self.health.load() > 0.0;
         let in_death_animation = self.health.load() <= 0.0 && self.death_time.load(Relaxed) < 20;
         let is_player = self.entity.entity_type == &EntityType::PLAYER;
+        let before_travel_box = self.entity.bounding_box.load();
         if (is_alive || in_death_animation) && !is_player {
             self.tick_movement(caller);
             // Vanilla-like order: freeze logic runs after movement/collisions.
@@ -3860,10 +3957,12 @@ impl EntityBase for LivingEntity {
                 caller.damage(caller, 1.0, DamageType::IN_WALL);
             }
 
-            // Players push other entities like any living entity.
-            self.push_entities(caller);
-
             self.entity.tick_frozen(caller);
+        }
+
+        if is_alive || in_death_animation {
+            self.tick_auto_spin(caller, before_travel_box);
+            self.push_entities(caller);
         }
 
         self.impulse_context.lock().unwrap_or_else(std::sync::PoisonError::into_inner).tick();
