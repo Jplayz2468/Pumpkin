@@ -66,6 +66,14 @@ impl BlockEntity for CreakingHeartBlockEntity {
     /// Vanilla `CreakingHeartBlockEntity.serverTick` (`:71`) recomputes the signal every
     /// tick and notifies neighbours only on a change.
     fn tick(&self, world: &Arc<World>) {
+        use pumpkin_data::block_properties::{CreakingHeartLikeProperties, CreakingHeartState};
+        let (block, state) = world.get_block_and_state(&self.position);
+        if block != &pumpkin_data::Block::CREAKING_HEART
+            || CreakingHeartLikeProperties::from_state_id(state.id).creaking_heart_state
+                == CreakingHeartState::Uprooted
+        {
+            return;
+        }
         let computed = self.compute_analog_output_signal(world);
         if self.output_signal.load() != computed {
             self.output_signal.store(computed);

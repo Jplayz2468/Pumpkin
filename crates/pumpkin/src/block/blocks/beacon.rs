@@ -58,16 +58,14 @@ impl BlockBehaviour for BeaconBlock {
             position: args.position,
             player: args.player,
         })
-        .map_or(BlockActionResult::Fail, |factory| {
+        .map_or(BlockActionResult::Success, |factory| {
+            args.player
+                .open_handled_screen(factory.as_ref(), Some(*args.position));
             args.player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::Custom,
                 pumpkin_data::statistic::CustomStatistic::InteractWithBeacon as i32,
                 1,
             );
-
-            // Open the screen using the factory
-            args.player
-                .open_handled_screen(factory.as_ref(), Some(*args.position));
 
             BlockActionResult::Success
         })
@@ -78,6 +76,9 @@ impl BlockBehaviour for BeaconBlock {
         args: GetScreenHandlerFactoryArgs<'_>,
     ) -> Option<Box<dyn ScreenHandlerFactory>> {
         let block_entity = args.world.get_block_entity(args.position)?;
+        block_entity
+            .as_any()
+            .downcast_ref::<crate::block::entities::beacon::BeaconBlockEntity>()?;
         let properties = block_entity.to_property_delegate()?;
         Some(Box::new(BeaconScreenFactory {
             position: *args.position,

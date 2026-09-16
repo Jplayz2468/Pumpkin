@@ -14,7 +14,7 @@
 | --- | --- | ---: | --- |
 | B01 | Workstations | 8 | Reviewed; menu dependencies queued |
 | B02 | Inventory automation | 4 | Reviewed; container/recipe dependencies queued |
-| B03 | Special gameplay blocks | 8 | Pending batch closure; reuse prior ports |
+| B03 | Special gameplay blocks | 8 | Reviewed; substantial BE/entity dependencies queued |
 | B04 | Signs, banners, heads and light | 4 | Pending batch closure; reuse prior ports |
 | B05 | Portals and gateways | 4 | Pending batch closure; reuse prior ports |
 | B06 | Administrative and invisible blocks | 6 | Pending batch closure; reuse prior ports |
@@ -47,14 +47,14 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B02 | [redstone/crafter.rs](crates/pumpkin/src/block/blocks/redstone/crafter.rs) | Reviewed |
 | B02 | [redstone/dispenser.rs](crates/pumpkin/src/block/blocks/redstone/dispenser.rs) | Reviewed |
 | B02 | [redstone/dropper.rs](crates/pumpkin/src/block/blocks/redstone/dropper.rs) | Reviewed |
-| B03 | [beacon.rs](crates/pumpkin/src/block/blocks/beacon.rs) | Pending |
-| B03 | [carved_pumpkin.rs](crates/pumpkin/src/block/blocks/carved_pumpkin.rs) | Pending |
-| B03 | [creaking_heart.rs](crates/pumpkin/src/block/blocks/creaking_heart.rs) | Pending |
-| B03 | [spawner.rs](crates/pumpkin/src/block/blocks/spawner.rs) | Pending |
-| B03 | [tnt.rs](crates/pumpkin/src/block/blocks/tnt.rs) | Pending |
-| B03 | [trial_spawner.rs](crates/pumpkin/src/block/blocks/trial_spawner.rs) | Pending |
-| B03 | [vault.rs](crates/pumpkin/src/block/blocks/vault.rs) | Pending |
-| B03 | [wither_skull.rs](crates/pumpkin/src/block/blocks/wither_skull.rs) | Pending |
+| B03 | [beacon.rs](crates/pumpkin/src/block/blocks/beacon.rs) | Reviewed |
+| B03 | [carved_pumpkin.rs](crates/pumpkin/src/block/blocks/carved_pumpkin.rs) | Reviewed |
+| B03 | [creaking_heart.rs](crates/pumpkin/src/block/blocks/creaking_heart.rs) | Reviewed |
+| B03 | [spawner.rs](crates/pumpkin/src/block/blocks/spawner.rs) | Reviewed |
+| B03 | [tnt.rs](crates/pumpkin/src/block/blocks/tnt.rs) | Reviewed |
+| B03 | [trial_spawner.rs](crates/pumpkin/src/block/blocks/trial_spawner.rs) | Reviewed |
+| B03 | [vault.rs](crates/pumpkin/src/block/blocks/vault.rs) | Reviewed |
+| B03 | [wither_skull.rs](crates/pumpkin/src/block/blocks/wither_skull.rs) | Reviewed |
 | B04 | [banners.rs](crates/pumpkin/src/block/blocks/banners.rs) | Pending |
 | B04 | [light.rs](crates/pumpkin/src/block/blocks/light.rs) | Pending |
 | B04 | [signs.rs](crates/pumpkin/src/block/blocks/signs.rs) | Pending |
@@ -368,3 +368,17 @@ Item source inventory:
 - I02: crafter recipe assembly/components, recipe-specific remainders and crafted
   callbacks/advancements; the existing matcher only returns item ID/count.
 - D06: item-stack synchronization after partial hopper pickup and client BE data.
+
+### B03 open dependencies
+
+- D02/D03/D06: vault BE is still incomplete: hard-coded rewards, missing active
+  detection/ejection timing and failure-sound cooldown, reward-history persistence,
+  loot context and shared/client state. Block interaction gating is now source-based.
+- D03/D04: creaking heart protector spawning/removal, resin production and linked
+  entity lifecycle; player-caused explosion XP. The BE currently only tracks signal.
+- D03/D04: fully rotated BlockPattern search, copper golem summoning/chest conversion,
+  summoned-entity advancements and wither body-yaw data. Upright snow/iron/wither
+  shape, clearing, spawn-position and neighbor behavior received local fixes.
+- D04: TNT still stores a player-credit flag rather than the full persistent owner.
+- D02/D04/D06: spawner/trial-spawner BE algorithms, beacon names/effects/beam
+  networking and menu behavior need their detailed dependency passes.

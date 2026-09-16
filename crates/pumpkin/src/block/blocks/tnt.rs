@@ -11,7 +11,6 @@ use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
 use pumpkin_world::world::BlockFlags;
-use rand::RngExt;
 use std::sync::Arc;
 
 use super::redstone::block_receives_redstone_power;
@@ -20,8 +19,8 @@ use crate::block::{
     BlockBehaviour, BrokenArgs, ExplodeArgs, OnNeighborUpdateArgs, OnProjectileHitArgs, PlacedArgs,
     UseWithItemArgs,
 };
-use crate::entity::Entity;
 use crate::entity::tnt::TNTEntity;
+use crate::entity::{Entity, EntityBase};
 use crate::world::World;
 
 #[pumpkin_block("minecraft:tnt")]
@@ -38,6 +37,19 @@ impl TNTBlock {
     /// call sites (pass no source). This is later used to decide whether the resulting
     /// explosion drops experience from broken ore (`BlockBehaviour.java:180`).
     pub fn prime(world: &Arc<World>, location: &BlockPos, primed_by_player: bool) -> bool {
+        let primed = Self::prime_with_source(world, location, primed_by_player, None);
+        if primed {
+            world.set_block_state(location, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
+        }
+        primed
+    }
+
+    fn prime_with_source(
+        world: &Arc<World>,
+        location: &BlockPos,
+        primed_by_player: bool,
+        source: Option<&dyn EntityBase>,
+    ) -> bool {
         if !world.level_info.load().game_rules.tnt_explodes {
             return false;
         }
@@ -86,7 +98,12 @@ impl TNTBlock {
             SoundCategory::Blocks,
             &spawn_pos,
         );
-        world.set_block_state(location, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
+        world.emit_game_event_from_entity(
+            "minecraft:prime_fuse",
+            location.to_centered_f64(),
+            source,
+            None,
+        );
         true
     }
 }
@@ -98,7 +115,9 @@ impl BlockBehaviour for TNTBlock {
             return BlockActionResult::PassToDefaultBlockAction;
         }
 
-        if Self::prime(args.world, args.position, true) {
+        if Self::prime_with_source(args.world, args.position, true, Some(args.player.as_ref())) {
+            args.world
+                .set_block_state(args.position, BlockStateId::AIR, BlockFlags::NOTIFY_ALL);
             if args.player.gamemode.load() != GameMode::Creative {
                 if item_id == Item::FLINT_AND_STEEL.id {
                     let _ = args.item_stack.damage_item(1);
@@ -106,6 +125,11 @@ impl BlockBehaviour for TNTBlock {
                     args.item_stack.decrement(1);
                 }
             }
+            args.player.increment_stat(
+                pumpkin_data::statistic::StatisticCategory::Used,
+                item_id.into(),
+                1,
+            );
             BlockActionResult::Success
         } else if !args.world.level_info.load().game_rules.tnt_explodes {
             args.player.send_system_message_raw(
@@ -127,29 +151,48 @@ impl BlockBehaviour for TNTBlock {
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        if block_receives_redstone_power(args.world, args.position) {
+        if args.world.get_block(args.position) == args.block
+            && block_receives_redstone_power(args.world, args.position)
+        {
             Self::prime(args.world, args.position, false);
         }
     }
 
-    fn broken(&self, args: BrokenArgs<'_>) {
+    fn player_will_destroy(&self, args: BrokenArgs<'_>) {
         if args.player.gamemode.load() != GameMode::Creative {
             let props = TntLikeProperties::from_state_id(args.state.id);
             if props.r#unstable {
                 // Vanilla's `playerWillDestroy` calls the no-source `prime` overload
                 // (`TntBlock.java`'s public `prime(Level, BlockPos)`), so the breaking
                 // player is NOT credited as the indirect source here either.
-                Self::prime(args.world, args.position, false);
+                Self::prime_with_source(args.world, args.position, false, None);
             }
         }
     }
 
     fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
-        if args.projectile.get_entity().is_on_fire() {
-            // Vanilla credits the projectile's owner when it's a LivingEntity
-            // (`TntBlock.java` onProjectileHit). Pumpkin doesn't currently expose the
-            // projectile's owner as an entity here, so this stays conservative (false).
-            Self::prime(args.world, args.position, false);
+        if args.projectile.get_entity().is_on_fire()
+            && crate::entity::projectile::may_interact(args.projectile, args.world, args.position)
+        {
+            let owner = args
+                .projectile
+                .get_owner_id()
+                .and_then(|id| args.world.get_entity_by_id(id));
+            let source = owner
+                .as_deref()
+                .filter(|entity| entity.get_living_entity().is_some());
+            if Self::prime_with_source(
+                args.world,
+                args.position,
+                source.is_some_and(|entity| entity.get_player().is_some()),
+                source,
+            ) {
+                args.world.set_block_state(
+                    args.position,
+                    BlockStateId::AIR,
+                    BlockFlags::NOTIFY_ALL,
+                );
+            }
         }
     }
 
@@ -163,7 +206,7 @@ impl BlockBehaviour for TNTBlock {
             args.position.0.z as f64 + 0.5,
         );
         let entity = Entity::new(args.world.clone(), spawn_pos, &EntityType::TNT);
-        let fuse = rand::rng().random_range(0..DEFAULT_FUSE / 4) + DEFAULT_FUSE / 8;
+        let fuse = args.world.rand_bounded_i32((DEFAULT_FUSE / 4) as i32) as u32 + DEFAULT_FUSE / 8;
         // Vanilla propagates the triggering explosion's indirect source entity onto the
         // newly spawned PrimedTnt (`TntBlock.java` `wasExploded`), so a chain reaction
         // that started with a player-primed explosion keeps crediting that player.

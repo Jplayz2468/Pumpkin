@@ -18,12 +18,11 @@ use crate::{
 
 pub struct GolemPattern {
     entity_type: &'static EntityType,
-    body: &'static Block,
     blocks: Vec<BlockPos>,
     base: BlockPos,
 }
 
-// Mojang uses some BlockPattern magic, way too complex tbh
+// Upright patterns; full rotated BlockPattern matching is tracked in D03.
 #[must_use]
 pub fn find_golem_pattern(world: &Arc<World>, pos: &BlockPos) -> Option<GolemPattern> {
     let down_pos = pos.down();
@@ -33,7 +32,6 @@ pub fn find_golem_pattern(world: &Arc<World>, pos: &BlockPos) -> Option<GolemPat
     if upper == &Block::SNOW_BLOCK && lower == &Block::SNOW_BLOCK {
         return Some(GolemPattern {
             entity_type: &EntityType::SNOW_GOLEM,
-            body: &Block::SNOW_BLOCK,
             blocks: vec![*pos, down_pos, down_pos.down()],
             base: down_pos.down(),
         });
@@ -49,11 +47,23 @@ pub fn find_golem_pattern(world: &Arc<World>, pos: &BlockPos) -> Option<GolemPat
 
         if world.get_block(&arm1) == &Block::IRON_BLOCK
             && world.get_block(&arm2) == &Block::IRON_BLOCK
+            && [arm1.up(), arm2.up(), arm1.down(), arm2.down()]
+                .iter()
+                .all(|pos| world.get_block_state(pos).is_air())
         {
             return Some(GolemPattern {
                 entity_type: &EntityType::IRON_GOLEM,
-                body: &Block::IRON_BLOCK,
-                blocks: vec![*pos, down_pos, down_pos.down(), arm1, arm2],
+                blocks: vec![
+                    arm1.up(),
+                    arm1,
+                    arm1.down(),
+                    *pos,
+                    down_pos,
+                    down_pos.down(),
+                    arm2.up(),
+                    arm2,
+                    arm2.down(),
+                ],
                 base: down_pos.down(),
             });
         }
@@ -63,30 +73,36 @@ pub fn find_golem_pattern(world: &Arc<World>, pos: &BlockPos) -> Option<GolemPat
 }
 
 fn spawn_golem(world: &Arc<World>, pattern: GolemPattern) {
-    for pos in pattern.blocks {
+    for pos in &pattern.blocks {
+        let state_id = world.get_block_state_id(pos);
         world.set_block_state(
-            &pos,
+            pos,
             Block::AIR.default_state.id,
             BlockFlags::NOTIFY_LISTENERS,
         );
         world.sync_world_event(
             WorldEvent::ParticlesDestroyBlock,
-            pos,
-            pattern.body.default_state.id.as_u16().into(),
+            *pos,
+            state_id.as_u16().into(),
         );
     }
 
     let entity = Entity::new(
         world.clone(),
-        pattern.base.to_centered_f64(),
+        pattern.base.to_f64().add_raw(0.5, 0.05, 0.5),
         pattern.entity_type,
     );
     let golem: Arc<dyn EntityBase> = if pattern.entity_type == &EntityType::SNOW_GOLEM {
         SnowGolemEntity::new(entity)
     } else {
-        IronGolemEntity::new(entity)
+        let golem = IronGolemEntity::new(entity);
+        golem.set_player_created(true);
+        golem
     };
     world.spawn_entity(golem);
+    for pos in &pattern.blocks {
+        world.update_neighbors_at(pos, &Block::AIR, None);
+    }
 }
 
 pub struct CarvedPumpkinBlock;

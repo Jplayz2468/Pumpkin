@@ -1101,3 +1101,26 @@ so they must not be used to reconstruct audit completion.
   complete container, recipe or per-item dispenser parity.
 - D07 repairs passed 28 existing block-entity tests and then all 123 existing block
   tests. The B02 changes are rebuilding in a background test run.
+
+## B03: special gameplay block source pass
+
+- Compared eight block handlers to local 26.2; removed placement-time BE replacement
+  for spawners, trial spawners, vaults, hearts and wither skulls. Beacon use now
+  succeeds without a BE and opens a correctly typed menu before its statistic.
+- Hearts require tagged pale-oak logs/wood aligned to their axis, activate from
+  environmental creaking activity, and schedule shape checks one tick later.
+  Neighbors no longer forcibly reset an awake heart. Removed unconditional extra
+  heart drops/sounds; added natural-heart player-break XP and comparator removal.
+- Vault uses its own placement properties, only accepts nonempty-hand interaction
+  while active and checks configured key components/count. Its larger reward/state
+  implementation remains incomplete and is explicitly queued.
+- TNT emits attributed prime_fuse, awards item-use statistics, checks projectile
+  interaction permission, preserves owner player credit and uses level-RNG short
+  fuses. Unstable priming now runs before destruction without prematurely removing
+  the block.
+- Upright iron/wither patterns require their air corners. Clear events carry each
+  original state, neighbor notifications occur after spawning, golems use +0.05Y
+  and player-created iron state; withers use base+0.55Y, orientation and peaceful
+  restrictions. Rotated/copper patterns and entity lifecycle remain open.
+- B02 passed all 123 existing block tests. B03 is rebuilding in the background;
+  see PARITY_PLAN.md for its unresolved dependencies. No 1:1 completion claim.
