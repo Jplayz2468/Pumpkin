@@ -177,7 +177,7 @@ fn try_changing_state(
     true
 }
 
-fn spawn_transform_particle(
+pub(crate) fn spawn_transform_particle(
     world: &World,
     pos: &BlockPos,
     open: bool,

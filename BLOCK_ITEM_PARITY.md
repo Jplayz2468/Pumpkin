@@ -748,3 +748,23 @@ so they must not be used to reconstruct audit completion.
 - Full loot RNG/context, dynamic shapes/tags, client pick stacks, liquid-flow
   container callbacks, ignition item details, adventure predicates, advancement
   triggers and Bedrock hand dispatch remain broader dependencies/open work.
+
+## Continued source port: flower pots and chiseled bookshelves
+
+- Flower pots consume inserted plants, return removed plants to inventory (or drop
+  them), and emit the source block-change events. Invalid insertion falls through
+  to the main-hand empty-hand action; an empty pot consumes that action. Potted
+  eyeblossoms now reuse their transition particle and long switch sound.
+- Bookshelves retain their automatically created block entity. Insertion uses the
+  insertion sound/statistic; removal sounds before inventory delivery and emits
+  the player event. Hit slots use 26.2's equally divided face, replacing old pixel
+  cutoffs and correcting the middle horizontal boundary.
+- Bookshelf inventory mutations update all six occupied properties, the last slot,
+  neighbors and the state-context game event for player and automation access.
+  Containers accept only bookshelf books, cap insertion at one, remove the whole
+  requested slot, and require a destination that can fit it. Persistent last-slot
+  NBT retains its integer width. Placement restores container components; removal
+  scatters all original stacks without firing live shelf mutation callbacks.
+- No compilation/tests. Shared loot component collection/pick-block handling,
+  generic automation transactions and item/drop initialization are still open;
+  this source pass is not a declaration of complete block or item parity.
