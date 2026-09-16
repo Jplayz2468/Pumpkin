@@ -1,15 +1,17 @@
-use std::sync::Arc;
-
 use pumpkin_macros::pumpkin_block;
 
 use crate::block::entities::end_gateway::EndGatewayBlockEntity;
-use crate::block::{BlockBehaviour, OnEntityCollisionArgs, OnSyncedBlockEventArgs, PlacedArgs};
+use crate::block::{BlockBehaviour, OnEntityCollisionArgs, OnSyncedBlockEventArgs};
 
 #[pumpkin_block("minecraft:end_gateway")]
 pub struct EndGatewayBlock;
 
 impl BlockBehaviour for EndGatewayBlock {
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
+        if !super::end_portal::portal_eligible(args.entity) {
+            return;
+        }
+
         let entity = args.entity.get_entity();
         if entity
             .portal_cooldown
@@ -51,12 +53,7 @@ impl BlockBehaviour for EndGatewayBlock {
         {
             end_gateway.trigger_event(args.r#type, args.data)
         } else {
-            args.r#type == EndGatewayBlockEntity::EVENT_COOLDOWN
+            false
         }
-    }
-
-    fn placed(&self, args: PlacedArgs<'_>) {
-        let block_entity = EndGatewayBlockEntity::new(*args.position);
-        args.world.add_block_entity(Arc::new(block_entity));
     }
 }

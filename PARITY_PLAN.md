@@ -16,7 +16,7 @@
 | B02 | Inventory automation | 4 | Reviewed; container/recipe dependencies queued |
 | B03 | Special gameplay blocks | 8 | Reviewed; substantial BE/entity dependencies queued |
 | B04 | Signs, banners, heads and light | 4 | Reviewed; item/component/protocol dependencies queued |
-| B05 | Portals and gateways | 4 | Pending batch closure; reuse prior ports |
+| B05 | Portals and gateways | 4 | Reviewed; transition/entity dependencies queued |
 | B06 | Administrative and invisible blocks | 6 | Pending batch closure; reuse prior ports |
 | B07 | Redstone and pistons | 33 | Pending batch closure; reuse prior ports |
 | B08 | Building shapes and placement | 15 | Pending batch closure; reuse prior ports |
@@ -59,10 +59,10 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B04 | [light.rs](crates/pumpkin/src/block/blocks/light.rs) | Reviewed |
 | B04 | [signs.rs](crates/pumpkin/src/block/blocks/signs.rs) | Reviewed |
 | B04 | [skull_block.rs](crates/pumpkin/src/block/blocks/skull_block.rs) | Reviewed |
-| B05 | [end_gateway.rs](crates/pumpkin/src/block/blocks/end_gateway.rs) | Pending |
-| B05 | [end_portal.rs](crates/pumpkin/src/block/blocks/end_portal.rs) | Pending |
-| B05 | [end_portal_frame.rs](crates/pumpkin/src/block/blocks/end_portal_frame.rs) | Pending |
-| B05 | [nether_portal.rs](crates/pumpkin/src/block/blocks/nether_portal.rs) | Pending |
+| B05 | [end_gateway.rs](crates/pumpkin/src/block/blocks/end_gateway.rs) | Reviewed |
+| B05 | [end_portal.rs](crates/pumpkin/src/block/blocks/end_portal.rs) | Reviewed |
+| B05 | [end_portal_frame.rs](crates/pumpkin/src/block/blocks/end_portal_frame.rs) | Reviewed |
+| B05 | [nether_portal.rs](crates/pumpkin/src/block/blocks/nether_portal.rs) | Reviewed |
 | B06 | [barrier.rs](crates/pumpkin/src/block/blocks/barrier.rs) | Pending |
 | B06 | [command.rs](crates/pumpkin/src/block/blocks/command.rs) | Pending |
 | B06 | [jigsaw.rs](crates/pumpkin/src/block/blocks/jigsaw.rs) | Pending |
@@ -392,3 +392,13 @@ Item source inventory:
   context-sensitive replacement tests and complete rotation/mirror coverage.
 - D06: filtered sign components, dialogs/custom click actions, command-source
   permission parity, sign editor network behavior, BE persistence/client sync.
+
+### B05 open dependencies
+
+- D03/D04/D06: shared portal processor timing/transition state, End credits and
+  respawn targets, passenger trees, gateway pearl handling/tickets and exit
+  generation. Gateways still teleport directly rather than through PortalProcessor.
+- D04: portal piglin spawn finalization/structure-spawn reason and passenger
+  cooldowns; distance-manager fast-path spawning decisions.
+- I01/B14: eye-of-ender frame formation, portal pick-block/fluid replacement
+  behavior and generated render/shape data.

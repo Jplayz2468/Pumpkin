@@ -1,7 +1,7 @@
 use std::sync::{Arc, atomic::Ordering};
 
 use pumpkin_data::{
-    Block, BlockDirection, BlockState, BlockStateId, Rotation,
+    Block, BlockState, BlockStateId, Rotation,
     block_properties::{Axis, HorizontalAxis, NetherPortalLikeProperties},
     dimension::Dimension,
     entity::EntityType,
@@ -26,18 +26,19 @@ impl NetherPortalBlock {
     /// Gets the portal delay time based on entity type and gamemode
     #[must_use]
     pub fn get_portal_time(world: &Arc<World>, entity: &dyn EntityBase) -> u32 {
-        let entity_type = entity.get_entity().entity_type;
-        let level_info = world.level_info.load();
-        match entity_type.id {
-            id if id == EntityType::PLAYER.id => (world
-                .get_player_by_id(entity.get_entity().entity_id))
-            .map_or(80, |player| match player.gamemode.load() {
-                GameMode::Creative => {
-                    level_info.game_rules.players_nether_portal_creative_delay as u32
-                }
-                _ => level_info.game_rules.players_nether_portal_default_delay as u32,
-            }),
-            _ => 0,
+        let Some(player) = entity.get_player() else {
+            return 0;
+        };
+        let rules = &world.level_info.load().game_rules;
+        let invulnerable = player
+            .abilities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .invulnerable;
+        if invulnerable {
+            rules.players_nether_portal_creative_delay.max(0) as u32
+        } else {
+            rules.players_nether_portal_default_delay.max(0) as u32
         }
     }
 }
@@ -58,7 +59,7 @@ impl BlockBehaviour for NetherPortalBlock {
         let is_horizontal_and_different =
             args.direction.is_horizontal() && direction_axis != state_axis_full;
         if is_horizontal_and_different
-            || args.neighbor_state_id == args.state_id
+            || args.neighbor_state_id.to_block() == &Block::NETHER_PORTAL
             || NetherPortal::get_on_axis(args.world, args.position, state_axis)
                 .is_some_and(|e| e.was_already_valid())
         {
@@ -72,7 +73,7 @@ impl BlockBehaviour for NetherPortalBlock {
         let difficulty = level_info.difficulty;
         if !level_info.game_rules.spawn_mobs
             || difficulty == Difficulty::Peaceful
-            || !args.world.dimension.nether_portal_spawns_piglin
+            || !args.world.environment_attributes().get_value_bool(pumpkin_data::environment_attribute::EnvironmentAttribute::GameplayNetherPortalSpawnsPiglin, args.position)
         {
             return;
         }
@@ -83,10 +84,13 @@ impl BlockBehaviour for NetherPortalBlock {
             return;
         }
 
-        let player_close = args
-            .world
-            .get_closest_player(args.position.to_centered_f64(), 128.0)
-            .is_some();
+        let chunk_x = f64::from((args.position.0.x >> 4) * 16 + 8);
+        let chunk_z = f64::from((args.position.0.z >> 4) * 16 + 8);
+        let player_close = args.world.players.load().iter().any(|player| {
+            let pos = player.get_entity().pos.load();
+            player.gamemode.load() != GameMode::Spectator
+                && (pos.x - chunk_x).powi(2) + (pos.z - chunk_z).powi(2) < 16384.0
+        });
         if !player_close {
             return;
         }
@@ -96,11 +100,10 @@ impl BlockBehaviour for NetherPortalBlock {
             bottom_pos = bottom_pos.down();
         }
 
-        if args
-            .world
-            .get_block_state(&bottom_pos)
-            .is_side_solid(BlockDirection::Up)
-        {
+        if crate::world::natural_spawner::is_valid_spawn_floor(
+            args.world.get_block_state(&bottom_pos),
+            &EntityType::ZOMBIFIED_PIGLIN,
+        ) {
             let spawn_pos = Vector3::new(
                 bottom_pos.0.x as f64 + 0.5,
                 (bottom_pos.0.y + 1) as f64,
@@ -115,11 +118,15 @@ impl BlockBehaviour for NetherPortalBlock {
             mob.get_entity()
                 .portal_cooldown
                 .store(300, Ordering::Relaxed);
-            args.world.spawn_entity_non_save(mob);
+            args.world.spawn_entity(mob);
         }
     }
 
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
+        if !super::end_portal::portal_eligible(args.entity) {
+            return;
+        }
+
         let target_world =
             if args.world.dimension.minecraft_name == Dimension::THE_NETHER.minecraft_name {
                 args.server.get_world_from_dimension(&Dimension::OVERWORLD)

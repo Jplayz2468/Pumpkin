@@ -1146,3 +1146,17 @@ so they must not be used to reconstruct audit completion.
 - B03 passed all 123 existing block tests. Initial B04 changes also passed 123; the
   final text/editor corrections are rebuilding in the background. Dependencies
   remain explicit in PARITY_PLAN.md; no complete 1:1 claim.
+
+## B05: portals and gateways source pass
+
+- Compared NetherPortalBlock, EndPortalBlock, EndGatewayBlock and EndPortalFrameBlock
+  to local 26.2; retained the frame's facing/eye comparator and path behavior.
+- Removed End portal/gateway BE replacement; added the End portal's Y=6/16..12/16
+  inside shape and alive/nonpassenger eligibility to all portal handlers.
+- Nether delay uses player invulnerability and clamps negative rules; neighbor
+  preservation tests portal block identity rather than exact state equality.
+- Portal piglins consult the environmental attribute and shared spawn-floor
+  predicate, use nonspectator horizontal distance from chunk center and enter the
+  normal entity-save lifecycle.
+- B04 final corrections and B05 changes each passed all 123 existing block tests
+  in background runs. Transition/gateway/entity dependencies remain queued.
