@@ -1,17 +1,17 @@
 use std::sync::{Arc, Mutex};
 
-use crate::block::entities::hanging_sign::HangingSignBlockEntity;
-use crate::block::entities::sign::{SignBlockEntity, SignEntityRef, Text};
+use crate::block::entities::sign::{SignEntityRef, Text};
 use crate::command::CommandSender;
 use crate::command::context::command_source::CommandSource;
 use pumpkin_data::Block;
 use pumpkin_data::BlockDirection;
 use pumpkin_data::BlockId;
 use pumpkin_data::BlockStateId;
-use pumpkin_data::HorizontalFacingExt;
 use pumpkin_data::block_properties::EnumVariants;
+use pumpkin_data::block_properties::Facing;
 use pumpkin_data::fluid::Fluid;
 use pumpkin_data::tag::Taggable;
+use pumpkin_data::{FacingExt, HorizontalFacingExt};
 use pumpkin_inventory::screen_handler::InventoryPlayer;
 use pumpkin_macros::pumpkin_block_from_tag;
 use pumpkin_util::math::position::BlockPos;
@@ -20,6 +20,7 @@ use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::click::ClickEvent;
 use pumpkin_world::tick::TickPriority;
+use pumpkin_world::world::BlockAccessor;
 use uuid::Uuid;
 
 use crate::block::BlockBehaviour;
@@ -27,8 +28,6 @@ use crate::block::CanPlaceAtArgs;
 use crate::block::GetStateForNeighborUpdateArgs;
 use crate::block::NormalUseArgs;
 use crate::block::OnPlaceArgs;
-use crate::block::OnStateReplacedArgs;
-use crate::block::PlacedArgs;
 use crate::block::PlayerPlacedArgs;
 use crate::block::UseWithItemArgs;
 use crate::block::registry::BlockActionResult;
@@ -44,15 +43,8 @@ use pumpkin_protocol::java::client::play::COpenSignEditor;
 #[pumpkin_block_from_tag("minecraft:all_signs")]
 pub struct SignBlock;
 
-/// Helper struct to hold support detection results
-struct SupportInfo {
-    above_is_valid: bool,
-    side_direction: Option<BlockDirection>,
-}
-
 /// Helper struct for sign placement configuration
 struct SignPlacement {
-    block_id: BlockId,
     facing: Option<String>,
     rotation: Option<u8>,
     attached: bool,
@@ -60,216 +52,115 @@ struct SignPlacement {
 }
 
 impl SignBlock {
-    /// Checks if a block can provide support for a sign.
-    fn is_valid_support(
-        world: &World,
-        pos: &BlockPos,
-        direction: BlockDirection,
-        is_hanging: bool,
-    ) -> bool {
-        let (block, state) = world.get_block_and_state(pos);
-
-        // Plain signs test the legacy-solid flag, mirroring `isSolid` in
-        // `StandingSignBlock::canSurvive` / `WallSignBlock::canSurvive`.
-        if !is_hanging {
-            return state.is_solid();
-        }
-
-        let is_permissive = block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_LEAVES)
-            || block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_SIGNS);
-
-        match direction {
-            BlockDirection::Up => state.is_side_solid(BlockDirection::Down) || is_permissive,
-            BlockDirection::Down => state.is_center_solid(BlockDirection::Up) || is_permissive,
-            _ => state.is_side_solid(direction.opposite()) || is_permissive,
-        }
-    }
-
-    /// Detects available support points around a position.
-    fn detect_support(world: &World, position: &BlockPos, is_hanging: bool) -> SupportInfo {
-        let (block_above, state_above) = world.get_block_and_state(&position.up());
-        let above_is_valid = state_above.is_side_solid(BlockDirection::Down)
-            || block_above.has_tag(&pumpkin_data::tag::Block::MINECRAFT_SIGNS)
-            || block_above.has_tag(&pumpkin_data::tag::Block::MINECRAFT_LEAVES);
-
-        let mut side_direction = None;
-        for direction in BlockDirection::horizontal() {
-            let pos = position.offset(direction.to_offset());
-            if Self::is_valid_support(
-                world,
-                &pos,
-                direction.opposite().to_block_direction(),
-                is_hanging,
-            ) {
-                side_direction = Some(direction);
-                break;
+    fn placement_state(args: &OnPlaceArgs<'_>) -> BlockStateId {
+        let hanging = args.block.name.contains("hanging");
+        let mut directions = args.player.get_entity().get_entity_facing_order();
+        if args.replacing == crate::block::BlockIsReplacing::None {
+            let face = args.direction.to_facing();
+            if let Some(i) = directions.iter().position(|dir| *dir == face) {
+                directions.copy_within(0..i, 1);
+                directions[0] = face;
             }
         }
-
-        SupportInfo {
-            above_is_valid,
-            side_direction: side_direction.map(|d| d.to_block_direction()),
-        }
-    }
-
-    /// Determines the appropriate facing direction for a wall-hanging sign.
-    fn calculate_wall_hanging_facing(wall_dir: BlockDirection, player_yaw: f32) -> &'static str {
-        match wall_dir {
-            BlockDirection::North | BlockDirection::South => {
-                // Wall runs North-South, sign faces East or West
-                if (player_yaw + 360.0) % 360.0 < 180.0 {
-                    "east"
-                } else {
-                    "west"
+        let water = args.world.get_fluid(args.position).id == Fluid::WATER.id
+            || args.world.get_fluid(args.position).id == Fluid::FLOWING_WATER.id;
+        let wall = Block::from_id(get_sign_variant(args.block, hanging));
+        let wall_state = directions.iter().find_map(|dir| {
+            let horizontal = dir.to_horizontal_facing()?;
+            if hanging && horizontal.to_block_direction().to_axis() == args.direction.to_axis() {
+                return None;
+            }
+            let facing = horizontal.opposite().to_block_direction();
+            let state = Self::apply_placement_properties(
+                wall,
+                &SignPlacement {
+                    facing: Some(facing.to_cardinal_direction().to_value().to_string()),
+                    rotation: None,
+                    attached: false,
+                    waterlogged: water,
+                },
+            );
+            let valid = if hanging {
+                wall_hanging_can_place(args.world, args.position, facing)
+            } else {
+                args.world
+                    .get_block_state(&args.position.offset(horizontal.to_offset()))
+                    .is_solid()
+            };
+            valid.then_some(state)
+        });
+        let attached_direction = if hanging { Facing::Up } else { Facing::Down };
+        for dir in directions {
+            if dir == attached_direction.opposite() {
+                continue;
+            }
+            if dir != attached_direction {
+                if let Some(state) = wall_state {
+                    return state;
                 }
+                continue;
             }
-            BlockDirection::East | BlockDirection::West => {
-                // Wall runs East-West, sign faces North or South
-                if (-270.0..=270.0).contains(&player_yaw) {
-                    "south"
-                } else {
-                    "north"
+            let mut attached = false;
+            let mut rotation = args.player.get_entity().get_flipped_rotation_16();
+            if hanging {
+                let (above_block, above) = args.world.get_block_and_state(&args.position.up());
+                if !above.is_center_solid(BlockDirection::Down) {
+                    continue;
                 }
+                let sneaking = args.player.get_entity().is_sneaking();
+                attached = !above.is_side_solid(BlockDirection::Down) || sneaking;
+                let horizontal = args
+                    .player
+                    .get_entity()
+                    .get_horizontal_facing()
+                    .to_block_direction();
+                if above_block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_ALL_HANGING_SIGNS)
+                    && !sneaking
+                {
+                    if let Some(support) = get_wall_support_direction(above_block, above.id) {
+                        if support.to_axis() == horizontal.to_axis() {
+                            attached = false;
+                        }
+                    } else if let Some(props) = above_block.properties(above.id) {
+                        if let Some((_, value)) =
+                            props.to_props().iter().find(|(key, _)| *key == "rotation")
+                        {
+                            let segment = value.parse::<u8>().unwrap_or(0);
+                            if segment % 4 == 0 {
+                                let above_axis = if segment % 8 == 0 {
+                                    pumpkin_data::block_properties::Axis::Z
+                                } else {
+                                    pumpkin_data::block_properties::Axis::X
+                                };
+                                if above_axis == horizontal.to_axis() {
+                                    attached = false;
+                                }
+                            }
+                        }
+                    }
+                }
+                if !attached {
+                    rotation = match horizontal.opposite() {
+                        BlockDirection::South => 0,
+                        BlockDirection::West => 4,
+                        BlockDirection::North => 8,
+                        _ => 12,
+                    };
+                }
+            } else if !args.world.get_block_state(&args.position.down()).is_solid() {
+                continue;
             }
-            _ => wall_dir.opposite().to_cardinal_direction().to_value(),
+            return Self::apply_placement_properties(
+                args.block,
+                &SignPlacement {
+                    facing: None,
+                    rotation: Some(rotation),
+                    attached,
+                    waterlogged: water,
+                },
+            );
         }
-    }
-
-    /// Calculates rotation for wall-hanging signs.
-    fn calculate_wall_hanging_rotation(
-        wall_dir: BlockDirection,
-        player_rot: u8,
-        is_sneaking: bool,
-    ) -> u8 {
-        if is_sneaking {
-            return player_rot;
-        }
-
-        match wall_dir {
-            BlockDirection::North | BlockDirection::South => {
-                // Snap to North-South axis (0 or 8)
-                if (4..12).contains(&player_rot) { 8 } else { 0 }
-            }
-            BlockDirection::East | BlockDirection::West => {
-                // Snap to East-West axis (4 or 12)
-                if (2..10).contains(&player_rot) { 4 } else { 12 }
-            }
-            _ => player_rot,
-        }
-    }
-
-    /// Determines the block variant and placement properties for a sign.
-    fn determine_placement(args: &OnPlaceArgs, support: &SupportInfo) -> Option<SignPlacement> {
-        let is_hanging = args.block.name.contains("hanging");
-        let is_sneaking = args.player.get_entity().is_sneaking();
-
-        // Select block variant
-        let block_id = if is_hanging {
-            Self::select_hanging_variant(args, support)?
-        } else {
-            Self::select_standing_variant(args, support)
-        };
-
-        let actual_block = Block::from_id(block_id);
-        let is_wall_hanging = is_hanging && actual_block.name.contains("wall_hanging");
-
-        // Calculate orientation
-        let (facing, rotation, attached) = if is_wall_hanging {
-            Self::calculate_wall_hanging_orientation(args, support, is_sneaking)
-        } else if is_hanging {
-            Self::calculate_ceiling_orientation(args, is_sneaking)
-        } else if actual_block.name.contains("wall") {
-            Self::calculate_wall_orientation(args)
-        } else {
-            Self::calculate_standing_orientation(args)
-        };
-
-        Some(SignPlacement {
-            block_id,
-            facing,
-            rotation,
-            attached,
-            waterlogged: args.replacing.water_source(),
-        })
-    }
-
-    /// Selects the appropriate hanging sign variant.
-    fn select_hanging_variant(args: &OnPlaceArgs, support: &SupportInfo) -> Option<BlockId> {
-        if args.direction == BlockDirection::Down && support.above_is_valid {
-            Some(args.block.id) // Ceiling hanging
-        } else if (args.direction.is_horizontal() || args.direction == BlockDirection::Up)
-            && support.side_direction.is_some()
-        {
-            Some(get_sign_variant(args.block, true)) // Wall-hanging with post
-        } else if support.above_is_valid {
-            Some(args.block.id)
-        } else {
-            None // No valid placement
-        }
-    }
-
-    /// Selects the appropriate standing sign variant.
-    fn select_standing_variant(args: &OnPlaceArgs, support: &SupportInfo) -> BlockId {
-        if args.direction.is_horizontal() && support.side_direction.is_some() {
-            get_sign_variant(args.block, false) // Wall sign
-        } else {
-            args.block.id // Standing sign
-        }
-    }
-
-    /// Calculates orientation for wall-hanging signs.
-    fn calculate_wall_hanging_orientation(
-        args: &OnPlaceArgs,
-        support: &SupportInfo,
-        is_sneaking: bool,
-    ) -> (Option<String>, Option<u8>, bool) {
-        let wall_dir = if args.direction.is_horizontal() {
-            args.direction
-        } else {
-            support.side_direction.unwrap_or(args.direction)
-        };
-
-        let player_yaw = args.player.get_entity().yaw.load();
-        let facing = Self::calculate_wall_hanging_facing(wall_dir, player_yaw);
-
-        let player_rot = args.player.get_entity().get_flipped_rotation_16();
-        let rotation = Self::calculate_wall_hanging_rotation(wall_dir, player_rot, is_sneaking);
-
-        let is_angled = rotation % 4 != 0;
-        let attached = is_angled || is_sneaking;
-
-        (Some(facing.to_string()), Some(rotation), attached)
-    }
-
-    /// Calculates orientation for ceiling-hanging signs.
-    fn calculate_ceiling_orientation(
-        args: &OnPlaceArgs,
-        is_sneaking: bool,
-    ) -> (Option<String>, Option<u8>, bool) {
-        let rotation = if is_sneaking {
-            args.player.get_entity().get_flipped_rotation_16()
-        } else {
-            // Snap to nearest cardinal
-            let index = args.player.get_entity().get_flipped_rotation_16();
-            ((index + 2) / 4 * 4) % 16
-        };
-
-        let is_angled = rotation % 4 != 0;
-        let attached = is_angled || is_sneaking;
-
-        (None, Some(rotation), attached)
-    }
-
-    /// Calculates orientation for wall signs.
-    fn calculate_wall_orientation(args: &OnPlaceArgs) -> (Option<String>, Option<u8>, bool) {
-        let facing = args.direction.opposite().to_cardinal_direction().to_value();
-        (Some(facing.to_string()), None, false)
-    }
-
-    /// Calculates orientation for standing signs.
-    fn calculate_standing_orientation(args: &OnPlaceArgs) -> (Option<String>, Option<u8>, bool) {
-        let rotation = args.player.get_entity().get_flipped_rotation_16();
-        (None, Some(rotation), false)
+        BlockStateId::AIR
     }
 
     /// Applies placement properties to a block.
@@ -326,25 +217,7 @@ impl SignBlock {
 
 impl BlockBehaviour for SignBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        let is_hanging = args.block.name.contains("hanging");
-        let support = Self::detect_support(args.world, args.position, is_hanging);
-
-        let Some(placement) = Self::determine_placement(&args, &support) else {
-            return BlockStateId::AIR; // Invalid placement
-        };
-
-        let actual_block = Block::from_id(placement.block_id);
-        Self::apply_placement_properties(actual_block, &placement)
-    }
-
-    fn placed(&self, args: PlacedArgs<'_>) {
-        if args.block.name.contains("hanging") {
-            args.world
-                .add_block_entity(Arc::new(HangingSignBlockEntity::empty(*args.position)));
-        } else {
-            args.world
-                .add_block_entity(Arc::new(SignBlockEntity::empty(*args.position)));
-        }
+        Self::placement_state(&args)
     }
 
     fn player_placed(&self, args: PlayerPlacedArgs<'_>) {
@@ -364,118 +237,38 @@ impl BlockBehaviour for SignBlock {
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        let is_hanging = args.block.name.contains("hanging");
-        let clicked_face = args
-            .use_item_on
-            .and_then(|u| pumpkin_data::BlockDirection::try_from(u.face.0).ok())
-            .unwrap_or(pumpkin_data::BlockDirection::Up);
-
-        // Detection for floor-to-wall attachment (broken rn)
-        if is_hanging && clicked_face == BlockDirection::Up {
-            for d in pumpkin_data::BlockDirection::horizontal() {
-                let wall_pos = args.position.offset(d.to_offset());
-                let (block, state) = args.block_accessor.get_block_and_state(&wall_pos);
-                if state.is_side_solid(d.opposite().to_block_direction())
-                    || block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_LEAVES)
-                    || block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_SIGNS)
-                {
-                    return true;
-                }
-            }
+        if args.block.name.contains("wall_hanging") {
+            get_wall_support_direction(args.block, args.state.id).is_some_and(|support| {
+                wall_hanging_can_place(args.block_accessor, args.position, support.opposite())
+            })
+        } else {
+            sign_can_survive(
+                args.block_accessor,
+                args.block,
+                args.state.id,
+                args.position,
+            )
         }
-
-        // Standard support validation with permissive tags
-        let support_pos = match clicked_face {
-            BlockDirection::Up => args.position.down(),
-            BlockDirection::Down => args.position.up(),
-            _ => args.position.offset(clicked_face.opposite().to_offset()),
-        };
-
-        let (block, state) = args.block_accessor.get_block_and_state(&support_pos);
-        let is_permissive = block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_LEAVES)
-            || block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_SIGNS);
-
-        match clicked_face {
-            // Standing signs need a legacy-solid block below,
-            // mirroring `isSolid` in `StandingSignBlock::canSurvive`.
-            BlockDirection::Up => !is_hanging && state.is_solid(),
-            BlockDirection::Down => {
-                is_hanging && (state.is_side_solid(BlockDirection::Down) || is_permissive)
-            }
-            _ => {
-                if is_hanging {
-                    state.is_side_solid(clicked_face.opposite()) || is_permissive
-                } else {
-                    // Wall signs need a legacy-solid block behind them,
-                    // mirroring `isSolid` in `WallSignBlock::canSurvive`.
-                    state.is_solid()
-                }
-            }
-        }
-    }
-
-    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
-        args.world.remove_block_entity(args.position);
     }
 
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        let is_hanging = args.block.name.contains("hanging");
-        let is_wall_sign = args.block.name.contains("wall");
-
-        // Determine the expected support direction
-        let support_dir = if is_wall_sign {
-            // Look up the 'facing' property to find the support behind the wall sign
-            get_wall_support_direction(args.block, args.state_id)
-        } else if is_hanging {
-            // Ceiling-hanging signs always look Up
+        let support = if args.block.name.contains("wall_hanging") {
+            None
+        } else if args.block.name.contains("hanging") {
             Some(BlockDirection::Up)
+        } else if args.block.name.contains("wall") {
+            get_wall_support_direction(args.block, args.state_id)
         } else {
-            // Standing signs always look Down
             Some(BlockDirection::Down)
         };
-
-        if let Some(dir) = support_dir {
-            let support_pos = args.position.offset(dir.to_offset());
-            let support_state = args.world.get_block_state(&support_pos);
-
-            let is_leaf = args
-                .world
-                .get_block(&support_pos)
-                .has_tag(&pumpkin_data::tag::Block::MINECRAFT_LEAVES);
-
-            let is_sign = args
-                .world
-                .get_block(&support_pos)
-                .has_tag(&pumpkin_data::tag::Block::MINECRAFT_ALL_SIGNS);
-
-            let is_valid = match dir {
-                BlockDirection::Up => {
-                    support_state.is_center_solid(BlockDirection::Down) || is_leaf || is_sign
-                }
-                // Standing signs survive on a legacy-solid block,
-                // mirroring `isSolid` in `StandingSignBlock::canSurvive`.
-                BlockDirection::Down => support_state.is_solid(),
-                _ => {
-                    if is_hanging {
-                        support_state.is_side_solid(dir.opposite()) || is_leaf || is_sign
-                    } else {
-                        // Wall signs survive on a legacy-solid block,
-                        // mirroring `isSolid` in `WallSignBlock::canSurvive`.
-                        support_state.is_solid()
-                    }
-                }
-            };
-
-            if !is_valid {
-                return BlockStateId::AIR;
-            }
+        if support == Some(args.direction)
+            && !sign_can_survive(args.world, args.block, args.state_id, args.position)
+        {
+            return BlockStateId::AIR;
         }
-
-        // A surviving waterlogged sign keeps the water around it flowing,
-        // mirroring the `scheduleTick` in `SignBlock::updateShape`.
         if args.state_id.is_waterlogged() {
             args.world.schedule_fluid_tick(
                 &Fluid::WATER,
@@ -484,7 +277,6 @@ impl BlockBehaviour for SignBlock {
                 TickPriority::Normal,
             );
         }
-
         args.state_id
     }
 
@@ -525,7 +317,7 @@ impl BlockBehaviour for SignBlock {
             args.world,
             args.position,
         ) && args.player.may_build()
-            && has_editable_text(text)
+            && has_editable_text(text, args.player)
         {
             open_text_edit(
                 args.player,
@@ -622,9 +414,11 @@ impl BlockBehaviour for SignBlock {
                     i32::from(args.item_stack.item.id),
                     1,
                 );
-                args.world.emit_game_event(
+                args.world.emit_game_event_with_context(
                     pumpkin_data::game_event::GameEvent::BlockChange.name(),
                     args.position.to_centered_f64(),
+                    Some(args.player.get_entity().entity_id),
+                    Some(args.world.get_block_state_id(args.position)),
                 );
                 if !args.player.has_infinite_materials() {
                     args.item_stack.decrement(1);
@@ -634,6 +428,50 @@ impl BlockBehaviour for SignBlock {
         }
 
         BlockActionResult::PassToDefaultBlockAction
+    }
+}
+
+fn wall_hanging_can_place(
+    world: &dyn BlockAccessor,
+    pos: &BlockPos,
+    facing: BlockDirection,
+) -> bool {
+    let axis = facing.to_axis();
+    let sides = if axis == pumpkin_data::block_properties::Axis::Z {
+        [BlockDirection::West, BlockDirection::East]
+    } else {
+        [BlockDirection::North, BlockDirection::South]
+    };
+    sides.iter().any(|side| {
+        let (block, state) = world.get_block_and_state(&pos.offset(side.to_offset()));
+        if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_WALL_HANGING_SIGNS) {
+            get_wall_support_direction(block, state.id).is_some_and(|other| other.to_axis() == axis)
+        } else {
+            state.is_side_solid(side.opposite())
+        }
+    })
+}
+
+fn sign_can_survive(
+    world: &dyn BlockAccessor,
+    block: &Block,
+    state: BlockStateId,
+    pos: &BlockPos,
+) -> bool {
+    if block.name.contains("wall_hanging") {
+        true
+    } else if block.name.contains("hanging") {
+        world
+            .get_block_state(&pos.up())
+            .is_center_solid(BlockDirection::Down)
+    } else if block.name.contains("wall") {
+        get_wall_support_direction(block, state).is_some_and(|dir| {
+            world
+                .get_block_state(&pos.offset(dir.to_offset()))
+                .is_solid()
+        })
+    } else {
+        world.get_block_state(&pos.down()).is_solid()
     }
 }
 
@@ -650,24 +488,17 @@ fn open_text_edit(
     player.try_send_client_packet(&COpenSignEditor::new(*position, is_front_text));
 }
 
-/// Checks if another player is actively editing the sign within reach.
+/// Editor ownership is released by the sign entity tick.
 fn other_player_is_editing_sign(
     player: &Player,
     currently_editing_player: &Arc<Mutex<Option<Uuid>>>,
-    world: &World,
-    position: &BlockPos,
+    _world: &World,
+    _position: &BlockPos,
 ) -> bool {
-    let currently_editing = currently_editing_player
+    currently_editing_player
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
-    if let Some(editing_player_id) = *currently_editing
-        && editing_player_id != player.gameprofile.id
-        && let Some(editing_player) = world.get_player_by_uuid(editing_player_id)
-        && editing_player.can_interact_with_block_at(position, 4.0)
-    {
-        return true;
-    }
-    false
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .is_some_and(|editor| editor != player.gameprofile.id)
 }
 
 /// `SignText.hasMessage`: whether the given sign text face has at least one non-empty
@@ -683,13 +514,22 @@ fn sign_has_message(text: &Text, player: &Player) -> bool {
     let messages = messages
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
-    messages.iter().any(|msg| !msg.is_empty())
+    messages.iter().any(|msg| {
+        serde_json::from_str::<TextComponent>(msg).map_or_else(
+            |_| !msg.is_empty(),
+            |component| !component.get_text().is_empty(),
+        )
+    })
 }
 
 /// Checks whether all messages on the given sign text face are plain text or empty.
-fn has_editable_text(text: &Text) -> bool {
-    let messages = text
-        .messages
+fn has_editable_text(text: &Text, player: &Player) -> bool {
+    let messages = if player.is_text_filtering_enabled() {
+        &text.filtered_messages
+    } else {
+        &text.messages
+    };
+    let messages = messages
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
     messages.iter().all(|msg| is_plain_or_empty_text(msg))
@@ -703,15 +543,10 @@ fn is_plain_or_empty_text(text: &str) -> bool {
         return true;
     }
     match serde_json::from_str::<TextComponent>(text) {
-        Ok(component) => {
-            component.0.style.click_event.is_none()
-                && component.0.style.hover_event.is_none()
-                && component.0.extra.is_empty()
-                && matches!(
-                    *component.0.content,
-                    pumpkin_util::text::TextContent::Text { .. }
-                )
-        }
+        Ok(component) => matches!(
+            *component.0.content,
+            pumpkin_util::text::TextContent::Text { .. }
+        ),
         Err(_) => true,
     }
 }
@@ -727,10 +562,15 @@ fn execute_click_commands_if_present(
         return false;
     };
 
-    let messages = text
-        .messages
+    let messages = if player.is_text_filtering_enabled() {
+        &text.filtered_messages
+    } else {
+        &text.messages
+    };
+    let messages = messages
         .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .clone();
 
     let mut has_run_command = false;
     for msg in messages.iter() {
@@ -819,7 +659,12 @@ fn is_facing_front_text(
             };
         }
     }
-    let bounding_box = Vector3::new(0.5, 0.5, 0.5);
+    let mut bounding_box = Vector3::new(0.5, 0.5, 0.5);
+    if block.name.contains("wall_sign") && !block.name.contains("hanging") {
+        if let Some(support) = get_wall_support_direction(block, state_id) {
+            bounding_box = bounding_box.add(&(support.to_offset().to_f64() * (7.0 / 16.0)));
+        }
+    }
 
     let d = player.eye_position().x - (f64::from(location.0.x) + bounding_box.x);
     let d1 = player.eye_position().z - (f64::from(location.0.z) + bounding_box.z);
@@ -838,9 +683,8 @@ fn get_yaw_from_rotation_16(rotation: u8) -> f32 {
 mod tests {
     use super::*;
 
-    fn placement(block: &Block, waterlogged: bool) -> SignPlacement {
+    fn placement(_block: &Block, waterlogged: bool) -> SignPlacement {
         SignPlacement {
-            block_id: block.id,
             facing: None,
             rotation: None,
             attached: false,

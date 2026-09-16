@@ -286,6 +286,20 @@ impl BlockEntity for SignBlockEntity {
         }
     }
 
+    fn tick(&self, world: &Arc<crate::world::World>) {
+        let mut editor = self
+            .currently_editing_player
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if editor.is_some_and(|id| {
+            world
+                .get_player_by_uuid(id)
+                .is_none_or(|player| !player.can_interact_with_block_at(&self.position, 4.0))
+        }) {
+            *editor = None;
+        }
+    }
+
     fn write_nbt(&self, nbt: &mut NbtCompound) {
         nbt.put("front_text", self.front_text.clone());
         nbt.put("back_text", self.back_text.clone());

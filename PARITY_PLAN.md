@@ -15,7 +15,7 @@
 | B01 | Workstations | 8 | Reviewed; menu dependencies queued |
 | B02 | Inventory automation | 4 | Reviewed; container/recipe dependencies queued |
 | B03 | Special gameplay blocks | 8 | Reviewed; substantial BE/entity dependencies queued |
-| B04 | Signs, banners, heads and light | 4 | Pending batch closure; reuse prior ports |
+| B04 | Signs, banners, heads and light | 4 | Reviewed; item/component/protocol dependencies queued |
 | B05 | Portals and gateways | 4 | Pending batch closure; reuse prior ports |
 | B06 | Administrative and invisible blocks | 6 | Pending batch closure; reuse prior ports |
 | B07 | Redstone and pistons | 33 | Pending batch closure; reuse prior ports |
@@ -55,10 +55,10 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B03 | [trial_spawner.rs](crates/pumpkin/src/block/blocks/trial_spawner.rs) | Reviewed |
 | B03 | [vault.rs](crates/pumpkin/src/block/blocks/vault.rs) | Reviewed |
 | B03 | [wither_skull.rs](crates/pumpkin/src/block/blocks/wither_skull.rs) | Reviewed |
-| B04 | [banners.rs](crates/pumpkin/src/block/blocks/banners.rs) | Pending |
-| B04 | [light.rs](crates/pumpkin/src/block/blocks/light.rs) | Pending |
-| B04 | [signs.rs](crates/pumpkin/src/block/blocks/signs.rs) | Pending |
-| B04 | [skull_block.rs](crates/pumpkin/src/block/blocks/skull_block.rs) | Pending |
+| B04 | [banners.rs](crates/pumpkin/src/block/blocks/banners.rs) | Reviewed |
+| B04 | [light.rs](crates/pumpkin/src/block/blocks/light.rs) | Reviewed |
+| B04 | [signs.rs](crates/pumpkin/src/block/blocks/signs.rs) | Reviewed |
+| B04 | [skull_block.rs](crates/pumpkin/src/block/blocks/skull_block.rs) | Reviewed |
 | B05 | [end_gateway.rs](crates/pumpkin/src/block/blocks/end_gateway.rs) | Pending |
 | B05 | [end_portal.rs](crates/pumpkin/src/block/blocks/end_portal.rs) | Pending |
 | B05 | [end_portal_frame.rs](crates/pumpkin/src/block/blocks/end_portal_frame.rs) | Pending |
@@ -382,3 +382,13 @@ Item source inventory:
 - D04: TNT still stores a player-credit flag rather than the full persistent owner.
 - D02/D04/D06: spawner/trial-spawner BE algorithms, beacon names/effects/beam
   networking and menu behavior need their detailed dependency passes.
+
+### B04 open dependencies
+
+- I01: hanging-sign chaining clicks and placement editor suppression after applying
+  custom block-entity tags; block-item/pick-block component handling for light,
+  banner patterns/names and skull profiles/note-block sounds.
+- D01/B14: dynamic hanging-sign support/collision shapes and fluid behavior, skull
+  context-sensitive replacement tests and complete rotation/mirror coverage.
+- D06: filtered sign components, dialogs/custom click actions, command-source
+  permission parity, sign editor network behavior, BE persistence/client sync.

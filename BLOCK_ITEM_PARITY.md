@@ -1124,3 +1124,25 @@ so they must not be used to reconstruct audit completion.
   restrictions. Rotated/copper patterns and entity lifecycle remain open.
 - B02 passed all 123 existing block tests. B03 is rebuilding in the background;
   see PARITY_PLAN.md for its unresolved dependencies. No 1:1 completion claim.
+
+## B04: signs, banners, heads and light source pass
+
+- Compared all four sign variants, banner variants, skull variants and light with
+  local 26.2 block and standing/wall item sources. Removed BE replacement from
+  sign, banner and skull placement.
+- Banners now select standing/wall variants in placement direction order, test the
+  correct support and immediately return air on support shape loss.
+- Signs now use nearest-direction standing/wall selection, horizontal beam support
+  for wall-hanging placement, center support for ceiling signs and source-aligned
+  chain attachment/rotation. Wall-hanging survival retains vanilla's inherited
+  behavior; removed permissive leaf/sign shortcuts.
+- Sign edit checks and commands use the player's filtered text selection; styled
+  plain text remains editable. Editor ownership clears on BE ticks when players
+  disconnect/leave range. Wall-sign front/back uses the signboard center; successful
+  applicators emit block_change with player/state context.
+- Light levels require game-master permission, update listeners only, and no longer
+  incorrectly cycle through block replacement placement. Item block-state components
+  remain in the item pass. Skull neighbor updates reject a replaced block.
+- B03 passed all 123 existing block tests. Initial B04 changes also passed 123; the
+  final text/editor corrections are rebuilding in the background. Dependencies
+  remain explicit in PARITY_PLAN.md; no complete 1:1 claim.

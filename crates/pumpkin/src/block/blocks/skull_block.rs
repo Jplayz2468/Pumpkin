@@ -1,8 +1,7 @@
 use crate::block::blocks::redstone::block_receives_redstone_power;
-use crate::block::entities::skull::SkullBlockEntity;
 use crate::block::{
     BlockBehaviour, BlockIsReplacing, BlockMetadata, OnNeighborUpdateArgs, OnPlaceArgs,
-    PathComputationType, PlacedArgs,
+    PathComputationType,
 };
 use crate::entity::EntityBase;
 use pumpkin_data::FacingExt;
@@ -11,7 +10,6 @@ use pumpkin_data::block_properties::{
 };
 use pumpkin_data::{Block, BlockId, BlockState, BlockStateId};
 use pumpkin_world::world::BlockFlags;
-use std::sync::Arc;
 
 pub struct SkullBlock;
 
@@ -79,13 +77,6 @@ fn is_wall_variant(block: &Block) -> bool {
 }
 
 impl BlockBehaviour for SkullBlock {
-    fn placed(&self, args: PlacedArgs<'_>) {
-        {
-            let entity = SkullBlockEntity::new(*args.position);
-            args.world.add_block_entity(Arc::new(entity));
-        }
-    }
-
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         // `StandingAndWallBlockItem.getPlacementState` (StandingAndWallBlockItem.java:27-45)
         // walks the same "nearest looking directions" used by every directional block
@@ -162,6 +153,10 @@ impl BlockBehaviour for SkullBlock {
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+
         // `AbstractSkullBlock.neighborChanged` (AbstractSkullBlock.java:73-83) keeps the
         // `powered` property in sync with redstone signal and is inherited unmodified by
         // `WallSkullBlock`, so the same logic applies to standing and wall skulls alike.
@@ -184,11 +179,8 @@ impl BlockBehaviour for SkullBlock {
             props.to_state_id(args.block)
         };
 
-        args.world.set_block_state(
-            args.position,
-            new_state_id,
-            BlockFlags::NOTIFY_LISTENERS,
-        );
+        args.world
+            .set_block_state(args.position, new_state_id, BlockFlags::NOTIFY_LISTENERS);
     }
 
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {
