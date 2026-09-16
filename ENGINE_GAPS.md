@@ -329,3 +329,21 @@ whole inside-effect pipeline matches Java yet.
   full eye-fluid/boat passenger-box integration, dynamic FAST_LAVA environment
   attributes, and live chunk-edge/landing/vehicle verification. This is not complete
   D01 or whole-engine parity; full mob passes remain paused.
+
+
+## Landing dust and particle payloads
+
+- Living landing dust now uses the pre-accumulation fall distance, safe-fall
+  attribute, Java float/double constants, capped count and support-edge position.
+  The original on-block state is retained across the block-change callback.
+- Added a block-particle sender with the block-state payload. The packet codec
+  remaps that payload for each client's block registry (including legacy block
+  metadata packing/name form); previously only the particle type was remapped.
+- World particle senders now share ServerLevel's strict center-distance recipient
+  limit: 32 blocks normally, 512 with the distance override.
+- **128 real Java 26.2 particle packet byte strings** match exactly. Client-state
+  mapping has regression coverage; final background run 3 passed **480 pumpkin +
+  113 pumpkin-protocol tests**, excluding the same two socket tests.
+- No live particle render verified. Mace extra-landing dust, splash effects,
+  non-Block particle payloads and Bedrock particle translation remain separate
+  gates, along with the listed impulse/fluid/vehicle and D02–D06 work.

@@ -1367,3 +1367,11 @@ and lava reduces it once per base tick. Removed proximity-based fall immunity in
 favor of actual contact/swept effects. Current response and chunk-margin gating now
 follow Java's tracker; 1,200 real Java current cases cover the math. Remaining
 particle/impulse/vehicle/live-world work is listed in ENGINE_GAPS.md.
+
+
+### Landing dust packets
+
+Added ordinary landing dust with the landing block state and Java positioning/count
+rules. World particle recipients use the source distance limit, and block-particle
+payloads use each client's state registry. 128 real Java packet fixtures match;
+remaining mace/splash/other-particle/Bedrock/live-render gates stay open.

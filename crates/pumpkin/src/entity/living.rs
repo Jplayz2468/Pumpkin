@@ -2027,7 +2027,27 @@ impl LivingEntity {
         }
         let previous_distance = self.fall_distance.load();
         if ground && previous_distance > 0.0 {
-            self.on_changed_block(caller, self.entity.get_pos_with_y_offset(0.2).0);
+            let world = self.entity.world.load();
+            let on_pos = self.entity.get_pos_with_y_offset(0.2).0;
+            let on_state = world.get_block_state(&on_pos);
+            self.on_changed_block(caller, on_pos);
+            let power = (self.fall_distance.load() + 1.0e-6
+                - self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE))
+            .floor()
+            .max(0.0);
+            if power > 0.0 && !on_state.is_air() {
+                let mut position = self.entity.pos.load();
+                let entity_pos = self.entity.block_pos.load();
+                if on_pos.0.x != entity_pos.0.x || on_pos.0.z != entity_pos.0.z {
+                    let x_diff = position.x - f64::from(on_pos.0.x) - 0.5;
+                    let z_diff = position.z - f64::from(on_pos.0.z) - 0.5;
+                    let max_diff = x_diff.abs().max(z_diff.abs());
+                    position.x = f64::from(on_pos.0.x) + 0.5 + x_diff / max_diff * 0.5;
+                    position.z = f64::from(on_pos.0.z) + 0.5 + z_diff / max_diff * 0.5;
+                }
+                let scale = (f64::from(0.2_f32) + power / 15.0).min(2.5);
+                world.spawn_block_particles(on_state.id, position, (150.0 * scale) as i32);
+            }
         }
         let distance = super::fall_distance::accumulate(
             previous_distance,

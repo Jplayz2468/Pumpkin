@@ -1308,9 +1308,61 @@ impl World {
         particle_count: i32,
         particle: Particle,
     ) {
-        for player in self.players.load().iter() {
-            player.spawn_particle(position, offset, max_speed, particle_count, particle);
+        let packet = CParticle::new(
+            false,
+            false,
+            position,
+            offset,
+            max_speed,
+            particle_count,
+            VarInt(particle as i32),
+            &[],
+        );
+        self.broadcast_particle(&packet);
+    }
+
+    /// ServerLevel.sendParticles range and BlockParticleOption payload.
+    pub(crate) fn spawn_block_particles(
+        &self,
+        state: BlockStateId,
+        position: Vector3<f64>,
+        count: i32,
+    ) {
+        use pumpkin_protocol::ser::NetworkWriteExt;
+        let mut data = Vec::new();
+        if data
+            .write_var_int(&VarInt(i32::from(state.as_u16())))
+            .is_err()
+        {
+            return;
         }
+        let packet = CParticle::new(
+            false,
+            false,
+            position,
+            Vector3::new(0.0, 0.0, 0.0),
+            0.15,
+            count,
+            VarInt(Particle::Block as i32),
+            &data,
+        );
+        self.broadcast_particle(&packet);
+    }
+
+    fn broadcast_particle(&self, packet: &CParticle<'_>) {
+        let range = if packet.important { 512.0 } else { 32.0 };
+        let players = self.players.load();
+        let recipients =
+            Self::collect_java_recipients_by_version(players.iter().filter(|player| {
+                let center = player
+                    .get_entity()
+                    .block_pos
+                    .load()
+                    .to_f64()
+                    .add_raw(0.5, 0.5, 0.5);
+                (center - packet.position).length_squared() < range * range
+            }));
+        Self::broadcast_java_grouped(packet, recipients);
     }
 
     fn next_sound_seed(&self) -> i64 {
@@ -1431,7 +1483,7 @@ impl World {
             (particle.to_id() as i32).into(),
             &[],
         );
-        self.broadcast_packet_all(&packet);
+        self.broadcast_particle(&packet);
     }
 
     /// Plays a Bedrock level sound for players close enough to hear it.

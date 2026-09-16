@@ -24,7 +24,7 @@ pub struct CParticle<'a> {
     /// setting is set to "Minimal".
     pub force_spawn: bool,
     /// If true, the distance at which particles are visible is significantly
-    /// increased (from 256 to 65536 blocks). Often used for massive events.
+    /// increased (from 32 to 512 blocks). Often used for massive events.
     pub important: bool,
     /// The absolute center position of the particle cluster.
     pub position: Vector3<f64>,
@@ -179,10 +179,32 @@ impl ClientPacket for CParticle<'_> {
     ) -> Result<(), WritingError> {
         let mut write = write;
 
+        // BlockParticleOption carries a canonical block-state VarInt. Particle type
+        // remapping alone leaves the client reading a state from the wrong registry.
+        let block_state = if self.particle_id.0 == pumpkin_data::particle::Particle::Block as i32 {
+            let mut input = self.data;
+            input
+                .get_var_int()
+                .ok()
+                .and_then(|value| u16::try_from(value.0).ok())
+        } else {
+            None
+        };
+        let mapped_block = block_state.map(|state| {
+            pumpkin_data::block_state_remap::remap_block_state_for_version(state, *version)
+        });
+
         if *version <= JavaMinecraftVersion::V_1_7_6 {
             let name = pumpkin_data::particle::Particle::from_id(self.particle_id.0 as u16)
                 .map_or("smoke", particle_name_for_v1_7);
-            write.write_string_bounded(name, 64)?;
+            if let Some(state) = mapped_block {
+                write.write_string_bounded(
+                    &format!("blockcrack_{}_{}", state >> 4, state & 15),
+                    64,
+                )?;
+            } else {
+                write.write_string_bounded(name, 64)?;
+            }
         } else if *version < JavaMinecraftVersion::V_1_20_5 {
             let remapped_id =
                 remap_particle_id_for_version(self.particle_id.0 as u16, *version) as i32;
@@ -222,7 +244,19 @@ impl ClientPacket for CParticle<'_> {
                 remap_particle_id_for_version(self.particle_id.0 as u16, *version) as i32;
             write.write_var_int(&VarInt(remapped_id))?;
         }
-        write.write_slice(self.data)?;
+        if let Some(state) = mapped_block {
+            if *version >= JavaMinecraftVersion::V_1_8 {
+                let state = if *version < JavaMinecraftVersion::V_1_13 {
+                    // Legacy particle payload packs block ID in the low 12 bits.
+                    (state >> 4) | ((state & 15) << 12)
+                } else {
+                    state
+                };
+                write.write_var_int(&VarInt(i32::from(state)))?;
+            }
+        } else {
+            write.write_slice(self.data)?;
+        }
 
         Ok(())
     }
@@ -306,6 +340,102 @@ mod tests {
     use crate::{ClientPacket, VarInt};
 
     use super::CParticle;
+
+    #[test]
+    fn java_block_particle_packets() {
+        use crate::ser::NetworkWriteExt;
+        let cases: Vec<serde_json::Value> =
+            serde_json::from_str(include_str!("block_particle_packet_cases.json")).unwrap();
+        for (i, case) in cases.iter().enumerate() {
+            let mut data = Vec::new();
+            data.write_var_int(&VarInt(case[0].as_i64().unwrap() as i32))
+                .unwrap();
+            let packet = CParticle::new(
+                i % 3 == 0,
+                i % 2 == 0,
+                Vector3::new(
+                    (i as f64 - 64.0) * 0.125,
+                    i as f64 * 0.25,
+                    f64::from(-(i as i32)) * 0.5,
+                ),
+                Vector3::new(0.1, 0.2, 0.3),
+                0.15,
+                i as i32 * 3,
+                VarInt(Particle::Block as i32),
+                &data,
+            );
+            let mut bytes = Vec::new();
+            packet
+                .write_packet_data(&mut bytes, &JavaMinecraftVersion::V_26_2)
+                .unwrap();
+            let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
+            assert_eq!(hex, case[1].as_str().unwrap(), "case {i}");
+        }
+    }
+
+    #[test]
+    fn block_particle_payload_uses_client_state_registry() {
+        use crate::ser::{NetworkReadExt, NetworkWriteExt};
+        let state = pumpkin_data::Block::OAK_LOG.default_state.id.as_u16();
+        let mut data = Vec::new();
+        data.write_var_int(&VarInt(i32::from(state))).unwrap();
+        for version in [
+            JavaMinecraftVersion::V_1_8,
+            JavaMinecraftVersion::V_1_12_2,
+            JavaMinecraftVersion::V_1_13,
+            JavaMinecraftVersion::V_1_21_11,
+            JavaMinecraftVersion::V_26_2,
+        ] {
+            let packet = CParticle::new(
+                false,
+                false,
+                Vector3::new(0.0, 0.0, 0.0),
+                Vector3::new(0.0, 0.0, 0.0),
+                0.15,
+                30,
+                VarInt(Particle::Block as i32),
+                &data,
+            );
+            let mut bytes = Vec::new();
+            packet.write_packet_data(&mut bytes, &version).unwrap();
+            // Decode the actual wire layout, then inspect the remaining block payload.
+            let mut slice = bytes.as_slice();
+            if version < JavaMinecraftVersion::V_1_20_5 {
+                if version >= JavaMinecraftVersion::V_1_19 {
+                    slice.get_var_int().unwrap();
+                } else {
+                    slice.get_i32_be().unwrap();
+                }
+            }
+            slice.get_bool().unwrap();
+            if version >= JavaMinecraftVersion::V_1_21_4 {
+                slice.get_bool().unwrap();
+            }
+            for _ in 0..3 {
+                if version >= JavaMinecraftVersion::V_1_15 {
+                    slice.get_f64_be().unwrap();
+                } else {
+                    slice.get_f32_be().unwrap();
+                }
+            }
+            for _ in 0..4 {
+                slice.get_f32_be().unwrap();
+            }
+            slice.get_i32_be().unwrap();
+            if version >= JavaMinecraftVersion::V_1_20_5 {
+                slice.get_var_int().unwrap();
+            }
+            let mapped =
+                pumpkin_data::block_state_remap::remap_block_state_for_version(state, version);
+            let expected = if version < JavaMinecraftVersion::V_1_13 {
+                (mapped >> 4) | ((mapped & 15) << 12)
+            } else {
+                mapped
+            };
+            assert_eq!(slice.get_var_int().unwrap().0, i32::from(expected));
+            assert!(slice.is_empty());
+        }
+    }
 
     fn encoded_particle_id(version: JavaMinecraftVersion) -> VarInt {
         let packet = CParticle::new(
