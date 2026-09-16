@@ -123,3 +123,5 @@ mod jukebox_component_tests;
 
 #[cfg(test)]
 mod attribute_component_tests;
+
+pub(crate) mod predicate_codec;

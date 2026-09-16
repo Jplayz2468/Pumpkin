@@ -14,7 +14,9 @@ impl ContainerLock {
         *self
             .0
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = nbt.get_compound("lock").cloned();
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = nbt
+            .get_compound("lock")
+            .and_then(crate::item::predicate_codec::load);
     }
     pub fn write_nbt(&self, nbt: &mut NbtCompound) {
         if let Some(lock) = self
@@ -32,7 +34,7 @@ impl ContainerLock {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner) = stack
             .get_data_component::<LockImpl>()
-            .map(|v| v.predicate.clone());
+            .and_then(|v| crate::item::predicate_codec::load(&v.predicate));
     }
     pub fn collect(&self, stack: &mut ItemStack) {
         stack.remove_data_component(DataComponent::Lock);
