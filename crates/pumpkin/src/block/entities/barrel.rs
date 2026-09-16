@@ -158,12 +158,13 @@ impl BlockEntity for BarrelBlockEntity {
     }
 
     fn apply_components_from_item_stack(&self, stack: &ItemStack) {
-        *self
-            .loot
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = stack
-            .get_data_component::<ContainerLootImpl>()
-            .map(|loot| (loot.loot_table.clone(), loot.seed));
+        if let Some(loot) = stack.get_data_component::<ContainerLootImpl>() {
+            *self
+                .loot
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                Some((loot.loot_table.clone(), loot.seed));
+        }
         *self
             .custom_name
             .lock()
@@ -190,6 +191,7 @@ impl BlockEntity for BarrelBlockEntity {
     }
 
     fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
+        // Built-in chest/barrel loot copies only custom_name; contents scatter separately.
         if let Some(name) = self
             .custom_name
             .lock()
@@ -198,29 +200,6 @@ impl BlockEntity for BarrelBlockEntity {
         {
             stack.set_data_component(CustomNameImpl { name });
         }
-        if let Some((loot_table, seed)) = self
-            .loot
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone()
-        {
-            stack.set_data_component(ContainerLootImpl { loot_table, seed });
-        }
-
-        let items = self
-            .items
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let contents: Vec<(u8, ItemStack)> = items
-            .iter()
-            .enumerate()
-            .filter(|(_, slot)| !slot.is_empty())
-            .map(|(slot, stack)| (slot as u8, stack.clone()))
-            .collect();
-        if contents.is_empty() {
-            return;
-        }
-        stack.set_data_component(ContainerImpl { items: contents });
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -398,7 +377,9 @@ impl Inventory for BarrelBlockEntity {
         } else {
             ItemStack::EMPTY.clone()
         };
-        self.mark_dirty();
+        if !res.is_empty() {
+            self.mark_dirty();
+        }
         res
     }
 
@@ -447,11 +428,9 @@ impl Inventory for BarrelBlockEntity {
 
 impl Clearable for BarrelBlockEntity {
     fn clear(&self) {
-        let mut items = self
-            .items
+        self.items
             .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        items.fill_with(|| ItemStack::EMPTY.clone());
-        self.mark_dirty();
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .fill_with(|| ItemStack::EMPTY.clone());
     }
 }

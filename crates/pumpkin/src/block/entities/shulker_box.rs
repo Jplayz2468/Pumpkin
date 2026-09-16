@@ -220,12 +220,13 @@ impl BlockEntity for ShulkerBoxBlockEntity {
     /// Java's `getOrDefault(CONTAINER, ItemContainerContents.EMPTY).copyInto`
     /// does.
     fn apply_components_from_item_stack(&self, stack: &ItemStack) {
-        *self
-            .loot
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = stack
-            .get_data_component::<ContainerLootImpl>()
-            .map(|loot| (loot.loot_table.clone(), loot.seed));
+        if let Some(loot) = stack.get_data_component::<ContainerLootImpl>() {
+            *self
+                .loot
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                Some((loot.loot_table.clone(), loot.seed));
+        }
         *self
             .custom_name
             .lock()
@@ -544,7 +545,9 @@ impl Inventory for ShulkerBoxBlockEntity {
         } else {
             ItemStack::EMPTY.clone()
         };
-        self.mark_dirty();
+        if !res.is_empty() {
+            self.mark_dirty();
+        }
         res
     }
 
@@ -602,13 +605,10 @@ impl Inventory for ShulkerBoxBlockEntity {
 
 impl Clearable for ShulkerBoxBlockEntity {
     fn clear(&self) {
-        self.unpack_loot(None);
-        let mut items = self
-            .items
+        self.items
             .write()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        items.fill_with(|| ItemStack::EMPTY.clone());
-        self.mark_dirty();
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .fill_with(|| ItemStack::EMPTY.clone());
     }
 }
 

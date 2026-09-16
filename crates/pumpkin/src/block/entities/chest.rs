@@ -1,4 +1,16 @@
-use std::sync::{Arc, Mutex as StdMutex, RwLock, atomic::AtomicBool};
+use crate::block::viewer::ViewerCountTrackerExt;
+use crate::entity::player::Player;
+use crate::world::World;
+use pumpkin_data::data_component_impl::{
+    ContainerImpl, ContainerLootImpl, CustomNameImpl, DataComponentImpl,
+};
+use pumpkin_inventory::{Inventory, sync_write_items_to_nbt};
+use pumpkin_nbt::compound::NbtCompound;
+use pumpkin_util::text::TextComponent;
+use std::any::Any;
+use std::array::from_fn;
+use std::sync::atomic::Ordering;
+use std::sync::{Arc, Mutex, RwLock, Weak, atomic::AtomicBool};
 
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_util::math::position::BlockPos;
@@ -17,11 +29,10 @@ pub struct ChestBlockEntity {
     // Viewer
     viewers: ViewerCountTracker,
 
-    /// Pending loot-table key (e.g. `"minecraft:chests/simple_dungeon"`).
-    /// Set during world generation; cleared when items are generated on first open.
-    pub loot_table: StdMutex<Option<String>>,
-    /// Seed used for deterministic loot generation, paired with `loot_table`.
-    pub loot_table_seed: i64,
+    world: Mutex<Weak<World>>,
+    loot: Mutex<Option<(String, i64)>>,
+    custom_name: Mutex<Option<TextComponent>>,
+    removed: AtomicBool,
 }
 
 impl ChestBlockEntity {

@@ -425,7 +425,7 @@ impl HopperBlockEntity {
     pub(crate) fn container_at(world: &Arc<World>, pos: &BlockPos) -> Option<Arc<dyn Inventory>> {
         let block = world.get_block(pos);
         if block.name.ends_with("chest") && block != &pumpkin_data::Block::ENDER_CHEST {
-            return crate::block::blocks::chests::chest_inventory(world, pos, true, true);
+            return crate::block::blocks::chests::chest_inventory(world, pos, true);
         }
         if let Some(inventory) = world
             .get_block_entity(pos)

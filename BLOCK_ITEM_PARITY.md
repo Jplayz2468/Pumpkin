@@ -993,8 +993,9 @@ so they must not be used to reconstruct audit completion.
   comparators, and both interactions open the menu before awarding the statistic.
 - Barrels retain CustomName and unresolved LootTable/Seed in saved NBT, resolve
   loot only on inventory access/menu creation using available player luck/context,
-  block spectators from generating unopened loot and carry container/name/loot
-  item components through placement and component collection. Empty saves omit
+  block spectators from generating unopened loot and restore container/name/loot
+  item components during placement. Built-in block drops copy only the name;
+  contents scatter separately. Empty saves omit
   Items; client update tags no longer expose the inventory. Menu titles use names.
 - Barrel slot writes clamp item/container limits, whole-stack removal preserves
   removeItemNoUpdate behavior, and detached barrels stop viewer transitions.
@@ -1010,3 +1011,37 @@ so they must not be used to reconstruct audit completion.
   block-tick versus block-entity-tick recheck ordering. Existing player menu
   validity already checks the live block-entity/inventory identity and range.
   Source review/rustfmt/diff checks only; no compilation or tests.
+
+
+## Continued source port: ordinary, trapped and copper chests
+
+- Double-chest inventory/menu/comparator selection now shares the source neighbor
+  combiner: same block identity, opposite non-single halves, matching facing and
+  correct block-entity type. Invalid partners fall back to a single inventory;
+  only a valid blocked partner blocks both halves. Right-half inventory comes
+  first. Sitting cats in the one-block space above now obstruct normal chests.
+- Removed manual placement/break partner edits and replacement BE creation;
+  existing source shape callbacks reconcile halves. Waterlogging reads the actual
+  fluid, sneaking uses the secondary-use flag, removal notifies comparators, and
+  the open statistic follows menu opening only when a menu provider exists.
+- Chest/trapped-chest storage now binds its world, persists custom names and
+  unresolved loot alongside actual contents, and resolves loot on inventory
+  access or menu creation with available player luck/context. Merely requesting
+  an obstructed menu no longer generates loot. Spectators cannot generate either
+  unopened half. Double-chest titles prefer the first half's custom name, then
+  the second's. Hopper discovery uses the same combiner without lid obstruction.
+- Added component restoration, source stack limits, empty client update tags and
+  detached-viewer guards. Built-in chest/barrel drops copy only custom_name and
+  scatter contents separately; the barrel implementation was corrected during
+  this review to avoid retaining a second copy of its contents in the dropped item.
+- Chest sounds use the level random stream and double-chest midpoint; copper
+  hinges use normal/weathered/oxidized sounds. Copper oxidation requires a live
+  chest BE. Its active-viewer check still uses the tracked count, so stale-count
+  timing remains open. Trapped-chest experimental redstone orientation is open.
+- Shared barrel/chest/shulker cleanup preserves tag-provided pending loot when no
+  loot component overrides it, clears raw inventory without generating loot, and
+  marks partial removal dirty only when a stack was removed.
+- Remaining: lock predicates/notifications, piglin anger, exact loot functions and
+  RNG, nonplayer opener accounting, shared update/effect order and client protocol
+  details. Source inspection, rustfmt and diff whitespace review only; no build,
+  compilation, test or gameplay commands were run.

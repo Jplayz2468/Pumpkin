@@ -1,7 +1,3 @@
-/// Implements the `BlockEntity` trait for chest-like block entities.
-/// Parameters:
-/// - $`struct_name`: The type of the chest struct (e.g., `ChestBlockEntity`)
-/// - $`resource_id`: The resource location string (e.g., "minecraft:chest")
 #[macro_export]
 macro_rules! impl_block_entity_for_chest {
     ($struct_name:ty) => {
@@ -14,148 +10,177 @@ macro_rules! impl_block_entity_for_chest {
                 self.position
             }
 
-            fn from_nbt(nbt: &pumpkin_nbt::compound::NbtCompound, position: BlockPos) -> Self
-            where
-                Self: Sized,
-            {
-                // Read deferred loot-table fields first.
-                let loot_table_key = nbt.get_string("LootTable").map(|s| s.to_string());
-                let loot_table_seed = nbt.get_long("LootTableSeed").unwrap_or(0);
-
-                let mut chest = Self {
-                    position,
-                    items: std::sync::RwLock::new(std::array::from_fn(|_| {
-                        ItemStack::EMPTY.clone()
-                    })),
-                    dirty: std::sync::atomic::AtomicBool::new(false),
-                    comparator_dirty: std::sync::atomic::AtomicBool::new(false),
-                    viewers: $crate::block::viewer::ViewerCountTracker::new(),
-                    loot_table: StdMutex::new(loot_table_key),
-                    loot_table_seed,
-                };
-
-                // Only read saved items when there is no pending loot table.
-                let has_loot_table = chest
-                    .loot_table
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .is_some();
-                if !has_loot_table {
+            fn from_nbt(nbt: &NbtCompound, position: BlockPos) -> Self {
+                let mut entity = Self::new(position);
+                let loot = nbt
+                    .get_string("LootTable")
+                    .map(|key| (key.to_owned(), nbt.get_long("LootTableSeed").unwrap_or(0)));
+                if loot.is_none() {
                     pumpkin_inventory::sync_read_items_from_nbt(
                         nbt,
-                        chest
+                        entity
                             .items
                             .get_mut()
                             .unwrap_or_else(std::sync::PoisonError::into_inner),
                     );
                 }
-
-                chest
+                *entity
+                    .loot
+                    .get_mut()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = loot;
+                *entity
+                    .custom_name
+                    .get_mut()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                    nbt.get("CustomName").map(TextComponent::from_nbt);
+                entity
             }
 
-            fn write_nbt(&self, nbt: &mut pumpkin_nbt::compound::NbtCompound) {
-                use pumpkin_inventory::Inventory;
-
-                let loot_table_key = {
-                    let guard = self
-                        .loot_table
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    guard.clone()
-                };
-
-                if let Some(key) = loot_table_key {
-                    // Persist deferred loot: write the key and seed; skip items.
-                    nbt.put_string("LootTable", key);
-                    if self.loot_table_seed != 0 {
-                        nbt.put_long("LootTableSeed", self.loot_table_seed);
+            fn write_nbt(&self, nbt: &mut NbtCompound) {
+                if let Some(name) = self
+                    .custom_name
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone()
+                {
+                    nbt.put("CustomName", CustomNameImpl { name }.write_data());
+                }
+                if let Some((table, seed)) = self
+                    .loot
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone()
+                {
+                    nbt.put_string("LootTable", table);
+                    if seed != 0 {
+                        nbt.put_long("LootTableSeed", seed);
                     }
                 } else {
-                    // Loot has already been generated, so persist the actual items.
-                    self.write_inventory_nbt(nbt, true);
+                    let items = self
+                        .items
+                        .read()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    if items.iter().any(|stack| !stack.is_empty()) {
+                        sync_write_items_to_nbt(items.as_slice(), nbt);
+                    }
                 }
             }
 
-            fn refresh_viewers(&self, world: &Arc<$crate::world::World>, source: Option<i32>) {
-                $crate::block::viewer::ViewerCountTrackerExt::update_viewer_count_with_source(
-                    &self.viewers,
-                    self,
-                    world,
-                    &self.position,
-                    source,
-                );
+            fn set_world(&self, world: Weak<World>) {
+                *self
+                    .world
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = world;
             }
 
-            fn tick(&self, world: &Arc<$crate::world::World>) {
-                $crate::block::viewer::ViewerCountTrackerExt::update_viewer_count::<$struct_name>(
-                    &self.viewers,
-                    self,
-                    world,
-                    &self.position,
-                );
+            fn set_removed(&self) {
+                self.removed.store(true, Ordering::Relaxed);
             }
 
-            fn get_inventory(self: Arc<Self>) -> Option<Arc<dyn pumpkin_inventory::Inventory>> {
+            fn refresh_viewers(&self, world: &Arc<World>, source: Option<i32>) {
+                if self.removed.load(Ordering::Relaxed) {
+                    return;
+                }
+                self.viewers
+                    .update_viewer_count_with_source(self, world, &self.position, source);
+            }
+
+            fn tick(&self, world: &Arc<World>) {
+                if self.removed.load(Ordering::Relaxed) {
+                    return;
+                }
+                self.viewers
+                    .update_viewer_count::<Self>(self, world, &self.position);
+            }
+
+            fn get_inventory(self: Arc<Self>) -> Option<Arc<dyn Inventory>> {
                 Some(self)
             }
 
             fn is_comparator_dirty(&self) -> bool {
-                self.comparator_dirty
-                    .load(std::sync::atomic::Ordering::Relaxed)
+                self.comparator_dirty.load(Ordering::Relaxed)
             }
 
             fn clear_comparator_dirty(&self) {
-                self.comparator_dirty
-                    .store(false, std::sync::atomic::Ordering::Relaxed);
+                self.comparator_dirty.store(false, Ordering::Relaxed);
             }
 
             fn is_dirty(&self) -> bool {
-                self.dirty.load(std::sync::atomic::Ordering::Relaxed)
+                self.dirty.load(Ordering::Relaxed)
             }
 
             fn clear_dirty(&self) {
-                self.dirty
-                    .store(false, std::sync::atomic::Ordering::Relaxed);
+                self.dirty.store(false, Ordering::Relaxed);
             }
 
-            fn chunk_data_nbt(&self) -> Option<pumpkin_nbt::compound::NbtCompound> {
-                let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
-                let has_loot_table = self
-                    .loot_table
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .is_some();
-                if !has_loot_table {
-                    if let Ok(items) = self.items.try_read() {
-                        pumpkin_inventory::sync_write_items_to_nbt(&*items, &mut nbt);
-                    }
-                }
-                Some(nbt)
+            fn chunk_data_nbt(&self) -> Option<NbtCompound> {
+                // Base BlockEntity.getUpdateTag is empty; inventories arrive through menus.
+                Some(NbtCompound::new())
             }
 
-            fn as_any(&self) -> &dyn std::any::Any {
+            fn as_any(&self) -> &dyn Any {
                 self
             }
 
-            fn take_loot_table(&self) -> Option<(String, i64)> {
-                let mut guard = self
-                    .loot_table
+            fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+                if let Some(loot) = stack.get_data_component::<ContainerLootImpl>() {
+                    *self
+                        .loot
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                        Some((loot.loot_table.clone(), loot.seed));
+                }
+                *self
+                    .custom_name
                     .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                guard.take().map(|key| (key, self.loot_table_seed))
+                    .unwrap_or_else(std::sync::PoisonError::into_inner) = stack
+                    .get_data_component::<CustomNameImpl>()
+                    .map(|name| name.name.clone());
+                let container = stack.get_data_component::<ContainerImpl>();
+                {
+                    let mut items = self
+                        .items
+                        .write()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    items.fill_with(|| ItemStack::EMPTY.clone());
+                    for (slot, stored) in container
+                        .into_iter()
+                        .flat_map(|container| container.items.iter())
+                    {
+                        if let Some(target) = items.get_mut(*slot as usize) {
+                            *target = stored.clone();
+                        }
+                    }
+                }
+                self.mark_dirty();
+            }
+
+            fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
+                // Built-in chest/barrel loot copies only custom_name; contents scatter separately.
+                if let Some(name) = self
+                    .custom_name
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone()
+                {
+                    stack.set_data_component(CustomNameImpl { name });
+                }
+            }
+
+            fn take_loot_table(&self) -> Option<(String, i64)> {
+                self.loot
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take()
             }
 
             fn has_loot_table(&self) -> bool {
-                self.loot_table
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .is_some()
+                <$struct_name>::has_loot_table(self)
             }
         }
     };
 }
 
-/// Implements the Inventory trait for chest-like block entities.
 #[macro_export]
 macro_rules! impl_inventory_for_chest {
     ($struct_name:ty) => {
@@ -165,14 +190,16 @@ macro_rules! impl_inventory_for_chest {
             }
 
             fn is_empty(&self) -> bool {
+                self.unpack_loot(None);
                 let items = self
                     .items
                     .read()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
-                items.iter().all(|s| s.is_empty())
+                items.iter().all(ItemStack::is_empty)
             }
 
             fn get_stack(&self, slot: usize) -> ItemStack {
+                self.unpack_loot(None);
                 let items = self
                     .items
                     .read()
@@ -181,16 +208,17 @@ macro_rules! impl_inventory_for_chest {
             }
 
             fn remove_stack(&self, slot: usize) -> ItemStack {
+                self.unpack_loot(None);
                 let mut items = self
                     .items
                     .write()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 let removed = std::mem::replace(&mut items[slot], ItemStack::EMPTY.clone());
-                self.mark_dirty();
                 removed
             }
 
             fn remove_stack_specific(&self, slot: usize, amount: u8) -> ItemStack {
+                self.unpack_loot(None);
                 let mut items = self
                     .items
                     .write()
@@ -200,11 +228,19 @@ macro_rules! impl_inventory_for_chest {
                 } else {
                     ItemStack::EMPTY.clone()
                 };
-                self.mark_dirty();
+                if !res.is_empty() {
+                    self.mark_dirty();
+                }
                 res
             }
 
-            fn set_stack(&self, slot: usize, stack: ItemStack) {
+            fn set_stack(&self, slot: usize, mut stack: ItemStack) {
+                self.unpack_loot(None);
+                stack.item_count = stack.item_count.min(
+                    stack
+                        .get_max_stack_size()
+                        .min(self.get_max_count_per_stack()),
+                );
                 let mut items = self
                     .items
                     .write()
@@ -213,52 +249,50 @@ macro_rules! impl_inventory_for_chest {
                 self.mark_dirty();
             }
 
-            fn viewer_position(&self) -> Option<pumpkin_util::math::position::BlockPos> {
+            fn viewer_position(&self) -> Option<BlockPos> {
                 Some(self.position)
             }
 
             fn on_open(&self) {
+                if self.removed.load(Ordering::Relaxed) {
+                    return;
+                }
                 self.viewers.open_container();
             }
 
             fn on_close(&self) {
+                if self.removed.load(Ordering::Relaxed) {
+                    return;
+                }
                 self.viewers.close_container();
             }
 
             fn mark_dirty(&self) {
-                self.dirty.store(true, std::sync::atomic::Ordering::Relaxed);
-                self.comparator_dirty
-                    .store(true, std::sync::atomic::Ordering::Relaxed);
+                self.dirty.store(true, Ordering::Relaxed);
+                self.comparator_dirty.store(true, Ordering::Relaxed);
             }
 
-            fn as_any(&self) -> &dyn std::any::Any {
+            fn as_any(&self) -> &dyn Any {
                 self
             }
         }
     };
 }
 
-/// Implements the Clearable trait for chest-like block entities.
 #[macro_export]
 macro_rules! impl_clearable_for_chest {
     ($struct_name:ty) => {
         impl pumpkin_inventory::Clearable for $struct_name {
             fn clear(&self) {
-                let mut items = self
-                    .items
+                self.items
                     .write()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                items.fill_with(|| ItemStack::EMPTY.clone());
-                <$struct_name as pumpkin_inventory::Inventory>::mark_dirty(self);
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .fill_with(|| ItemStack::EMPTY.clone());
             }
         }
     };
 }
 
-/// Implements the `ViewerCountListener` trait for chest-like block entities.
-///
-/// The behavior is controlled by the `EMITS_REDSTONE` constant on the struct.
-/// When `EMITS_REDSTONE` is true, updates neighbors for redstone signals when viewer count changes.
 #[macro_export]
 macro_rules! impl_viewer_count_listener_for_chest {
     ($struct_name:ty) => {
@@ -309,35 +343,84 @@ macro_rules! impl_viewer_count_listener_for_chest {
     };
 }
 
-/// Implements helper methods for chest-like block entities.
-///
-/// Includes the `play_sound` method which handles sound positioning for single and double chests,
-/// as well as `new()` and `get_viewer_count()` methods.
 #[macro_export]
 macro_rules! impl_chest_helper_methods {
     ($struct_name:ty) => {
         impl $struct_name {
-            /// Returns the number of players currently viewing this chest
-            pub fn get_viewer_count(&self) -> u16 {
-                self.viewers.get_viewer_count()
-            }
-
-            #[must_use]
-            pub fn new(position: pumpkin_util::math::position::BlockPos) -> Self {
-                use std::array::from_fn;
-                use std::sync::Mutex as StdMutex;
-                use std::sync::RwLock;
-                use std::sync::atomic::AtomicBool;
-
+            pub fn new(position: BlockPos) -> Self {
                 Self {
                     position,
                     items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
                     dirty: AtomicBool::new(false),
                     comparator_dirty: AtomicBool::new(false),
-                    viewers: $crate::block::viewer::ViewerCountTracker::new(),
-                    loot_table: StdMutex::new(None),
-                    loot_table_seed: 0,
+                    viewers: ViewerCountTracker::new(),
+                    world: Mutex::new(Weak::new()),
+                    loot: Mutex::new(None),
+                    custom_name: Mutex::new(None),
+                    removed: AtomicBool::new(false),
                 }
+            }
+
+            pub fn display_name(&self) -> TextComponent {
+                self.custom_name
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone()
+                    .unwrap_or_else(|| {
+                        pumpkin_macros::translate_cross!(
+                            pumpkin_data::translation::java::CONTAINER_CHEST,
+                            pumpkin_data::translation::bedrock::CONTAINER_CHEST
+                        )
+                    })
+            }
+
+            pub fn has_loot_table(&self) -> bool {
+                self.loot
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .is_some()
+            }
+
+            pub fn unpack_loot(&self, player: Option<&Player>) {
+                let Some(world) = self
+                    .world
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .upgrade()
+                else {
+                    return;
+                };
+                let loot = self
+                    .loot
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take();
+                let Some((key, seed)) = loot else {
+                    return;
+                };
+                if let Some(table) = pumpkin_data::loot_table::get_loot_table(&key) {
+                    let seed = if seed == 0 { world.rand_i64() } else { seed };
+                    crate::world::loot::fill_inventory_with_context(
+                        self,
+                        table,
+                        seed,
+                        &crate::world::loot::LootContextParameters {
+                            position: Some(self.position.to_centered_f64()),
+                            this_entity: player.map(|_| &pumpkin_data::entity::EntityType::PLAYER),
+                            luck: player.map_or(0.0, |player| {
+                                player.living_entity.get_attribute_value(
+                                    &pumpkin_data::attributes::Attributes::LUCK,
+                                ) as f32
+                            }),
+                            ..Default::default()
+                        },
+                    );
+                }
+                self.mark_dirty();
+            }
+
+            pub fn get_viewer_count(&self) -> u16 {
+                self.viewers.get_viewer_count()
             }
 
             fn play_sound(
@@ -345,13 +428,33 @@ macro_rules! impl_chest_helper_methods {
                 world: &Arc<$crate::world::World>,
                 sound: pumpkin_data::sound::Sound,
             ) {
-                let mut rng = pumpkin_util::random::xoroshiro128::Xoroshiro::from_seed(
-                    pumpkin_util::random::get_seed(),
-                );
-
                 let state = world.get_block_state(&self.position);
                 let properties =
                     pumpkin_data::block_properties::ChestLikeProperties::from_state_id(state.id);
+                let block = world.get_block(&self.position);
+                let sound = if block.name.contains("copper_chest") {
+                    use pumpkin_data::sound::Sound;
+                    let open = sound == Sound::BlockChestOpen;
+                    if block.name.contains("weathered") {
+                        if open {
+                            Sound::BlockCopperChestWeatheredOpen
+                        } else {
+                            Sound::BlockCopperChestWeatheredClose
+                        }
+                    } else if block.name.contains("oxidized") {
+                        if open {
+                            Sound::BlockCopperChestOxidizedOpen
+                        } else {
+                            Sound::BlockCopperChestOxidizedClose
+                        }
+                    } else if open {
+                        Sound::BlockCopperChestOpen
+                    } else {
+                        Sound::BlockCopperChestClose
+                    }
+                } else {
+                    sound
+                };
                 let position = match properties.r#type {
                     pumpkin_data::block_properties::ChestType::Left => return,
                     pumpkin_data::block_properties::ChestType::Single => {
@@ -363,7 +466,7 @@ macro_rules! impl_chest_helper_methods {
                     }
                     pumpkin_data::block_properties::ChestType::Right => {
                         let direction = pumpkin_data::HorizontalFacingExt::to_block_direction(
-                            &properties.facing,
+                            &properties.facing.rotate_counter_clockwise(),
                         )
                         .to_offset();
                         pumpkin_util::math::vector3::Vector3::new(
@@ -379,7 +482,7 @@ macro_rules! impl_chest_helper_methods {
                     pumpkin_data::sound::SoundCategory::Blocks,
                     &position,
                     0.5,
-                    pumpkin_util::random::RandomImpl::next_f32(&mut rng) * 0.1 + 0.9,
+                    world.rand_f32() * 0.1 + 0.9,
                 );
                 let bedrock_sound = match sound {
                     pumpkin_data::sound::Sound::BlockChestOpen => "chest.open",
@@ -387,6 +490,13 @@ macro_rules! impl_chest_helper_methods {
                     _ => return,
                 };
                 world.play_bedrock_level_sound(bedrock_sound, &position, 0);
+            }
+
+            pub fn custom_name(&self) -> Option<TextComponent> {
+                self.custom_name
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone()
             }
         }
     };
