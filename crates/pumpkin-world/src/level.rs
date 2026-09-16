@@ -56,6 +56,7 @@ type EntityLoadWaiters = Vec<oneshot::Sender<Result<SyncEntityChunk, String>>>;
 pub enum LoadedChunkChange {
     Loaded(Vector2<i32>),
     Unloaded(Vector2<i32>),
+    EntitiesUnloaded(Vector2<i32>),
 }
 
 pub type ChunkSaver =
@@ -103,6 +104,7 @@ pub struct Level {
 
     pub chunk_saver: Arc<ChunkSaver>,
     entity_saver: Arc<EntitySaver>,
+    entity_writes: Arc<crate::entity_storage::EntityWrites>,
 
     pub world_gen: ArcSwap<WorldGenerator>,
 
@@ -282,6 +284,7 @@ impl Level {
             light_engine: DynamicLightEngine::new(),
             chunk_saver,
             entity_saver,
+            entity_writes: Arc::default(),
             schedule_tick_counts: AtomicI64::new(0),
             rand_value: AtomicI32::new(rand::random::<i32>()),
             loaded_chunks: Arc::new(DashMap::new()),
@@ -466,32 +469,44 @@ impl Level {
         !self.mark_chunks_as_not_watched([chunk]).await.is_empty()
     }
 
-    // In Level::clean_entity_chunks()
+    /// Keep cached storage available until its snapshot has reached disk. A
+    /// renewed ticket or replacement cache entry cancels removal, not the write.
     pub fn clean_entity_chunks(
         self: &Arc<Self>,
         chunks: impl IntoIterator<Item = impl std::borrow::Borrow<Vector2<i32>>>,
     ) {
-        let chunks_to_process: Vec<_> = chunks
+        let chunks: Vec<_> = chunks
             .into_iter()
-            .filter_map(|pos_borrow| {
-                let pos = pos_borrow.borrow();
-                if self.should_retain_entity_chunk(pos) {
+            .filter_map(|pos| {
+                let pos = *pos.borrow();
+                if self.should_retain_entity_chunk(&pos) {
                     return None;
                 }
-
-                // Remove immediately to prevent race conditions
-                self.loaded_entity_chunks.remove(pos)
+                self.get_entity_chunk_sync(&pos).map(|chunk| (pos, chunk))
             })
             .collect();
-
-        if chunks_to_process.is_empty() {
+        if chunks.is_empty() {
             return;
         }
-
+        let written = self.queue_entity_chunks(chunks.clone());
         let level = self.clone();
         self.spawn_task(async move {
-            debug!("Writing {} entity chunks to disk", chunks_to_process.len());
-            level.write_entity_chunks(chunks_to_process).await;
+            if written.await != Ok(true) {
+                return;
+            }
+            for (pos, chunk) in chunks {
+                if !level.should_retain_entity_chunk(&pos) {
+                    if level
+                        .loaded_entity_chunks
+                        .remove_if(&pos, |_, current| Arc::ptr_eq(current, &chunk))
+                        .is_some()
+                    {
+                        level
+                            .loaded_chunk_changes
+                            .push(LoadedChunkChange::EntitiesUnloaded(pos));
+                    }
+                }
+            }
         });
     }
 
@@ -938,21 +953,27 @@ impl Level {
         }
     }
 
-    pub async fn write_entity_chunks(&self, chunks_to_write: Vec<(Vector2<i32>, SyncEntityChunk)>) {
-        if chunks_to_write.is_empty() {
-            return;
-        }
+    pub fn cached_entity_chunks(&self) -> Vec<(Vector2<i32>, SyncEntityChunk)> {
+        self.loaded_entity_chunks
+            .iter()
+            .map(|entry| (*entry.key(), entry.value().clone()))
+            .collect()
+    }
 
-        let chunk_saver = self.entity_saver.clone();
-        let level_folder = self.level_folder.clone();
+    pub fn queue_entity_chunks(
+        &self,
+        chunks: Vec<(Vector2<i32>, SyncEntityChunk)>,
+    ) -> oneshot::Receiver<bool> {
+        self.entity_writes.enqueue(
+            chunks,
+            self.entity_saver.clone(),
+            self.level_folder.clone(),
+            &self.tasks,
+        )
+    }
 
-        trace!("Sending chunks to ChunkIO {:}", chunks_to_write.len());
-        if let Err(error) = chunk_saver
-            .save_chunks(&level_folder, chunks_to_write)
-            .await
-        {
-            error!("Failed writing Chunk to disk {error}");
-        }
+    pub async fn write_entity_chunks(&self, chunks: Vec<(Vector2<i32>, SyncEntityChunk)>) {
+        let _ = self.queue_entity_chunks(chunks).await;
     }
 
     pub fn is_chunk_loaded(&self, coordinates: &Vector2<i32>) -> bool {
@@ -1088,6 +1109,95 @@ mod tests {
     use super::*;
     use pumpkin_config::world::LevelConfig;
     use tempfile::TempDir;
+
+    #[tokio::test]
+    async fn renewed_tickets_keep_cached_entity_storage_after_an_unload_write() {
+        let dir = TempDir::new().unwrap();
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let pos = Vector2::new(0, 0);
+        let original = level.try_load_entity_chunk(pos).await.unwrap();
+        level.clean_entity_chunks([pos]);
+        // On this single-thread runtime the writer cannot run until the await.
+        // Renewing the ticket in this window must cancel removal of the cache.
+        level
+            .chunk_loading
+            .lock()
+            .unwrap()
+            .add_ticket(pos, ChunkLoading::FULL_CHUNK_LEVEL);
+        assert_eq!(level.queue_entity_chunks(Vec::new()).await, Ok(true));
+        tokio::task::yield_now().await;
+        assert!(Arc::ptr_eq(
+            &original,
+            &level.get_entity_chunk_sync(&pos).unwrap()
+        ));
+        level
+            .chunk_loading
+            .lock()
+            .unwrap()
+            .remove_ticket(pos, ChunkLoading::FULL_CHUNK_LEVEL);
+        level.clean_entity_chunks([pos]);
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            while level.get_entity_chunk_sync(&pos).is_some() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert!(
+            level
+                .loaded_chunk_changes()
+                .any(|change| change == LoadedChunkChange::EntitiesUnloaded(pos))
+        );
+        level.shutdown().await;
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn entity_writes_capture_submissions_in_order_and_unload_only_after_persistence() {
+        let dir = TempDir::new().unwrap();
+        let level = Level::from_root_folder(
+            &LevelConfig::default(),
+            dir.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let pos = Vector2::new(0, 0);
+        let chunk = level.try_load_entity_chunk(pos).await.unwrap();
+        let set_value = |value| {
+            let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
+            nbt.put_int("value", value);
+            *chunk.data.lock().unwrap() = vec![nbt];
+        };
+        set_value(1);
+        let first = level.queue_entity_chunks(vec![(pos, chunk.clone())]);
+        set_value(2);
+        let second = level.queue_entity_chunks(vec![(pos, chunk.clone())]);
+        set_value(3);
+        assert_eq!(first.await, Ok(true));
+        assert_eq!(second.await, Ok(true));
+        let (disk, _) = level.load_single_entity_chunk(pos).await.unwrap();
+        assert_eq!(disk.data.lock().unwrap()[0].get_int("value"), Some(2));
+        assert_eq!(chunk.data.lock().unwrap()[0].get_int("value"), Some(3));
+        level.clean_entity_chunks([pos]);
+        // The same cached data remains available while its write is outstanding.
+        if let Some(cached) = level.get_entity_chunk_sync(&pos) {
+            assert!(Arc::ptr_eq(&cached, &chunk));
+        }
+        tokio::time::timeout(std::time::Duration::from_secs(5), async {
+            while level.get_entity_chunk_sync(&pos).is_some() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        let restored = level.try_load_entity_chunk(pos).await.unwrap();
+        assert_eq!(restored.data.lock().unwrap()[0].get_int("value"), Some(3));
+        level.shutdown().await;
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn concurrent_entity_loads_share_storage_and_cached_receivers_deliver_every_chunk() {

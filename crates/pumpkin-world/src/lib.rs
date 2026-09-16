@@ -10,6 +10,7 @@ pub mod chunk_system;
 pub mod cylindrical_chunk_iterator;
 pub mod data;
 pub mod dimension;
+mod entity_storage;
 pub mod generation;
 pub mod level;
 pub mod lighting;

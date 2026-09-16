@@ -724,3 +724,43 @@ whole inside-effect pipeline matches Java yet.
   embedded Entity payload. Exact chunk-holder readiness/portal expiry pausing,
   global scheduled tick time, client pairing order and broader engine/block gates
   remain open. Ticket-only startup loading is implemented, not full lifecycle parity.
+
+## Complete entity snapshots and passenger-tree unloads
+
+- Manual save and shutdown now rebuild chunk entity snapshots from current live
+  vehicle roots instead of appending per-entity records. Activated chunks include
+  empty snapshots, removing deleted/moved roots. Unactivated storage keeps unrelated
+  saved residents; tracked snapshot ownership removes earlier records written by
+  this world without erasing residents that have not been made live.
+- Periodic autosave captures and writes live entity snapshots as well as blocks.
+  Roots whose storage read is still pending request that read and trigger a follow-up
+  snapshot when storage becomes available. Snapshotting/unloading runs outside the
+  world-time lock, since entity serializers may read the clock.
+- Entity writes capture immutable NBT under a submission lock and drain through one
+  ordered writer. Later in-memory changes cannot alter a queued image, and an older
+  queued save cannot overwrite a newer submitted save. Entity storage stays cached
+  until its unload snapshot is successfully written; renewed tickets/replaced cache
+  entries cancel removal. Cache removal emits a lifecycle notification so a renewed
+  active chunk requests storage again rather than retaining a stale ready flag.
+- Unload selects vehicle roots by their chunk and traverses their full passenger
+  trees, including riders across chunk boundaries. Selection, snapshotting and live
+  removal happen without an intervening I/O await. Removal records UnloadedToChunk
+  through the shared tracker/accounting/observer path, then releases strong mount
+  links. Passenger-only chunks do not independently remove their riders. Trees with
+  players or an in-flight teleport are deferred until their owning lifecycle can
+  handle them.
+- Evidence: restart checks cover moved/deleted roots, preservation of unactivated
+  residents, cross-chunk nested riders, saved passenger trees and removal reasons.
+  A fresh storage reader sees periodic autosave before shutdown. Storage tests cover
+  immutable ordered writes, read-after-unload persistence and renewed tickets during
+  unload. Source basis: PersistentEntitySectionManager.storeChunkSections,
+  processChunkUnload and Entity.shouldBeSaved; these tests use actual Pumpkin Worlds
+  and storage, not a Java live-server comparison.
+- Final background run 5 passed **508 engine tests and 230 world tests**, with
+  the same two previously separately passing localhost socket tests excluded.
+- Still open: Java's embedded player RootVehicle payload and player-owned tree save/
+  unload rules, complete plugin cancellation/transfer/save concurrency, detailed
+  entity payloads, exact chunk-holder readiness/portal expiry pausing and scheduled
+  world-time restoration. Error reporting from manual saves still needs propagation
+  beyond logging. Whole-server live lifecycle/client checks and the other D01–D06
+  and block-system gates remain unproven. Full mob passes remain paused.

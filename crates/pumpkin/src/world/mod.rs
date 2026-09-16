@@ -472,6 +472,7 @@ impl World {
 
     pub fn update_active_chunks(&self) {
         self.activate_completed_entity_chunks();
+        self.retry_pending_entity_snapshot();
         let sim_dist = self.server.upgrade().map_or(10, |s| {
             s.advanced_config.networking.java.simulation_distance.get()
         }) as i32;
@@ -533,6 +534,14 @@ impl World {
                         && tracker.loaded_active_chunks.insert(pos)
                     {
                         self.migrate_pending_block_entities(pos);
+                    }
+                }
+                pumpkin_world::level::LoadedChunkChange::EntitiesUnloaded(pos) => {
+                    self.forget_entity_chunk(&pos);
+                    if self.level.is_chunk_loaded(&pos)
+                        && self.level.should_retain_entity_chunk(&pos)
+                    {
+                        self.request_entity_chunk(pos);
                     }
                 }
                 pumpkin_world::level::LoadedChunkChange::Unloaded(pos) => {
@@ -623,9 +632,7 @@ impl World {
 
     pub async fn shutdown(&self) {
         self.save_chunk_tickets();
-        for entity in self.entities.load().iter() {
-            self.save_entity(entity).await;
-        }
+        self.save_entity_snapshots().await;
 
         let chunks: Vec<Vector2<i32>> = self
             .block_entities
@@ -647,31 +654,6 @@ impl World {
         }
 
         self.level.shutdown().await;
-    }
-
-    /// Snapshot a vehicle root and its passenger tree into its current chunk.
-    /// Replace this root's prior snapshot so repeated saves cannot append copies.
-    async fn save_entity(&self, entity: &Arc<dyn EntityBase>) {
-        let base_entity = entity.get_entity();
-        if base_entity.is_removed() || base_entity.has_vehicle() {
-            return;
-        }
-        let current_chunk = base_entity.block_pos.load().chunk_position();
-        let nbt = entity_chunks::saved_tree(entity);
-        let chunk = match self.level.try_load_entity_chunk(current_chunk).await {
-            Ok(chunk) => chunk,
-            Err(error) => {
-                error!("Cannot save entity into unreadable storage {current_chunk:?}: {error}");
-                return;
-            }
-        };
-        let mut data = chunk
-            .data
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        data.retain(|entry| entry.get_uuid("UUID") != Some(base_entity.entity_uuid));
-        data.push(nbt);
-        chunk.mark_dirty(true);
     }
 
     /// Serializes the live block entities of a chunk back into that chunk's block
@@ -2151,29 +2133,6 @@ impl World {
             let advance_time = self.level_info.load().game_rules.advance_time;
             level_time.tick(advance_time);
 
-            // Auto-save logic
-            if level_time.world_age % 100 == 0 {
-                self.level.should_unload.store(true, Relaxed);
-                let cleaned_chunks = self.level.clean_memory();
-                if !cleaned_chunks.is_empty() {
-                    let world_clone = self.clone();
-                    if let Some(server) = self.server.upgrade() {
-                        server.spawn_task(async move {
-                            world_clone.remove_entities_in_chunks(&cleaned_chunks).await;
-                            world_clone.level.clean_entity_chunks(&cleaned_chunks);
-                        });
-                    }
-                }
-                // If autosave is configured and this tick will trigger an autosave, don't double notify
-                if self.level.autosave_ticks == 0 {
-                    self.level.level_channel.notify();
-                } else {
-                    let autosave = self.level.autosave_ticks as i64;
-                    if autosave == 0 || level_time.world_age % autosave != 0 {
-                        self.level.level_channel.notify();
-                    }
-                }
-            }
             let autosave_due = self.level.autosave_ticks > 0
                 && self.level.save_enabled.load(Relaxed)
                 && level_time.world_age % self.level.autosave_ticks as i64 == 0;
@@ -2184,10 +2143,45 @@ impl World {
                 autosave_due,
             )
         };
+        // Auto-save logic
+        if world_age % 100 == 0 {
+            self.level.should_unload.store(true, Relaxed);
+            let cleaned_chunks = self.level.clean_memory();
+            if !cleaned_chunks.is_empty() {
+                let handle = self
+                    .server
+                    .upgrade()
+                    .map(|s| s.runtime.clone())
+                    .or_else(|| tokio::runtime::Handle::try_current().ok());
+                if let Some(handle) = handle {
+                    let _guard = handle.enter();
+                    self.unload_entity_chunks(cleaned_chunks);
+                }
+            }
+            // If autosave is configured and this tick will trigger an autosave, don't double notify
+            if self.level.autosave_ticks == 0 {
+                self.level.level_channel.notify();
+            } else {
+                let autosave = self.level.autosave_ticks as i64;
+                if autosave == 0 || world_age % autosave != 0 {
+                    self.level.level_channel.notify();
+                }
+            }
+        }
         // Saving tickets reads world age; release the time lock before saving.
         if autosave_due {
             self.save_world_border();
             self.save_chunk_tickets();
+            let handle = self
+                .server
+                .upgrade()
+                .map(|s| s.runtime.clone())
+                .or_else(|| tokio::runtime::Handle::try_current().ok());
+            if let Some(handle) = handle {
+                let _guard = handle.enter();
+                let snapshots = self.snapshot_entity_chunks();
+                let _written = self.level.queue_entity_chunks(snapshots);
+            }
             self.level.should_save.store(true, Relaxed);
             self.level.level_channel.notify();
         }
@@ -5799,49 +5793,7 @@ impl World {
         &self,
         chunks: impl IntoIterator<Item = impl std::borrow::Borrow<Vector2<i32>>>,
     ) {
-        let chunks_set: FxHashSet<_> = chunks
-            .into_iter()
-            .map(|c| *c.borrow())
-            .filter(|pos| !self.level.should_retain_entity_chunk(pos))
-            .collect();
-        if chunks_set.is_empty() {
-            return;
-        }
-        let mut entities_to_remove = Vec::new();
-
-        self.entities.rcu(|current_entities| {
-            let mut new_entities = (**current_entities).clone();
-            new_entities.retain(|entity| {
-                let base_entity = entity.get_entity();
-                let pos = base_entity.chunk_pos.load();
-                if chunks_set.contains(&pos) {
-                    entities_to_remove.push(entity.clone());
-                    false
-                } else {
-                    true
-                }
-            });
-            new_entities
-        });
-
-        for entity in entities_to_remove {
-            self.notify_mob_observers_of_removal(
-                entity.get_entity().entity_id,
-                RemovalReason::UnloadedToChunk,
-            );
-            self.entity_tracker.remove_entity(entity.as_ref(), self);
-            self.save_entity(&entity).await;
-            self.spawn_state.load().remove_entity(self, entity.as_ref());
-        }
-
-        for chunk_pos in &chunks_set {
-            self.save_block_entities(*chunk_pos);
-            if let Some((_, entities)) = self.block_entities.remove(chunk_pos) {
-                for entity in entities.into_values() {
-                    entity.set_removed();
-                }
-            }
-        }
+        self.unload_entity_chunks(chunks.into_iter().map(|pos| *pos.borrow()));
     }
 
     pub(crate) fn set_block_breaking(
@@ -7915,9 +7867,7 @@ impl World {
     pub async fn save(&self) {
         self.save_chunk_tickets();
         self.save_world_border();
-        for entity in self.entities.load().iter() {
-            self.save_entity(entity).await;
-        }
+        self.save_entity_snapshots().await;
 
         let chunks: Vec<Vector2<i32>> = self
             .block_entities

@@ -1449,3 +1449,12 @@ requests share one result; nested passenger data and repeated root snapshots are
 covered by restart checks. ENGINE_GAPS.md records remaining complete-snapshot,
 passenger-tree unload, player-vehicle and chunk-holder readiness work. Full mob
 passes remain paused.
+
+### Entity snapshots and vehicle-tree unloads
+
+Manual save, shutdown and periodic autosave now use complete live-root snapshots,
+removing stale moved/deleted entries while preserving unactivated saved residents.
+Passenger trees unload together by their vehicle root; storage remains available
+until its ordered snapshot write succeeds. Restart, autosave and storage-ordering
+checks are recorded in ENGINE_GAPS.md. Player-owned vehicle persistence and the
+remaining shared engine/block gates are still open; no full mob pass was started.
