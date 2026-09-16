@@ -11,12 +11,11 @@ use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::Sound;
 use pumpkin_util::random::RandomImpl;
 use pumpkin_protocol::java::client::play::CEntityVelocity;
-use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 
 use super::arrow::ArrowPickup;
-use super::{ProjectileHit, calculate_ray_intersection};
+use super::{ProjectileHit, collision_on_segment};
 
 pub struct TridentEntity {
     pub entity: Entity,
@@ -210,6 +209,11 @@ impl EntityBase for TridentEntity {
 
         // Move trident
         let new_pos = start_pos.add(&velocity);
+        let hit = collision_on_segment(caller, start_pos, new_pos, |candidate| {
+            self.should_skip_collision(entity, candidate)
+        });
+        let new_pos = hit.as_ref().map_or(new_pos, ProjectileHit::hit_pos);
+        entity.record_inside_movement(start_pos, new_pos, None);
         entity.set_pos(new_pos);
 
         // Broadcast velocity update
@@ -217,74 +221,9 @@ impl EntityBase for TridentEntity {
         let chunk_pos = entity.chunk_pos.load();
         world.broadcast_to_chunk(chunk_pos, &packet);
 
-        // Check for collisions using raycasting
-        let search_box = BoundingBox::new(
-            Vector3::new(
-                start_pos.x.min(new_pos.x),
-                start_pos.y.min(new_pos.y),
-                start_pos.z.min(new_pos.z),
-            ),
-            Vector3::new(
-                start_pos.x.max(new_pos.x),
-                start_pos.y.max(new_pos.y),
-                start_pos.z.max(new_pos.z),
-            ),
-        )
-        .expand(0.3, 0.3, 0.3);
-
-        let mut closest_t = 1.0f64;
-        let mut hit = None;
-
-        // Block collisions
-        let (block_cols, block_positions) =
-            world.get_block_collisions(search_box, self.get_entity());
-        for (idx, bb) in block_cols.iter().enumerate() {
-            if let Some(t) = calculate_ray_intersection(&start_pos, &velocity, bb)
-                && t < closest_t
-            {
-                closest_t = t;
-
-                // Map back to block pos
-                let mut curr = 0;
-                for (len, pos) in &block_positions {
-                    curr += len;
-                    if idx < curr {
-                        let hit_pos = start_pos.add(&velocity.multiply(t, t, t));
-                        hit = Some(ProjectileHit::Block {
-                            pos: *pos,
-                            face: get_hit_face(hit_pos, *pos),
-                            hit_pos,
-                            normal: velocity.normalize().multiply(-1.0, -1.0, -1.0),
-                        });
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Entity collisions
-        let candidates = world.get_entities_at_box(&search_box);
-        for cand in candidates {
-            if self.should_skip_collision(entity, &cand) {
-                continue;
-            }
-
-            let ebb = cand.get_entity().bounding_box.load().expand(0.3, 0.3, 0.3);
-            if let Some(t) = calculate_ray_intersection(&start_pos, &velocity, &ebb)
-                && t < closest_t
-            {
-                closest_t = t;
-                let hit_pos = start_pos.add(&velocity.multiply(t, t, t));
-                hit = Some(ProjectileHit::Entity {
-                    entity: cand.clone(),
-                    hit_pos,
-                    normal: velocity.normalize().multiply(-1.0, -1.0, -1.0),
-                });
-            }
-        }
-
         // Handle hit
         if let Some(h) = hit
+            && !super::bounce_on_border(entity, &h)
             && !self.has_hit.swap(true, Ordering::SeqCst)
         {
             super::handle_hit(caller, h);
@@ -396,25 +335,5 @@ impl EntityBase for TridentEntity {
             player.living_entity.pickup(&self.entity, 1);
             self.get_entity().remove();
         }
-    }
-}
-
-/// Get the face of the block that was hit
-fn get_hit_face(hit_pos: Vector3<f64>, block_pos: BlockPos) -> pumpkin_data::BlockDirection {
-    let local = hit_pos.sub(&block_pos.0.to_f64());
-    let eps = 1.0e-4;
-
-    if local.x <= eps {
-        pumpkin_data::BlockDirection::West
-    } else if local.x >= 1.0 - eps {
-        pumpkin_data::BlockDirection::East
-    } else if local.y <= eps {
-        pumpkin_data::BlockDirection::Down
-    } else if local.y >= 1.0 - eps {
-        pumpkin_data::BlockDirection::Up
-    } else if local.z <= eps {
-        pumpkin_data::BlockDirection::North
-    } else {
-        pumpkin_data::BlockDirection::South
     }
 }

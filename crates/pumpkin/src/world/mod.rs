@@ -7364,72 +7364,8 @@ impl World {
         min: Vector3<f64>,
         max: Vector3<f64>,
     ) -> Option<(f64, BlockDirection, Vector3<f64>)> {
-        let dir = to.sub(&from);
-        let mut tmin: f64 = 0.0;
-        let mut tmax: f64 = 1.0;
-
-        let mut hit_axis = None;
-        let mut hit_is_min = false;
-
-        macro_rules! check_axis {
-            ($axis:ident, $dir_axis:ident, $min_axis:ident, $max_axis:ident) => {{
-                if dir.$dir_axis.abs() < 1e-8 {
-                    if from.$dir_axis < min.$min_axis || from.$dir_axis > max.$max_axis {
-                        return None;
-                    }
-                } else {
-                    let inv_d = 1.0 / dir.$dir_axis;
-                    let t_near = (min.$min_axis - from.$dir_axis) * inv_d;
-                    let t_far = (max.$max_axis - from.$dir_axis) * inv_d;
-
-                    let (t_entry, t_exit, is_min_face) = if inv_d >= 0.0 {
-                        (t_near, t_far, true)
-                    } else {
-                        (t_far, t_near, false)
-                    };
-
-                    if t_entry > tmin {
-                        tmin = t_entry;
-                        hit_axis = Some(stringify!($axis));
-                        hit_is_min = is_min_face;
-                    }
-                    tmax = tmax.min(t_exit);
-                    if tmax < tmin {
-                        return None;
-                    }
-                }
-            }};
-        }
-
-        check_axis!(x, x, x, x);
-        check_axis!(y, y, y, y);
-        check_axis!(z, z, z, z);
-
-        if tmax < 0.0 || tmin > 1.0 {
-            return None;
-        }
-
-        let direction = match (hit_axis, hit_is_min) {
-            (Some("x"), true) => BlockDirection::West,
-            (Some("x"), false) => BlockDirection::East,
-            (Some("y"), true) => BlockDirection::Down,
-            (Some("y"), false) => BlockDirection::Up,
-            (Some("z"), true) => BlockDirection::North,
-            (Some("z"), false) => BlockDirection::South,
-            _ => {
-                if dir.y < 0.0 {
-                    BlockDirection::Up
-                } else if dir.y > 0.0 {
-                    BlockDirection::Down
-                } else {
-                    BlockDirection::North
-                }
-            }
-        };
-
-        let t_hit = tmin.max(0.0);
-        let hit_pos = from + dir * t_hit;
-        Some((t_hit, direction, hit_pos))
+        block_ray::clip_aabb(from, to, BoundingBox::new(min, max))
+            .map(|(fraction, hit)| (fraction, hit.direction, hit.position))
     }
 
     pub fn ray_outline_check_detailed(
@@ -7480,6 +7416,38 @@ impl World {
             self.clip_block_cell(&pos, start, end, collision, fluids, entity)
                 .map(|hit| (pos, hit))
         })
+    }
+
+    /// Java CollisionGetter.clipIncludingBorder, retaining the border marker for
+    /// projectile deflection instead of dispatching it as an ordinary block hit.
+    pub fn ray_trace_block_including_border(
+        &self,
+        start: Vector3<f64>,
+        end: Vector3<f64>,
+        entity: &dyn EntityBase,
+    ) -> Option<(BlockPos, RayHit, bool)> {
+        let block = self.ray_trace_block_with_context(
+            start,
+            end,
+            RayFluidHandling::None,
+            true,
+            Some(entity),
+        );
+        let target = block.map_or(end, |(_, hit)| hit.position);
+        let bounds = self
+            .worldborder
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .bounds();
+        if let Some(hit) = block_ray::clip_border(start, target, bounds) {
+            let pos = BlockPos::new(
+                hit.position.x.floor() as i32,
+                hit.position.y.floor() as i32,
+                hit.position.z.floor() as i32,
+            );
+            return Some((pos, hit, true));
+        }
+        block.map(|(pos, hit)| (pos, hit, false))
     }
 
     fn clip_block_cell(

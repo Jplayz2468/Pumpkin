@@ -143,3 +143,28 @@ propagation require separate integration verification.
 javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/FallDistanceOracle.java
 java -cp '/tmp:../comparison/downloads/classpath/*' FallDistanceOracle > crates/pumpkin/src/entity/fall_distance_cases.json
 ```
+
+## Projectile rays and border deflection
+
+`ProjectileRayOracle.java` invokes Java 26.2 ProjectileUtil's nearest-entity query
+and age margin on controlled candidate boxes (1,200 cases). It covers strict ties,
+inside starts, exact endpoints, epsilon edges and tick-count overflow. The test
+isolates geometry/selection; it does not validate world query ordering, pickability,
+owner immunity or AbstractArrow's distinct many-hit path.
+
+`BorderRayOracle.java` invokes CollisionGetter.clipIncludingBorder with a controlled
+ordinary ray result (500 cases). `BorderDeflectionOracle.java` invokes
+Projectile.hitTargetOrDeflectSelf on actual Arrow instances for 200 border hits,
+recording velocity, yaw, sync requirement and RNG state. Unsafe initialization
+replaces only unrelated world/entity construction; the invoked methods are vanilla.
+Previous-rotation storage and full tick integration are separate engine gaps.
+
+These probes use the existing BlockClipOracle, FluidInteractionOracle and
+FallDistanceOracle helpers compiled into `/tmp`.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*:/tmp' -d /tmp tools/vanilla/ProjectileRayOracle.java tools/vanilla/BorderRayOracle.java tools/vanilla/BorderDeflectionOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' ProjectileRayOracle > crates/pumpkin/src/entity/projectile/ray_cases.json
+java -cp '/tmp:../comparison/downloads/classpath/*' BorderRayOracle > crates/pumpkin/src/world/border_ray_cases.json
+java -cp '/tmp:../comparison/downloads/classpath/*' BorderDeflectionOracle > crates/pumpkin/src/entity/projectile/border_deflection_cases.json
+```

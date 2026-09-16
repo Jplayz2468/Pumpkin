@@ -477,3 +477,36 @@ whole inside-effect pipeline matches Java yet.
   named-sound fallback and category/name compatibility, remaining entity sound
   overrides/RNG consumers, and full projectile behavior/spatial lifecycle. Packet
   and radius checks do not certify live client audibility or the complete engine.
+
+## Shared projectile rays and border impacts — 2026-09-16
+
+- Removed three duplicated block/entity collision loops from thrown items, arrows
+  and tridents. They now use contextual block shapes and their actual entering
+  faces, instead of guessing a face from coordinates in a whole block.
+- Shared AABB rays use Java's strict entering-surface clipping, axis order and
+  epsilon. VoxelShape's separate short inside probe remains intact. Projectile
+  queries include players, exclude removed/spectator candidates, use the swept
+  projectile box plus one block, and widen the age-dependent float margin exactly.
+  Entity rays end at the selected block hit and retain the first equal-distance
+  candidate in the existing world-query order.
+- Queries run before movement; movement stops at the selected impact. Arrow and
+  trident movement is recorded for shared swept inside effects. Border rays follow
+  CollisionGetter's endpoint clamp and direction selection, including the float
+  epsilon and very narrow borders. Border hits keep their marker so arrows and
+  tridents reverse without lodging, consuming their hit flag or emitting land events.
+- Java fixtures cover 1,200 nearest-entity queries/age margins, 500 border rays and
+  200 actual Arrow border deflections (velocity, yaw and subsequent RNG state).
+- Remaining projectile foundations: owner/vehicle-tree immunity instead of the
+  five-tick shortcut, complete pickability/deflection predicates, arrow's many-hit
+  query and same-tick piercing, movement/drag/gravity/base-tick ordering, previous
+  rotation interpolation, other projectile families, and immediate inside-effect
+  dispatch relative to hit callbacks. The shared spatial index still orders
+  entities differently from Java's sections. These checks do not certify complete
+  projectile, block or engine parity; full mob passes remain paused.
+- Background run 5 passed **491 engine tests**, with the same two separately
+  passing socket tests excluded. Final review also corrected thrown-projectile
+  construction to update its bounding box/block/chunk coordinates, and kept the
+  swept search expansion on the original velocity to avoid subtraction rounding.
+- Final background run 6 passed **491 engine tests** after the construction/search
+  refinements, with those same two socket exclusions. No live client/server
+  comparison was performed.

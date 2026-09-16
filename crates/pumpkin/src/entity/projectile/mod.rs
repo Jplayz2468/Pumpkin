@@ -153,7 +153,7 @@ impl ThrownItemEntity {
     pub fn new(entity: Entity, owner: &Entity, gravity: f64) -> Self {
         let mut owner_pos = owner.pos.load();
         owner_pos.y += owner.get_eye_height() - 0.1;
-        entity.pos.store(owner_pos);
+        entity.set_pos(owner_pos);
         Self {
             entity,
             owner_id: Some(owner.entity_id),
@@ -230,6 +230,10 @@ impl ThrownItemEntity {
 
         // Update position
         let new_pos = start_pos.add(&delta);
+        let hit = collision_on_segment(caller, start_pos, new_pos, |candidate| {
+            self.should_skip_collision(entity, candidate)
+        });
+        let new_pos = hit.as_ref().map_or(new_pos, ProjectileHit::hit_pos);
         entity.record_inside_movement(start_pos, new_pos, None);
         entity.set_pos(new_pos);
 
@@ -237,70 +241,6 @@ impl ThrownItemEntity {
         let packet = CEntityVelocity::new(entity.entity_id.into(), velocity);
         let chunk_pos = entity.chunk_pos.load();
         world.broadcast_to_chunk(chunk_pos, &packet);
-
-        // Calculate search box for collisions
-        let search_box = BoundingBox::new(
-            Vector3::new(
-                start_pos.x.min(new_pos.x),
-                start_pos.y.min(new_pos.y),
-                start_pos.z.min(new_pos.z),
-            ),
-            Vector3::new(
-                start_pos.x.max(new_pos.x),
-                start_pos.y.max(new_pos.y),
-                start_pos.z.max(new_pos.z),
-            ),
-        )
-        .expand(0.3, 0.3, 0.3);
-
-        let mut closest_t = 1.0f64;
-        let mut hit = None;
-
-        // Block collisions
-        let (block_cols, block_positions) = world.get_block_collisions(search_box, caller);
-        for (idx, bb) in block_cols.iter().enumerate() {
-            if let Some(t) = calculate_ray_intersection(&start_pos, &delta, bb)
-                && t < closest_t
-            {
-                closest_t = t;
-                // Map back to block pos
-                let mut curr = 0;
-                for (len, pos) in &block_positions {
-                    curr += len;
-                    if idx < curr {
-                        let hit_pos = start_pos.add(&delta.multiply(t, t, t));
-                        hit = Some(ProjectileHit::Block {
-                            pos: *pos,
-                            face: get_hit_face(hit_pos, *pos),
-                            hit_pos,
-                            normal: delta.normalize().multiply(-1.0, -1.0, -1.0),
-                        });
-                        break;
-                    }
-                }
-            }
-        }
-
-        // Entity collisions
-        let candidates = world.get_entities_at_box(&search_box);
-        for cand in candidates {
-            if self.should_skip_collision(entity, &cand) {
-                continue;
-            }
-
-            let ebb = cand.get_entity().bounding_box.load().expand(0.3, 0.3, 0.3);
-            if let Some(t) = calculate_ray_intersection(&start_pos, &delta, &ebb)
-                && t < closest_t
-            {
-                closest_t = t;
-                let hit_pos = start_pos.add(&delta.multiply(t, t, t));
-                hit = Some(ProjectileHit::Entity {
-                    entity: cand.clone(),
-                    hit_pos,
-                    normal: delta.normalize().multiply(-1.0, -1.0, -1.0),
-                });
-            }
-        }
 
         // Handle hit or continue
         if let Some(h) = hit {
@@ -368,58 +308,118 @@ impl ThrownItemEntity {
     }
 }
 
-/// Ray intersection algorithm for AABBs, returning a t value
-fn calculate_ray_intersection(
-    start: &Vector3<f64>,
-    dir: &Vector3<f64>,
-    bb: &BoundingBox,
-) -> Option<f64> {
-    let mut t_min = 0.0f64;
-    let mut t_max = 1.0f64;
-
-    let b_min = [bb.min.x, bb.min.y, bb.min.z];
-    let b_max = [bb.max.x, bb.max.y, bb.max.z];
-    let s = [start.x, start.y, start.z];
-    let d = [dir.x, dir.y, dir.z];
-
-    for i in 0..3 {
-        if d[i].abs() < 1e-9 {
-            if s[i] < b_min[i] || s[i] > b_max[i] {
-                return None;
-            }
-        } else {
-            let t1 = (b_min[i] - s[i]) / d[i];
-            let t2 = (b_max[i] - s[i]) / d[i];
-            t_min = t_min.max(t1.min(t2));
-            t_max = t_max.min(t1.max(t2));
-        }
+/// ProjectileUtil's movement query: clip blocks first, then query the swept
+/// projectile box (including players) and select the nearest entering entity face.
+fn collision_on_segment(
+    caller: &dyn EntityBase,
+    start: Vector3<f64>,
+    end: Vector3<f64>,
+    mut should_skip: impl FnMut(&Arc<dyn EntityBase>) -> bool,
+) -> Option<ProjectileHit> {
+    let entity = caller.get_entity();
+    let world = entity.world.load();
+    let delta = entity.velocity.load();
+    let normal = delta.normalize() * -1.0;
+    let block = world.ray_trace_block_including_border(start, end, caller);
+    let entity_end = block.map_or(end, |(_, hit, _)| hit.position);
+    let search = entity
+        .bounding_box
+        .load()
+        .stretch(delta)
+        .expand(1.0, 1.0, 1.0);
+    let margin = entity_margin(entity.tick_count.load(Ordering::Relaxed));
+    let candidates = world
+        .get_all_at_box(&search)
+        .into_iter()
+        .filter(|candidate| {
+            candidate.get_entity().entity_id != entity.entity_id
+                && !candidate.get_entity().is_removed()
+                && !candidate.is_spectator()
+                && !should_skip(candidate)
+        })
+        .map(|candidate| {
+            let bounds = candidate.get_entity().bounding_box.load();
+            (candidate, bounds)
+        });
+    if let Some((entity, hit_pos)) = nearest_entity_hit(start, entity_end, margin, candidates) {
+        return Some(ProjectileHit::Entity {
+            entity,
+            hit_pos,
+            normal,
+        });
     }
-
-    (t_min <= t_max && (0.0..=1.0).contains(&t_min)).then_some(t_min)
+    block.map(|(pos, hit, world_border)| ProjectileHit::Block {
+        world_border,
+        pos,
+        face: hit.direction,
+        hit_pos: hit.position,
+        normal,
+    })
 }
 
-/// Get the face of the block that was hit
-fn get_hit_face(hit_pos: Vector3<f64>, block_pos: BlockPos) -> BlockDirection {
-    let local = hit_pos.sub(&block_pos.0.to_f64());
-    let eps = 1.0e-4;
-
-    if local.x <= eps {
-        BlockDirection::West
-    } else if local.x >= 1.0 - eps {
-        BlockDirection::East
-    } else if local.y <= eps {
-        BlockDirection::Down
-    } else if local.y >= 1.0 - eps {
-        BlockDirection::Up
-    } else if local.z <= eps {
-        BlockDirection::North
-    } else {
-        BlockDirection::South
+fn nearest_entity_hit<T>(
+    start: Vector3<f64>,
+    end: Vector3<f64>,
+    margin: f32,
+    candidates: impl IntoIterator<Item = (T, BoundingBox)>,
+) -> Option<(T, Vector3<f64>)> {
+    let mut nearest = f64::MAX;
+    let mut hit = None;
+    for (candidate, bounds) in candidates {
+        let margin = f64::from(margin);
+        let bounds = bounds.expand(margin, margin, margin);
+        if let Some((_, _, position)) =
+            crate::world::World::intersects_aabb_with_hit(start, end, bounds.min, bounds.max)
+        {
+            let distance = (position - start).length_squared();
+            if distance < nearest {
+                nearest = distance;
+                hit = Some((candidate, position));
+            }
+        }
     }
+    hit
+}
+
+fn entity_margin(ticks: i32) -> f32 {
+    (ticks.wrapping_sub(2) as f32 / 20.0).clamp(0.0, 0.3)
+}
+
+/// AbstractArrow (including tridents) reverses on border hits without invoking
+/// onHit, lodging in the border, consuming pierce count or emitting a land event.
+fn bounce_on_border(entity: &Entity, hit: &ProjectileHit) -> bool {
+    if !matches!(
+        hit,
+        ProjectileHit::Block {
+            world_border: true,
+            ..
+        }
+    ) {
+        return false;
+    }
+    let (velocity, yaw) = border_deflection(
+        entity.velocity.load(),
+        entity.yaw.load(),
+        &mut *entity.random(),
+    );
+    entity.velocity.store(velocity);
+    entity.yaw.store(yaw);
+    entity.velocity_dirty.store(true, Ordering::Relaxed);
+    true
+}
+
+fn border_deflection(
+    velocity: Vector3<f64>,
+    yaw: f32,
+    random: &mut impl pumpkin_util::random::RandomImpl,
+) -> (Vector3<f64>, f32) {
+    let rotation = 170.0_f32 + random.next_f32() * 20.0_f32;
+    (velocity * -0.5 * 0.2, yaw + rotation)
 }
 
 pub enum ProjectileHit {
     Block {
+        world_border: bool,
         pos: BlockPos,
         face: BlockDirection,
         hit_pos: Vector3<f64>,
@@ -455,6 +455,101 @@ impl ProjectileHit {
         match self {
             Self::Block { face, .. } => Some(*face),
             Self::Entity { .. } => None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod ray_tests {
+    use super::*;
+
+    #[test]
+    fn java_border_deflection() {
+        use pumpkin_util::random::{RandomImpl, legacy_rand::LegacyRand};
+        let cases: Vec<serde_json::Value> =
+            serde_json::from_str(include_str!("border_deflection_cases.json")).unwrap();
+        for (index, case) in cases.iter().enumerate() {
+            let vector = |json: &serde_json::Value| {
+                Vector3::new(
+                    f64::from_bits(json[0].as_u64().unwrap()),
+                    f64::from_bits(json[1].as_u64().unwrap()),
+                    f64::from_bits(json[2].as_u64().unwrap()),
+                )
+            };
+            let mut random = LegacyRand::from_seed(case[0].as_i64().unwrap() as u64);
+            let (velocity, yaw) = border_deflection(
+                vector(&case[1]),
+                f32::from_bits(case[2].as_u64().unwrap() as u32),
+                &mut random,
+            );
+            let expected = vector(&case[3]);
+            assert_eq!(
+                [
+                    velocity.x.to_bits(),
+                    velocity.y.to_bits(),
+                    velocity.z.to_bits()
+                ],
+                [
+                    expected.x.to_bits(),
+                    expected.y.to_bits(),
+                    expected.z.to_bits()
+                ],
+                "velocity {index}"
+            );
+            assert_eq!(
+                yaw.to_bits(),
+                case[4].as_u64().unwrap() as u32,
+                "yaw {index}"
+            );
+            assert!(case[5].as_bool().unwrap());
+            assert_eq!(random.next_i64(), case[6].as_i64().unwrap(), "rng {index}");
+        }
+    }
+
+    #[test]
+    fn java_projectile_entity_rays() {
+        let cases: Vec<serde_json::Value> =
+            serde_json::from_str(include_str!("ray_cases.json")).unwrap();
+        for (index, case) in cases.iter().enumerate() {
+            let vector = |value: &serde_json::Value, offset: usize| {
+                Vector3::new(
+                    f64::from_bits(value[offset].as_u64().unwrap()),
+                    f64::from_bits(value[offset + 1].as_u64().unwrap()),
+                    f64::from_bits(value[offset + 2].as_u64().unwrap()),
+                )
+            };
+            let margin = entity_margin(case[0].as_i64().unwrap() as i32);
+            assert_eq!(
+                margin.to_bits(),
+                case[1].as_u64().unwrap() as u32,
+                "margin {index}"
+            );
+            let candidates = case[4]
+                .as_array()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .map(|(id, value)| (id, BoundingBox::new(vector(value, 0), vector(value, 3))));
+            let hit =
+                nearest_entity_hit(vector(&case[2], 0), vector(&case[3], 0), margin, candidates);
+            assert_eq!(hit.is_some(), !case[5].is_null(), "presence {index}");
+            if let Some((id, position)) = hit {
+                assert_eq!(id, case[5][0].as_u64().unwrap() as usize, "target {index}");
+                let expected = vector(&case[5][1], 0);
+                assert_eq!(
+                    [
+                        position.x.to_bits(),
+                        position.y.to_bits(),
+                        position.z.to_bits()
+                    ],
+                    [
+                        expected.x.to_bits(),
+                        expected.y.to_bits(),
+                        expected.z.to_bits()
+                    ],
+                    "position {index}"
+                );
+            }
         }
     }
 }

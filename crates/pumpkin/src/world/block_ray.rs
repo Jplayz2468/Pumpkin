@@ -163,30 +163,31 @@ pub(crate) fn clip(from: Vector3<f64>, to: Vector3<f64>, boxes: &[BoundingBox]) 
             && test.z >= bounds.min.z
             && test.z < bounds.max.z
     }) {
-        // Direction.getApproximateNearest narrows to floats before its dot products.
-        let [dx, dy, dz] = [diff.x as f32, diff.y as f32, diff.z as f32];
-        let mut nearest = BlockDirection::North;
-        let mut highest = f32::from_bits(1);
-        for (direction, normal) in [
-            (BlockDirection::Down, [0.0, -1.0, 0.0]),
-            (BlockDirection::Up, [0.0, 1.0, 0.0]),
-            (BlockDirection::North, [0.0, 0.0, -1.0]),
-            (BlockDirection::South, [0.0, 0.0, 1.0]),
-            (BlockDirection::West, [-1.0, 0.0, 0.0]),
-            (BlockDirection::East, [1.0, 0.0, 0.0]),
-        ] {
-            let dot = dx * normal[0] + dy * normal[1] + dz * normal[2];
-            if dot > highest {
-                highest = dot;
-                nearest = direction;
-            }
-        }
         return Some(RayHit {
-            direction: nearest.opposite(),
+            direction: approximate_nearest(diff).opposite(),
             position: test,
             inside: true,
         });
     }
+    clip_surfaces(from, to, boxes).map(|(_, hit)| hit)
+}
+
+/// AABB.clip tests entering surfaces only: starting inside or ending exactly on
+/// the surface does not manufacture a hit, unlike VoxelShape's inside probe.
+pub(crate) fn clip_aabb(
+    from: Vector3<f64>,
+    to: Vector3<f64>,
+    bounds: BoundingBox,
+) -> Option<(f64, RayHit)> {
+    clip_surfaces(from, to, &[bounds])
+}
+
+fn clip_surfaces(
+    from: Vector3<f64>,
+    to: Vector3<f64>,
+    boxes: &[BoundingBox],
+) -> Option<(f64, RayHit)> {
+    let diff = to - from;
     let origin = [from.x, from.y, from.z];
     let delta = [diff.x, diff.y, diff.z];
     let mut closest = 1.0;
@@ -220,9 +221,62 @@ pub(crate) fn clip(from: Vector3<f64>, to: Vector3<f64>, boxes: &[BoundingBox]) 
             }
         }
     }
-    direction.map(|direction| RayHit {
-        direction,
-        position: from + diff * closest,
+    direction.map(|direction| {
+        (
+            closest,
+            RayHit {
+                direction,
+                position: from + diff * closest,
+                inside: false,
+            },
+        )
+    })
+}
+
+pub(crate) fn approximate_nearest(diff: Vector3<f64>) -> BlockDirection {
+    // Direction.getApproximateNearest narrows to floats before its dot products.
+    let [dx, dy, dz] = [diff.x as f32, diff.y as f32, diff.z as f32];
+    let mut nearest = BlockDirection::North;
+    let mut highest = f32::from_bits(1);
+    for (direction, normal) in [
+        (BlockDirection::Down, [0.0, -1.0, 0.0]),
+        (BlockDirection::Up, [0.0, 1.0, 0.0]),
+        (BlockDirection::North, [0.0, 0.0, -1.0]),
+        (BlockDirection::South, [0.0, 0.0, 1.0]),
+        (BlockDirection::West, [-1.0, 0.0, 0.0]),
+        (BlockDirection::East, [1.0, 0.0, 0.0]),
+    ] {
+        let dot = dx * normal[0] + dy * normal[1] + dz * normal[2];
+        if dot > highest {
+            highest = dot;
+            nearest = direction;
+        }
+    }
+    nearest
+}
+
+/// CollisionGetter.clipIncludingBorder clamps the selected hit endpoint; this
+/// deliberately is not the geometric intersection of the ray and border plane.
+pub(crate) fn clip_border(
+    from: Vector3<f64>,
+    to: Vector3<f64>,
+    bounds: [f64; 4],
+) -> Option<RayHit> {
+    let [min_x, min_z, max_x, max_z] = bounds;
+    let contains = |p: Vector3<f64>| p.x >= min_x && p.x < max_x && p.z >= min_z && p.z < max_z;
+    if !contains(from) || contains(to) {
+        return None;
+    }
+    let epsilon = f64::from(1.0e-5_f32);
+    // Mth.clamp's branch order matters for borders narrower than epsilon.
+    let clamp = |value: f64, min: f64, max: f64| if value < min { min } else { value.min(max) };
+    Some(RayHit {
+        direction: approximate_nearest(to - from),
+        position: Vector3::new(
+            clamp(to.x, min_x, max_x - epsilon),
+            to.y,
+            clamp(to.z, min_z, max_z - epsilon),
+        ),
         inside: false,
     })
 }
@@ -266,6 +320,44 @@ pub fn intersects_box(from: Vector3<f64>, to: Vector3<f64>, bounds: BoundingBox)
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn java_border_ray_clamping() {
+        let cases: Vec<serde_json::Value> =
+            serde_json::from_str(include_str!("border_ray_cases.json")).unwrap();
+        for (index, case) in cases.iter().enumerate() {
+            let value =
+                |json: &serde_json::Value, n: usize| f64::from_bits(json[n].as_u64().unwrap());
+            let vector = |json: &serde_json::Value| {
+                Vector3::new(value(json, 0), value(json, 1), value(json, 2))
+            };
+            let bounds = std::array::from_fn(|n| value(&case[0], n));
+            let hit = clip_border(vector(&case[1]), vector(&case[2]), bounds);
+            assert_eq!(hit.is_some(), !case[3].is_null(), "presence {index}");
+            if let Some(hit) = hit {
+                assert_eq!(
+                    hit.direction as u64,
+                    case[3][0].as_u64().unwrap(),
+                    "face {index}"
+                );
+                assert_eq!(hit.inside, case[3][1].as_bool().unwrap(), "inside {index}");
+                let expected = vector(&case[3][2]);
+                assert_eq!(
+                    [
+                        hit.position.x.to_bits(),
+                        hit.position.y.to_bits(),
+                        hit.position.z.to_bits()
+                    ],
+                    [
+                        expected.x.to_bits(),
+                        expected.y.to_bits(),
+                        expected.z.to_bits()
+                    ],
+                    "position {index}"
+                );
+            }
+        }
+    }
+
     #[test]
     fn java_block_and_fluid_selection() {
         let cases: Vec<serde_json::Value> =
