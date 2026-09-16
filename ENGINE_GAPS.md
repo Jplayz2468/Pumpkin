@@ -224,16 +224,41 @@ whole inside-effect pipeline matches Java yet.
   previously separately passing socket tests excluded. No full mob pass or live
   server/client comparison was performed.
 
+## Shared double fall-distance continuation
+
+- Entity owns the canonical double fall-distance counter. LivingEntity and
+  FallingEntity retain aliases to that same counter, so block effects and external
+  changes no longer update disconnected stores. Base entity NBT writes the canonical
+  double `fall_distance`; loading accepts old float/legacy keys after the canonical
+  value. Removed the living-only dead-entity save/load clamp.
+- Accumulation follows Entity.checkFallDamage exactly: each downward movement is
+  cast to float then widened into the double sum; water suppresses accumulation.
+  Landing includes its final downward displacement, keeps the counter visible to
+  damage/combat callbacks, emits HIT_GROUND and clears it afterwards.
+- Landing distances and block callbacks use doubles. CombatEntry deliberately keeps
+  Java's float snapshot, and the existing WIT v0.1 float ABI converts only at its
+  boundary. Mace and gliding calculations now consume the wider engine counter.
+- Default, bed, hay, honey, slime, farmland and dripstone landing handlers route
+  through shared causeFallDamage. This includes passenger propagation and falling
+  blocks; removed the falling entity's separate post-move landing accumulation.
+  Honey/bubbles/geyser resets and powder-snow collision read the common counter.
+- Added precision/legacy-NBT regression checks and **1,200 Java accumulation cases**.
+  Background run 4 passed **476 tests**, excluding the two previously separately
+  passing socket tests. Final run 5, including all 1,200 oracle cases, passed
+  **477 tests** with the same exclusions.
+  This verifies bounded algorithms and compilation, not live landing/passenger play.
+
 ## Next shared-engine work
 
-1. Fall distance: LivingEntity still stores f32 and writes legacy FallDistance,
-   while Java 26.2 stores a double under fall_distance. Migrate the shared counter,
-   landing callbacks, combat records and NBT without narrowing intermediate values.
-2. General ray APIs still use older slab clipping/empty-outline fallbacks; the new
+1. General ray APIs still use older slab clipping/empty-outline fallbacks; the new
    source-verified traversal/clip path currently serves the fall-reset query only.
-3. Complete ridden vehicle integration (controlled vehicle/navigation/packet paths),
+2. Complete ridden vehicle integration (controlled vehicle/navigation/packet paths),
    direct movement and portal/passenger transitions, remaining contextual shapes and
-   live gameplay verification. The SulfurCube omnidirectional override belongs to
-   its still-missing entity implementation; the shared hook is now present.
+   live gameplay verification. SulfurCube's omnidirectional override belongs to its
+   still-missing entity implementation; the shared hook is present.
+3. Finish fall/inside-effect integration: Living.checkFallDamage's fluid refresh and
+   landing particles, impulse-limited fall damage, fall reset on teleports/fluids for
+   non-living entities, and source parity of proximity-based fall exemptions. The
+   shared double counter fixes representation and dispatch, not these separate gates.
 4. Continue D02–D06 and remaining block-system gates listed above. Do not treat this
    bounded movement checkpoint as full engine or block parity.

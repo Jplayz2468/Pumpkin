@@ -29,9 +29,12 @@ pub struct BedBlock;
 
 impl BlockBehaviour for BedBlock {
     fn on_landed_upon(&self, args: OnLandedUponArgs<'_>) {
-        if let Some(living) = args.entity.get_living_entity() {
-            living.handle_fall_damage(args.entity, args.fall_distance * 0.5, 1.0);
-        }
+        args.entity.cause_fall_damage(
+            args.entity,
+            args.fall_distance * 0.5,
+            1.0,
+            pumpkin_data::damage::DamageType::FALL,
+        );
     }
 
     fn update_entity_movement_after_fall_on(&self, args: UpdateEntityMovementAfterFallOnArgs<'_>) {

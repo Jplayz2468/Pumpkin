@@ -414,22 +414,21 @@ impl BlockBehaviour for DripstoneBlock {
     }
     fn on_landed_upon(&self, args: OnLandedUponArgs<'_>) {
         let state = args.world.get_block_state(args.position);
-        if let Some(living) = args.entity.get_living_entity() {
-            if state.id.to_block() == &Block::POINTED_DRIPSTONE
-                && points(state, BlockDirection::Up)
-                && is_tip(state, false)
-            {
-                living.handle_fall_damage_with_type(
-                    args.entity,
-                    args.fall_distance + 2.5,
-                    2.0,
-                    pumpkin_data::damage::DamageType::STALAGMITE,
-                );
+        let pointed = state.id.to_block() == &Block::POINTED_DRIPSTONE
+            && points(state, BlockDirection::Up)
+            && is_tip(state, false);
+        args.entity.cause_fall_damage(
+            args.entity,
+            args.fall_distance + if pointed { 2.5 } else { 0.0 },
+            if pointed { 2.0 } else { 1.0 },
+            if pointed {
+                pumpkin_data::damage::DamageType::STALAGMITE
             } else {
-                living.handle_fall_damage(args.entity, args.fall_distance, 1.0);
-            }
-        }
+                pumpkin_data::damage::DamageType::FALL
+            },
+        );
     }
+
     fn random_tick(&self, args: RandomTickArgs<'_>) {
         let state = args.world.get_block_state(args.position);
         if args.block == &Block::POINTED_DRIPSTONE {

@@ -37,13 +37,14 @@ pub struct FallingEntity {
     hurt_entities: AtomicBool,
     fall_damage_amount: AtomicCell<f32>,
     fall_damage_max: AtomicI32,
-    fall_distance: AtomicCell<f64>,
+    fall_distance: Arc<AtomicCell<f64>>,
     block_data: Mutex<Option<NbtCompound>>,
     random: Mutex<LegacyRand>,
 }
 
 impl FallingEntity {
     pub fn new(entity: Entity, block_state_id: BlockStateId) -> Self {
+        let fall_distance = Arc::clone(&entity.fall_distance);
         Self {
             entity,
             block_state_id: AtomicCell::new(block_state_id),
@@ -53,7 +54,7 @@ impl FallingEntity {
             hurt_entities: AtomicBool::new(false),
             fall_damage_amount: AtomicCell::new(0.0),
             fall_damage_max: AtomicI32::new(40),
-            fall_distance: AtomicCell::new(0.0),
+            fall_distance,
             block_data: Mutex::new(None),
             random: Mutex::new(LegacyRand::from_seed(rand::random())),
         }
@@ -69,10 +70,6 @@ impl FallingEntity {
         if self.entity.velocity.load().y > -0.5 {
             self.fall_distance.store(self.fall_distance.load().min(1.0));
         }
-    }
-
-    pub(crate) fn fall_distance(&self) -> f64 {
-        self.fall_distance.load()
     }
 
     pub fn reset_fall_distance(&self) {
@@ -185,7 +182,7 @@ impl FallingEntity {
         }
     }
 
-    fn hurt_on_landing(&self, world: &Arc<World>, distance: f64) {
+    pub(crate) fn hurt_on_landing(&self, world: &Arc<World>, distance: f64) {
         if !self.hurt_entities.load(Ordering::Relaxed) {
             return;
         }
@@ -362,15 +359,6 @@ impl EntityBase for FallingEntity {
         velocity.y -= self.get_gravity();
         self.entity.velocity.store(velocity);
         self.entity.move_entity(caller, velocity);
-        let delta_y = self.entity.pos.load().y - before.y;
-        if self.entity.on_ground.load(Ordering::Relaxed) {
-            let world = self.entity.world.load_full();
-            self.hurt_on_landing(&world, self.fall_distance.load());
-            self.fall_distance.store(0.0);
-        } else if delta_y < 0.0 {
-            self.fall_distance
-                .store(self.fall_distance.load() - delta_y);
-        }
         self.entity.tick_block_collisions(caller);
         let world = self.entity.world.load_full();
         if self.entity.is_alive() {
@@ -455,7 +443,6 @@ impl EntityBase for FallingEntity {
         nbt.put_bool("HurtEntities", self.hurt_entities.load(Ordering::Relaxed));
         nbt.put_float("FallHurtAmount", self.fall_damage_amount.load());
         nbt.put_int("FallHurtMax", self.fall_damage_max.load(Ordering::Relaxed));
-        nbt.put_double("fall_distance", self.fall_distance.load());
         if let Some(data) = self
             .block_data
             .lock()
@@ -508,8 +495,6 @@ impl EntityBase for FallingEntity {
             .store(nbt.get_float("FallHurtAmount").unwrap_or(0.0));
         self.fall_damage_max
             .store(nbt.get_int("FallHurtMax").unwrap_or(40), Ordering::Relaxed);
-        self.fall_distance
-            .store(nbt.get_double("fall_distance").unwrap_or(0.0));
         *self
             .block_data
             .lock()

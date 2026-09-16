@@ -3,7 +3,7 @@ use super::*;
 use pumpkin_data::data_component::DataComponent;
 
 /// Entity.checkFallDistanceAccumulation in Mojang Java 26.2.
-fn glide_fall_distance(distance: f32, vertical_speed: f64) -> f32 {
+fn glide_fall_distance(distance: f64, vertical_speed: f64) -> f64 {
     if vertical_speed > -0.5 && distance > 1.0 {
         1.0
     } else {
@@ -191,10 +191,11 @@ mod tests {
         for c in oracle()["caps"].as_array().unwrap() {
             assert_eq!(
                 glide_fall_distance(
-                    c["distance"].as_f64().unwrap() as f32,
+                    // This older fixture supplies float inputs promoted to Java double.
+                    f64::from(c["distance"].as_f64().unwrap() as f32),
                     c["y"].as_f64().unwrap()
                 ),
-                c["expected"].as_f64().unwrap() as f32,
+                c["expected"].as_f64().unwrap(),
                 "{c}"
             );
         }

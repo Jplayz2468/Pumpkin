@@ -128,3 +128,18 @@ selection of resetting blocks, fluid state or portal gamerules.
 javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/BlockRayOracle.java
 java -cp '/tmp:../comparison/downloads/classpath/*' BlockRayOracle > crates/pumpkin/src/world/block_ray_cases.json
 ```
+
+
+## Fall-distance accumulation
+
+`FallDistanceOracle.java` invokes Java 26.2 Entity's actual `checkFallDamage` method
+on a probe with controlled water state. It records 1,200 updates, including small
+movements added to large counters. The comparison uses exact binary64 bits and
+checks Java's float-cast movement feeding a double accumulator. Landing is disabled
+in this probe so it needs no world; landing callbacks, particles and passenger
+propagation require separate integration verification.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/FallDistanceOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' FallDistanceOracle > crates/pumpkin/src/entity/fall_distance_cases.json
+```

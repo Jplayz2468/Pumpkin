@@ -2,6 +2,7 @@ pub mod baby_dimensions;
 mod inside_blocks;
 mod climbing;
 mod vehicle_control;
+mod fall_distance;
 pub mod inside_effects;
 pub(crate) mod support;
 mod baby_dimensions_data;
@@ -416,6 +417,47 @@ pub trait EntityBase: Send + Sync + std::any::Any {
 
     fn tick_in_void(&self, _dyn_self: &dyn EntityBase) {
         self.get_entity().remove();
+    }
+
+    fn cause_fall_damage(
+        &self,
+        caller: &dyn EntityBase,
+        distance: f64,
+        multiplier: f32,
+        damage_type: DamageType,
+    ) -> bool {
+        if let Some(falling) = self.cast_any().downcast_ref::<falling::FallingEntity>() {
+            falling.hurt_on_landing(&self.get_entity().world.load(), distance);
+            return false;
+        }
+        if self
+            .get_entity()
+            .entity_type
+            .has_tag(&tag::EntityType::MINECRAFT_FALL_DAMAGE_IMMUNE)
+        {
+            return false;
+        }
+        if self.get_player().is_some_and(|player| {
+            player
+                .abilities
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .allow_flying
+        }) {
+            return false;
+        }
+        let passengers = self
+            .get_entity()
+            .passengers
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        for passenger in passengers {
+            passenger.cause_fall_damage(passenger.as_ref(), distance, multiplier, damage_type);
+        }
+        self.get_living_entity().is_some_and(|living| {
+            living.apply_fall_damage_with_type(caller, distance, multiplier, damage_type)
+        })
     }
 
     /// Returns if damage was successful or not
@@ -1095,6 +1137,7 @@ pub struct Entity {
     pub fall_flying: AtomicBool,
     /// The entity's current velocity vector, aka knockback
     pub velocity: AtomicCell<Vector3<f64>>,
+    pub fall_distance: Arc<AtomicCell<f64>>,
     /// Tracks a horizontal collision
     pub horizontal_collision: AtomicBool,
     pub vertical_collision: AtomicBool,
@@ -1291,6 +1334,7 @@ impl Entity {
             body_yaw: AtomicCell::new(0.0),
             pitch: AtomicCell::new(0.0),
             velocity: AtomicCell::new(Vector3::new(0.0, 0.0, 0.0)),
+            fall_distance: Arc::new(AtomicCell::new(0.0)),
             pose: AtomicCell::new(EntityPose::Standing),
             bounding_box: AtomicCell::new(BoundingBox::new_from_pos(
                 position.x,
@@ -2696,12 +2740,7 @@ impl Entity {
     }
 
     fn reset_fall_distance_along_movement(&self, caller: &dyn EntityBase, motion: Vector3<f64>) {
-        let living = caller.get_living_entity();
-        let falling = caller.cast_any().downcast_ref::<falling::FallingEntity>();
-        let distance = living.map_or_else(
-            || falling.map_or(0.0, falling::FallingEntity::fall_distance),
-            |living| f64::from(living.fall_distance.load()),
-        );
+        let distance = self.fall_distance.load();
         if distance == 0.0 || motion.length_squared() < 1.0 {
             return;
         }
@@ -2713,12 +2752,7 @@ impl Entity {
             .load()
             .ray_resets_fall_distance(from, to, caller.get_player().is_some())
         {
-            if let Some(living) = living {
-                living.fall_distance.store(0.0);
-            }
-            if let Some(falling) = falling {
-                falling.reset_fall_distance();
-            }
+            self.fall_distance.store(0.0);
         }
     }
 
@@ -2749,6 +2783,28 @@ impl Entity {
                 self.on_ground.load(Ordering::Relaxed),
                 false,
             );
+        }
+        if server_controls && living.is_none() {
+            let distance =
+                fall_distance::accumulate(self.fall_distance.load(), actual.y, self.is_in_water());
+            self.fall_distance.store(distance);
+            if self.on_ground.load(Ordering::Relaxed) {
+                if distance > 0.0 {
+                    let world = self.world.load();
+                    let (pos, block, _) = self.get_block_with_y_offset(0.2);
+                    world
+                        .block_registry
+                        .on_landed_upon(block, &world, distance, caller);
+                    let support = self.get_supporting_block_pos().unwrap_or(pos);
+                    world.emit_game_event_with_context(
+                        "hit_ground",
+                        self.pos.load(),
+                        Some(self.entity_id),
+                        Some(world.get_block_state_id(&support)),
+                    );
+                }
+                self.fall_distance.store(0.0);
+            }
         }
         if self.is_removed() {
             return;
@@ -4861,7 +4917,7 @@ impl Entity {
             _ => {}
         }
         if let Some(living) = self.get_living_entity() {
-            living.fall_distance.store(0f32);
+            living.fall_distance.store(0.0);
         }
         self.movement_multiplier.store(multiplier);
     }
@@ -4958,6 +5014,7 @@ impl Entity {
         );
         nbt.put_short("Fire", self.fire_ticks.load(Relaxed) as i16);
         nbt.put_bool("OnGround", self.on_ground.load(Relaxed));
+        nbt.put_double("fall_distance", self.fall_distance.load());
         nbt.put_bool("Invulnerable", self.invulnerable.load(Relaxed));
         nbt.put_bool("Silent", self.is_silent());
         nbt.put_bool("NoGravity", self.has_no_gravity());
@@ -5003,6 +5060,7 @@ impl Entity {
     }
 
     pub fn read_nbt_non_mut(&self, nbt: &NbtCompound) {
+        self.fall_distance.store(fall_distance::read(nbt));
         self.projectile_has_been_shot
             .store(nbt.get_bool("HasBeenShot").unwrap_or(false), Relaxed);
 

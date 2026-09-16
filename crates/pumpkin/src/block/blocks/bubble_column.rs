@@ -270,16 +270,7 @@ impl BlockBehaviour for BubbleColumnBlock {
                 );
             }
         } else {
-            if let Some(living) = args.entity.get_living_entity() {
-                living.fall_distance.store(0.0);
-            }
-            if let Some(falling) = args
-                .entity
-                .cast_any()
-                .downcast_ref::<crate::entity::falling::FallingEntity>()
-            {
-                falling.reset_fall_distance();
-            }
+            args.entity.get_entity().fall_distance.store(0.0);
         }
     }
 

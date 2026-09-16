@@ -108,7 +108,7 @@ pub struct LivingEntity {
     pub last_damage_source_entity_id: AtomicI32,
     pub last_damage_source_time: AtomicI64,
     /// The distance the entity has been falling.
-    pub fall_distance: AtomicCell<f32>,
+    pub fall_distance: Arc<AtomicCell<f64>>,
     pub active_effects: std::sync::Mutex<FxHashMap<&'static StatusEffect, EffectInstance>>,
     pub entity_equipment: Arc<std::sync::Mutex<EntityEquipment>>,
     pub equipment_drop_chances: Arc<std::sync::Mutex<FxHashMap<EquipmentSlot, f32>>>,
@@ -295,6 +295,7 @@ impl LivingEntity {
     }
 
     pub fn new(entity: Entity) -> Self {
+        let fall_distance = Arc::clone(&entity.fall_distance);
         let water_movement_speed_multiplier = if entity.entity_type == &EntityType::POLAR_BEAR {
             0.98
         } else if entity.entity_type == &EntityType::SKELETON_HORSE {
@@ -324,7 +325,7 @@ impl LivingEntity {
             hurt_cooldown: AtomicI32::new(0),
             last_damage_taken: AtomicCell::new(0.0),
             absorption: AtomicCell::new(0.0),
-            fall_distance: AtomicCell::new(0.0),
+            fall_distance,
             death_time: AtomicU8::new(0),
             dead: AtomicBool::new(false),
             experience_consumed: AtomicBool::new(false),
@@ -2103,48 +2104,57 @@ impl LivingEntity {
         ground: bool,
         dont_damage: bool,
     ) {
+        let previous_distance = self.fall_distance.load();
+        if ground && previous_distance > 0.0 {
+            self.on_changed_block(caller, self.entity.block_pos.load());
+        }
+        let distance = super::fall_distance::accumulate(
+            previous_distance,
+            height_difference,
+            self.entity.is_in_water(),
+        );
+        self.fall_distance.store(distance);
         if ground {
-            let fall_distance = self.fall_distance.swap(0.0);
-            if fall_distance > 0.0 {
-                self.on_changed_block(caller, self.entity.block_pos.load());
+            if distance > 0.0 {
+                let world = self.entity.world.load();
+                let position = self.entity.get_pos_with_y_offset(0.2).0;
+                let (block, state) = world.get_block_and_state(&position);
+                if !dont_damage
+                    && !self.should_prevent_fall_damage()
+                    && !self.should_prevent_fall_damage_in_area()
+                {
+                    if let Some(pumpkin_block) = world.block_registry.get_pumpkin_block(block.id) {
+                        pumpkin_block.on_landed_upon(OnLandedUponArgs {
+                            world: &world,
+                            position: &position,
+                            fall_distance: distance,
+                            entity: caller,
+                        });
+                    } else {
+                        caller.cause_fall_damage(caller, distance, 1.0, DamageType::FALL);
+                    }
+                }
+                let support = self
+                    .entity
+                    .get_supporting_block_pos()
+                    .map_or(state.id, |pos| world.get_block_state_id(&pos));
+                world.emit_game_event_with_context(
+                    "hit_ground",
+                    self.entity.pos.load(),
+                    Some(self.entity.entity_id),
+                    Some(support),
+                );
             }
-            if fall_distance <= 0.0
-                || dont_damage
-                || self.should_prevent_fall_damage()
-                || self.should_prevent_fall_damage_in_area()
-            {
-                return;
-            }
-            let world = self.entity.world.load();
-            let block = world.get_block(&self.entity.get_pos_with_y_offset(0.2).0);
-            let pumpkin_block = world.block_registry.get_pumpkin_block(block.id);
-            if let Some(pumpkin_block) = pumpkin_block {
-                pumpkin_block.on_landed_upon(OnLandedUponArgs {
-                    world: &world,
-                    position: &self.entity.get_pos_with_y_offset(0.2).0,
-                    fall_distance,
-                    entity: caller,
-                });
-            } else {
-                self.handle_fall_damage(caller, fall_distance, 1.0);
-            }
-        } else if height_difference < 0.0 {
-            let new_fall_distance = if !self.should_prevent_fall_damage()
-                && !self.should_prevent_fall_damage_in_area()
-            {
-                let distance = self.fall_distance.load();
-                distance - (height_difference as f32)
-            } else {
-                0f32
-            };
-            self.fall_distance.store(new_fall_distance);
+            // Damage/combat callbacks observe the accumulated distance until landing finishes.
+            self.fall_distance.store(0.0);
+            self.climbing_pos.store(None);
         }
     }
 
     pub fn handle_fall_damage(
         &self,
         caller: &dyn EntityBase,
-        fall_distance: f32,
+        fall_distance: f64,
         damage_per_distance: f32,
     ) {
         self.handle_fall_damage_with_type(
@@ -2158,17 +2168,17 @@ impl LivingEntity {
     pub fn handle_fall_damage_with_type(
         &self,
         caller: &dyn EntityBase,
-        fall_distance: f32,
+        fall_distance: f64,
         damage_per_distance: f32,
         damage_type: DamageType,
     ) {
-        self.apply_fall_damage_with_type(caller, fall_distance, damage_per_distance, damage_type);
+        caller.cause_fall_damage(caller, fall_distance, damage_per_distance, damage_type);
     }
 
     pub fn apply_fall_damage_with_type(
         &self,
         caller: &dyn EntityBase,
-        fall_distance: f32,
+        fall_distance: f64,
         damage_per_distance: f32,
         damage_type: DamageType,
     ) -> bool {
@@ -2900,7 +2910,7 @@ impl LivingEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
 
         // Clear fall/fire state
-        self.fall_distance.store(0f32);
+        self.fall_distance.store(0.0);
         self.death_time.store(0, Relaxed);
         self.entity.extinguish();
         self.entity.fire_ticks.store(0, Relaxed);
@@ -2970,15 +2980,8 @@ impl LivingEntity {
         nbt.put("attributes", NbtTag::List(saved));
         drop(attributes);
         nbt.put("Health", NbtTag::Float(self.health.load()));
-        // Avoid persisting a lethal fall distance when the entity is dead to prevent death loops
-        let fall_distance = if self.dead.load(Relaxed) {
-            0.0
-        } else {
-            self.fall_distance.load()
-        };
         // Persist current absorption amount
         nbt.put("AbsorptionAmount", NbtTag::Float(self.absorption.load()));
-        nbt.put("FallDistance", NbtTag::Float(fall_distance));
         nbt.put_short("HurtTime", self.hurt_cooldown.load(Relaxed).max(0) as i16);
         nbt.put_short("DeathTime", i16::from(self.death_time.load(Relaxed)));
         nbt.put_bool("FallFlying", self.entity.is_fall_flying());
@@ -3088,17 +3091,6 @@ impl LivingEntity {
         let clamped_abs = raw_abs.max(0.0).min(max_abs);
         self.absorption.store(clamped_abs);
 
-        // Load fall distance, but if this entity is currently marked dead ensure we don't restore
-        // a lethal fall distance that would immediately re-kill on spawn.
-        let fd = nbt
-            .get_float("FallDistance")
-            .or_else(|| nbt.get_float("fall_distance"))
-            .unwrap_or(0.0);
-        if self.dead.load(Relaxed) {
-            self.fall_distance.store(0.0);
-        } else {
-            self.fall_distance.store(fd);
-        }
         if let Some(hurt_time) = nbt.get_short("HurtTime") {
             self.hurt_cooldown.store(i32::from(hurt_time), Relaxed);
         }

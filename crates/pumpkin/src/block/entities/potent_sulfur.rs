@@ -222,17 +222,8 @@ impl PotentSulfurBlockEntity {
         for entity in entities {
             let velocity = entity.get_entity().velocity.load();
             if velocity.y > -0.5 {
-                if let Some(living) = entity.get_living_entity() {
-                    living
-                        .fall_distance
-                        .store(living.fall_distance.load().min(1.0));
-                }
-                if let Some(falling) = entity
-                    .cast_any()
-                    .downcast_ref::<crate::entity::falling::FallingEntity>()
-                {
-                    falling.check_fall_distance_accumulation();
-                }
+                let counter = &entity.get_entity().fall_distance;
+                counter.store(counter.load().min(1.0));
             }
             // Player movement (and its geyser force) is simulated by the client.
             if entity.get_player().is_some() || entity.is_passenger() {

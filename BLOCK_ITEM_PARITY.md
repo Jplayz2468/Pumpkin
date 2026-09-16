@@ -1338,3 +1338,13 @@ air input and friction math. 600 Java ray cases and the 474-test background libr
 run passed; two socket tests were excluded as documented in ENGINE_GAPS.md.
 Full mob passes remain paused. Double fall-distance persistence, general ray APIs,
 vehicle/portal integration and the other engine/block gates still need work.
+
+
+### Canonical fall-distance counter and landing dispatch
+
+Entity/living/falling-block code shares a double counter and canonical
+`fall_distance` NBT, with legacy saves accepted on load. Landing includes final
+movement and preserves distance through damage recording. Shared landing dispatch
+covers passengers and falling entities, including block-specific distance changes.
+Java accumulation and precision regression checks accompany the implementation;
+remaining fluid/particle/impulse/live-world gates are explicit in ENGINE_GAPS.md.

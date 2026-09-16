@@ -104,9 +104,12 @@ impl BlockBehaviour for FarmlandBlock {
         {
             turn_to_dirt(args.world, args.position, Some(args.entity));
         }
-        if let Some(living) = args.entity.get_living_entity() {
-            living.handle_fall_damage(args.entity, args.fall_distance, 1.0);
-        }
+        args.entity.cause_fall_damage(
+            args.entity,
+            args.fall_distance,
+            1.0,
+            pumpkin_data::damage::DamageType::FALL,
+        );
     }
 
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {

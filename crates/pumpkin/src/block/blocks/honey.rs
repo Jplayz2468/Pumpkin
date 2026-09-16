@@ -16,14 +16,12 @@ impl BlockBehaviour for HoneyBlock {
         entity.play_sound(Sound::BlockHoneyBlockSlide);
         args.world
             .send_entity_status(entity, EntityStatus::HoneyJump, None);
-        if let Some(living) = args.entity.get_living_entity()
-            && living.apply_fall_damage_with_type(
-                args.entity,
-                args.fall_distance,
-                0.2,
-                pumpkin_data::damage::DamageType::FALL,
-            )
-        {
+        if args.entity.cause_fall_damage(
+            args.entity,
+            args.fall_distance,
+            0.2,
+            pumpkin_data::damage::DamageType::FALL,
+        ) {
             args.world.play_sound_fine(
                 Sound::BlockHoneyBlockFall,
                 pumpkin_data::sound::SoundCategory::Neutral,
@@ -61,15 +59,7 @@ impl BlockBehaviour for HoneyBlock {
         let mut slid = velocity.multiply(horizontal_scale, 1.0, horizontal_scale);
         slid.y = (-0.05 - 0.08) * f64::from(0.98_f32);
         entity.velocity.store(slid);
-        if let Some(living) = args.entity.get_living_entity() {
-            living.fall_distance.store(0.0);
-        } else if let Some(falling) = args
-            .entity
-            .cast_any()
-            .downcast_ref::<crate::entity::falling::FallingEntity>()
-        {
-            falling.reset_fall_distance();
-        }
+        args.entity.get_entity().fall_distance.store(0.0);
         let name = entity.entity_type.resource_name;
         if args.entity.get_living_entity().is_some()
             || name.ends_with("minecart")

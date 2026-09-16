@@ -149,9 +149,12 @@ pub trait BlockBehaviour: Send + Sync {
     fn player_placed(&self, _args: PlayerPlacedArgs<'_>) {}
 
     fn on_landed_upon(&self, args: OnLandedUponArgs<'_>) {
-        if let Some(living) = args.entity.get_living_entity() {
-            living.handle_fall_damage(args.entity, args.fall_distance, 1.0);
-        }
+        args.entity.cause_fall_damage(
+            args.entity,
+            args.fall_distance,
+            1.0,
+            pumpkin_data::damage::DamageType::FALL,
+        );
     }
 
     fn update_entity_movement_after_fall_on(&self, args: UpdateEntityMovementAfterFallOnArgs<'_>) {
@@ -443,7 +446,7 @@ pub struct PlayerPlacedArgs<'a> {
 pub struct OnLandedUponArgs<'a> {
     pub world: &'a Arc<World>,
     pub position: &'a BlockPos,
-    pub fall_distance: f32,
+    pub fall_distance: f64,
     pub entity: &'a dyn EntityBase,
 }
 
