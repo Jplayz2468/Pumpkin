@@ -62,8 +62,7 @@ impl SignBlock {
                 directions[0] = face;
             }
         }
-        let water = args.world.get_fluid(args.position).id == Fluid::WATER.id
-            || args.world.get_fluid(args.position).id == Fluid::FLOWING_WATER.id;
+        let water = args.world.get_fluid(args.position).id == Fluid::WATER.id;
         let wall = Block::from_id(get_sign_variant(args.block, hanging));
         let wall_state = directions.iter().find_map(|dir| {
             let horizontal = dir.to_horizontal_facing()?;

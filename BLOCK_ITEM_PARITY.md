@@ -1160,3 +1160,19 @@ so they must not be used to reconstruct audit completion.
   normal entity-save lifecycle.
 - B04 final corrections and B05 changes each passed all 123 existing block tests
   in background runs. Transition/gateway/entity dependencies remain queued.
+
+## B06: administrative and invisible block source pass
+
+- Compared barrier, structure void, command blocks, jigsaw, structure block, test
+  block and test-instance block sources (six Rust handlers). Barrier/source-water
+  placement and structure-void's default server handler are retained.
+- Editor access checks concrete BE types and creative+game-master permission.
+  Jigsaw front now follows the clicked face; mirror axes match vanilla.
+- Command/jigsaw/test placement preserves existing BEs. New command/test BEs take
+  chain-auto/mode from block state. Player command placement initializes feedback
+  defaults only without custom BE data and processes the initial power edge.
+- Command execution refreshes comparators; narrow signal output saturates instead
+  of wrapping. Structure placement records its player author.
+- Corrected sign placement to test source WATER specifically, matching the Java
+  fluid-type comparison. B06 passed all 123 existing block tests in the background.
+  Remaining execution, structure and protocol work is listed in PARITY_PLAN.md.

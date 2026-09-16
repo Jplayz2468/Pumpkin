@@ -69,6 +69,16 @@ pub struct TestBlockBlockEntity {
 }
 
 impl BlockEntity for TestBlockBlockEntity {
+    fn set_block_state(&mut self, state: BlockStateId) {
+        if let Some(mode) = TestBlockMode::from_block_state(state) {
+            *self
+                .mode
+                .get_mut()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) =
+                mode.serialized_name().to_string();
+        }
+    }
+
     fn resource_location(&self) -> &'static str {
         Self::ID
     }

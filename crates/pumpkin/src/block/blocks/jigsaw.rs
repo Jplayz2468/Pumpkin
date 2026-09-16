@@ -1,14 +1,11 @@
-use std::sync::Arc;
-
 use crate::block::entities::jigsaw_block::JigsawBlockEntity;
 use crate::block::registry::BlockActionResult;
-use crate::block::{BlockBehaviour, NormalUseArgs, OnPlaceArgs, PlacedArgs};
+use crate::block::{BlockBehaviour, NormalUseArgs, OnPlaceArgs};
 use crate::entity::EntityBase;
 use pumpkin_data::block_properties::{HorizontalFacing, JigsawLikeProperties, Orientation};
 use pumpkin_data::block_rotation::{Mirror, Rotation};
 use pumpkin_data::{BlockDirection, BlockStateId};
 use pumpkin_macros::pumpkin_block;
-use pumpkin_util::{GameMode, PermissionLvl};
 
 use pumpkin_world::generation::structure::structures::jigsaw::JigsawJointType;
 
@@ -100,7 +97,7 @@ impl JigsawBlock {
 impl BlockBehaviour for JigsawBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut props = JigsawLikeProperties::default(args.block);
-        let front = args.direction;
+        let front = args.direction.opposite();
         let top = if front == BlockDirection::Up || front == BlockDirection::Down {
             horizontal_facing_to_dir(args.player.get_entity().get_horizontal_facing()).opposite()
         } else {
@@ -113,24 +110,17 @@ impl BlockBehaviour for JigsawBlock {
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
         {
-            if args.player.permission_lvl.load() < PermissionLvl::Two {
-                return BlockActionResult::Pass;
-            }
-            if args.player.gamemode.load() != GameMode::Creative {
+            if !args.player.can_use_game_master_blocks() {
                 return BlockActionResult::Pass;
             }
             let Some(block_entity) = args.world.get_block_entity(args.position) else {
                 return BlockActionResult::Pass;
             };
+            if !block_entity.as_any().is::<JigsawBlockEntity>() {
+                return BlockActionResult::Pass;
+            }
             args.world.update_block_entity(&block_entity);
-            BlockActionResult::SuccessServer
-        }
-    }
-
-    fn placed(&self, args: PlacedArgs<'_>) {
-        {
-            let entity = JigsawBlockEntity::new(*args.position);
-            args.world.add_block_entity(Arc::new(entity));
+            BlockActionResult::Success
         }
     }
 
@@ -215,12 +205,12 @@ fn rotate_direction(dir: BlockDirection, rotation: Rotation) -> BlockDirection {
 const fn mirror_direction(dir: BlockDirection, mirror: Mirror) -> BlockDirection {
     match mirror {
         Mirror::None => dir,
-        Mirror::LeftRight => match dir {
+        Mirror::FrontBack => match dir {
             BlockDirection::East => BlockDirection::West,
             BlockDirection::West => BlockDirection::East,
             _ => dir,
         },
-        Mirror::FrontBack => match dir {
+        Mirror::LeftRight => match dir {
             BlockDirection::North => BlockDirection::South,
             BlockDirection::South => BlockDirection::North,
             _ => dir,

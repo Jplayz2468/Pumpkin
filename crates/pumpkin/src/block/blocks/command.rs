@@ -7,7 +7,7 @@ use crate::entity::EntityBase;
 use crate::{
     block::{
         BlockBehaviour, BlockMetadata, CanPlaceAtArgs, NormalUseArgs, OnNeighborUpdateArgs,
-        OnPlaceArgs, OnScheduledTickArgs, PlacedArgs, registry::BlockActionResult,
+        OnPlaceArgs, OnScheduledTickArgs, PlayerPlacedArgs, registry::BlockActionResult,
     },
     server::Server,
     world::World,
@@ -16,7 +16,7 @@ use crate::{
 use pumpkin_data::block_properties::{CommandBlockLikeProperties, Facing};
 use pumpkin_data::{Block, BlockId, BlockState, BlockStateId, FacingExt, Rotation};
 
-use pumpkin_util::{GameMode, PermissionLvl, math::position::BlockPos};
+use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
 use tracing::warn;
 
@@ -179,6 +179,7 @@ impl CommandBlock {
                         break;
                     };
                     Self::execute(server, world.clone(), entity, &command);
+                    world.update_neighbour_for_output_signal(&pos, block);
                 } else if props.conditional {
                     command_entity.success_count.store(0, Ordering::Release);
                 }
@@ -218,18 +219,25 @@ impl BlockBehaviour for CommandBlock {
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
         {
-            if args.player.permission_lvl.load() < PermissionLvl::Two {
+            if !args.player.can_use_game_master_blocks() {
                 return BlockActionResult::Pass;
             }
             let Some(block_entity) = args.world.get_block_entity(args.position) else {
                 return BlockActionResult::Pass;
             };
+            if !block_entity.as_any().is::<CommandBlockEntity>() {
+                return BlockActionResult::Pass;
+            }
             args.world.update_block_entity(&block_entity);
-            BlockActionResult::SuccessServer
+            BlockActionResult::Success
         }
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+
         {
             let command_blocks_work =
                 { args.world.level_info.load().game_rules.command_blocks_work };
@@ -315,6 +323,8 @@ impl BlockBehaviour for CommandBlock {
             command_entity.success_count.store(0, Ordering::Release);
         }
 
+        args.world
+            .update_neighbour_for_output_signal(args.position, args.block);
         let is_auto = command_entity.auto.load(Ordering::Relaxed);
         let can_run = command_entity.powered.load(Ordering::Relaxed) || is_auto;
         if block == &Block::REPEATING_COMMAND_BLOCK && can_run {
@@ -324,28 +334,38 @@ impl BlockBehaviour for CommandBlock {
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        if let Some(player) = args.player
-            && player.gamemode.load() == GameMode::Creative
-        {
-            return true;
-        }
-
-        false
+        args.player
+            .is_none_or(|player| player.can_use_game_master_blocks())
     }
 
-    fn placed(&self, args: PlacedArgs<'_>) {
+    fn player_placed(&self, args: PlayerPlacedArgs<'_>) {
+        if let Some(entity) = args.world.get_block_entity(args.position)
+            && let Some(command) = entity.as_any().downcast_ref::<CommandBlockEntity>()
         {
-            let send_command_feedback = {
-                let game_rules = &args.world.level_info.load().game_rules;
-                game_rules.send_command_feedback
-            };
-
-            let entity = CommandBlockEntity::new(
-                *args.position,
-                send_command_feedback,
-                args.block.id == Block::CHAIN_COMMAND_BLOCK.id,
+            if args
+                .item_stack
+                .get_data_component::<pumpkin_data::data_component_impl::BlockEntityDataImpl>()
+                .is_none()
+            {
+                command.track_output.store(
+                    args.world
+                        .level_info
+                        .load()
+                        .game_rules
+                        .send_command_feedback,
+                    Ordering::Relaxed,
+                );
+                command
+                    .auto
+                    .store(args.block == &Block::CHAIN_COMMAND_BLOCK, Ordering::Relaxed);
+            }
+            Self::update(
+                args.world,
+                args.block,
+                command,
+                args.position,
+                block_receives_redstone_power(args.world, args.position),
             );
-            args.world.add_block_entity(Arc::new(entity));
         }
     }
 
@@ -361,7 +381,8 @@ impl BlockBehaviour for CommandBlock {
                 |entity| {
                     let command_block_entity: Option<&CommandBlockEntity> =
                         entity.as_any().downcast_ref();
-                    command_block_entity.map(|e| e.success_count.load(Ordering::Acquire) as u8)
+                    command_block_entity
+                        .map(|e| e.success_count.load(Ordering::Acquire).min(15) as u8)
                 },
             )
         }

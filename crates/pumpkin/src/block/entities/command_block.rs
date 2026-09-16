@@ -66,6 +66,13 @@ impl CommandBlockEntity {
 }
 
 impl BlockEntity for CommandBlockEntity {
+    fn set_block_state(&mut self, state: pumpkin_data::BlockStateId) {
+        self.auto.store(
+            state.to_block() == &pumpkin_data::Block::CHAIN_COMMAND_BLOCK,
+            Ordering::Relaxed,
+        );
+    }
+
     fn resource_location(&self) -> &'static str {
         Self::ID
     }

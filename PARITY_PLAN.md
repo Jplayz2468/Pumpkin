@@ -17,7 +17,7 @@
 | B03 | Special gameplay blocks | 8 | Reviewed; substantial BE/entity dependencies queued |
 | B04 | Signs, banners, heads and light | 4 | Reviewed; item/component/protocol dependencies queued |
 | B05 | Portals and gateways | 4 | Reviewed; transition/entity dependencies queued |
-| B06 | Administrative and invisible blocks | 6 | Pending batch closure; reuse prior ports |
+| B06 | Administrative and invisible blocks | 6 | Reviewed; execution/structure/protocol dependencies queued |
 | B07 | Redstone and pistons | 33 | Pending batch closure; reuse prior ports |
 | B08 | Building shapes and placement | 15 | Pending batch closure; reuse prior ports |
 | B09 | Plants and crops | 54 | Pending batch closure; reuse prior ports |
@@ -63,12 +63,12 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B05 | [end_portal.rs](crates/pumpkin/src/block/blocks/end_portal.rs) | Reviewed |
 | B05 | [end_portal_frame.rs](crates/pumpkin/src/block/blocks/end_portal_frame.rs) | Reviewed |
 | B05 | [nether_portal.rs](crates/pumpkin/src/block/blocks/nether_portal.rs) | Reviewed |
-| B06 | [barrier.rs](crates/pumpkin/src/block/blocks/barrier.rs) | Pending |
-| B06 | [command.rs](crates/pumpkin/src/block/blocks/command.rs) | Pending |
-| B06 | [jigsaw.rs](crates/pumpkin/src/block/blocks/jigsaw.rs) | Pending |
-| B06 | [structure_block.rs](crates/pumpkin/src/block/blocks/structure_block.rs) | Pending |
-| B06 | [structure_void.rs](crates/pumpkin/src/block/blocks/structure_void.rs) | Pending |
-| B06 | [test_block.rs](crates/pumpkin/src/block/blocks/test_block.rs) | Pending |
+| B06 | [barrier.rs](crates/pumpkin/src/block/blocks/barrier.rs) | Reviewed |
+| B06 | [command.rs](crates/pumpkin/src/block/blocks/command.rs) | Reviewed |
+| B06 | [jigsaw.rs](crates/pumpkin/src/block/blocks/jigsaw.rs) | Reviewed |
+| B06 | [structure_block.rs](crates/pumpkin/src/block/blocks/structure_block.rs) | Reviewed |
+| B06 | [structure_void.rs](crates/pumpkin/src/block/blocks/structure_void.rs) | Reviewed |
+| B06 | [test_block.rs](crates/pumpkin/src/block/blocks/test_block.rs) | Reviewed |
 | B07 | [piston/mod.rs](crates/pumpkin/src/block/blocks/piston/mod.rs) | Pending |
 | B07 | [piston/piston.rs](crates/pumpkin/src/block/blocks/piston/piston.rs) | Pending |
 | B07 | [piston/piston_extension.rs](crates/pumpkin/src/block/blocks/piston/piston_extension.rs) | Pending |
@@ -402,3 +402,14 @@ Item source inventory:
   cooldowns; distance-manager fast-path spawning decisions.
 - I01/B14: eye-of-ender frame formation, portal pick-block/fluid replacement
   behavior and generated render/shape data.
+
+### B06 open dependencies
+
+- D03/D06: command execution result counts, once-per-tick execution guard, sequence
+  limit gamerule, disabled-command-block scheduling, wider raw comparator signal
+  representation, full custom-name/output persistence and editor protocol.
+- D03: structure block redstone SAVE/LOAD/CORNER operations, template operations
+  and structure mode/state initialization; current BE is mainly persisted config.
+- I01/B14: game-master item placement and block-state components, barrier bucket
+  operations restricted to creative players, test block cloning and invisible shapes.
+- D06: jigsaw/test-instance editors and test runner lifecycle.
