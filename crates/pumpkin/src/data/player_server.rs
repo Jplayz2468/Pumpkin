@@ -52,10 +52,12 @@ impl ServerPlayerData {
             .on_closed(player.as_ref());
         player.on_handled_screen_closed();
 
+        let generation = self.storage.reserve_save(&player.gameprofile.id);
         let mut nbt = NbtCompound::new();
         player.write_nbt(&mut nbt);
 
-        self.storage.save_player_data(&player.gameprofile.id, nbt)?;
+        self.storage
+            .save_player_data_versioned(&player.gameprofile.id, nbt, generation)?;
         Ok(())
     }
 
@@ -76,9 +78,10 @@ impl ServerPlayerData {
             let mut snapshots = Vec::new();
             for world in server.worlds.load().iter() {
                 for player in world.players.load().iter() {
+                    let generation = self.storage.reserve_save(&player.gameprofile.id);
                     let mut nbt = NbtCompound::new();
                     player.write_nbt(&mut nbt);
-                    snapshots.push((player.gameprofile.id, nbt));
+                    snapshots.push((player.gameprofile.id, nbt, generation));
                 }
             }
 
@@ -88,8 +91,8 @@ impl ServerPlayerData {
 
             let storage = self.storage.clone();
             rayon::spawn(move || {
-                for (uuid, nbt) in snapshots {
-                    if let Err(e) = storage.save_player_data(&uuid, nbt) {
+                for (uuid, nbt, generation) in snapshots {
+                    if let Err(e) = storage.save_player_data_versioned(&uuid, nbt, generation) {
                         error!("Failed to save player data for {uuid}: {e}");
                     }
                 }
@@ -171,10 +174,12 @@ impl ServerPlayerData {
         }
 
         let uuid = player.gameprofile.id;
+        let generation = self.storage.reserve_save(&uuid);
         let mut nbt = NbtCompound::new();
         player.write_nbt(&mut nbt);
 
-        self.storage.save_player_data(&uuid, nbt)?;
+        self.storage
+            .save_player_data_versioned(&uuid, nbt, generation)?;
         Ok(())
     }
 }

@@ -1458,3 +1458,13 @@ Passenger trees unload together by their vehicle root; storage remains available
 until its ordered snapshot write succeeds. Restart, autosave and storage-ordering
 checks are recorded in ENGINE_GAPS.md. Player-owned vehicle persistence and the
 remaining shared engine/block gates are still open; no full mob pass was started.
+
+
+### Player-owned vehicle save and restore
+
+Single-player vehicle trees now persist in RootVehicle with their nested Entity
+payload, restore their immediate attachment, and unload with the departing player.
+Shared vehicles remain chunk-owned. Ordered player writes reject older queued
+snapshots and replace files after compression completes. ENGINE_GAPS.md records
+helper/storage evidence and remaining actual-client and lifecycle-concurrency gates.
+No full mob pass was started.

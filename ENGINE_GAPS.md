@@ -764,3 +764,31 @@ whole inside-effect pipeline matches Java yet.
   world-time restoration. Error reporting from manual saves still needs propagation
   beyond logging. Whole-server live lifecycle/client checks and the other D01–D06
   and block-system gates remain unproven. Full mob passes remain paused.
+
+
+## Player-owned vehicle persistence and ordered player files
+
+- Player RootVehicle now embeds the complete non-player vehicle tree and the
+  immediate attachment UUID. Exactly-one-player trees belong in the player file;
+  roots with zero or multiple player passengers remain eligible for chunk storage.
+  Disconnect saves before dismount/removal, uses UnloadedWithPlayer for the owned
+  tree, releases mount links and increments the leave statistic once.
+- Join restores the embedded tree after initial player placement, resolves Attach
+  only within that newly loaded tree, and discards an unattached new tree. Duplicate
+  UUIDs never cause an existing unrelated entity to be discarded. Old Pumpkin
+  Attach-only files retain their compatibility path.
+- Player saves reserve a per-player generation before capturing NBT. Older queued
+  snapshots cannot overwrite a newer submitted save. Compression writes a temporary
+  file before atomic replacement. This does not yet provide Java's dat_old recovery
+  or serialize every login/plugin/transfer/snapshot lifecycle against disconnect.
+- Evidence: two real World helper tests cover nested payloads, one/multiple-player
+  ownership, chunk exclusion, restore, conflicts and removal reasons. Player-type
+  markers are used without network clients; actual login packet ordering remains
+  unverified. A storage test checks stale snapshot rejection and independent player
+  writes. Final background run 3: **510 engine and 231 world tests passed**, with
+  the same two previously separately passing localhost socket tests excluded.
+- Source basis: ServerPlayer.saveParentVehicle/loadAndSpawnParentVehicle,
+  PrepareSpawnTask, PlayerList.remove and Entity.shouldBeSaved in local Java 26.2.
+  Shared clock/scheduled-time restoration, chunk-holder readiness, broader payloads,
+  plugin cancellation/concurrency and the remaining D01–D06/block gates remain open.
+  Full mob passes remain paused.

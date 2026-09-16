@@ -19,7 +19,7 @@ use tracing::{debug, error, info, trace, warn};
 
 mod active_chunks;
 mod block_events;
-mod entity_chunks;
+pub(crate) mod entity_chunks;
 mod block_ray;
 mod fluid_flow;
 mod sound_delivery;
@@ -3835,6 +3835,7 @@ impl World {
             self.broadcast_system_message(&event.join_message, false);
             info!("{}", event.join_message.to_pretty_console());
         }
+        player.restore_saved_vehicle();
     }
 
     #[expect(clippy::too_many_lines)]
@@ -4540,6 +4541,7 @@ impl World {
             // TODO: Switch to structured logging, e.g. info!(player = %name, "connected")
             info!("{}", event.join_message.to_pretty_console());
         }
+        player.restore_saved_vehicle();
     }
 
     fn send_player_equipment(&self, from: &Player) {

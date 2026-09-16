@@ -14,6 +14,8 @@ pub struct PlayerDataStorage {
     data_path: PathBuf,
     /// Whether player data saving is enabled
     save_enabled: bool,
+    save_generations:
+        std::sync::Mutex<std::collections::HashMap<Uuid, std::sync::Arc<std::sync::Mutex<u64>>>>,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -40,6 +42,7 @@ impl PlayerDataStorage {
         Self {
             data_path: path,
             save_enabled: enabled,
+            save_generations: std::sync::Mutex::default(),
         }
     }
 
@@ -108,6 +111,42 @@ impl PlayerDataStorage {
         }
     }
 
+    fn generation_lock(&self, uuid: &Uuid) -> std::sync::Arc<std::sync::Mutex<u64>> {
+        self.save_generations
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .entry(*uuid)
+            .or_default()
+            .clone()
+    }
+
+    /// Reserve before collecting NBT, so a delayed periodic snapshot cannot
+    /// overwrite a newer disconnect/manual snapshot of the same player.
+    pub fn reserve_save(&self, uuid: &Uuid) -> u64 {
+        let state = self.generation_lock(uuid);
+        let mut generation = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        *generation = generation.wrapping_add(1);
+        *generation
+    }
+
+    pub fn save_player_data_versioned(
+        &self,
+        uuid: &Uuid,
+        data: NbtCompound,
+        generation: u64,
+    ) -> Result<(), PlayerDataError> {
+        let state = self.generation_lock(uuid);
+        let current = state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if *current != generation {
+            return Ok(());
+        }
+        self.write_player_data(uuid, data)
+    }
+
     /// Saves player data to NBT file and updates cache.
     ///
     /// This function saves the player's data to a .dat file on disk and also
@@ -122,6 +161,11 @@ impl PlayerDataStorage {
     ///
     /// A Result indicating success or the error that occurred.
     pub fn save_player_data(&self, uuid: &Uuid, data: NbtCompound) -> Result<(), PlayerDataError> {
+        let generation = self.reserve_save(uuid);
+        self.save_player_data_versioned(uuid, data, generation)
+    }
+
+    fn write_player_data(&self, uuid: &Uuid, data: NbtCompound) -> Result<(), PlayerDataError> {
         // Skip saving if disabled in config
         if !self.is_save_enabled() {
             return Ok(());
@@ -137,13 +181,15 @@ impl PlayerDataStorage {
             return Err(PlayerDataError::Io(e));
         }
 
-        // Create the file and write directly with GZip compression
-        match File::create(&path) {
+        // Keep the previous complete file until compression finishes successfully.
+        let temporary = path.with_extension("dat.tmp");
+        match File::create(&temporary) {
             Ok(file) => {
                 if let Err(e) = pumpkin_nbt::nbt_compress::write_gzip_compound_tag(data, file) {
                     error!("Failed to write compressed player data for {uuid}: {e}");
                     Err(PlayerDataError::Nbt(e.to_string()))
                 } else {
+                    std::fs::rename(&temporary, &path)?;
                     debug!("Saved player data for {uuid} to disk");
                     Ok(())
                 }
@@ -153,5 +199,46 @@ impl PlayerDataStorage {
                 Err(PlayerDataError::Io(e))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn older_background_snapshot_cannot_overwrite_disconnect_or_leave_a_partial_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let storage = PlayerDataStorage::new(dir.path(), true);
+        let uuid = Uuid::from_u128(1);
+        let old_generation = storage.reserve_save(&uuid);
+        let mut old = NbtCompound::new();
+        old.put_int("state", 1);
+        let mut current = NbtCompound::new();
+        current.put_int("state", 2);
+        storage.save_player_data(&uuid, current).unwrap();
+        storage
+            .save_player_data_versioned(&uuid, old, old_generation)
+            .unwrap();
+        assert_eq!(
+            storage.load_player_data(&uuid).unwrap().1.get_int("state"),
+            Some(2)
+        );
+        assert!(
+            !storage
+                .get_player_data_path(&uuid)
+                .with_extension("dat.tmp")
+                .exists()
+        );
+        let other = Uuid::from_u128(2);
+        let other_generation = storage.reserve_save(&other);
+        let mut data = NbtCompound::new();
+        data.put_int("state", 3);
+        storage
+            .save_player_data_versioned(&other, data, other_generation)
+            .unwrap();
+        assert_eq!(
+            storage.load_player_data(&other).unwrap().1.get_int("state"),
+            Some(3)
+        );
     }
 }

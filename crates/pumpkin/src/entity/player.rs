@@ -501,6 +501,7 @@ pub struct Player {
     pub chunk_send_epoch: AtomicU32,
     pub has_played_before: AtomicBool,
     root_vehicle_uuid: AtomicCell<Option<Uuid>>,
+    pending_root_vehicle: Mutex<Option<NbtCompound>>,
     pub chat_session: Arc<Mutex<ChatSession>>,
     pub signature_cache: Mutex<MessageCache>,
     pub player_screen_handler: Arc<std::sync::Mutex<PlayerScreenHandler>>,
@@ -807,6 +808,7 @@ impl Player {
             subscribed_debug_sample: AtomicBool::new(false),
             has_played_before: AtomicBool::new(false),
             root_vehicle_uuid: AtomicCell::new(None),
+            pending_root_vehicle: Mutex::new(None),
             chat_session: Arc::new(Mutex::new(ChatSession::default())), // Placeholder value until the player actually sets their session id
             signature_cache: Mutex::new(MessageCache::default()),
             player_screen_handler: player_screen_handler.clone(),
@@ -1032,25 +1034,23 @@ impl Player {
             self.on_handled_screen_closed();
         }
 
-        let vehicle = self
-            .living_entity
-            .entity
-            .vehicle
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .clone();
-        if let Some(vehicle) = vehicle {
-            self.root_vehicle_uuid
-                .store(Some(vehicle.get_entity().entity_uuid));
+        let root = super::player_vehicle::root_vehicle(self.get_entity());
+        let owned = root
+            .as_ref()
+            .is_some_and(|root| super::player_vehicle::player_count(root) == 1);
+        if let Some(vehicle) = self.get_entity().get_vehicle() {
             vehicle
                 .get_entity()
                 .remove_passenger_on_disconnect(self.entity_id());
         }
+        if owned && let Some(root) = root {
+            super::player_vehicle::remove_tree(
+                &self.world(),
+                &root,
+                super::RemovalReason::UnloadedWithPlayer,
+            );
+        }
 
-        self.stats
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .increment_custom(statistics::CustomStatistic::LeaveGame, 1);
         let world = self.world();
         world.remove_player(self, true).await;
 
@@ -1077,13 +1077,11 @@ impl Player {
         // Remove chunks with no watchers from the cache
         if !chunks_to_clean.is_empty() {
             world.remove_entities_in_chunks(&chunks_to_clean).await;
-            level.clean_entity_chunks(&chunks_to_clean);
         }
         // Remove left over entries from all possiblily loaded chunks
         let cleaned_chunks = level.clean_memory();
         if !cleaned_chunks.is_empty() {
             world.remove_entities_in_chunks(&cleaned_chunks).await;
-            level.clean_entity_chunks(&cleaned_chunks);
         }
 
         debug!(
@@ -1094,6 +1092,37 @@ impl Player {
         );
 
         //self.world().level.list_cached();
+    }
+
+    pub(crate) fn restore_saved_vehicle(self: &Arc<Self>) {
+        let wrapper = self
+            .pending_root_vehicle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        let Some(wrapper) = wrapper else {
+            return;
+        };
+        let mut data = NbtCompound::new();
+        data.put_compound("RootVehicle", wrapper.clone());
+        let attach = read_root_vehicle(&data);
+        let world = self.world();
+        let Some((root, target)) = super::player_vehicle::load_root(&world, &wrapper, attach)
+        else {
+            return;
+        };
+        if let Some(target) = target {
+            target
+                .get_entity()
+                .add_passenger(target.clone(), self.clone());
+        }
+        if !self.get_entity().has_vehicle() {
+            tracing::warn!(
+                "Could not restore player {} to saved vehicle",
+                self.gameprofile.id
+            );
+            super::player_vehicle::remove_tree(&world, &root, super::RemovalReason::Discarded);
+        }
     }
 
     pub(crate) fn try_restore_vehicle(self: &Arc<Self>, vehicle: &Arc<dyn EntityBase>) {
@@ -6952,17 +6981,18 @@ impl EntityBase for Player {
             nbt.put_compound("respawn", respawn_compound);
         }
 
-        let vehicle_uuid = self
-            .living_entity
-            .entity
-            .vehicle
+        if let Some(wrapper) = super::player_vehicle::saved_root(self.get_entity()) {
+            nbt.put_compound("RootVehicle", wrapper);
+        } else if let Some(wrapper) = self
+            .pending_root_vehicle
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .as_ref()
-            .map(|vehicle| vehicle.get_entity().entity_uuid)
-            .or_else(|| self.root_vehicle_uuid.load());
-        if let Some(vehicle_uuid) = vehicle_uuid {
-            write_root_vehicle(nbt, vehicle_uuid);
+            .clone()
+         {
+            nbt.put_compound("RootVehicle", wrapper);
+        } else if let Some(uuid) = self.root_vehicle_uuid.load() {
+            // Compatibility for old Pumpkin Attach-only player files.
+            write_root_vehicle(nbt, uuid);
         }
         self.stats
             .lock()
@@ -7147,7 +7177,19 @@ impl EntityBase for Player {
                 force,
             });
         }
-        self.root_vehicle_uuid.store(read_root_vehicle(nbt));
+        let embedded = nbt
+            .get_compound("RootVehicle")
+            .filter(|root| root.get_compound("Entity").is_some())
+            .cloned();
+        self.root_vehicle_uuid.store(if embedded.is_some() {
+            None
+        } else {
+            read_root_vehicle(nbt)
+        });
+        *self
+            .pending_root_vehicle
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = embedded;
         self.stats
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)

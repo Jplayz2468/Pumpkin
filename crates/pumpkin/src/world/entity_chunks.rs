@@ -19,6 +19,13 @@ pub(super) struct EntityChunkLifecycle {
 }
 
 impl World {
+    pub(crate) fn load_saved_entity_tree(
+        self: &Arc<Self>,
+        nbt: &NbtCompound,
+    ) -> Option<Arc<dyn EntityBase>> {
+        load_tree(self, nbt, None)
+    }
+
     pub(crate) fn are_entities_loaded(&self, pos: &Vector2<i32>) -> bool {
         let ready = self
             .entity_chunks
@@ -106,7 +113,7 @@ impl World {
                         .unwrap_or_else(std::sync::PoisonError::into_inner),
                 );
                 for nbt in saved {
-                    load_tree(&world, &nbt, None);
+                    let _ = load_tree(&world, &nbt, None);
                 }
                 self.entity_chunks
                     .ready
@@ -128,17 +135,21 @@ impl World {
     }
 }
 
-fn load_tree(world: &Arc<World>, nbt: &NbtCompound, parent: Option<&Arc<dyn EntityBase>>) {
+fn load_tree(
+    world: &Arc<World>,
+    nbt: &NbtCompound,
+    parent: Option<&Arc<dyn EntityBase>>,
+) -> Option<Arc<dyn EntityBase>> {
     let Some(id) = nbt.get_string("id") else {
-        return;
+        return None;
     };
     let Some(kind) = EntityType::from_name(id.strip_prefix("minecraft:").unwrap_or(id)) else {
         tracing::warn!("Skipping unknown saved entity type {id}");
-        return;
+        return None;
     };
     let uuid = nbt.get_uuid("UUID").unwrap_or_else(Uuid::new_v4);
     if world.get_entity_by_uuid(uuid).is_some() {
-        return;
+        return None;
     }
     let entity = from_type(kind, Vector3::new(0.0, 0.0, 0.0), world, uuid);
     entity.read_nbt_non_mut(nbt);
@@ -155,17 +166,21 @@ fn load_tree(world: &Arc<World>, nbt: &NbtCompound, parent: Option<&Arc<dyn Enti
     if let Some(passengers) = nbt.get_list("Passengers") {
         for passenger in passengers {
             if let pumpkin_nbt::tag::NbtTag::Compound(passenger) = passenger {
-                load_tree(world, passenger, Some(&entity));
+                let _ = load_tree(world, passenger, Some(&entity));
             }
         }
     }
+    Some(entity)
 }
 
 /// Chunk storage writes vehicle roots with their saved passenger trees.
-pub(super) fn saved_tree(entity: &Arc<dyn EntityBase>) -> NbtCompound {
+pub(crate) fn saved_tree(entity: &Arc<dyn EntityBase>) -> NbtCompound {
     fn write(entity: &Arc<dyn EntityBase>, seen: &mut FxHashSet<Uuid>) -> Option<NbtCompound> {
         let base = entity.get_entity();
-        if base.is_removed() || entity.get_player().is_some() || !seen.insert(base.entity_uuid) {
+        if base.is_removed()
+            || base.entity_type == &EntityType::PLAYER
+            || !seen.insert(base.entity_uuid)
+        {
             return None;
         }
         let mut nbt = NbtCompound::new();
@@ -563,7 +578,7 @@ impl World {
         let mut roots: FxHashMap<Vector2<i32>, Vec<NbtCompound>> = FxHashMap::default();
         for entity in entities.iter() {
             let base = entity.get_entity();
-            if !base.is_removed() && !base.has_vehicle() {
+            if crate::entity::player_vehicle::chunk_root(entity) {
                 roots
                     .entry(base.chunk_pos.load())
                     .or_default()

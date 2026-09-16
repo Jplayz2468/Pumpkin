@@ -611,7 +611,6 @@ impl PumpkinServer {
                                          client.close();
                                          client.await_tasks().await;
                                      }
-                                     player.remove().await;
                                      server_clone.remove_player(&player);
                                     if let Err(e) = server_clone
                                         .player_data_storage
@@ -619,6 +618,7 @@ impl PumpkinServer {
                                     {
                                         error!("Failed to save player data on disconnect: {e}");
                                     }
+                                    player.remove().await;
                                     if let Err(e) = server_clone.advancement_manager
                                         .save_player(&player)
                                         .await {
@@ -718,12 +718,12 @@ impl PumpkinServer {
                         client.progress_player_packets(&player).await;
                         client.close().await;
                         client.await_tasks().await;
-                        player.remove().await;
                         server.remove_player(&player);
                         if let Err(error) = server.player_data_storage.handle_player_leave(&player)
                         {
                             error!("Failed to save player data on disconnect: {error}");
                         }
+                        player.remove().await;
                     }
                 }
             }

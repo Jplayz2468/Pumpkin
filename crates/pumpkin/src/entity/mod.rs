@@ -2,6 +2,7 @@ pub mod baby_dimensions;
 mod inside_blocks;
 mod climbing;
 mod vehicle_control;
+pub(crate) mod player_vehicle;
 pub mod entity_reference;
 mod fall_distance;
 mod fluid_current;
