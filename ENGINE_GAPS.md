@@ -1257,9 +1257,9 @@ whole inside-effect pipeline matches Java yet.
 - Background combined run 1 passed **1,080 tests** (559 engine, 74 data,
   23 inventory, 117 protocol, 66 utility, 241 world), with the same two previously
   separately passing localhost tests excluded. After adding the two final Gson
-  line-separator size-boundary cases, run 2 has also passed the engine/data/
-  inventory/protocol/utility packages; its world package was still running when
-  this checkpoint was prepared. The refined book cases passed in that run.
+  line-separator size-boundary cases, final run 2 also passed all **1,080 tests**,
+  including all 42 book fixtures and all 16,380 item-predicate comparisons. The
+  same two previously separately passing localhost tests were excluded.
 - Remaining here: malformed lock codec fallback/normalization, full attribute and
   jukebox component codecs/predicate evidence, unsupported text/hover forms and
   entity resolution, filtering-service integration, complete container naming and
