@@ -19,6 +19,7 @@ use tracing::{debug, error, info, trace, warn};
 
 mod active_chunks;
 mod block_events;
+mod entity_chunks;
 mod block_ray;
 mod fluid_flow;
 mod sound_delivery;
@@ -311,6 +312,7 @@ pub struct World {
     /// End Dragon fight manager (only present in `THE_END` dimension).
     pub dragon_fight: Option<std::sync::Mutex<dragon_fight::DragonFight>>,
     pub spawn_state: ArcSwap<SpawnState>,
+    entity_chunks: entity_chunks::EntityChunkLifecycle,
     pub active_chunks: RwLock<FxHashSet<Vector2<i32>>>,
     pub block_ticking_chunks: RwLock<FxHashSet<Vector2<i32>>>,
     active_chunk_tracker: std::sync::Mutex<ActiveChunkTracker>,
@@ -451,6 +453,7 @@ impl World {
             raids: std::sync::Mutex::new(raid::Raids::default()),
             dragon_fight,
             spawn_state: ArcSwap::new(Arc::new(SpawnState::empty())),
+            entity_chunks: entity_chunks::EntityChunkLifecycle::default(),
             active_chunks: RwLock::new(FxHashSet::default()),
             block_ticking_chunks: RwLock::new(FxHashSet::default()),
             active_chunk_tracker: std::sync::Mutex::new(ActiveChunkTracker::default()),
@@ -468,6 +471,7 @@ impl World {
     }
 
     pub fn update_active_chunks(&self) {
+        self.activate_completed_entity_chunks();
         let sim_dist = self.server.upgrade().map_or(10, |s| {
             s.advanced_config.networking.java.simulation_distance.get()
         }) as i32;
@@ -515,6 +519,7 @@ impl World {
         let newly_active = tracker.sync_areas(&player_areas, 1, &block_forced, &mut active_chunks);
 
         for pos in newly_active {
+            self.request_entity_chunk(pos);
             if self.level.is_chunk_loaded(&pos) && tracker.loaded_active_chunks.insert(pos) {
                 self.migrate_pending_block_entities(pos);
             }
@@ -522,6 +527,7 @@ impl World {
         for change in self.level.loaded_chunk_changes() {
             match change {
                 pumpkin_world::level::LoadedChunkChange::Loaded(pos) => {
+                    self.request_entity_chunk(pos);
                     if active_chunks.contains(&pos)
                         && self.level.is_chunk_loaded(&pos)
                         && tracker.loaded_active_chunks.insert(pos)
@@ -531,6 +537,7 @@ impl World {
                 }
                 pumpkin_world::level::LoadedChunkChange::Unloaded(pos) => {
                     if !self.level.is_chunk_loaded(&pos) {
+                        self.forget_entity_chunk(&pos);
                         tracker.loaded_active_chunks.remove(&pos);
                     }
                 }
@@ -642,25 +649,28 @@ impl World {
         self.level.shutdown().await;
     }
 
-    /// Serializes a live entity into its current chunk's entity data. The live
-    /// entity list is the source of truth while a chunk is loaded (its saved NBT
-    /// is consumed on load), so this simply appends the entity to the chunk it is
-    /// currently in; the chunk is rewritten from scratch every unload cycle, so
-    /// there is nothing stale to deduplicate.
+    /// Snapshot a vehicle root and its passenger tree into its current chunk.
+    /// Replace this root's prior snapshot so repeated saves cannot append copies.
     async fn save_entity(&self, entity: &Arc<dyn EntityBase>) {
         let base_entity = entity.get_entity();
-        if base_entity.is_removed() {
+        if base_entity.is_removed() || base_entity.has_vehicle() {
             return;
         }
         let current_chunk = base_entity.block_pos.load().chunk_position();
-        let mut nbt = NbtCompound::new();
-        entity.write_nbt(&mut nbt);
-        let chunk = self.level.get_entity_chunk(current_chunk).await;
-        chunk
+        let nbt = entity_chunks::saved_tree(entity);
+        let chunk = match self.level.try_load_entity_chunk(current_chunk).await {
+            Ok(chunk) => chunk,
+            Err(error) => {
+                error!("Cannot save entity into unreadable storage {current_chunk:?}: {error}");
+                return;
+            }
+        };
+        let mut data = chunk
             .data
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .push(nbt);
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        data.retain(|entry| entry.get_uuid("UUID") != Some(base_entity.entity_uuid));
+        data.push(nbt);
         chunk.mark_dirty(true);
     }
 
@@ -1815,7 +1825,9 @@ impl World {
                 if !active_chunks.contains(&entity_chunk) {
                     return None;
                 }
-                if !level_for_entities.is_chunk_loaded(&entity_chunk) {
+                if !level_for_entities.is_chunk_loaded(&entity_chunk)
+                    || !self.are_entities_loaded(&entity_chunk)
+                {
                     return None;
                 }
                 Some((entity, entity_chunk))
@@ -2234,8 +2246,9 @@ impl World {
                 .block_ticking_chunks
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            self.level
-                .get_scheduled_block_ticks_if(|pos| ticking.contains(pos))
+            self.level.get_scheduled_block_ticks_if(|pos| {
+                ticking.contains(pos) && self.are_entities_loaded(pos)
+            })
         };
         let handle = server.runtime.clone();
 
@@ -2269,8 +2282,9 @@ impl World {
                 .block_ticking_chunks
                 .read()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            self.level
-                .get_scheduled_fluid_ticks_if(|pos| ticking.contains(pos))
+            self.level.get_scheduled_fluid_ticks_if(|pos| {
+                ticking.contains(pos) && self.are_entities_loaded(pos)
+            })
         };
         {
             let _guard = handle.enter();
@@ -5181,121 +5195,19 @@ impl World {
         sleeping_player_count >= required_sleeping
     }
 
-    // NOTE: This function doesn't actually await on anything, it just spawns two tokio tasks
-    /// IMPORTANT: Chunks have to be non-empty
+    /// Storage activation belongs to the world. Viewer arrival only requests
+    /// missing storage and refreshes the existing tracker pairing for this player.
     fn spawn_world_entity_chunks(self: &Arc<Self>, player: Arc<Player>, chunks: Vec<Vector2<i32>>) {
-        #[cfg(debug_assertions)]
-        let inst = std::time::Instant::now();
-
-        // Note: `chunks` originates from `Cylindrical::changed_chunks`, which is
-        // already ordered from closest to farthest from center by the precompiled
-        // cylindrical chunk view LUT. No re-sorting needed.
-
-        let mut entity_receiver = self.level.receive_entity_chunks(chunks);
-        let level = self.level.clone();
-        let world = self.clone();
-
-        player.clone().spawn_task(async move {
-            'main: loop {
-                let recv_result = tokio::select! {
-                    () = player.client.await_close_interrupt() => {
-                        debug!("Canceling player packet processing");
-                        None
-                    },
-                    recv_result = entity_receiver.recv() => {
-                        recv_result
-                    }
-                };
-
-                let Some((chunk_weak, first_load)) = recv_result else {
-                    break;
-                };
-
-                let Some(chunk) = chunk_weak.upgrade() else {
-                    continue;
-                };
-
-                let position = Vector2::new(chunk.x, chunk.z);
-
-                if !level.is_chunk_watched(&position) {
-                    // No longer watched: don't make its entities live. Leave the
-                    // serialized data untouched so the normal unload path persists
-                    // it as-is (nothing went live, so there is nothing to save).
-                    trace!(
-                        "Received entity chunk {:?}, but it is no longer watched; leaving it for the unload path",
-                        &position
-                    );
-                    continue 'main;
-                }
-
-                if first_load {
-                    // First watcher: consume the serialized entities and make them
-                    // live. The live entity list becomes the single source of
-                    // truth, so the chunk's NBT is taken (cleared) to avoid keeping
-                    // a duplicate copy that would be re-appended on the next unload
-                    // and doubled on every reload.
-                    let entity_nbts = std::mem::take(
-                        &mut *chunk
-                            .data
-                            .lock()
-                            .unwrap_or_else(std::sync::PoisonError::into_inner),
-                    );
-                    let mut entities_to_add: Vec<Arc<dyn EntityBase>> =
-                        Vec::with_capacity(entity_nbts.len());
-                    for entity_nbt in &entity_nbts {
-                        let Some(id) = entity_nbt.get_string("id") else {
-                            debug!("Entity has no ID");
-                            continue;
-                        };
-                        let Some(entity_type) =
-                            EntityType::from_name(id.strip_prefix("minecraft:").unwrap_or(id))
-                        else {
-                            warn!("Entity has no valid Entity Type {id}");
-                            continue;
-                        };
-
-                        // Keep the persisted UUID so the entity keeps its identity
-                        // across reloads (matching vanilla); only fall back to a
-                        // fresh one if it is missing/corrupt.
-                        let uuid = entity_nbt.get_uuid("UUID").unwrap_or_else(Uuid::new_v4);
-                        // Pos is zero since it will be read from nbt.
-                        let entity =
-                            from_type(entity_type, Vector3::new(0.0, 0.0, 0.0), &world, uuid);
-                        entity.read_nbt_non_mut(entity_nbt);
-                        entity.init_data_tracker();
-
-                        // Motion loaded from NBT is authoritative. Resetting it
-                        // here strands falling blocks, TNT and other moving entities.
-
-                        player.client.enqueue_spawn_packet(&entity);
-                        player.try_restore_vehicle(&entity);
-                        entities_to_add.push(entity);
-                    }
-
-                    if !entities_to_add.is_empty() {
-                        world.entities.rcu(|current_entities| {
-                            let mut new_entities = (**current_entities).clone();
-                            new_entities.extend(entities_to_add.iter().cloned());
-                            new_entities
-                        });
-                    }
-                } else {
-                    // The chunk's entities are already live (another watcher loaded
-                    // them). Just send this player the spawn packets for the live
-                    // entities currently in this chunk.
-                    for entity in world.entities.load().iter() {
-                        let base_entity = entity.get_entity();
-                        if base_entity.chunk_pos.load() == position {
-                            player.client.enqueue_spawn_packet(entity);
-                            player.try_restore_vehicle(entity);
-                        }
-                    }
-                }
+        for pos in &chunks {
+            self.request_entity_chunk(*pos);
+        }
+        self.entity_tracker.update_player_position(&player, self);
+        let chunks: FxHashSet<_> = chunks.into_iter().collect();
+        for entity in self.entities.load().iter() {
+            if chunks.contains(&entity.get_entity().chunk_pos.load()) {
+                player.try_restore_vehicle(entity);
             }
-
-            #[cfg(debug_assertions)]
-            debug!("Chunks queued after {}ms", inst.elapsed().as_millis());
-        });
+        }
     }
 
     /// Gets a `Player` by an entity id

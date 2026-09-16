@@ -1439,3 +1439,13 @@ block/fluid limits, and fluid collection follows block callbacks. Block events
 retain their target type and deduplicate while pending. ENGINE_GAPS.md records
 Java differential and World integration evidence, plus remaining ticket-only
 entity loading/readiness and live lifecycle gates. Full mob passes remain paused.
+
+### Ticket-only saved residents
+
+Chunk tickets now load and activate saved entity storage without a viewer.
+Scheduled block/fluid callbacks wait for that activation, so ticket-driven block
+work no longer runs before saved residents are available. Concurrent storage
+requests share one result; nested passenger data and repeated root snapshots are
+covered by restart checks. ENGINE_GAPS.md records remaining complete-snapshot,
+passenger-tree unload, player-vehicle and chunk-holder readiness work. Full mob
+passes remain paused.

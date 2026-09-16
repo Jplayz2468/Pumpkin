@@ -688,3 +688,39 @@ whole inside-effect pipeline matches Java yet.
   saved forced-ticket levels, global tick time/reload delays, equal restored order
   ties across chunks, live neighbor/redstone ordering and client event recipients
   remain unverified. These are shared engine gates; full mob passes remain paused.
+
+## Ticket-only entity loading and activation
+
+- Every newly active block area and completed full-chunk load requests entity
+  storage through the world lifecycle. Player arrival uses the same path; players
+  no longer own saved-entity activation or append untracked entities themselves.
+  Completed reads are consumed by world ticking before marking the chunk ready.
+- Scheduled block/fluid callbacks and ordinary entity ticks require activated
+  entity storage. Readiness follows the identity of the loaded storage instance,
+  so removing/replacing a cached chunk cannot leave an old ready flag effective.
+  Unretained or stale load completions leave their serialized data untouched.
+- Concurrent reads and empty-chunk creation share one storage result per chunk.
+  Request cancellation cannot replace a shared result, and cached receiver delivery
+  awaits capacity instead of dropping entries beyond its 64-slot channel. Shutdown
+  still cancels stalled receivers. Read failures stay unready and are logged;
+  corrupt storage is not inserted into the cache as an empty successful load.
+- Saved residents register through the entity tracker/spawn accounting path,
+  preserving UUIDs and motion. Recursive Passengers load and mount before chunk
+  readiness is published; projectile owners resolve through the loaded UUIDs.
+  Saves write vehicle roots with nested Passengers, skip standalone rider entries
+  and replace an existing snapshot of the same root instead of appending a copy.
+- Evidence: a disk-backed restart with only a persisted forced ticket loads TNT,
+  a falling-block rider and a nested arrow without players, verifies pending-tick
+  gating, identity, mounts, owner resolution, velocity/fuse and repeated snapshots.
+  A storage concurrency check verifies 64 requests share the same instance and a
+  cached receiver delivers all 130 requests. Final background run 3 passed **505
+  engine and 228 world tests**, excluding the same two previously separately passing
+  localhost socket tests. No full mob pass or live client session was performed.
+- Still open D03/D04: complete snapshots must remove old positions/deleted roots,
+  periodic entity autosave must use those snapshots, and unloading must save/remove
+  a whole passenger tree together across chunk boundaries with correct removal
+  reasons. The existing asynchronous unload/save race and plugin-cancelled mounts
+  need integration work. Player RootVehicle still saves only Attach, not Java's
+  embedded Entity payload. Exact chunk-holder readiness/portal expiry pausing,
+  global scheduled tick time, client pairing order and broader engine/block gates
+  remain open. Ticket-only startup loading is implemented, not full lifecycle parity.
