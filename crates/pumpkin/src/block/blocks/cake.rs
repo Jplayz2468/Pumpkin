@@ -3,24 +3,23 @@ use std::sync::Arc;
 use crate::{
     block::{
         BlockBehaviour, CanPlaceAtArgs, GetComparatorOutputArgs, GetStateForNeighborUpdateArgs,
-        NormalUseArgs, OnPlaceArgs, OnScheduledTickArgs, PathComputationType, UseWithItemArgs,
+        NormalUseArgs, OnPlaceArgs, PathComputationType, UseWithItemArgs,
         blocks::candle_cakes::cake_from_candle, registry::BlockActionResult,
     },
     entity::player::Player,
     world::World,
 };
-use pumpkin_data::item::Item;
+use pumpkin_data::tag::Taggable;
 use pumpkin_data::{
-    Block, BlockState, BlockStateId,
+    Block, BlockDirection, BlockState, BlockStateId,
     block_properties::CakeLikeProperties,
     sound::{Sound, SoundCategory},
+    tag,
 };
+use pumpkin_inventory::screen_handler::InventoryPlayer;
 use pumpkin_macros::pumpkin_block;
-use pumpkin_util::{GameMode, math::position::BlockPos};
-use pumpkin_world::{
-    tick::TickPriority,
-    world::{BlockAccessor, BlockFlags},
-};
+use pumpkin_util::math::position::BlockPos;
+use pumpkin_world::world::{BlockAccessor, BlockFlags};
 
 /// Vanilla `CakeBlock.getOutputSignal`. Saturates -> an out-of-range bite count reads 0.
 #[must_use]
@@ -42,53 +41,47 @@ impl CakeBlock {
         location: &BlockPos,
         state_id: BlockStateId,
     ) -> BlockActionResult {
-        match player.gamemode.load() {
-            GameMode::Survival | GameMode::Adventure => {
-                let hunger_level = player.hunger_manager.level.load();
-                if hunger_level >= 20 {
-                    return BlockActionResult::Pass;
-                }
-                player.hunger_manager.level.store(20.min(hunger_level + 2));
-                player
-                    .hunger_manager
-                    .saturation
-                    .store(player.hunger_manager.saturation.load() + 0.4);
-                player.send_health();
-            }
-            GameMode::Creative | GameMode::Spectator => {}
+        let food = player.hunger_manager.level.load();
+        if !player
+            .abilities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .invulnerable
+            && food >= 20
+        {
+            return BlockActionResult::Pass;
         }
-
-        let mut properties = CakeLikeProperties::from_state_id(state_id);
-        match properties.bites {
-            0..=5 => {
-                player.increment_stat(
-                    pumpkin_data::statistic::StatisticCategory::Custom,
-                    pumpkin_data::statistic::CustomStatistic::EatCakeSlice as i32,
-                    1,
-                );
-                properties.bites += 1;
-                world.set_block_state(
-                    location,
-                    properties.to_state_id(block),
-                    BlockFlags::NOTIFY_ALL,
-                );
-                BlockActionResult::Consume
-            }
-            6 => {
-                player.increment_stat(
-                    pumpkin_data::statistic::StatisticCategory::Custom,
-                    pumpkin_data::statistic::CustomStatistic::EatCakeSlice as i32,
-                    1,
-                );
-                world.set_block_state(
-                    location,
-                    Block::AIR.default_state.id,
-                    BlockFlags::NOTIFY_ALL,
-                );
-                BlockActionResult::Consume
-            }
-            _ => BlockActionResult::Pass,
+        player.increment_stat(
+            pumpkin_data::statistic::StatisticCategory::Custom,
+            pumpkin_data::statistic::CustomStatistic::EatCakeSlice as i32,
+            1,
+        );
+        let food = food.saturating_add(2).min(20);
+        player.hunger_manager.level.store(food);
+        player
+            .hunger_manager
+            .saturation
+            .store((player.hunger_manager.saturation.load() + 0.4).clamp(0.0, f32::from(food)));
+        player.send_health();
+        let mut props = CakeLikeProperties::from_state_id(state_id);
+        world.emit_game_event_from_entity("eat", location.to_centered_f64(), Some(player), None);
+        if props.bites < 6 {
+            props.bites += 1;
+            world.set_block_state(location, props.to_state_id(block), BlockFlags::NOTIFY_ALL);
+        } else {
+            world.set_block_state(
+                location,
+                Block::AIR.default_state.id,
+                BlockFlags::NOTIFY_ALL,
+            );
+            world.emit_game_event_from_entity(
+                "block_destroy",
+                location.to_centered_f64(),
+                Some(player),
+                None,
+            );
         }
+        BlockActionResult::Success
     }
 }
 
@@ -105,43 +98,41 @@ impl BlockBehaviour for CakeBlock {
     }
 
     fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
-        let state_id = args.world.get_block_state_id(args.position);
-        let properties = CakeLikeProperties::from_state_id(state_id);
+        let props = CakeLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
         let item = args.item_stack.item;
-        match item.id {
-            id if (Item::CANDLE.id..=Item::BLACK_CANDLE.id).contains(&id) => {
-                if properties.bites != 0 {
-                    return Self::consume_if_hungry(
-                        args.world,
-                        args.player,
-                        args.block,
-                        args.position,
-                        state_id,
-                    );
-                }
-
-                if args.player.gamemode.load() != GameMode::Creative {
-                    args.item_stack.decrement(1);
-                }
-                args.world.set_block_state(
-                    args.position,
-                    cake_from_candle(item).default_state.id,
-                    BlockFlags::NOTIFY_ALL,
-                );
-                args.world.play_sound(
-                    Sound::BlockCakeAddCandle,
-                    SoundCategory::Blocks,
-                    &args.position.to_f64(),
-                );
-                BlockActionResult::Consume
+        let cake = cake_from_candle(item);
+        if !args.item_stack.is_empty()
+            && item.has_tag(&tag::Item::MINECRAFT_CANDLES)
+            && props.bites == 0
+            && cake != &Block::CAKE
+        {
+            if !args.player.has_infinite_materials() {
+                args.item_stack.decrement(1);
             }
-            _ => Self::consume_if_hungry(
-                args.world,
-                args.player,
-                args.block,
+            args.world.play_sound(
+                Sound::BlockCakeAddCandle,
+                SoundCategory::Blocks,
+                &args.position.to_centered_f64(),
+            );
+            args.world.set_block_state(
                 args.position,
-                state_id,
-            ),
+                cake.default_state.id,
+                BlockFlags::NOTIFY_ALL,
+            );
+            args.world.emit_game_event_from_entity(
+                "block_change",
+                args.position.to_centered_f64(),
+                Some(args.player.as_ref()),
+                None,
+            );
+            args.player.increment_stat(
+                pumpkin_data::statistic::StatisticCategory::Used,
+                i32::from(item.id),
+                1,
+            );
+            BlockActionResult::Success
+        } else {
+            BlockActionResult::PassToDefaultBlockAction
         }
     }
 
@@ -150,22 +141,15 @@ impl BlockBehaviour for CakeBlock {
         Self::consume_if_hungry(args.world, args.player, args.block, args.position, state_id)
     }
 
-    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        if !can_place_at(args.world.as_ref(), args.position) {
-            args.world
-                .break_block(args.position, None, BlockFlags::empty());
-        }
-    }
-
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        if !can_place_at(args.world, args.position) {
-            args.world
-                .schedule_block_tick(args.block, *args.position, 1, TickPriority::Normal);
+        if args.direction == BlockDirection::Down && !can_place_at(args.world, args.position) {
+            Block::AIR.default_state.id
+        } else {
+            args.state_id
         }
-        args.state_id
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {

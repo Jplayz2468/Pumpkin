@@ -12,6 +12,7 @@ use pumpkin_data::{
     item::Item,
     item_stack::ItemStack,
     sound::{Sound, SoundCategory},
+    tag::{self, Taggable},
 };
 use pumpkin_util::{
     GameMode,
@@ -289,7 +290,13 @@ fn place_water_in_container(
             props.lit = false;
             wet = props.to_state_id(block);
         }
-        world.set_block_state(&pos, wet, BlockFlags::NOTIFY_ALL);
+        if block.has_tag(&tag::Block::MINECRAFT_CANDLES)
+            && crate::block::blocks::candles::is_lit(block, wet)
+        {
+            crate::block::blocks::candles::extinguish(world, &pos, block, wet, None);
+        } else {
+            world.set_block_state(&pos, wet, BlockFlags::NOTIFY_ALL);
+        }
         world.schedule_fluid_tick(&Fluid::WATER, pos, 5, TickPriority::Normal);
         if block == &Block::DRIED_GHAST {
             world.play_sound(

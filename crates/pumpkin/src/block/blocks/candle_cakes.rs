@@ -1,22 +1,21 @@
-use std::sync::Arc;
-
-use pumpkin_data::{Block, BlockState, BlockStateId, item::Item, item_stack::ItemStack};
+use pumpkin_data::{Block, BlockDirection, BlockState, BlockStateId, item::Item};
 use pumpkin_macros::pumpkin_block_from_tag;
-use pumpkin_util::{GameMode, math::position::BlockPos};
-use pumpkin_world::{
-    tick::TickPriority,
-    world::{BlockAccessor, BlockFlags},
-};
+use pumpkin_util::math::position::BlockPos;
+use pumpkin_world::world::BlockAccessor;
 
 use crate::{
     block::{
-        BlockBehaviour, GetComparatorOutputArgs, GetStateForNeighborUpdateArgs, NormalUseArgs,
-        OnScheduledTickArgs, PathComputationType, UseWithItemArgs,
-        blocks::cake::{CakeBlock, FULL_CAKE_SIGNAL},
+        BlockBehaviour, CanPlaceAtArgs, ExplodeArgs, GetComparatorOutputArgs,
+        GetStateForNeighborUpdateArgs, NormalUseArgs, OnProjectileHitArgs, PathComputationType,
+        UseWithItemArgs,
+        blocks::{
+            cake::{CakeBlock, FULL_CAKE_SIGNAL},
+            candles,
+        },
+        drop_loot,
         registry::BlockActionResult,
     },
-    entity::player::Player,
-    world::World,
+    world::loot::LootContextParameters,
 };
 
 const CANDLE_MAP: [(&Item, &Block); 17] = [
@@ -56,72 +55,75 @@ pub fn candle_from_cake(block: &Block) -> &'static Item {
 #[pumpkin_block_from_tag("minecraft:candle_cakes")]
 pub struct CandleCakeBlock;
 
-impl CandleCakeBlock {
-    fn consume_and_drop_candle(
-        block: &Block,
-        player: &Player,
-        location: &BlockPos,
-        world: &Arc<World>,
-    ) -> BlockActionResult {
-        match player.gamemode.load() {
-            GameMode::Survival | GameMode::Adventure => {
-                if player.hunger_manager.level.load() >= 20 {
-                    return BlockActionResult::Pass;
-                }
-            }
-            GameMode::Creative => {}
-            GameMode::Spectator => return BlockActionResult::Pass,
-        }
-
-        let candle_item = candle_from_cake(block);
-
-        let item_stack = ItemStack::new(1, candle_item);
-
-        world.drop_stack(location, item_stack);
-
-        world.set_block_state(
-            location,
-            Block::CAKE.default_state.id,
-            BlockFlags::NOTIFY_ALL,
-        );
-
-        let (block, state) = world.get_block_and_state_id(location);
-
-        CakeBlock::consume_if_hungry(world, player, block, location, state)
-    }
-}
-
 impl BlockBehaviour for CandleCakeBlock {
     fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
-        let item_id = args.item_stack.item.id;
-        match item_id {
-            id if id == Item::FIRE_CHARGE.id || id == Item::FLINT_AND_STEEL.id => {
-                BlockActionResult::Pass
-            } // Item::FIRE_CHARGE | Item::FLINT_AND_STEEL
-            _ => BlockActionResult::PassToDefaultBlockAction,
+        let item = args.item_stack.item;
+        if item == &Item::FIRE_CHARGE || item == &Item::FLINT_AND_STEEL {
+            return BlockActionResult::Pass;
+        }
+        let state = args.world.get_block_state_id(args.position);
+        if args.hit.cursor_pos.y > 0.5
+            && args.item_stack.is_empty()
+            && candles::is_lit(args.block, state)
+        {
+            candles::extinguish(
+                args.world,
+                args.position,
+                args.block,
+                state,
+                Some(args.player),
+            );
+            BlockActionResult::Success
+        } else {
+            BlockActionResult::PassToDefaultBlockAction
         }
     }
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
-        Self::consume_and_drop_candle(args.block, args.player, args.position, args.world)
+        let state = args.world.get_block_state(args.position);
+        let result = CakeBlock::consume_if_hungry(
+            args.world,
+            args.player,
+            &Block::CAKE,
+            args.position,
+            Block::CAKE.default_state.id,
+        );
+        if result.consumes_action() {
+            drop_loot(
+                args.world,
+                args.block,
+                args.position,
+                true,
+                &LootContextParameters {
+                    block_state: Some(state),
+                    position: Some(args.position.to_centered_f64()),
+                    ..Default::default()
+                },
+            );
+        }
+        result
     }
 
-    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
-        if !can_place_at(args.world.as_ref(), args.position) {
-            args.world
-                .break_block(args.position, None, BlockFlags::empty());
-        }
+    fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
+        can_place_at(args.block_accessor, args.position)
     }
 
     fn get_state_for_neighbor_update(
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        if !can_place_at(args.world, args.position) {
-            args.world
-                .schedule_block_tick(args.block, *args.position, 1, TickPriority::Normal);
+        if args.direction == BlockDirection::Down && !can_place_at(args.world, args.position) {
+            Block::AIR.default_state.id
+        } else {
+            args.state_id
         }
-        args.state_id
+    }
+
+    fn on_projectile_hit(&self, args: OnProjectileHitArgs<'_>) {
+        candles::projectile_hit(args);
+    }
+    fn explode(&self, args: ExplodeArgs<'_>) {
+        candles::explosion_hit(args);
     }
 
     /// A candle cake is always uneaten, so it reads a full cake.

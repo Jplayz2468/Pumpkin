@@ -97,8 +97,7 @@ impl JavaClient {
         let off_hand_item_empty = off_hand_item.is_empty();
 
         let mut item = inventory.get_stack_in_hand(hand);
-        let item_id = item.item.id;
-        player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
+        let used_item_id = item.item.id;
 
         let entity = &player.get_entity();
         let world = entity.world.load_full();
@@ -134,6 +133,7 @@ impl JavaClient {
 
         // Code based on the java class ServerPlayerInteractionManager
         if !(sneaking && (!held_item_empty || !off_hand_item_empty)) {
+            let before_block_use = item.clone();
             let result = Self::call_use_item_on(
                 player,
                 &position,
@@ -145,6 +145,17 @@ impl JavaClient {
                 block,
                 server,
             );
+            // Block handlers mutate the working stack, unlike vanilla's live hand
+            // reference. Persist that mutation before a successful early return.
+            if !item.are_equal(&before_block_use) {
+                let slot = if matches!(hand, Hand::Right) {
+                    inventory.get_selected_slot() as usize
+                } else {
+                    PlayerInventory::OFF_HAND_SLOT
+                };
+                inventory.set_stack_in_hand(hand, item.clone());
+                player.sync_hand_slot(slot, item.clone());
+            }
             if result.consumes_action() {
                 // TODO: Trigger ANY_BLOCK_USE Criteria
 
@@ -173,13 +184,21 @@ impl JavaClient {
             &mut item, player, hand, position, face, cursor_pos, block, server,
         );
 
-        if should_try_block_placement(&item_result) {
+        let cooldown_group = item
+            .get_use_cooldown()
+            .and_then(|cooldown| cooldown.cooldown_group.clone())
+            .unwrap_or_else(|| item.item.registry_key.to_string());
+        if should_try_block_placement(&item_result) && !player.is_on_cooldown(&cooldown_group) {
             // Check if the item is a block, because not every item can be placed :D
             let item_id = item.item.id;
             if let Some(block) = Block::from_item_id(item_id) {
                 should_try_decrement =
                     Self::run_is_block_place(player, block, server, use_item_on, position, face)?;
             }
+        }
+
+        if item_result.consumes_action() || should_try_decrement {
+            player.increment_stat(StatisticCategory::Used, i32::from(used_item_id), 1);
         }
 
         if should_try_decrement {
@@ -259,7 +278,9 @@ impl JavaClient {
             return result;
         }
 
-        if matches!(result, BlockActionResult::PassToDefaultBlockAction) {
+        if matches!(result, BlockActionResult::PassToDefaultBlockAction)
+            && *equipment_slot == EquipmentSlot::MAIN_HAND
+        {
             let result = server.block_registry.on_use(
                 block,
                 player,

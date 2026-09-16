@@ -723,3 +723,28 @@ so they must not be used to reconstruct audit completion.
 - Source/format review only, no builds or tests. Dynamic/custom door types, exact
   contextual support shapes, placement replacement predicates, non-player event
   attribution and the remaining block/item pipeline are still open.
+
+## Continued source port: candles, cakes and hand interaction persistence
+
+- Candle stacking now uses ordinary block-item placement instead of a custom
+  consume path. Only an empty hand with mayBuild extinguishes a candle; candle
+  cakes distinguish hits above the cake from eating. Both candle families now
+  inherit burning-projectile ignition and triggering-explosion extinguishing,
+  including the sound/event ordering. Waterlogged candles schedule water ticks;
+  bucket water extinguishes them. Support checks allow waterlogged supports, and
+  ordinary candles retain the source's no-op support-loss shape behavior.
+- Cake food changes use invulnerability/food eligibility and clamp saturation,
+  including creative eating. Eating emits EAT before mutation and BLOCK_DESTROY
+  on the final slice. Candle cakes become a once-bitten cake before dropping their
+  original loot. Cake/candle-cake support loss removes them in the downward shape
+  update. Adding a candle consumes normally, sounds before replacement, and awards
+  its event/statistic. Ignition no longer rejects adjacent fire solely because the
+  clicked block contains water; clicked waterlogged candles remain unlightable.
+- Java block use now persists mutations of its copied hand stack before returning.
+  Empty-hand fallback only runs for main-hand interactions. Item-use statistics
+  moved from every attempted click to successful item use/placement, preserving
+  the explicit stats awarded by block handlers. Cooldowns also gate block-item
+  fallback. Source review and formatting only; no compilation or tests.
+- Full loot RNG/context, dynamic shapes/tags, client pick stacks, liquid-flow
+  container callbacks, ignition item details, adventure predicates, advancement
+  triggers and Bedrock hand dispatch remain broader dependencies/open work.
