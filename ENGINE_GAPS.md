@@ -257,10 +257,10 @@ whole inside-effect pipeline matches Java yet.
    direct movement and portal/passenger transitions, remaining contextual shapes and
    live gameplay verification. SulfurCube's omnidirectional override belongs to its
    still-missing entity implementation; the shared hook is present.
-3. Finish fall/inside-effect integration: Living.checkFallDamage's fluid refresh and
-   landing particles, impulse-limited fall damage, fall reset on teleports/fluids for
-   non-living entities, and source parity of proximity-based fall exemptions. The
-   shared double counter fixes representation and dispatch, not these separate gates.
+3. Finish fall/inside-effect integration: landing/splash particles, impulse-limited
+   fall damage, teleport resets, complete fluid-interaction/eye tracking and vehicle
+   passenger boxes. Landing fluid refresh, common water/stuck-block resets and
+   removal of proximity-based fall exemptions are implemented below.
 4. Continue D02–D06 and remaining block-system gates listed above. Do not treat this
    bounded movement checkpoint as full engine or block parity.
 
@@ -300,3 +300,32 @@ whole inside-effect pipeline matches Java yet.
 - This closes the old general block ray fallback/selection gate. Entity ray slab
   semantics, remaining context-free callers, packet/menu integration and all other
   D01–D06/live-world gates remain open. Full mob passes remain paused.
+
+## Landing fluid refresh and current integration
+
+- `LivingEntity.fall` refreshes fluid contact before reading/accumulating distance
+  when previously out of water. Landing block-change callbacks use the on-block
+  position rather than the entity's feet cell.
+- Water and stuck-block speed changes reset the canonical counter for every entity.
+  Lava halves that counter once in base tick after fluid/fire processing, not during
+  each fluid refresh. This includes non-living entities and avoids reducing it again
+  when landing refreshes fluid contact.
+- Removed the legacy radius-based immunity near ladders/cobwebs/powder snow/slime
+  and feet-cell exemption. Actual swept reset rays, inside effects, fluid contact
+  and landing block callbacks now decide the effect instead of nearby block names.
+- Fluid scanning uses ceil(max)-1 bounds, requires the surrounding X/Z chunk margin
+  to be loaded, and derives contact from positive fluid depth. It keeps current
+  accumulation order and uses the full Java lava-current scale.
+- Current response matches `EntityFluidInteraction.Tracker`: accumulated-current
+  epsilon, player averaging/non-player normalization, Java division/normalization
+  threshold, and the minimum impulse test on the impulse itself rather than the
+  entity's velocity. Contact/reset state updates precede current application.
+- A probe invokes Java's actual private Tracker on real Entity/ServerPlayer objects.
+  All **1,200 exact-bit current cases** passed in background library run 2, along
+  with the existing suite. Final background run 3 also passed **480 tests**, with
+  only the two previously separately passing socket tests excluded, including the
+  subsequent stuck-block reset and ray-direction normalization edits.
+- Still open: landing/splash particles, impulse damage context, teleport reset paths,
+  full eye-fluid/boat passenger-box integration, dynamic FAST_LAVA environment
+  attributes, and live chunk-edge/landing/vehicle verification. This is not complete
+  D01 or whole-engine parity; full mob passes remain paused.

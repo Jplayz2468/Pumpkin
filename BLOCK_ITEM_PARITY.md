@@ -1358,3 +1358,12 @@ Boats use exact intersections; fluid-using items respect intervening outlines.
 Explosion visibility/shared target tracking use collision shapes. Java outline
 and fluid-scene fixtures accompany this checkpoint; see ENGINE_GAPS.md for scope
 and verification limits. Full mob passes remain paused.
+
+
+### Landing fluid contact and currents
+
+Landing refreshes fluid contact, water/stuck blocks reset the shared entity counter,
+and lava reduces it once per base tick. Removed proximity-based fall immunity in
+favor of actual contact/swept effects. Current response and chunk-margin gating now
+follow Java's tracker; 1,200 real Java current cases cover the math. Remaining
+particle/impulse/vehicle/live-world work is listed in ENGINE_GAPS.md.

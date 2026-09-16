@@ -265,13 +265,6 @@ impl LivingEntity {
     #[expect(dead_code)]
     const USING_RIPTIDE_FLAG: u8 = 4;
 
-    const PREVENT_AREA_FALL_DAMAGE_BLOCKS: [&'static Block; 4] = [
-        &Block::COBWEB,
-        &Block::LADDER,
-        &Block::POWDER_SNOW,
-        &Block::SLIME_BLOCK,
-    ];
-
     fn hurt_sound_for_entity(entity_type: &'static EntityType) -> Sound {
         entity_type.hurt_sound.unwrap_or(Sound::EntityGenericHurt)
     }
@@ -1414,15 +1407,6 @@ impl LivingEntity {
             .map(|instance| instance.effect.clone())
     }
 
-    pub fn is_in_fall_damage_resetting(&self) -> (bool, &Block) {
-        let block_pos = self.entity.block_pos.load();
-        let block = self.entity.world.load().get_block(&block_pos);
-        (
-            block.has_tag(&tag::Block::MINECRAFT_FALL_DAMAGE_RESETTING),
-            block,
-        )
-    }
-
     // Check if the entity is in water
     pub fn is_in_water(&self) -> bool {
         self.entity.touching_water.load(Ordering::Relaxed)
@@ -1431,72 +1415,6 @@ impl LivingEntity {
     // Check if the entity is in powder snow
     pub fn is_in_powder_snow(&self) -> bool {
         self.entity.is_in_powder_snow.load(Ordering::Relaxed)
-    }
-
-    pub fn should_prevent_fall_damage(&self) -> bool {
-        let (prevents, block) = self.is_in_fall_damage_resetting();
-
-        if block == &Block::SCAFFOLDING && !self.entity.is_sneaking() {
-            return false;
-        }
-
-        if block == &Block::WATER {
-            return true;
-        }
-
-        if self.entity.entity_type == &EntityType::PLAYER {
-            if block == &Block::END_GATEWAY || block == &Block::END_PORTAL {
-                return true;
-            }
-
-            if block == &Block::NETHER_PORTAL {
-                let world = self.entity.world.load();
-                let level_info = world.level_info.load();
-
-                return level_info.game_rules.players_nether_portal_default_delay == 0;
-            }
-        }
-
-        prevents
-    }
-
-    pub fn should_prevent_fall_damage_in_area(&self) -> bool {
-        let world = self.entity.world.load();
-        let block_pos = self.entity.block_pos.load().down();
-        let entity_pos = self.entity.pos.load();
-
-        let min = BlockPos(Vector3::new(
-            block_pos.0.x - 1,
-            block_pos.0.y,
-            block_pos.0.z - 1,
-        ));
-        let max = BlockPos(Vector3::new(
-            block_pos.0.x + 1,
-            block_pos.0.y,
-            block_pos.0.z + 1,
-        ));
-        let pos_iter = BlockPos::iterate(min, max);
-
-        // FIXME: it seems the java server checks all blocks around with a raycast and check if miss or hit,
-        // then added to a collision checker to handle in the tick handler
-        for pos in pos_iter {
-            let block = world.get_block(&pos);
-
-            if Self::PREVENT_AREA_FALL_DAMAGE_BLOCKS.contains(&block) {
-                let block_center = Vector3::new(
-                    f64::from(pos.0.x) + 0.5,
-                    f64::from(pos.0.y) + 0.5,
-                    f64::from(pos.0.z) + 0.5,
-                );
-                let distance = entity_pos.squared_distance_to_vec(&block_center);
-
-                // Fetch safe fall distance from attribute
-                let safe_distance = self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE);
-                return distance.sqrt() <= safe_distance * safe_distance;
-            }
-        }
-
-        false
     }
 
     pub fn is_immune_to_fall_damage(&self) -> bool {
@@ -2104,9 +2022,12 @@ impl LivingEntity {
         ground: bool,
         dont_damage: bool,
     ) {
+        if !self.entity.is_in_water() {
+            self.entity.update_fluid_state(caller);
+        }
         let previous_distance = self.fall_distance.load();
         if ground && previous_distance > 0.0 {
-            self.on_changed_block(caller, self.entity.block_pos.load());
+            self.on_changed_block(caller, self.entity.get_pos_with_y_offset(0.2).0);
         }
         let distance = super::fall_distance::accumulate(
             previous_distance,
@@ -2119,10 +2040,7 @@ impl LivingEntity {
                 let world = self.entity.world.load();
                 let position = self.entity.get_pos_with_y_offset(0.2).0;
                 let (block, state) = world.get_block_and_state(&position);
-                if !dont_damage
-                    && !self.should_prevent_fall_damage()
-                    && !self.should_prevent_fall_damage_in_area()
-                {
+                if !dont_damage {
                     if let Some(pumpkin_block) = world.block_registry.get_pumpkin_block(block.id) {
                         pumpkin_block.on_landed_upon(OnLandedUponArgs {
                             world: &world,

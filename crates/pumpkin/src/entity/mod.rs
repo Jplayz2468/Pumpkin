@@ -3,6 +3,7 @@ mod inside_blocks;
 mod climbing;
 mod vehicle_control;
 mod fall_distance;
+mod fluid_current;
 pub mod inside_effects;
 pub(crate) mod support;
 mod baby_dimensions_data;
@@ -2324,27 +2325,12 @@ impl Entity {
         }
     }
 
-    // updateWaterState() in yarn
+    // Entity.updateFluidInteraction / EntityFluidInteraction.update (Java 26.2).
 
-    fn update_fluid_state(&self, caller: &dyn EntityBase) {
+    pub(crate) fn update_fluid_state(&self, caller: &dyn EntityBase) {
         let is_pushed = caller.is_pushed_by_fluids();
-
-        let water_push = Vector3::default();
-
-        let water_n = 0;
-
-        let lava_push = Vector3::default();
-
-        let lava_n = 0;
-
-        let mut fluid_push = [water_push, lava_push];
-
-        let mut fluid_n = [water_n, lava_n];
-
-        let mut in_fluid = [false, false];
-
-        // The maximum fluid height found
-
+        let mut fluid_push = [Vector3::default(), Vector3::default()];
+        let mut fluid_n = [0, 0];
         let mut fluid_height: [f64; 2] = [0.0, 0.0];
 
         let entity_box = self.bounding_box.load();
@@ -2352,44 +2338,55 @@ impl Entity {
 
         let min = bounding_box.min_block_pos();
 
-        let max = bounding_box.max_block_pos();
+        let max = BlockPos::new(
+            (bounding_box.max.x.ceil() as i32).saturating_sub(1),
+            (bounding_box.max.y.ceil() as i32).saturating_sub(1),
+            (bounding_box.max.z.ceil() as i32).saturating_sub(1),
+        );
 
         let world = self.world.load();
 
-        for x in min.0.x..=max.0.x {
-            for y in min.0.y..=max.0.y {
-                for z in min.0.z..=max.0.z {
-                    let pos = BlockPos::new(x, y, z);
+        // Java requires the full chunk rectangle, including a one-block X/Z margin.
+        // The section "hasFluid" fast path is only an optimization; loadedness is semantic.
+        let loaded = ((min.0.z - 1) >> 4..=(max.0.z + 1) >> 4).all(|z| {
+            ((min.0.x - 1) >> 4..=(max.0.x + 1) >> 4)
+                .all(|x| world.level.is_chunk_loaded(&Vector2::new(x, z)))
+        });
+        if loaded {
+            for x in min.0.x..=max.0.x {
+                for y in min.0.y..=max.0.y {
+                    for z in min.0.z..=max.0.z {
+                        let pos = BlockPos::new(x, y, z);
 
-                    let (fluid, state) = world.get_fluid_and_fluid_state(&pos);
+                        let (fluid, state) = world.get_fluid_and_fluid_state(&pos);
 
-                    if fluid.id != Fluid::EMPTY.id {
-                        let surface_y =
-                            f64::from(world.get_fluid_height(&pos, fluid, &state)) + f64::from(y);
+                        if fluid.id != Fluid::EMPTY.id {
+                            let surface_y = f64::from(world.get_fluid_height(&pos, fluid, &state))
+                                + f64::from(y);
 
-                        if surface_y >= bounding_box.min.y {
-                            let marginal_height = surface_y - entity_box.min.y;
-                            let i = usize::from(
-                                fluid.id == Fluid::FLOWING_LAVA.id || fluid.id == Fluid::LAVA.id,
-                            );
+                            if surface_y >= bounding_box.min.y {
+                                let marginal_height = surface_y - entity_box.min.y;
+                                let i = usize::from(
+                                    fluid.id == Fluid::FLOWING_LAVA.id
+                                        || fluid.id == Fluid::LAVA.id,
+                                );
 
-                            fluid_height[i] = fluid_height[i].max(marginal_height);
+                                fluid_height[i] = fluid_height[i].max(marginal_height);
 
-                            in_fluid[i] = true;
+                                if !is_pushed {
+                                    continue;
+                                }
 
-                            if !is_pushed {
-                                continue;
+                                let mut fluid_velo = world.get_fluid_velocity(pos, fluid, &state);
+
+                                if fluid_height[i] < 0.4 {
+                                    fluid_velo = fluid_velo * fluid_height[i];
+                                }
+
+                                fluid_push[i] += fluid_velo;
+
+                                fluid_n[i] += 1;
                             }
-
-                            let mut fluid_velo = world.get_fluid_velocity(pos, fluid, &state);
-
-                            if fluid_height[i] < 0.4 {
-                                fluid_velo = fluid_velo * fluid_height[i];
-                            }
-
-                            fluid_push[i] += fluid_velo;
-
-                            fluid_n[i] += 1;
                         }
                     }
                 }
@@ -2403,21 +2400,15 @@ impl Entity {
         let lava_speed = if world.dimension.fast_lava {
             0.007
         } else {
-            0.002_333_333
+            0.002_333_333_333_333_333_5
         };
-
-        self.push_by_fluid(0.014, fluid_push[0], fluid_n[0]);
-
-        self.push_by_fluid(lava_speed, fluid_push[1], fluid_n[1]);
 
         let water_height = fluid_height[0];
 
-        let in_water = in_fluid[0];
+        let in_water = water_height > 0.0;
 
         if in_water {
-            if let Some(living) = caller.get_living_entity() {
-                living.fall_distance.store(0.0);
-            }
+            self.fall_distance.store(0.0);
 
             if !self.touching_water.load(Ordering::SeqCst) {
 
@@ -2431,42 +2422,25 @@ impl Entity {
 
         let lava_height = fluid_height[1];
 
-        let in_lava = in_fluid[1];
-
-        if in_lava && let Some(living) = caller.get_living_entity() {
-            let halved_fall = living.fall_distance.load() / 2.0;
-
-            if halved_fall != 0.0 {
-                living.fall_distance.store(halved_fall);
-            }
-        }
+        let in_lava = lava_height > 0.0;
 
         self.lava_height.store(lava_height);
 
         self.touching_lava.store(in_lava, Ordering::SeqCst);
+        if is_pushed {
+            self.push_by_fluid(0.014, fluid_push[0], fluid_n[0]);
+            self.push_by_fluid(lava_speed, fluid_push[1], fluid_n[1]);
+        }
     }
 
-    fn push_by_fluid(&self, speed: f64, mut push: Vector3<f64>, n: usize) {
-        if push.length_squared() != 0.0 {
-            if n > 0 {
-                push = push * (1.0 / (n as f64));
-            }
-
-            if self.entity_type != &EntityType::PLAYER {
-                push = push.normalize();
-            }
-
-            push = push * speed;
-
-            let velo = self.velocity.load();
-
-            if velo.x.abs() < 0.003 && velo.z.abs() < 0.003 && velo.length_squared() < 0.000_020_25
-            {
-                push = push.normalize() * 0.0045;
-            }
-
-            self.velocity.store(velo + push);
-        }
+    fn push_by_fluid(&self, speed: f64, push: Vector3<f64>, n: usize) {
+        self.velocity.store(fluid_current::apply(
+            self.velocity.load(),
+            push,
+            n,
+            self.entity_type == &EntityType::PLAYER,
+            speed,
+        ));
     }
 
     pub(crate) fn get_pos_with_y_offset(
@@ -2746,7 +2720,8 @@ impl Entity {
         }
         let from = self.pos.load();
         let length = motion.length();
-        let to = from + motion.normalize() * length.min(8.0);
+        let direction = Vector3::new(motion.x / length, motion.y / length, motion.z / length);
+        let to = from + direction * length.min(8.0);
         if self
             .world
             .load()
@@ -4916,9 +4891,7 @@ impl Entity {
             }
             _ => {}
         }
-        if let Some(living) = self.get_living_entity() {
-            living.fall_distance.store(0.0);
-        }
+        self.fall_distance.store(0.0);
         self.movement_multiplier.store(multiplier);
     }
 
@@ -5179,6 +5152,12 @@ impl EntityBase for Entity {
 
                 self.fire_ticks.store(fire_ticks - 1, Ordering::Relaxed);
             }
+        }
+
+        // Entity.baseTick halves lava fall distance once, after fluid/fire processing.
+        // A landing fluid refresh must not apply another reduction.
+        if self.touching_lava.load(Ordering::Relaxed) {
+            self.fall_distance.store(self.fall_distance.load() * 0.5);
         }
 
         // Check if visual fire should be sent
