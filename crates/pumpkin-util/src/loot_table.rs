@@ -132,6 +132,11 @@ pub enum LootFunctionKind {
         add: bool,
     },
     SetPotion(&'static str),
+    CopyComponents {
+        source: &'static str,
+        include: Option<&'static [&'static str]>,
+        exclude: &'static [&'static str],
+    },
     CopyState {
         properties: &'static [(&'static str, u32)],
     },

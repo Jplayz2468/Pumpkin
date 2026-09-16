@@ -1,9 +1,7 @@
 use super::BlockEntity;
 use crate::world::World;
 use pumpkin_data::{
-    data_component_impl::{
-        ContainerImpl, ContainerLootImpl, DataComponentImpl, PotDecorationsImpl,
-    },
+    data_component_impl::{ContainerImpl, DataComponentImpl, PotDecorationsImpl},
     item_stack::ItemStack,
 };
 use pumpkin_inventory::{Clearable, Inventory};
@@ -16,6 +14,7 @@ use std::sync::{
 
 pub struct DecoratedPotBlockEntity {
     pub position: BlockPos,
+    components: super::components::BlockEntityComponents,
     pub sherds: Mutex<Option<Vec<NbtTag>>>,
     pub item: Mutex<Option<ItemStack>>,
     world: Mutex<Weak<World>>,
@@ -25,6 +24,14 @@ pub struct DecoratedPotBlockEntity {
 }
 
 impl BlockEntity for DecoratedPotBlockEntity {
+    fn component_storage(&self) -> Option<&super::components::BlockEntityComponents> {
+        Some(&self.components)
+    }
+    fn implicit_component_types(&self) -> &'static [pumpkin_data::data_component::DataComponent] {
+        use pumpkin_data::data_component::DataComponent::*;
+        &[PotDecorations, Container]
+    }
+
     fn resource_location(&self) -> &'static str {
         Self::ID
     }
@@ -48,10 +55,12 @@ impl BlockEntity for DecoratedPotBlockEntity {
                 .and_then(ItemStack::read_item_stack);
         }
         *entity.loot.lock().unwrap() = loot;
+        entity.components.read_nbt(nbt);
         entity
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.components.write_nbt(nbt);
         let decorations = self.decorations();
         if decorations != PotDecorationsImpl::EMPTY {
             if let NbtTag::List(sherds) = decorations.write_data() {
@@ -112,7 +121,7 @@ impl BlockEntity for DecoratedPotBlockEntity {
         self
     }
 
-    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+    fn apply_implicit_components(&self, stack: &ItemStack) {
         self.set_decorations(
             stack
                 .get_data_component::<PotDecorationsImpl>()
@@ -131,18 +140,22 @@ impl BlockEntity for DecoratedPotBlockEntity {
                     .find(|(slot, _)| *slot == 0)
                     .map(|(_, stack)| stack.clone())
             });
-        *self
-            .loot
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = stack
-            .get_data_component::<ContainerLootImpl>()
-            .map(|loot| (loot.loot_table.clone(), loot.seed));
         self.mark_dirty();
     }
 
-    fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
-        // The block loot table copies decorations only; contents scatter separately.
+    fn collect_implicit_components(&self, stack: &mut ItemStack) {
         stack.set_data_component(self.decorations());
+        let item = self
+            .item
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        stack.set_data_component(ContainerImpl {
+            items: item
+                .filter(|item| !item.is_empty())
+                .map(|item| vec![(0, item)])
+                .unwrap_or_default(),
+        });
     }
 
     fn on_block_replaced(self: Arc<Self>, world: &Arc<World>, pos: &BlockPos) {
@@ -162,6 +175,7 @@ impl DecoratedPotBlockEntity {
     pub const fn new(position: BlockPos) -> Self {
         Self {
             position,
+            components: super::components::BlockEntityComponents::new(),
             sherds: Mutex::new(None),
             item: Mutex::new(None),
             world: Mutex::new(Weak::new()),

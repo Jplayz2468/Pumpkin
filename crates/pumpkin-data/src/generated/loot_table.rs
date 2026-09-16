@@ -1722,7 +1722,11 @@ pub static BLOCKS_BARREL: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -1759,7 +1763,11 @@ pub static BLOCKS_BEACON: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -1780,7 +1788,11 @@ pub static BLOCKS_BEE_NEST: LootTable = LootTable {
             functions: &[
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                    kind: LootFunctionKind::CopyComponents {
+                        source: "block_entity",
+                        include: Some(&["minecraft:bees"]),
+                        exclude: &[],
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -1810,7 +1822,11 @@ pub static BLOCKS_BEEHIVE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                            kind: LootFunctionKind::CopyComponents {
+                                source: "block_entity",
+                                include: Some(&["minecraft:bees"]),
+                                exclude: &[],
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -2314,7 +2330,17 @@ pub static BLOCKS_BLACK_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -2491,7 +2517,16 @@ pub static BLOCKS_BLACK_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -2662,7 +2697,11 @@ pub static BLOCKS_BLAST_FURNACE: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -2682,7 +2721,17 @@ pub static BLOCKS_BLUE_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -2893,7 +2942,16 @@ pub static BLOCKS_BLUE_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -3108,7 +3166,11 @@ pub static BLOCKS_BREWING_STAND: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -3211,7 +3273,17 @@ pub static BLOCKS_BROWN_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -3459,7 +3531,16 @@ pub static BLOCKS_BROWN_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -4304,7 +4385,11 @@ pub static BLOCKS_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -5306,7 +5391,11 @@ pub static BLOCKS_COPPER_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -5347,7 +5436,11 @@ pub static BLOCKS_COPPER_GOLEM_STATUE: LootTable = LootTable {
             functions: &[
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                    kind: LootFunctionKind::CopyComponents {
+                        source: "block_entity",
+                        include: Some(&["minecraft:custom_name"]),
+                        exclude: &[],
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -5693,7 +5786,11 @@ pub static BLOCKS_CREEPER_HEAD: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -6216,7 +6313,17 @@ pub static BLOCKS_CYAN_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -6393,7 +6500,16 @@ pub static BLOCKS_CYAN_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -7287,7 +7403,11 @@ pub static BLOCKS_DECORATED_POT: LootTable = LootTable {
                     condition: LootCondition::None,
                     functions: &[LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                        kind: LootFunctionKind::CopyComponents {
+                            source: "block_entity",
+                            include: Some(&["minecraft:pot_decorations"]),
+                            exclude: &[],
+                        },
                     }],
                 },
             ]),
@@ -8088,7 +8208,11 @@ pub static BLOCKS_DISPENSER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -8125,7 +8249,11 @@ pub static BLOCKS_DRAGON_HEAD: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -8196,7 +8324,11 @@ pub static BLOCKS_DROPPER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -8277,7 +8409,11 @@ pub static BLOCKS_ENCHANTING_TABLE: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -8543,7 +8679,11 @@ pub static BLOCKS_EXPOSED_COPPER_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -8584,7 +8724,11 @@ pub static BLOCKS_EXPOSED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             functions: &[
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                    kind: LootFunctionKind::CopyComponents {
+                        source: "block_entity",
+                        include: Some(&["minecraft:custom_name"]),
+                        exclude: &[],
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -9030,7 +9174,11 @@ pub static BLOCKS_FURNACE: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -9534,7 +9682,17 @@ pub static BLOCKS_GRAY_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -9711,7 +9869,16 @@ pub static BLOCKS_GRAY_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -9799,7 +9966,17 @@ pub static BLOCKS_GREEN_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -9976,7 +10153,16 @@ pub static BLOCKS_GREEN_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -10183,7 +10369,11 @@ pub static BLOCKS_HOPPER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -11280,7 +11470,17 @@ pub static BLOCKS_LIGHT_BLUE_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -11457,7 +11657,16 @@ pub static BLOCKS_LIGHT_BLUE_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -11545,7 +11754,17 @@ pub static BLOCKS_LIGHT_GRAY_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -11722,7 +11941,16 @@ pub static BLOCKS_LIGHT_GRAY_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -11898,7 +12126,17 @@ pub static BLOCKS_LIME_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -12075,7 +12313,16 @@ pub static BLOCKS_LIME_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -12197,7 +12444,17 @@ pub static BLOCKS_MAGENTA_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -12374,7 +12631,16 @@ pub static BLOCKS_MAGENTA_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -14171,7 +14437,17 @@ pub static BLOCKS_ORANGE_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -14348,7 +14624,16 @@ pub static BLOCKS_ORANGE_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -14555,7 +14840,11 @@ pub static BLOCKS_OXIDIZED_COPPER_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -14596,7 +14885,11 @@ pub static BLOCKS_OXIDIZED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             functions: &[
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                    kind: LootFunctionKind::CopyComponents {
+                        source: "block_entity",
+                        include: Some(&["minecraft:custom_name"]),
+                        exclude: &[],
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -15268,7 +15561,11 @@ pub static BLOCKS_PIGLIN_HEAD: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -15288,7 +15585,17 @@ pub static BLOCKS_PINK_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -15527,7 +15834,16 @@ pub static BLOCKS_PINK_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -15803,7 +16119,15 @@ pub static BLOCKS_PLAYER_HEAD: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:profile",
+                        "minecraft:note_block_sound",
+                        "minecraft:custom_name",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -18262,7 +18586,17 @@ pub static BLOCKS_PURPLE_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -18439,7 +18773,16 @@ pub static BLOCKS_PURPLE_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -18778,7 +19121,17 @@ pub static BLOCKS_RED_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -19209,7 +19562,16 @@ pub static BLOCKS_RED_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -20186,7 +20548,16 @@ pub static BLOCKS_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -20206,7 +20577,11 @@ pub static BLOCKS_SKELETON_SKULL: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -20294,7 +20669,11 @@ pub static BLOCKS_SMOKER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -22602,7 +22981,11 @@ pub static BLOCKS_TRAPPED_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -23464,7 +23847,11 @@ pub static BLOCKS_WAXED_COPPER_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -23505,7 +23892,11 @@ pub static BLOCKS_WAXED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             functions: &[
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                    kind: LootFunctionKind::CopyComponents {
+                        source: "block_entity",
+                        include: Some(&["minecraft:custom_name"]),
+                        exclude: &[],
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -23734,7 +24125,11 @@ pub static BLOCKS_WAXED_EXPOSED_COPPER_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -23775,7 +24170,11 @@ pub static BLOCKS_WAXED_EXPOSED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             functions: &[
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                    kind: LootFunctionKind::CopyComponents {
+                        source: "block_entity",
+                        include: Some(&["minecraft:custom_name"]),
+                        exclude: &[],
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -24038,7 +24437,11 @@ pub static BLOCKS_WAXED_OXIDIZED_COPPER_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -24079,7 +24482,11 @@ pub static BLOCKS_WAXED_OXIDIZED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             functions: &[
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                    kind: LootFunctionKind::CopyComponents {
+                        source: "block_entity",
+                        include: Some(&["minecraft:custom_name"]),
+                        exclude: &[],
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -24325,7 +24732,11 @@ pub static BLOCKS_WAXED_WEATHERED_COPPER_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -24366,7 +24777,11 @@ pub static BLOCKS_WAXED_WEATHERED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             functions: &[
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                    kind: LootFunctionKind::CopyComponents {
+                        source: "block_entity",
+                        include: Some(&["minecraft:custom_name"]),
+                        exclude: &[],
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -24612,7 +25027,11 @@ pub static BLOCKS_WEATHERED_COPPER_CHEST: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -24653,7 +25072,11 @@ pub static BLOCKS_WEATHERED_COPPER_GOLEM_STATUE: LootTable = LootTable {
             functions: &[
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                    kind: LootFunctionKind::CopyComponents {
+                        source: "block_entity",
+                        include: Some(&["minecraft:custom_name"]),
+                        exclude: &[],
+                    },
                 },
                 LootFunction {
                     condition: LootCondition::None,
@@ -24970,7 +25393,17 @@ pub static BLOCKS_WHITE_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -25147,7 +25580,16 @@ pub static BLOCKS_WHITE_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -25331,7 +25773,11 @@ pub static BLOCKS_WITHER_SKELETON_SKULL: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -25351,7 +25797,17 @@ pub static BLOCKS_YELLOW_BANNER: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:item_name",
+                        "minecraft:tooltip_display",
+                        "minecraft:banner_patterns",
+                        "minecraft:rarity",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -25528,7 +25984,16 @@ pub static BLOCKS_YELLOW_SHULKER_BOX: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&[
+                        "minecraft:custom_name",
+                        "minecraft:container",
+                        "minecraft:lock",
+                        "minecraft:container_loot",
+                    ]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),
@@ -25616,7 +26081,11 @@ pub static BLOCKS_ZOMBIE_HEAD: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:copy_components"),
+                kind: LootFunctionKind::CopyComponents {
+                    source: "block_entity",
+                    include: Some(&["minecraft:custom_name"]),
+                    exclude: &[],
+                },
             }],
         }],
         rolls: LootNumberProvider::Constant(1f32),

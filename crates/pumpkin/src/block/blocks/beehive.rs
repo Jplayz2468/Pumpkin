@@ -273,7 +273,7 @@ pub(crate) fn drop_creative_hive(
         return;
     };
     let mut stack = pumpkin_data::item_stack::ItemStack::new(1, item);
-    hive.write_dropped_stack_components(&mut stack);
+    hive.collect_components(&mut stack);
     stack.set_data_component(pumpkin_data::data_component_impl::BlockStateImpl {
         properties: std::borrow::Cow::Owned(vec![("honey_level".into(), honey.to_string().into())]),
     });

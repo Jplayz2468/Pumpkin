@@ -11,11 +11,20 @@ use std::sync::{
 
 pub struct EnchantingTableBlockEntity {
     pub position: BlockPos,
+    components: super::components::BlockEntityComponents,
     pub custom_name: Mutex<Option<TextComponent>>,
     dirty: AtomicBool,
 }
 
 impl BlockEntity for EnchantingTableBlockEntity {
+    fn component_storage(&self) -> Option<&super::components::BlockEntityComponents> {
+        Some(&self.components)
+    }
+    fn implicit_component_types(&self) -> &'static [pumpkin_data::data_component::DataComponent] {
+        use pumpkin_data::data_component::DataComponent::*;
+        &[CustomName]
+    }
+
     fn resource_location(&self) -> &'static str {
         Self::ID
     }
@@ -24,14 +33,18 @@ impl BlockEntity for EnchantingTableBlockEntity {
     }
 
     fn from_nbt(nbt: &NbtCompound, position: BlockPos) -> Self {
-        Self {
+        let entity = Self {
             position,
+            components: super::components::BlockEntityComponents::new(),
             custom_name: Mutex::new(nbt.get("CustomName").map(TextComponent::from_nbt)),
             dirty: AtomicBool::new(false),
-        }
+        };
+        entity.components.read_nbt(nbt);
+        entity
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.components.write_nbt(nbt);
         if let Some(name) = self
             .custom_name
             .lock()
@@ -46,7 +59,7 @@ impl BlockEntity for EnchantingTableBlockEntity {
         Some(NbtCompound::new())
     }
 
-    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+    fn apply_implicit_components(&self, stack: &ItemStack) {
         *self
             .custom_name
             .lock()
@@ -56,7 +69,8 @@ impl BlockEntity for EnchantingTableBlockEntity {
         self.dirty.store(true, Ordering::Relaxed);
     }
 
-    fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
+    fn collect_implicit_components(&self, stack: &mut ItemStack) {
+        stack.remove_data_component(pumpkin_data::data_component::DataComponent::CustomName);
         if let Some(name) = self
             .custom_name
             .lock()
@@ -83,6 +97,7 @@ impl EnchantingTableBlockEntity {
     pub const fn new(position: BlockPos) -> Self {
         Self {
             position,
+            components: super::components::BlockEntityComponents::new(),
             custom_name: Mutex::new(None),
             dirty: AtomicBool::new(false),
         }

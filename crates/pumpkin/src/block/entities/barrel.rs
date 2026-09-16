@@ -27,6 +27,7 @@ use super::BlockEntity;
 
 pub struct BarrelBlockEntity {
     pub position: BlockPos,
+    components: super::components::BlockEntityComponents,
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
@@ -41,6 +42,14 @@ pub struct BarrelBlockEntity {
 }
 
 impl BlockEntity for BarrelBlockEntity {
+    fn component_storage(&self) -> Option<&super::components::BlockEntityComponents> {
+        Some(&self.components)
+    }
+    fn implicit_component_types(&self) -> &'static [pumpkin_data::data_component::DataComponent] {
+        use pumpkin_data::data_component::DataComponent::*;
+        &[CustomName, Container, ContainerLoot]
+    }
+
     fn resource_location(&self) -> &'static str {
         Self::ID
     }
@@ -72,10 +81,12 @@ impl BlockEntity for BarrelBlockEntity {
             .get_mut()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             nbt.get("CustomName").map(TextComponent::from_nbt);
+        entity.components.read_nbt(nbt);
         entity
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.components.write_nbt(nbt);
         if let Some(name) = self
             .custom_name
             .lock()
@@ -157,7 +168,7 @@ impl BlockEntity for BarrelBlockEntity {
         Some(NbtCompound::new())
     }
 
-    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+    fn apply_implicit_components(&self, stack: &ItemStack) {
         if let Some(loot) = stack.get_data_component::<ContainerLootImpl>() {
             *self
                 .loot
@@ -190,8 +201,8 @@ impl BlockEntity for BarrelBlockEntity {
         self.mark_dirty();
     }
 
-    fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
-        // Built-in chest/barrel loot copies only custom_name; contents scatter separately.
+    fn collect_implicit_components(&self, stack: &mut ItemStack) {
+        stack.remove_data_component(pumpkin_data::data_component::DataComponent::CustomName);
         if let Some(name) = self
             .custom_name
             .lock()
@@ -200,6 +211,29 @@ impl BlockEntity for BarrelBlockEntity {
         {
             stack.set_data_component(CustomNameImpl { name });
         }
+        if let Some((loot_table, seed)) = self
+            .loot
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
+        {
+            stack.set_data_component(pumpkin_data::data_component_impl::ContainerLootImpl {
+                loot_table,
+                seed,
+            });
+        }
+        let items = self
+            .items
+            .read()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        stack.set_data_component(pumpkin_data::data_component_impl::ContainerImpl {
+            items: items
+                .iter()
+                .enumerate()
+                .filter(|(_, item)| !item.is_empty())
+                .map(|(slot, item)| (slot as u8, item.clone()))
+                .collect(),
+        });
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -231,6 +265,7 @@ impl BarrelBlockEntity {
     pub fn new(position: BlockPos) -> Self {
         Self {
             position,
+            components: super::components::BlockEntityComponents::new(),
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),

@@ -574,7 +574,7 @@ macro_rules! impl_block_entity_for_cooking {
                 }
             }
 
-            fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+            fn apply_implicit_components(&self, stack: &ItemStack) {
                 let mut items = self.items.write().unwrap_or_else(std::sync::PoisonError::into_inner);
                 items.fill_with(|| ItemStack::EMPTY.clone());
                 if let Some(container) = stack.get_data_component::<pumpkin_data::data_component_impl::ContainerImpl>() {

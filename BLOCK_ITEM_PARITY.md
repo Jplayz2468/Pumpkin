@@ -1524,3 +1524,12 @@ pipeline. Honey-level copying uses its normal function. State copying uses expor
 Java property identities across all 1,196 blocks, so matching names with different
 value domains are kept distinct. ENGINE_GAPS.md records 704 Java comparison cases
 and the remaining 206 unsupported function declarations and broader engine gates.
+
+### Block-entity component loot and persistence
+
+All 71 built-in copy-components functions now use their declared source and filters.
+Normal drops and `/loot mine` share component collection. Nine block-entity types
+retain extra item components across placement/save/reload; banner patterns, skull
+profile/sound and styled names now round-trip. The Java comparison matrix adds 288
+cases. Remaining engine/block work, including other block-entity families, is listed
+in ENGINE_GAPS.md; full mob passes remain paused.

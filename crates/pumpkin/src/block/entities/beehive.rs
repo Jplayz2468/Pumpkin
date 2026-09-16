@@ -23,11 +23,20 @@ use std::sync::{Arc, atomic::Ordering::Relaxed};
 
 pub struct BeehiveBlockEntity {
     pub position: BlockPos,
+    components: super::components::BlockEntityComponents,
     pub bees: Mutex<Vec<BeeOccupant>>,
     pub flower_pos: Mutex<Option<BlockPos>>,
 }
 
 impl BlockEntity for BeehiveBlockEntity {
+    fn component_storage(&self) -> Option<&super::components::BlockEntityComponents> {
+        Some(&self.components)
+    }
+    fn implicit_component_types(&self) -> &'static [pumpkin_data::data_component::DataComponent] {
+        use pumpkin_data::data_component::DataComponent::*;
+        &[Bees]
+    }
+
     fn resource_location(&self) -> &'static str {
         Self::ID
     }
@@ -77,14 +86,18 @@ impl BlockEntity for BeehiveBlockEntity {
                         )
                     })
             });
-        Self {
+        let entity = Self {
             position,
+            components: super::components::BlockEntityComponents::new(),
             bees: Mutex::new(bees),
             flower_pos: Mutex::new(flower_pos),
-        }
+        };
+        entity.components.read_nbt(nbt);
+        entity
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.components.write_nbt(nbt);
         nbt.put_list(
             "bees",
             self.bees
@@ -164,7 +177,7 @@ impl BlockEntity for BeehiveBlockEntity {
         }
     }
 
-    fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
+    fn collect_implicit_components(&self, stack: &mut ItemStack) {
         stack.set_data_component(BeesImpl {
             bees: self
                 .bees
@@ -174,7 +187,7 @@ impl BlockEntity for BeehiveBlockEntity {
         });
     }
 
-    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+    fn apply_implicit_components(&self, stack: &ItemStack) {
         *self
             .bees
             .lock()
@@ -194,6 +207,7 @@ impl BeehiveBlockEntity {
     pub const fn new(position: BlockPos) -> Self {
         Self {
             position,
+            components: super::components::BlockEntityComponents::new(),
             bees: Mutex::new(Vec::new()),
             flower_pos: Mutex::new(None),
         }

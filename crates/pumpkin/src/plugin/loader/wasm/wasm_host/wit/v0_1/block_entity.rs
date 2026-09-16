@@ -1384,7 +1384,11 @@ impl HostBannerBlockEntity for PluginHostState {
         Ok(entity
             .as_any()
             .downcast_ref::<InternalBannerBlockEntity>()
-            .and_then(|b| b.custom_name.try_lock().ok().and_then(|g| g.clone())))
+            .and_then(|b| {
+                b.custom_name.try_lock().ok().and_then(|g| {
+                    g.as_ref().and_then(|name| serde_json::to_string(name).ok())
+                })
+            }))
     }
 
     async fn drop(&mut self, rep: Resource<BannerBlockEntity>) -> wasmtime::Result<()> {

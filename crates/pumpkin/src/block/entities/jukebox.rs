@@ -79,7 +79,7 @@ impl BlockEntity for JukeboxBlockEntity {
         entity
     }
 
-    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+    fn apply_implicit_components(&self, stack: &ItemStack) {
         let Some(data) = stack.get_data_component::<BlockEntityDataImpl>() else {
             return;
         };

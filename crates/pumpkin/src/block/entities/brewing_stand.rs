@@ -548,7 +548,7 @@ impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
         self.write_inventory_nbt(nbt, true);
     }
 
-    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+    fn apply_implicit_components(&self, stack: &ItemStack) {
         let mut items = self
             .items
             .write()

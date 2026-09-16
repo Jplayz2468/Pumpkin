@@ -22,6 +22,7 @@ use crate::{
 
 pub struct TrappedChestBlockEntity {
     pub position: BlockPos,
+    components: super::components::BlockEntityComponents,
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,

@@ -16,6 +16,7 @@ pub mod bell;
 pub mod blasting_furnace;
 pub mod brewing_stand;
 pub mod chest;
+pub mod components;
 pub mod chest_like_block_entity;
 pub mod chiseled_bookshelf;
 pub mod command_block;
@@ -131,16 +132,34 @@ pub trait BlockEntity: Any + Send + Sync {
             .unwrap_or(0) as u32
     }
 
-    /// Java `BlockEntity.collectImplicitComponents`: the components this block
-    /// entity contributes to the stack its block drops. Vanilla applies them
-    /// through the block's `copy_components` loot function with the
-    /// `block_entity` source, so only block entities whose loot table declares
-    /// that function may implement this.
-    fn write_dropped_stack_components(&self, _stack: &mut ItemStack) {}
+    fn component_storage(&self) -> Option<&components::BlockEntityComponents> {
+        None
+    }
+    fn implicit_component_types(&self) -> &'static [pumpkin_data::data_component::DataComponent] {
+        &[]
+    }
 
-    /// Java `BlockEntity.applyComponentsFromItemStack`, called from
-    /// `BlockItem.updateBlockEntityComponents` once the block has been placed.
-    fn apply_components_from_item_stack(&self, _stack: &ItemStack) {}
+    fn collect_components(&self, stack: &mut ItemStack) {
+        if let Some(storage) = self.component_storage() {
+            storage.collect(stack);
+        }
+        self.collect_implicit_components(stack);
+    }
+
+    /// Applies subclass fields, then retains the unconsumed added patch entries.
+    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+        self.apply_implicit_components(stack);
+        if let Some(storage) = self.component_storage() {
+            storage.apply(stack, self.implicit_component_types());
+        }
+    }
+
+    /// Java `BlockEntity.collectImplicitComponents`: add current component values
+    /// to a carrier's patch. Include/exclude filtering belongs to the loot function.
+    fn collect_implicit_components(&self, _stack: &mut ItemStack) {}
+
+    /// Subclasses consume their current fields from the effective item components.
+    fn apply_implicit_components(&self, _stack: &ItemStack) {}
 
     /// Obtain NBT data for sending to the client in `ChunkData`
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {

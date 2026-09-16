@@ -91,7 +91,7 @@ impl BlockEntity for ChiseledBookshelfBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner) = world;
     }
 
-    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+    fn apply_implicit_components(&self, stack: &ItemStack) {
         let mut items = self
             .items
             .write()

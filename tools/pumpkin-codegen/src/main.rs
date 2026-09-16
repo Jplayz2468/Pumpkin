@@ -172,6 +172,7 @@ pub fn main() {
         (carver::build, "carver.rs"),
         (loot_table::build, "loot_table.rs"),
         (loot_table::build_component_fixtures, "../../../pumpkin/src/world/loot_component_test_tables.rs"),
+        (loot_table::build_copy_components_fixtures, "../../../pumpkin/src/world/loot_copy_components_test_tables.rs"),
         (loot_table::build_fixtures, "../../../pumpkin/src/world/loot_tree_test_tables.rs"),
         (map_color::build, "map_color.rs"),
         (map_decoration::build, "map_decoration.rs"),

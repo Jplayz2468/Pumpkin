@@ -104,7 +104,7 @@ impl BlockEntity for LecternBlockEntity {
         *self.world.lock().unwrap() = world;
     }
 
-    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+    fn apply_implicit_components(&self, stack: &ItemStack) {
         if let Some(data) = stack.get_data_component::<BlockEntityDataImpl>() {
             if data.nbt.get_string("id").is_some_and(|id| id != Self::ID) {
                 return;

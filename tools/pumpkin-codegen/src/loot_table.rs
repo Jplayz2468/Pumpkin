@@ -563,6 +563,16 @@ fn functions_tokens(functions: &[EntryFunctionStruct]) -> TokenStream {
                 let id = field("id").as_str().expect("potion identifier");
                 quote! { LootFunctionKind::SetPotion(#id) }
             }
+            "minecraft:copy_components" => {
+                let source = field("source").as_str().expect("copy_components source");
+                let names = |value: &serde_json::Value| value.as_array().map(|values| values.iter().map(|v| v.as_str().expect("component name").to_owned()).collect::<Vec<_>>());
+                let include = match names(field("include")) {
+                    Some(names) => quote! { Some(&[#(#names),*]) },
+                    None => quote! { None },
+                };
+                let exclude = names(field("exclude")).unwrap_or_default();
+                quote! { LootFunctionKind::CopyComponents { source: #source, include: #include, exclude: &[#(#exclude),*] } }
+            }
             "minecraft:copy_state" => {
                 let block = field("block").as_str().expect("copy_state block");
                 let declared = block_property_ids().get(block).expect("copy_state known block");
@@ -798,6 +808,16 @@ pub fn build_component_fixtures() -> TokenStream {
             .expect("loot component tables"),
     )
     .expect("loot component JSON");
+    let tables: Vec<_> = tables.iter().map(table_tokens).collect();
+    quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
+}
+
+
+pub fn build_copy_components_fixtures() -> TokenStream {
+    let tables: Vec<ChestLootTableJson> = serde_json::from_str(
+        &fs::read_to_string("../../crates/pumpkin/src/world/loot_copy_components_tables.json")
+            .expect("loot copy component tables"),
+    ).expect("loot copy component JSON");
     let tables: Vec<_> = tables.iter().map(table_tokens).collect();
     quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
 }

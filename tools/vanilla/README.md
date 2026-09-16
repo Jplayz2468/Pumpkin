@@ -265,3 +265,22 @@ java -cp '/tmp:../comparison/downloads/classpath/*' BlockPropertyIdentityOracle 
 java -cp '/tmp:../comparison/downloads/classpath/*' LootComponentOracle crates/pumpkin/src/world/loot_component_tables.json crates/pumpkin/src/world/loot_component_cases.json
 cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_component_test_tables
 ```
+
+### Copy-components loot and block-entity sources
+
+`LootCopyComponentsOracle.java` exports nine JSON tables and 288 raw-output cases
+from the actual 26.2 codec/evaluator. Cases cover include/exclude lists, missing and
+empty sources, ordered/conditional copying, counts temporarily set to zero, both
+RNG types and following random values. Item prototypes are explicitly bound in the
+oracle; output compares name, damage, maximum stack size and container contents.
+Rust compiles the same JSON with the production generator and supplies the block
+source through a chest placement/NBT reload/component-collection round trip.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/LootCopyComponentsOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' LootCopyComponentsOracle crates/pumpkin/src/world/loot_copy_components_tables.json crates/pumpkin/src/world/loot_copy_components_cases.json
+cargo run --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_copy_components_test_tables
+```
+
+These fixtures do not instantiate a ServerLevel or certify every component codec or
+entity source. Separate Rust tests cover storage and built-in block loot filtering.

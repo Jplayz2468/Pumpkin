@@ -68,8 +68,15 @@ pub fn generate_loot_in_world(
     })
 }
 
+pub type LootComponentMap = Vec<(
+    pumpkin_data::data_component::DataComponent,
+    Box<dyn pumpkin_data::data_component_impl::DataComponentImpl>,
+)>;
+
 #[derive(Default, Clone)]
 pub struct LootContextParameters {
+    /// Snapshots collected before borrowing the loot random stream.
+    pub component_sources: std::collections::HashMap<String, LootComponentMap>,
     pub explosion_radius: Option<f32>,
     pub dynamic_drops: std::collections::HashMap<String, Vec<ItemStack>>,
     pub block_state: Option<&'static BlockState>,
@@ -98,6 +105,64 @@ pub struct LootContextParameters {
     /// Whether the killed entity was a raid captain, for
     /// `type_specific/raider { is_captain }`.
     pub this_is_raid_captain: Option<bool>,
+}
+
+impl LootContextParameters {
+    /// Both ordinary block drops and `/loot mine` use the same block-entity context.
+    pub fn with_block_entity(
+        mut self,
+        entity: Option<&dyn crate::block::entities::BlockEntity>,
+    ) -> Self {
+        self.component_sources.remove("block_entity");
+        self.dynamic_drops.remove("minecraft:sherds");
+        if let Some(entity) = entity {
+            let mut carrier = ItemStack::new(1, &Item::AIR);
+            entity.collect_components(&mut carrier);
+            let components = carrier
+                .patch
+                .into_iter()
+                .filter_map(|(kind, value)| value.map(|value| (kind, value)))
+                .collect();
+            self.component_sources
+                .insert("block_entity".into(), components);
+            if let Some(pot) = entity
+                .as_any()
+                .downcast_ref::<crate::block::entities::decorated_pot::DecoratedPotBlockEntity>(
+            ) {
+                self.dynamic_drops.insert(
+                    "minecraft:sherds".into(),
+                    pot.decorations()
+                        .sherds
+                        .into_iter()
+                        .filter_map(Item::from_id)
+                        .map(|item| ItemStack::new(1, item))
+                        .collect(),
+                );
+            }
+        }
+        self
+    }
+}
+
+/// An item getter sees its prototype overlaid by additions and removals in its patch.
+fn item_components(stack: &ItemStack) -> LootComponentMap {
+    if stack.is_empty() {
+        return Vec::new();
+    }
+    let mut components: LootComponentMap = stack
+        .item
+        .components
+        .iter()
+        .filter(|(kind, _)| !stack.patch.iter().any(|(patched, _)| kind == patched))
+        .map(|(kind, value)| (*kind, value.clone_dyn()))
+        .collect();
+    components.extend(
+        stack
+            .patch
+            .iter()
+            .filter_map(|(kind, value)| value.as_ref().map(|value| (*kind, value.clone()))),
+    );
+    components
 }
 
 /// Matches an entity type against a loot predicate value, which is either a registry
@@ -507,6 +572,38 @@ fn apply_functions(
                         });
                     contents.potion_id = Some(i32::from(potion.id));
                     output.stack.set_data_component(contents);
+                }
+            }
+            LootFunctionKind::CopyComponents {
+                source,
+                include,
+                exclude,
+            } => {
+                use pumpkin_data::data_component::DataComponent;
+                let tool_components;
+                let components = if source == "tool" {
+                    tool_components = params.tool.as_ref().map(item_components);
+                    tool_components.as_ref()
+                } else {
+                    params.component_sources.get(source)
+                };
+                if let Some(components) = components {
+                    for (kind, value) in components {
+                        let contains = |names: &[&str]| {
+                            names
+                                .iter()
+                                .any(|name| DataComponent::try_from_name(name) == Some(*kind))
+                        };
+                        if include.is_none_or(contains) && !contains(exclude) {
+                            if let Some((_, target)) =
+                                output.stack.patch.iter_mut().find(|(key, _)| key == kind)
+                            {
+                                *target = Some(value.clone());
+                            } else {
+                                output.stack.patch.push((*kind, Some(value.clone())));
+                            }
+                        }
+                    }
                 }
             }
             LootFunctionKind::CopyState { properties } => {
@@ -1587,5 +1684,105 @@ mod component_tests {
             pumpkin_data::loot_table::block_property_identity("beehive", "honey_level"),
             pumpkin_data::loot_table::block_property_identity("bee_nest", "honey_level")
         );
+    }
+}
+
+#[cfg(test)]
+mod copy_components_tests {
+    use super::*;
+    use pumpkin_data::data_component::DataComponent;
+    use pumpkin_data::data_component_impl::{
+        ContainerImpl, CustomNameImpl, DamageImpl, MaxStackSizeImpl,
+    };
+    use pumpkin_util::text::TextComponent;
+    use serde_json::{Value, json};
+    mod compiled {
+        include!("loot_copy_components_test_tables.rs");
+    }
+
+    fn compare<R: pumpkin_util::random::RandomImpl>(case: &Value, mut rng: R) {
+        let n = case["n"].as_u64().unwrap();
+        let mut target = ItemStack::new(1, &Item::STONE);
+        target.set_data_component(CustomNameImpl {
+            name: TextComponent::text("retained"),
+        });
+        target.set_data_component(DamageImpl { damage: 5 });
+        let mut tool = ItemStack::new(if n % 7 == 0 { 0 } else { 1 }, &Item::STONE);
+        if n % 2 == 0 {
+            tool.set_data_component(CustomNameImpl {
+                name: TextComponent::text("source"),
+            });
+        }
+        if n % 4 == 0 {
+            tool.set_data_component(DamageImpl { damage: n as i32 });
+        }
+        if n % 5 == 0 {
+            tool.remove_data_component(DataComponent::MaxStackSize);
+        }
+        let mut params = LootContextParameters {
+            tool: (n % 8 != 0).then_some(tool),
+            ..Default::default()
+        };
+        if n % 3 != 0 {
+            use crate::block::entities::{BlockEntity, chest::ChestBlockEntity};
+            let mut source = ItemStack::new(1, &Item::STONE);
+            source.set_data_component(CustomNameImpl {
+                name: TextComponent::text("chest"),
+            });
+            source.set_data_component(DamageImpl { damage: 37 });
+            source.set_data_component(ContainerImpl {
+                items: vec![(2, ItemStack::new(3, &Item::DIAMOND))],
+            });
+            let pos = pumpkin_util::math::position::BlockPos::new(0, 0, 0);
+            let chest = ChestBlockEntity::new(pos);
+            chest.apply_components_from_item_stack(&source);
+            let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
+            chest.write_nbt(&mut nbt);
+            let reloaded = ChestBlockEntity::from_nbt(&nbt, pos);
+            params = params.with_block_entity(Some(&reloaded));
+        }
+        params
+            .dynamic_drops
+            .insert("minecraft:input".into(), vec![target]);
+        let mut results = Vec::new();
+        run_table(
+            &compiled::TABLES[case["table"].as_u64().unwrap() as usize],
+            &params,
+            LootFacts::from_params(&params),
+            &mut rng,
+            &mut Vec::new(),
+            &mut |output, _| {
+                let stack = output.stack;
+                let container = stack.get_data_component::<ContainerImpl>().map(|value| value.items.iter()
+                    .filter(|(_, item)| !item.is_empty()).map(|(_, item)| json!({"item": format!("minecraft:{}", item.item.registry_key), "count": item.item_count})).collect::<Vec<_>>());
+                results.push(json!({"count": output.count, "name": stack.get_custom_name().map(|name| name.clone().get_text()),
+                    "damage": stack.get_data_component::<DamageImpl>().map(|v| v.damage),
+                    "max": stack.get_data_component::<MaxStackSizeImpl>().map(|v| v.size), "container": container}));
+            },
+        );
+        let expected: Vec<_> = case["output"].as_array().unwrap().iter().map(|value| json!({
+            "count": value["count"], "name": value["name"], "damage": value["damage"], "max": value["max"], "container": value["container"]
+        })).collect();
+        assert_eq!(results, expected, "{case}");
+        assert_eq!(
+            rng.next_i64(),
+            case["next"].as_i64().unwrap(),
+            "following RNG: {case}"
+        );
+    }
+
+    #[test]
+    fn copy_components_matches_java_with_filters_sources_empty_stacks_and_ordering() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("loot_copy_components_cases.json")).unwrap();
+        assert_eq!(cases.len(), 288);
+        for case in &cases {
+            let seed = case["seed"].as_i64().unwrap() as u64;
+            if case["kind"] == 0 {
+                compare(case, LegacyRand::from_seed(seed));
+            } else {
+                compare(case, Xoroshiro::from_seed(seed));
+            }
+        }
     }
 }

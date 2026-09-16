@@ -467,6 +467,7 @@ impl CommandExecutor for LootExecutor {
                     )),
                     ..Default::default()
                 };
+                let params = params.with_block_entity(world.get_block_entity(&pos).as_deref());
                 drops = crate::world::loot::generate_loot_in_world(
                     &context.world(),
                     loot_table,

@@ -482,3 +482,9 @@ Shared loot components checkpoint: 86 additional damage/potion/copy-state functi
 declarations now execute, with Java property identity metadata and 704 comparison
 cases. Remaining D02 function declarations: 206, plus context/predicate/reload work.
 Other engine/block gates remain open; full mob passes remain paused.
+
+Shared block-component checkpoint: 71 copy-components declarations now execute;
+135 other function declarations remain. Added common retained-component storage for
+nine block-entity types and production-generated comparisons against 288 Java cases.
+The broader engine/block completion gate remains open. See ENGINE_GAPS.md for the
+remaining storage, context, predicate, codec and live-integration work.

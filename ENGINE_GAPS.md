@@ -1012,3 +1012,37 @@ whole inside-effect pipeline matches Java yet.
   contexts, predicates and reloads, plus the other D01–D06/block gates. The existing
   block-entity copy-components fallback is still broader than a complete loot-function
   implementation and remains part of D02. Full mob passes remain paused.
+
+## Block-entity component sources and copy-components loot
+
+- All **71** built-in `copy_components` declarations now execute in the ordered
+  loot pipeline. Include absent versus empty, exclusion precedence, missing sources,
+  present values versus removals, and the tool's effective prototype/patch view are
+  preserved. **135** other function declarations remain unsupported.
+- Ordinary breaking and `/loot mine` collect the same block-entity component source
+  before borrowing the random stream; the post-loot same-block copying fallback is
+  removed. Decorated-pot dynamic sherds also use that shared context helper.
+- Shared retained-component storage now supports banners, skulls, chests, trapped
+  chests, barrels, shulker boxes, hives, decorated pots and enchanting tables. It
+  persists added patch entries not consumed by the entity; prototype defaults,
+  removals, block-state and block-entity-data components are not retained. Collection
+  merges stored values with current entity fields before applying the loot whitelist.
+- Banners now restore/drop patterns and styled custom names; skulls restore/drop
+  profile, note-block sound and styled names. Supported container sources expose
+  contents, including an explicit empty container, independently of which values
+  their built-in loot tables request. Pot pending loot remains separate from its
+  retained container-loot component, matching its Java implicit-component methods.
+- `LootCopyComponentsOracle` runs the actual Java 26.2 codec/evaluator on nine tables
+  and exports **288 cases**, including both random sources and following random
+  values. Rust uses production-generated versions of those tables. The block source
+  comparison passes through chest placement, NBT save/reload and component collection.
+  Additional tests cover nine entity storage round trips, styled names, banner/skull
+  values, base exclusions, pot pending loot and real chest/banner loot whitelists.
+- Final background run 6 passed **530 engine, 241 world and 66 utility tests**,
+  with the same two previously separately passing localhost tests excluded. No live
+  client or full mob pass.
+- Remaining D02/D05: component storage/implicit fields for the other block-entity
+  families, full container locks and text/component codecs, other entity component
+  sources, 135 function declarations, full predicates, reloads and live integration.
+  Other D01–D06/block gates remain open; this is a bounded checkpoint, not a claim
+  that only mobs remain.

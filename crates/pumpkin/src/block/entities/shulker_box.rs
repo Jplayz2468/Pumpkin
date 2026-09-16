@@ -23,6 +23,7 @@ use pumpkin_inventory::{Clearable, Inventory, sync_write_items_to_nbt};
 
 pub struct ShulkerBoxBlockEntity {
     pub position: BlockPos,
+    components: super::components::BlockEntityComponents,
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
@@ -49,6 +50,14 @@ struct LidAnimation {
 }
 
 impl BlockEntity for ShulkerBoxBlockEntity {
+    fn component_storage(&self) -> Option<&super::components::BlockEntityComponents> {
+        Some(&self.components)
+    }
+    fn implicit_component_types(&self) -> &'static [pumpkin_data::data_component::DataComponent] {
+        use pumpkin_data::data_component::DataComponent::*;
+        &[CustomName, Container, ContainerLoot]
+    }
+
     fn resource_location(&self) -> &'static str {
         Self::ID
     }
@@ -80,6 +89,7 @@ impl BlockEntity for ShulkerBoxBlockEntity {
             .get_mut()
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             nbt.get("CustomName").map(TextComponent::from_nbt);
+        entity.components.read_nbt(nbt);
         entity
     }
 
@@ -95,6 +105,7 @@ impl BlockEntity for ShulkerBoxBlockEntity {
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.components.write_nbt(nbt);
         if let Some(name) = self
             .custom_name
             .lock()
@@ -178,10 +189,9 @@ impl BlockEntity for ShulkerBoxBlockEntity {
 
     /// Vanilla's `blocks/shulker_box` loot table copies `minecraft:container`
     /// off the block entity, which is what carries the contents through the
-    /// break -> item -> place cycle. An all-empty box adds no patch: the item
-    /// already declares an empty container by default, so the drop reads empty
-    /// just as it does on the reference server.
-    fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
+    /// break -> item -> place cycle, including an explicit empty container.
+    fn collect_implicit_components(&self, stack: &mut ItemStack) {
+        stack.remove_data_component(pumpkin_data::data_component::DataComponent::CustomName);
         if let Some(name) = self
             .custom_name
             .lock()
@@ -209,9 +219,6 @@ impl BlockEntity for ShulkerBoxBlockEntity {
             .filter(|(_, slot)| !slot.is_empty())
             .map(|(slot, stack)| (slot as u8, stack.clone()))
             .collect();
-        if contents.is_empty() {
-            return;
-        }
         stack.set_data_component(ContainerImpl { items: contents });
     }
 
@@ -220,7 +227,7 @@ impl BlockEntity for ShulkerBoxBlockEntity {
     /// empty container by default, so an empty box clears the target exactly as
     /// Java's `getOrDefault(CONTAINER, ItemContainerContents.EMPTY).copyInto`
     /// does.
-    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+    fn apply_implicit_components(&self, stack: &ItemStack) {
         if let Some(loot) = stack.get_data_component::<ContainerLootImpl>() {
             *self
                 .loot
@@ -272,6 +279,7 @@ impl ShulkerBoxBlockEntity {
     pub fn new(position: BlockPos) -> Self {
         Self {
             position,
+            components: super::components::BlockEntityComponents::new(),
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
@@ -646,7 +654,7 @@ mod tests {
         entity.set_stack(26, ItemStack::new(13, &Item::OAK_LOG));
 
         let mut dropped = ItemStack::new(1, &Item::RED_SHULKER_BOX);
-        entity.write_dropped_stack_components(&mut dropped);
+        entity.collect_components(&mut dropped);
 
         let container = dropped
             .get_data_component::<ContainerImpl>()
@@ -665,11 +673,9 @@ mod tests {
 
     #[test]
     fn shulker_drop_of_an_empty_box_carries_no_stored_items() {
-        // The shulker box item already declares an empty minecraft:container by
-        // default, so an empty box adds no patch and the drop reads as empty -
-        // which is what the reference server writes for an empty box.
+        // Empty contents are a present component, including when copied onto another item.
         let mut dropped = ItemStack::new(1, &Item::RED_SHULKER_BOX);
-        box_at().write_dropped_stack_components(&mut dropped);
+        box_at().collect_components(&mut dropped);
         assert!(
             dropped
                 .get_data_component::<ContainerImpl>()
@@ -681,7 +687,7 @@ mod tests {
         let filled = box_at();
         filled.set_stack(5, ItemStack::new(1, &Item::DIAMOND));
         let mut second = ItemStack::new(1, &Item::RED_SHULKER_BOX);
-        filled.write_dropped_stack_components(&mut second);
+        filled.collect_components(&mut second);
         assert_eq!(
             second
                 .get_data_component::<ContainerImpl>()
@@ -696,7 +702,7 @@ mod tests {
         source.set_stack(0, ItemStack::new(7, &Item::DIAMOND));
         source.set_stack(26, ItemStack::new(13, &Item::OAK_LOG));
         let mut dropped = ItemStack::new(1, &Item::RED_SHULKER_BOX);
-        source.write_dropped_stack_components(&mut dropped);
+        source.collect_components(&mut dropped);
 
         let placed = box_at();
         // A slot the carried stack does not mention must not survive.

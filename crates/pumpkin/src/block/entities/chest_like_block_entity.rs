@@ -2,6 +2,17 @@
 macro_rules! impl_block_entity_for_chest {
     ($struct_name:ty) => {
         impl $crate::block::entities::BlockEntity for $struct_name {
+            fn component_storage(
+                &self,
+            ) -> Option<&$crate::block::entities::components::BlockEntityComponents> {
+                Some(&self.components)
+            }
+            fn implicit_component_types(
+                &self,
+            ) -> &'static [pumpkin_data::data_component::DataComponent] {
+                use pumpkin_data::data_component::DataComponent::*;
+                &[CustomName, Container, ContainerLoot]
+            }
             fn resource_location(&self) -> &'static str {
                 Self::ID
             }
@@ -12,6 +23,7 @@ macro_rules! impl_block_entity_for_chest {
 
             fn from_nbt(nbt: &NbtCompound, position: BlockPos) -> Self {
                 let mut entity = Self::new(position);
+                entity.components.read_nbt(nbt);
                 let loot = nbt
                     .get_string("LootTable")
                     .map(|key| (key.to_owned(), nbt.get_long("LootTableSeed").unwrap_or(0)));
@@ -37,6 +49,7 @@ macro_rules! impl_block_entity_for_chest {
             }
 
             fn write_nbt(&self, nbt: &mut NbtCompound) {
+                self.components.write_nbt(nbt);
                 if let Some(name) = self
                     .custom_name
                     .lock()
@@ -122,7 +135,7 @@ macro_rules! impl_block_entity_for_chest {
                 self
             }
 
-            fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+            fn apply_implicit_components(&self, stack: &ItemStack) {
                 if let Some(loot) = stack.get_data_component::<ContainerLootImpl>() {
                     *self
                         .loot
@@ -155,8 +168,9 @@ macro_rules! impl_block_entity_for_chest {
                 self.mark_dirty();
             }
 
-            fn write_dropped_stack_components(&self, stack: &mut ItemStack) {
-                // Built-in chest/barrel loot copies only custom_name; contents scatter separately.
+            fn collect_implicit_components(&self, stack: &mut ItemStack) {
+                stack
+                    .remove_data_component(pumpkin_data::data_component::DataComponent::CustomName);
                 if let Some(name) = self
                     .custom_name
                     .lock()
@@ -165,6 +179,28 @@ macro_rules! impl_block_entity_for_chest {
                 {
                     stack.set_data_component(CustomNameImpl { name });
                 }
+                if let Some((loot_table, seed)) = self
+                    .loot
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .clone()
+                {
+                    stack.set_data_component(
+                        pumpkin_data::data_component_impl::ContainerLootImpl { loot_table, seed },
+                    );
+                }
+                let items = self
+                    .items
+                    .read()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                stack.set_data_component(pumpkin_data::data_component_impl::ContainerImpl {
+                    items: items
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, item)| !item.is_empty())
+                        .map(|(slot, item)| (slot as u8, item.clone()))
+                        .collect(),
+                });
             }
 
             fn take_loot_table(&self) -> Option<(String, i64)> {
@@ -350,6 +386,7 @@ macro_rules! impl_chest_helper_methods {
             pub fn new(position: BlockPos) -> Self {
                 Self {
                     position,
+                    components: $crate::block::entities::components::BlockEntityComponents::new(),
                     items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
                     dirty: AtomicBool::new(false),
                     comparator_dirty: AtomicBool::new(false),
@@ -408,10 +445,9 @@ macro_rules! impl_chest_helper_methods {
                             position: Some(self.position.to_centered_f64()),
                             this_entity: player.map(|_| &pumpkin_data::entity::EntityType::PLAYER),
                             luck: player.map_or(0.0, |player| {
-                                player
-                                    .living_entity
-                                    .get_attribute_value(&pumpkin_data::attributes::Attributes::LUCK)
-                                    as f32
+                                player.living_entity.get_attribute_value(
+                                    &pumpkin_data::attributes::Attributes::LUCK,
+                                ) as f32
                             }),
                             ..Default::default()
                         },

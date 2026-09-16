@@ -593,55 +593,11 @@ fn drop_loot_inner(
     if explosion {
         spawn_after_break(world, block, pos, experience, params);
     }
-    let has_silk_touch = params.tool.as_ref().is_some_and(|tool| {
-        pumpkin_data::Enchantment::from_name("silk_touch")
-            .is_some_and(|e| tool.get_enchantment_level(e) > 0)
-    });
-    let is_hive = matches!(block.id, BlockId::BEEHIVE | BlockId::BEE_NEST);
     let key = format!("minecraft:blocks/{}", block.name);
     if let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(&key) {
-        let mut dynamic_context;
-        let params = if block == &Block::DECORATED_POT {
-            dynamic_context = params.clone();
-            let sherds = world
-                .get_block_entity(pos)
-                .and_then(|entity| {
-                    entity
-                        .as_any()
-                        .downcast_ref::<entities::decorated_pot::DecoratedPotBlockEntity>()
-                        .map(|pot| {
-                            pot.decorations()
-                                .sherds
-                                .into_iter()
-                                .filter_map(pumpkin_data::item::Item::from_id)
-                                .map(|item| ItemStack::new(1, item))
-                                .collect()
-                        })
-                })
-                .unwrap_or_default();
-            dynamic_context
-                .dynamic_drops
-                .insert("minecraft:sherds".to_owned(), sherds);
-            &dynamic_context
-        } else {
-            params
-        };
-        let mut items =
-            crate::world::loot::generate_loot_in_world(world, loot_table, 0, params);
-        // Java applies the `copy_components` loot function with the
-        // `block_entity` source here, while the block entity is still present.
-        // Only the stack for this block itself receives them.
-        if let Some(block_entity) = world.get_block_entity(pos) {
-            for stack in &mut items {
-                if Block::from_item_id(stack.item.id) == Some(block)
-                    && (!is_hive || has_silk_touch)
-                    && !(block == &Block::DECORATED_POT && params.block_state.is_some_and(|state|
-                        pumpkin_data::block_properties::DecoratedPotLikeProperties::from_state_id(state.id).cracked))
-                {
-                    block_entity.write_dropped_stack_components(stack);
-                }
-            }
-        }
+        let entity = world.get_block_entity(pos);
+        let params = params.clone().with_block_entity(entity.as_deref());
+        let items = crate::world::loot::generate_loot_in_world(world, loot_table, 0, &params);
         if !items.is_empty() {
             let mut event = crate::plugin::block::block_drop_item::BlockDropItemEvent {
                 block_pos: *pos,

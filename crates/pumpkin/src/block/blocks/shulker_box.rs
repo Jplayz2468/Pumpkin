@@ -104,7 +104,7 @@ impl BlockBehaviour for ShulkerBoxBlock {
         if args.player.gamemode.load() == pumpkin_util::GameMode::Creative && !shulker.is_empty() {
             if let Some(item) = pumpkin_data::item::Item::from_registry_key(args.block.name) {
                 let mut stack = pumpkin_data::item_stack::ItemStack::new(1, item);
-                shulker.write_dropped_stack_components(&mut stack);
+                shulker.collect_components(&mut stack);
                 args.world
                     .drop_stack_at(args.position.to_centered_f64(), stack);
             }
