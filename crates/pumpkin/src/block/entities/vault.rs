@@ -2,7 +2,7 @@ use super::BlockEntity;
 use crate::entity::{Entity, EntityBase, item::ItemEntity, player::Player};
 use crate::world::{
     World,
-    loot::{LootContextParameters, generate_loot_with_context},
+    loot::{LootContextParameters, generate_loot_in_world},
 };
 use pumpkin_data::{
     Block,
@@ -106,7 +106,7 @@ impl VaultBlockEntity {
             tool: tool.cloned(),
             ..Default::default()
         };
-        generate_loot_with_context(table, world.rand_i64(), &params)
+        generate_loot_in_world(world, table, 0, &params)
     }
 
     fn display(&self, stack: &ItemStack) {

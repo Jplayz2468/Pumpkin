@@ -25,6 +25,24 @@ pub struct Xoroshiro {
 impl Xoroshiro {
     population_seed_fn!();
 
+    /// Java RandomSequence: xor the MD5 identifier hash before Stafford mixing.
+    pub fn from_sequence_seed(seed: u64, key: Option<&str>) -> Self {
+        let (mut lo, mut hi) = Self::mix_u64(seed);
+        if let Some(key) = key {
+            let hash = md5::compute(key.as_bytes());
+            lo ^= u64::from_be_bytes(hash[0..8].try_into().expect("MD5 half"));
+            hi ^= u64::from_be_bytes(hash[8..16].try_into().expect("MD5 half"));
+        }
+        Self::new(mix_stafford_13(lo), mix_stafford_13(hi))
+    }
+
+    pub const fn from_state(lo: u64, hi: u64) -> Self {
+        Self::new(lo, hi)
+    }
+    pub const fn state(&self) -> [i64; 2] {
+        [self.lo as i64, self.hi as i64]
+    }
+
     /// Creates a new Xoroshiro generator from the given seed.
     ///
     /// The seed is mixed using the Stafford 13 mixing function to ensure
@@ -179,7 +197,7 @@ impl RandomImpl for Xoroshiro {
         let mut m = l.wrapping_mul(bound as u64);
         let mut n = m & 0xFFFF_FFFF;
         if n < bound as u64 {
-            let i = ((!bound).wrapping_add(1) as u64) % (bound as u64);
+            let i = u64::from((bound as u32).wrapping_neg() % bound as u32);
             while n < i {
                 l = (self.next_i32() as u64) & 0xFFFF_FFFF;
                 m = l.wrapping_mul(bound as u64);

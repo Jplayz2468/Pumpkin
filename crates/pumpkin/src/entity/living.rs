@@ -2696,9 +2696,9 @@ impl LivingEntity {
         let resource_name = self.get_entity().entity_type.resource_name;
         let key = format!("minecraft:entities/{resource_name}");
         if let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(&key) {
-            let seed: i64 = rand::random();
+            let world = self.entity.world.load();
             let pos = self.entity.block_pos.load();
-            for stack in crate::world::loot::generate_loot_with_context(loot_table, seed, params) {
+            for stack in crate::world::loot::generate_loot_in_world(&world, loot_table, 0, params) {
                 self.entity.world.load().drop_stack(&pos, stack);
             }
         }

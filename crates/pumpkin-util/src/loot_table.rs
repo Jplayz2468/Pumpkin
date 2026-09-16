@@ -82,7 +82,8 @@ pub enum LootBonusFormula {
 /// A single item entry inside a loot pool.
 #[derive(Clone, Copy, Debug)]
 pub struct LootEntry {
-    /// Registry name of the item (e.g. `"minecraft:diamond"`).
+    /// Registry name of the item (e.g. `"minecraft:diamond"`), or empty for a
+    /// `minecraft:empty` outcome. Empty outcomes retain their condition and order.
     pub item: &'static str,
     /// Relative probability weight; higher values are more likely.
     pub weight: i32,
@@ -105,9 +106,6 @@ pub struct LootPool {
     pub min_rolls: i32,
     /// Maximum number of roll attempts (inclusive).
     pub max_rolls: i32,
-    /// Weight of the implicit "empty" (no item) outcome per roll.
-    /// In vanilla this is modelled as a `minecraft:empty` entry with the given weight.
-    pub empty_weight: i32,
     /// Condition required for this entire pool to run.
     pub condition: LootCondition,
 }
@@ -115,6 +113,7 @@ pub struct LootPool {
 /// A complete loot table consisting of one or more pools.
 #[derive(Clone, Copy, Debug)]
 pub struct LootTable {
+    pub random_sequence: Option<&'static str>,
     /// All pools to roll when generating loot for this table.
     pub pools: &'static [LootPool],
 }

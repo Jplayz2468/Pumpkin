@@ -168,13 +168,6 @@ fn harvest_loot(
     args: &crate::block::NormalUseArgs<'_>,
     table: &pumpkin_util::loot_table::LootTable,
 ) -> bool {
-    use pumpkin_util::random::RandomImpl;
-    let seed = args
-        .world
-        .random
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .next_i64();
     let params = crate::world::loot::LootContextParameters {
         block_state: Some(args.world.get_block_state(args.position)),
         world_time: args.world.level_info.load().day_time as u64,
@@ -182,7 +175,7 @@ fn harvest_loot(
         is_thundering: Some(args.world.is_thundering()),
         ..Default::default()
     };
-    let drops = crate::world::loot::generate_loot_with_context(table, seed, &params);
+    let drops = crate::world::loot::generate_loot_in_world(args.world, table, 0, &params);
     let mut event =
         crate::plugin::api::events::player::player_harvest_block::PlayerHarvestBlockEvent {
             player: args.player.clone(),

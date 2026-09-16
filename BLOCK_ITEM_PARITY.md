@@ -1496,3 +1496,12 @@ its frozen relative tick delays. Read errors are distinct from missing terrain a
 complete every request in the failed region batch. Scheduler exits also fail pending
 save requests. ENGINE_GAPS.md records the integration checks and remaining recovery
 and engine gates; full mob passes remain paused.
+
+
+### Shared loot random streams
+
+Block drops and deferred container fills now select Java's explicit-seed, named
+sequence or level RNG and keep it through filling. Named streams survive saves and
+restarts; generated empty outcomes keep their conditions and order. ENGINE_GAPS.md
+records the Java comparisons and the remaining loot/context/reload gates. This
+closes the bounded random-stream work, not the full block or loot parity gate.

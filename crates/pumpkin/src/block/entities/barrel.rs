@@ -280,8 +280,8 @@ impl BarrelBlockEntity {
             return;
         };
         if let Some(table) = pumpkin_data::loot_table::get_loot_table(&key) {
-            let seed = if seed == 0 { world.rand_i64() } else { seed };
-            crate::world::loot::fill_inventory_with_context(
+            crate::world::loot::fill_inventory_in_world(
+                &world,
                 self,
                 table,
                 seed,

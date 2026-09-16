@@ -305,7 +305,8 @@ impl Server {
             command_storage: std::sync::Mutex::new(std::collections::HashMap::new()),
             stopwatches: std::sync::Mutex::new(crate::world::stopwatches::Stopwatches::new()),
             random_sequences: std::sync::Mutex::new(
-                crate::world::random_sequences::RandomSequences::new(),
+                crate::world::random_sequences::RandomSequences::load(&world_path)
+                    .unwrap_or_else(|error| panic!("Failed to load random_sequences.dat: {error}")),
             ),
             advancement_manager,
             white_list,
@@ -536,8 +537,21 @@ impl Server {
             world.sync_time_to_level_info();
         }
         let level_data = self.level_info.load();
-        self.world_info_writer
-            .write_world_info(&level_data, &self.basic_config.get_world_path())
+        let path = self.basic_config.get_world_path();
+        let info_result = self.world_info_writer.write_world_info(&level_data, &path);
+        let sequence_result = self
+            .random_sequences
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .save(&path);
+        match (info_result, sequence_result) {
+            (Ok(()), Ok(())) => Ok(()),
+            (Err(error), Ok(())) => Err(error),
+            (Ok(()), Err(error)) => Err(WorldInfoError::SaveError(error)),
+            (Err(info), Err(sequence)) => {
+                Err(WorldInfoError::SaveError(format!("{info}; {sequence}")))
+            }
+        }
     }
 
     pub fn reload_datapacks(&self, server: &Arc<Self>) {
@@ -764,14 +778,8 @@ impl Server {
         for world in self.worlds.load().iter() {
             world.shutdown().await;
         }
-        let level_data = self.level_info.load();
-        // then lets save the world info
-
-        if let Err(err) = self
-            .world_info_writer
-            .write_world_info(&level_data, &self.basic_config.get_world_path())
-        {
-            error!("Failed to save level.dat: {err}");
+        if let Err(err) = self.save_world_info() {
+            error!("Failed to save world metadata: {err}");
         }
         info!("Completed worlds");
     }

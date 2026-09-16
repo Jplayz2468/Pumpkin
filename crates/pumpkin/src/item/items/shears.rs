@@ -121,12 +121,6 @@ fn handle_beehive(
     }
 
     let world = player.world();
-    use pumpkin_util::random::RandomImpl;
-    let seed = world
-        .random
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .next_i64();
     let params = crate::world::loot::LootContextParameters {
         block_state: Some(state_id.to_state()),
         tool: Some(item.clone()),
@@ -137,9 +131,10 @@ fn handle_beehive(
         is_thundering: Some(world.is_thundering()),
         ..Default::default()
     };
-    let mut drops = crate::world::loot::generate_loot_with_context(
+    let mut drops = crate::world::loot::generate_loot_in_world(
+        &world,
         &pumpkin_data::loot_table::HARVEST_BEEHIVE,
-        seed,
+        0,
         &params,
     );
     if let Some(player_arc) = player.world().get_player_by_uuid(player.gameprofile.id)

@@ -600,7 +600,6 @@ fn drop_loot_inner(
     let is_hive = matches!(block.id, BlockId::BEEHIVE | BlockId::BEE_NEST);
     let key = format!("minecraft:blocks/{}", block.name);
     if let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(&key) {
-        let seed: i64 = rand::random();
         let mut items = if block == &Block::DECORATED_POT {
             // This table's alternatives contain a dynamic sherd supplier, which
             // the flat loot representation cannot express. Preserve its exact
@@ -630,7 +629,7 @@ fn drop_loot_inner(
                 vec![ItemStack::new(1, &pumpkin_data::item::Item::DECORATED_POT)]
             }
         } else {
-            crate::world::loot::generate_loot_with_context(loot_table, seed, params)
+            crate::world::loot::generate_loot_in_world(world, loot_table, 0, params)
         };
         // Java applies the `copy_components` loot function with the
         // `block_entity` source here, while the block entity is still present.

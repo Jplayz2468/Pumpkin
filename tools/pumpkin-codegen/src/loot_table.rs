@@ -479,6 +479,8 @@ fn default_rolls() -> RollsStruct {
 #[derive(Deserialize, Clone, Debug)]
 struct ChestLootTableJson {
     #[serde(default)]
+    random_sequence: Option<String>,
+    #[serde(default)]
     pools: Vec<PoolStruct>,
 }
 
@@ -503,31 +505,41 @@ fn extract_entries(
     entry: &PoolEntryStruct,
     inherited_condition: LootCondition,
     out: &mut Vec<ParsedEntry>,
-    empty_weight: &mut i32,
 ) {
-    extract_entries_with_depth(entry, inherited_condition, out, empty_weight, 0);
+    extract_entries_with_depth(entry, inherited_condition, out, 0);
 }
 
 fn extract_entries_with_depth(
     entry: &PoolEntryStruct,
     inherited_condition: LootCondition,
     out: &mut Vec<ParsedEntry>,
-    empty_weight: &mut i32,
     depth: usize,
 ) {
     if depth > 5 {
         return;
     }
 
-    let entry_cond = match (inherited_condition, combine_entry_conditions(&entry.conditions)) {
+    let entry_cond = match (
+        inherited_condition,
+        combine_entry_conditions(&entry.conditions),
+    ) {
         (LootCondition::None, cond) | (cond, LootCondition::None) => cond,
         (first, second) if first == second => first,
-        (first, second) => LootCondition::AllOf(Box::leak(vec![first, second].into_boxed_slice())),
+        (first, second) => {
+            LootCondition::AllOf(Box::leak(vec![first, second].into_boxed_slice()))
+        }
     };
 
     match entry.entry_type.as_str() {
         "minecraft:empty" => {
-            *empty_weight += entry.weight;
+            out.push(ParsedEntry {
+                item: String::new(),
+                weight: entry.weight,
+                min_count: 0,
+                max_count: 0,
+                condition: entry_cond,
+                bonus_formula: None,
+            });
         }
         "minecraft:item" => {
             if let Some(name) = &entry.name {
@@ -591,8 +603,9 @@ fn extract_entries_with_depth(
             });
             if let Some(tag_name) = tag_name_opt {
                 let tag_rel = tag_name.strip_prefix("minecraft:").unwrap_or(tag_name);
-                let tag_path = Path::new("../../assets/datapacks/26_2/data/minecraft/tags/item")
-                    .join(format!("{tag_rel}.json"));
+                let tag_path =
+                    Path::new("../../assets/datapacks/26_2/data/minecraft/tags/item")
+                        .join(format!("{tag_rel}.json"));
                 if let Ok(content) = fs::read_to_string(&tag_path) {
                     #[derive(Deserialize)]
                     struct TagJson {
@@ -616,10 +629,13 @@ fn extract_entries_with_depth(
         "minecraft:loot_table" => match &entry.value {
             Some(LootTableValue::Reference(table_name)) => {
                 let table_rel = table_name.strip_prefix("minecraft:").unwrap_or(table_name);
-                let table_path = Path::new("../../assets/datapacks/26_2/data/minecraft/loot_table")
-                    .join(format!("{table_rel}.json"));
+                let table_path =
+                    Path::new("../../assets/datapacks/26_2/data/minecraft/loot_table")
+                        .join(format!("{table_rel}.json"));
                 if let Ok(content) = fs::read_to_string(&table_path) {
-                    if let Ok(nested_table) = serde_json::from_str::<ChestLootTableJson>(&content) {
+                    if let Ok(nested_table) =
+                        serde_json::from_str::<ChestLootTableJson>(&content)
+                    {
                         for pool in &nested_table.pools {
                             let mut pool_cond = entry_cond;
                             for c in &pool.conditions {
@@ -633,7 +649,6 @@ fn extract_entries_with_depth(
                                     child_entry,
                                     pool_cond,
                                     out,
-                                    empty_weight,
                                     depth + 1,
                                 );
                             }
@@ -651,13 +666,7 @@ fn extract_entries_with_depth(
                         }
                     }
                     for child_entry in &pool.entries {
-                        extract_entries_with_depth(
-                            child_entry,
-                            pool_cond,
-                            out,
-                            empty_weight,
-                            depth + 1,
-                        );
+                        extract_entries_with_depth(child_entry, pool_cond, out, depth + 1);
                     }
                 }
             }
@@ -684,7 +693,6 @@ fn extract_entries_with_depth(
                                         child_entry,
                                         pool_cond,
                                         out,
-                                        empty_weight,
                                         depth + 1,
                                     );
                                 }
@@ -721,12 +729,12 @@ fn extract_entries_with_depth(
                     entry_cond
                 };
 
-                extract_entries_with_depth(child, effective_cond, out, empty_weight, depth + 1);
+                extract_entries_with_depth(child, effective_cond, out, depth + 1);
             }
         }
         "minecraft:sequence" | "minecraft:group" => {
             for child in &entry.children {
-                extract_entries_with_depth(child, entry_cond, out, empty_weight, depth + 1);
+                extract_entries_with_depth(child, entry_cond, out, depth + 1);
             }
         }
         _ => {}
@@ -842,15 +850,9 @@ fn emit_table(
         let pool_cond = combine_conditions(&pool.conditions);
 
         let mut parsed_entries = Vec::new();
-        let mut empty_weight: i32 = 0;
 
         for entry in &pool.entries {
-            extract_entries(
-                entry,
-                LootCondition::None,
-                &mut parsed_entries,
-                &mut empty_weight,
-            );
+            extract_entries(entry, LootCondition::None, &mut parsed_entries);
         }
 
         let entry_literals: Vec<TokenStream> = parsed_entries
@@ -889,7 +891,6 @@ fn emit_table(
                 entries: #entries_ident,
                 min_rolls: #min_rolls,
                 max_rolls: #max_rolls,
-                empty_weight: #empty_weight,
                 condition: #pool_cond_tokens,
             }
         });
@@ -961,10 +962,14 @@ pub fn build() -> TokenStream {
         let pool_tokens = emit_table(&prefix, table, &mut all_tokens);
 
         let pools_ident = format_ident!("{}_POOLS", prefix);
+        let sequence = match &table.random_sequence {
+            Some(key) => quote! { Some(#key) },
+            None => quote! { None },
+        };
         all_tokens.extend(quote! {
-            static #pools_ident: &[LootPool] = &[#(#pool_tokens),*];
-            pub static #table_ident: LootTable = LootTable { pools: #pools_ident };
-        });
+    static #pools_ident: &[LootPool] = &[#(#pool_tokens),*];
+    pub static #table_ident: LootTable = LootTable { random_sequence: #sequence, pools: #pools_ident };
+});
 
         table_idents.push(table_ident.clone());
         table_keys.push(LitStr::new(&key, Span::call_site()));

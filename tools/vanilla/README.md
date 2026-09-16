@@ -212,3 +212,21 @@ javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/ChunkTickO
 java -cp '/tmp:../comparison/downloads/classpath/*' ChunkTickOracle > crates/pumpkin-world/src/tick/chunk_tick_cases.json
 java -cp '/tmp:../comparison/downloads/classpath/*' ChunkTicketOracle > crates/pumpkin/src/world/portal/chunk_ticket_cases.json
 ```
+
+
+## Named sequences and loot draw order
+
+`RandomSequenceOracle.java` invokes unmodified Java 26.2 RandomSequences, its CODEC
+and Xoroshiro source for 96 seed/salt/flag combinations. It writes the JSON vectors
+and `random_sequence_java.dat`, a genuine Java gzip saved-data fixture.
+`LootRandomOracle.java` runs actual LootPool/LootTable raw generation, available-slot
+shuffle and splitting for 256 cases with legacy and Xoroshiro sources. Reflection
+constructs a LootContext without a ServerLevel and accesses the private slot/split
+methods. Its fixture items bind only their vanilla MAX_STACK_SIZE=64 component;
+this probe deliberately does not claim server or full component integration.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/RandomSequenceOracle.java tools/vanilla/LootRandomOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' RandomSequenceOracle crates/pumpkin/src/world/random_sequence_cases.json
+java -cp '/tmp:../comparison/downloads/classpath/*' LootRandomOracle crates/pumpkin/src/world/loot_random_cases.json
+```

@@ -42,9 +42,10 @@ impl crate::block::BlockBehaviour for PumpkinBlock {
             position: Some(args.position.to_centered_f64()),
             ..Default::default()
         };
-        for stack in crate::world::loot::generate_loot_with_context(
+        for stack in crate::world::loot::generate_loot_in_world(
+            args.world,
             &pumpkin_data::loot_table::CARVE_PUMPKIN,
-            args.world.rand_i64(),
+            0,
             &params,
         ) {
             let entity = Entity::new(args.world.clone(), position, &EntityType::ITEM);

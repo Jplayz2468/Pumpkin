@@ -41,8 +41,8 @@ BaseCommandBlock.performCommand and CommandBlock.executeChain.
    remaining contextual voxel-grid construction and remaining
    specialized movement/inside-effect lifecycle paths. Step-up and entity/border
    collision gathering are implemented below; gameplay integration remains unproven.
-2. **D02: loot engine.** Full function/predicate/component contexts, reloadable
-   tables and persistent named random streams. Vault now uses the existing loot
+2. **D02: loot engine.** Full function/predicate/component contexts and reloadable
+   tables. Named random streams are implemented in the checkpoint below. Vault now uses the existing loot
    evaluator; unsupported evaluator behavior is not fixed by its new lifecycle.
 3. **D03: world lifecycle.** Exact neighbor/scheduled update ordering at chunk
    boundaries, experimental redstone orientation and block-entity integration.
@@ -897,3 +897,42 @@ whole inside-effect pipeline matches Java yet.
 - Remaining: full dependent-generation recovery under live load, fatal I/O-worker
   recovery, command result/flush semantics, crash durability and atomic multi-file
   state, plus the other shared engine/block gates. Full mob passes remain paused.
+
+
+## Named random sequences and continuous loot streams
+
+- Named sequences now use Java's identifier MD5 hash, XOR before Stafford mixing,
+  signed salt and world-seed flags. Xoroshiro bounded integers use the unsigned
+  **32-bit** rejection threshold. This shared correction also applies outside loot.
+- Server startup reads `data/minecraft/random_sequences.dat`. Normal metadata saves
+  and shutdown write salt/defaults and both state words in Java's gzip NBT shape.
+  Writes replace a temporary file; errors propagate through the metadata save result.
+  Invalid existing sequence data aborts startup instead of being silently replaced.
+  This is canonical saved-data support, not a full NBT codec/coercion or datafix pass.
+- Generated tables retain `random_sequence` and ordered, conditional empty entries.
+  Runtime loot chooses an explicit nonzero seed using Java's legacy generator, then
+  the named server sequence, then the level generator. Block drops, harvests, vaults,
+  trial spawners, brushable blocks, containers, minecart inventories, `/loot`, and
+  shared living/vehicle drops use this path. `/random` without a name uses the level
+  stream. No individual mob pass was performed.
+- Generation and container filling share one source continuously. Entry conditions
+  run per roll, zero-weight entries still evaluate their conditions, a single valid
+  entry skips the weighted draw, and empty outcomes retain their original ordering.
+  Splitting preserves list order and skips Java `Mth.nextInt` degenerate-range draws;
+  empty loot still shuffles available slots. Random-source locks are released before
+  inventory notifications.
+- Java evidence: 96 sequence cases cover seeds, signed salts, all flag combinations,
+  large-bound rejection, saved states, resumes and resets. A real Java-written gzip
+  file loads and continues in Rust. Another 256 cases exercise actual Java LootPool
+  and LootTable raw generation, available-slot shuffle and item splitting with both
+  random sources, conditional/zero-weight/empty entries and occupied/full containers.
+  The loot probe binds the vanilla stack-size component for its few fixture items;
+  it does not start a ServerLevel or test arbitrary item components.
+- Verification: final background engine run 3 passed **518 tests**. The preceding
+  full run also passed **241 world and 66 utility tests**; their source did not change
+  afterward. Both engine runs excluded the same two localhost socket tests that
+  passed separately in earlier checkpoints. No live client session was performed.
+- Remaining D02: full loot functions, predicates and contexts; nested/composite entry
+  execution, luck/quality/bonus rolls, table reloads and component handling. Named
+  sequence selection across a live server session and multi-file crash consistency
+  remain unverified. Other D01–D06/block gates also remain open; mobs stay paused.

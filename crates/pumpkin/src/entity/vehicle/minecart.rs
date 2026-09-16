@@ -113,7 +113,7 @@ impl MinecartEntity {
 impl EntityBase for MinecartEntity {
     fn container_inventory(&self) -> Option<Arc<dyn pumpkin_inventory::Inventory>> {
         self.container().map(|inventory| {
-            inventory.unpack_loot();
+            inventory.unpack_loot(&self.vehicle.entity.world.load());
             inventory.clone() as Arc<dyn pumpkin_inventory::Inventory>
         })
     }
@@ -752,7 +752,7 @@ impl EntityBase for MinecartEntity {
                 if let Some(container) = self.container()
                     && container.claim_drops()
                 {
-                    container.unpack_loot();
+                    container.unpack_loot(&world);
                     let inventory: Arc<dyn Inventory> = container.clone();
                     world.scatter_inventory(&position, &inventory);
                 }

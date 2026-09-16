@@ -15,7 +15,7 @@ use pumpkin_util::math::vector3::Vector3;
 use pumpkin_util::text::TextComponent;
 
 use crate::entity::{Entity, player::Player};
-use crate::world::loot::fill_chest_inventory;
+use crate::world::loot::fill_inventory_in_world;
 use pumpkin_data::loot_table::get_loot_table;
 
 pub(super) struct MinecartInventory {
@@ -89,7 +89,7 @@ impl MinecartInventory {
             .is_some()
     }
 
-    pub(super) fn unpack_loot(self: &Arc<Self>) {
+    pub(super) fn unpack_loot(self: &Arc<Self>, world: &crate::world::World) {
         let loot_table = self
             .loot_table
             .lock()
@@ -107,7 +107,7 @@ impl MinecartInventory {
         };
 
         let inventory: Arc<dyn Inventory> = self.clone();
-        fill_chest_inventory(&inventory, table, seed);
+        fill_inventory_in_world(world, inventory.as_ref(), table, seed, &Default::default());
     }
 }
 
@@ -209,7 +209,7 @@ pub(super) fn open(
         return false;
     }
     if !player.is_spectator() {
-        inventory.unpack_loot();
+        inventory.unpack_loot(&player.world());
     }
 
     player
@@ -276,8 +276,27 @@ mod tests {
     use pumpkin_inventory::Inventory;
     use pumpkin_nbt::compound::NbtCompound;
 
-    #[test]
-    fn deferred_mineshaft_loot_is_preserved_until_unpacked() {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn deferred_mineshaft_loot_is_preserved_until_unpacked() {
+        use pumpkin_data::dimension::Dimension;
+        use pumpkin_util::world_seed::Seed;
+        use std::sync::{Arc, Weak};
+        let folder = tempfile::tempdir().unwrap();
+        let level = pumpkin_world::level::Level::from_root_folder(
+            &pumpkin_config::world::LevelConfig::default(),
+            folder.path().to_path_buf(),
+            262,
+            Dimension::OVERWORLD,
+        );
+        let world = crate::world::World::load(
+            level,
+            Arc::new(arc_swap::ArcSwap::from_pointee(
+                pumpkin_world::world_info::LevelData::default(Seed(262)),
+            )),
+            Dimension::OVERWORLD,
+            Arc::new(crate::block::registry::BlockRegistry::default()),
+            Weak::new(),
+        );
         let inventory = std::sync::Arc::new(MinecartInventory::new(27));
         let mut source = NbtCompound::new();
         source.put_string(
@@ -296,7 +315,7 @@ mod tests {
         assert_eq!(deferred.get_long("LootTableSeed"), Some(1234));
         assert!(deferred.get_list("Items").is_none());
 
-        inventory.unpack_loot();
+        inventory.unpack_loot(&world);
         assert!(!inventory.is_empty());
 
         let mut unpacked = NbtCompound::new();

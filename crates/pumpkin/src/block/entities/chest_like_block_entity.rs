@@ -399,8 +399,8 @@ macro_rules! impl_chest_helper_methods {
                     return;
                 };
                 if let Some(table) = pumpkin_data::loot_table::get_loot_table(&key) {
-                    let seed = if seed == 0 { world.rand_i64() } else { seed };
-                    crate::world::loot::fill_inventory_with_context(
+                    crate::world::loot::fill_inventory_in_world(
+                        &world,
                         self,
                         table,
                         seed,
@@ -408,9 +408,10 @@ macro_rules! impl_chest_helper_methods {
                             position: Some(self.position.to_centered_f64()),
                             this_entity: player.map(|_| &pumpkin_data::entity::EntityType::PLAYER),
                             luck: player.map_or(0.0, |player| {
-                                player.living_entity.get_attribute_value(
-                                    &pumpkin_data::attributes::Attributes::LUCK,
-                                ) as f32
+                                player
+                                    .living_entity
+                                    .get_attribute_value(&pumpkin_data::attributes::Attributes::LUCK)
+                                    as f32
                             }),
                             ..Default::default()
                         },

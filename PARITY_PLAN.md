@@ -462,3 +462,10 @@ Item source inventory:
   have a reviewed or carried source-pass disposition, not a 1:1 certification.
 
 Mob work is paused at the user’s request. See [ENGINE_GAPS.md](ENGINE_GAPS.md) for current engine work and [MOB_PARITY.md](MOB_PARITY.md) for preserved mob scope.
+
+
+Shared-engine checkpoint: named sequence seeding/persistence and continuous loot
+RNG selection now cover block/container/shared drop paths. The actual Java probes
+cover sequence state and raw generation/fill draw order. D02 functions, contexts,
+composite entries and reloads remain, alongside the other engine/block gates in
+ENGINE_GAPS.md. Full mob passes remain paused.

@@ -153,7 +153,7 @@ impl BrushableBlockBlockEntity {
                     as f32,
                 ..Default::default()
             };
-            crate::world::loot::generate_loot_with_context(table, seed, &context)
+            crate::world::loot::generate_loot_in_world(world, table, seed, &context)
                 .into_iter()
                 .next()
         });

@@ -80,7 +80,14 @@ impl CommandExecutor for RandomExecutor {
                 .get_or_create(&sequence, world_seed)
                 .random_between_inclusive(min, max)
         } else {
-            rand::random_range(min..=max)
+            use pumpkin_util::random::RandomImpl;
+            context
+                .world()
+                .random
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .next_bounded_i32(max.wrapping_sub(min).wrapping_add(1))
+                .wrapping_add(min)
         };
 
         if self.roll {

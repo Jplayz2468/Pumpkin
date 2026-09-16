@@ -58,8 +58,12 @@ impl ItemBehaviour for HoeItem {
             if let Some(loot_key) = result.entry.loot
                 && let Some(loot_table) = pumpkin_data::loot_table::get_loot_table(loot_key)
             {
-                let seed = rand::random::<i64>();
-                let drops = crate::world::loot::generate_loot(loot_table, seed);
+                let drops = crate::world::loot::generate_loot_in_world(
+                    &world,
+                    loot_table,
+                    0,
+                    &Default::default(),
+                );
                 for drop_stack in drops {
                     if result.entry.drop_strategy == Some(DropStrategy::ClickedFace) {
                         world.drop_stack_from_face(&location, face, drop_stack);
