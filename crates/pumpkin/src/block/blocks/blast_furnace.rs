@@ -1,10 +1,7 @@
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use crate::block::entities::{
-    PropertyDelegate, blasting_furnace::BlastingFurnaceBlockEntity,
-    furnace_like_block_entity::ExperienceContainer,
-};
+use crate::block::entities::{PropertyDelegate, furnace_like_block_entity::ExperienceContainer};
 use pumpkin_data::{
     BlockStateId, block_properties::FurnaceLikeProperties, screen::WindowType, translation,
 };
@@ -16,12 +13,9 @@ use pumpkin_inventory::{
 };
 use pumpkin_macros::pumpkin_block;
 
-use crate::{
-    block::{
-        BlockBehaviour, BrokenArgs, GetComparatorOutputArgs, GetScreenHandlerFactoryArgs,
-        NormalUseArgs, OnPlaceArgs, PlacedArgs, registry::BlockActionResult,
-    },
-    entity::experience_orb::ExperienceOrbEntity,
+use crate::block::{
+    BlockBehaviour, GetComparatorOutputArgs, GetScreenHandlerFactoryArgs, NormalUseArgs,
+    OnPlaceArgs, OnStateReplacedArgs, registry::BlockActionResult,
 };
 
 struct BlastingFurnaceScreenFactory {
@@ -85,15 +79,15 @@ impl BlockBehaviour for BlastFurnaceBlock {
             position: args.position,
             player: args.player,
         }) {
+            args.player
+                .open_handled_screen(factory.as_ref(), Some(*args.position));
             args.player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::Custom,
                 pumpkin_data::statistic::CustomStatistic::InteractWithBlastFurnace as i32,
                 1,
             );
-            args.player
-                .open_handled_screen(factory.as_ref(), Some(*args.position));
         }
-        crate::block::registry::BlockActionResult::Consume
+        BlockActionResult::Success
     }
 
     fn get_screen_handler_factory(
@@ -123,24 +117,9 @@ impl BlockBehaviour for BlastFurnaceBlock {
         props.to_state_id(args.block)
     }
 
-    fn placed(&self, args: PlacedArgs<'_>) {
-        let blasting_furnace_block_entity = BlastingFurnaceBlockEntity::new(*args.position);
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
         args.world
-            .add_block_entity(Arc::new(blasting_furnace_block_entity));
-    }
-
-    fn broken(&self, args: BrokenArgs<'_>) {
-        // Extract and drop accumulated XP as orbs before removing the block entity
-        if let Some(block_entity) = args.world.get_block_entity(args.position)
-            && let Some(experience_container) = block_entity.to_experience_container()
-        {
-            let xp = experience_container.extract_experience();
-            if xp > 0 {
-                let pos = args.position.to_f64();
-                ExperienceOrbEntity::spawn(args.world, pos, xp as u32);
-            }
-        }
-        args.world.remove_block_entity(args.position);
+            .update_neighbour_for_output_signal(args.position, args.block);
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {

@@ -8,6 +8,7 @@ use pumpkin_inventory::{Clearable, Inventory};
 pub trait CookingBlockEntityBase:
     Sync + Send + Inventory + PropertyDelegate + BlockEntity + Clearable
 {
+    fn cooking_recipe_kind(&self) -> pumpkin_data::recipes::CookingRecipeKind;
     fn get_cooking_time_spent(&self) -> u16;
     fn get_cooking_total_time(&self) -> u16;
     fn get_lit_time_remaining(&self) -> u16;
@@ -36,8 +37,11 @@ pub trait CookingBlockEntityBase:
 
 #[macro_export]
 macro_rules! impl_cooking_block_entity_base {
-    ($struct_name:ty) => {
+    ($struct_name:ty, $recipe_kind:expr) => {
         impl CookingBlockEntityBase for $struct_name {
+            fn cooking_recipe_kind(&self) -> pumpkin_data::recipes::CookingRecipeKind {
+                $recipe_kind
+            }
             fn get_cooking_time_spent(&self) -> u16 {
                 self.cooking_time_spent.load(Ordering::Relaxed)
             }
@@ -115,6 +119,11 @@ macro_rules! impl_cooking_block_entity_base {
                     .recipes_used
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
+                let world = self
+                    .world
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .upgrade();
                 let mut total_xp: i32 = 0;
                 for (recipe_id, count) in recipes.iter() {
                     // Look up the recipe's XP value
@@ -123,7 +132,13 @@ macro_rules! impl_cooking_block_entity_base {
                             $crate::block::entities::furnace_like_block_entity::recipe_experience(
                                 *count,
                                 xp,
-                                rand::random::<f32>(),
+                                if (*count as f32 * xp).fract() == 0.0 {
+                                    0.0
+                                } else {
+                                    world
+                                        .as_ref()
+                                        .map_or_else(rand::random::<f32>, |world| world.rand_f32())
+                                },
                             );
                     }
                 }
@@ -141,27 +156,23 @@ macro_rules! impl_cooking_block_entity_base {
                     return false;
                 };
 
-                let is_top_items_empty = items[0].is_empty();
-                let side_item_stack = &items[2];
-
-                if side_item_stack.is_empty() {
-                    return !is_top_items_empty;
+                if items[0].is_empty() {
+                    return false;
                 }
-
-                if let Some(recipe_output_item) = pumpkin_data::item::Item::from_registry_key(
-                    recipe
-                        .result
-                        .id
-                        .strip_prefix("minecraft:")
-                        .unwrap_or(&recipe.result.id),
-                ) && !is_top_items_empty
-                    && recipe_output_item.id == side_item_stack.item.id
-                    && side_item_stack.item_count < max_count
-                    && side_item_stack.item_count < side_item_stack.get_max_stack_size()
-                {
-                    return true;
+                let Some(output_item) =
+                    pumpkin_data::item::Item::from_registry_key(recipe.result.id)
+                else {
+                    return false;
+                };
+                let output = ItemStack::new(recipe.result.count, output_item);
+                if output.is_empty() {
+                    return false;
                 }
-                false
+                let stored = &items[2];
+                stored.is_empty()
+                    || (stored.are_items_and_components_equal(&output)
+                        && u16::from(stored.item_count) + u16::from(output.item_count)
+                            <= u16::from(max_count.min(output.get_max_stack_size())))
             }
             fn craft_recipe(&self, recipe: Option<&pumpkin_data::recipes::CookingRecipe>) -> bool {
                 let can_accept_output =
@@ -185,7 +196,7 @@ macro_rules! impl_cooking_block_entity_base {
                         if items[2].are_equal(ItemStack::EMPTY) {
                             items[2] = output_item_stack;
                         } else if items[2].are_items_and_components_equal(&output_item_stack) {
-                            items[2].increment(1);
+                            items[2].increment(output_item_stack.item_count);
                         }
 
                         // Track recipe usage for XP calculation (vanilla RecipesUsed format)
@@ -313,7 +324,6 @@ macro_rules! impl_inventory_for_cooking {
                     .write()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 let removed = std::mem::replace(&mut items[slot], ItemStack::EMPTY.clone());
-                self.mark_dirty();
                 removed
             }
 
@@ -331,7 +341,8 @@ macro_rules! impl_inventory_for_cooking {
                 res
             }
 
-            fn set_stack(&self, slot: usize, stack: ItemStack) {
+            fn set_stack(&self, slot: usize, mut stack: ItemStack) {
+                stack.item_count = stack.item_count.min(stack.get_max_stack_size().min(self.get_max_count_per_stack()));
                 let mut items = self
                     .items
                     .write()
@@ -341,20 +352,24 @@ macro_rules! impl_inventory_for_cooking {
 
                 items[slot] = stack.clone();
 
-                if slot == 0 && !is_same_item {
+                if slot == 0 && !is_same_item && self.world.lock().unwrap_or_else(std::sync::PoisonError::into_inner).upgrade().is_some() {
                     if let Some(recipe) = pumpkin_data::recipes::get_cooking_recipe_with_ingredient(
                         stack.item,
-                        CookingRecipeKind::Smelting,
+                        self.cooking_recipe_kind(),
                     ) {
                         self.set_cooking_total_time(recipe.cookingtime as u16);
                     } else {
-                        self.set_cooking_total_time(0);
+                        self.set_cooking_total_time(200);
                     }
                     self.set_cooking_time_spent(0);
                 }
 
                 // Always consider the inventory changed when setting a stack
                 self.mark_dirty();
+            }
+
+            fn can_player_use(&self, player: &dyn pumpkin_inventory::screen_handler::InventoryPlayer) -> bool {
+                player.can_use_block_inventory(self.position, self)
             }
 
             fn mark_dirty(&self) {
@@ -439,10 +454,11 @@ macro_rules! impl_block_entity_for_cooking {
                                 is_dirty = true;
                                 if let Ok(mut items_guard) = self.items.try_write() {
                                     if !items_guard[1].is_empty() {
+                                        let fuel_item = items_guard[1].item;
                                         items_guard[1].decrement(1);
                                         if let Some(remainder_id) =
                                             pumpkin_data::recipe_remainder::get_recipe_remainder_id(
-                                                items_guard[1].item.id,
+                                                fuel_item.id,
                                             )
                                             && items_guard[1].is_empty()
                                             && let Some(remainder_item) =
@@ -501,7 +517,7 @@ macro_rules! impl_block_entity_for_cooking {
                                 }
                             }
                         }
-                    } else {
+                    } else if furnace_recipe.is_some() || is_top_items_empty {
                         self.set_cooking_time_spent(0);
                     }
                 } else if !self.is_burning() && self.get_cooking_time_spent() > 0 {
@@ -535,6 +551,38 @@ macro_rules! impl_block_entity_for_cooking {
                 if is_dirty {
                     self.mark_dirty();
                 }
+            }
+
+            fn set_world(&self, world: std::sync::Weak<$crate::world::World>) {
+                *self.world.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = world;
+            }
+
+            fn on_block_replaced(self: Arc<Self>, world: &Arc<$crate::world::World>, position: &BlockPos) {
+                let inventory = self.items.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+                for stack in inventory {
+                    world.scatter_stack(f64::from(position.0.x), f64::from(position.0.y), f64::from(position.0.z), stack);
+                }
+                let recipes = self.recipes_used.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone();
+                for (recipe, count) in recipes {
+                    if let Some(value) = pumpkin_data::recipes::get_recipe_experience(&recipe) {
+                        let roll = if (count as f32 * value).fract() == 0.0 { 0.0 } else { world.rand_f32() };
+                        let xp = $crate::block::entities::furnace_like_block_entity::recipe_experience(count, value, roll);
+                        if xp > 0 {
+                            $crate::entity::experience_orb::ExperienceOrbEntity::spawn(world, position.to_centered_f64(), xp as u32);
+                        }
+                    }
+                }
+            }
+
+            fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+                let mut items = self.items.write().unwrap_or_else(std::sync::PoisonError::into_inner);
+                items.fill_with(|| ItemStack::EMPTY.clone());
+                if let Some(container) = stack.get_data_component::<pumpkin_data::data_component_impl::ContainerImpl>() {
+                    for (slot, stored) in &container.items {
+                        if let Some(target) = items.get_mut(usize::from(*slot)) { *target = stored.clone(); }
+                    }
+                }
+                self.mark_dirty();
             }
 
             fn resource_location(&self) -> &'static str {
@@ -577,6 +625,7 @@ macro_rules! impl_block_entity_for_cooking {
 
                 let mut furnace = Self {
                     position,
+                    world: std::sync::Mutex::new(std::sync::Weak::new()),
                     dirty: AtomicBool::new(false),
                     comparator_dirty: AtomicBool::new(false),
                     items: std::sync::RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
@@ -641,32 +690,7 @@ macro_rules! impl_block_entity_for_cooking {
             }
 
             fn chunk_data_nbt(&self) -> Option<pumpkin_nbt::compound::NbtCompound> {
-                let mut nbt = pumpkin_nbt::compound::NbtCompound::new();
-                nbt.put_short("cooking_total_time", self.get_cooking_total_time() as i16);
-                nbt.put_short("cooking_time_spent", self.get_cooking_time_spent() as i16);
-                nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);
-                nbt.put_short("lit_time_remaining", self.get_lit_time_remaining() as i16);
-
-                if let Ok(recipes) = self.recipes_used.lock() {
-                    if !recipes.is_empty() {
-                        let mut recipes_compound = pumpkin_nbt::compound::NbtCompound::new();
-                        for (recipe_id, count) in recipes.iter() {
-                            recipes_compound.put(
-                                recipe_id.as_str(),
-                                pumpkin_nbt::tag::NbtTag::Int(*count as i32),
-                            );
-                        }
-                        nbt.put(
-                            "RecipesUsed",
-                            pumpkin_nbt::tag::NbtTag::Compound(recipes_compound),
-                        );
-                    }
-                }
-
-                if let Ok(guard) = self.items.try_read() {
-                    pumpkin_inventory::sync_write_items_to_nbt(&*guard, &mut nbt);
-                }
-                Some(nbt)
+                Some(pumpkin_nbt::compound::NbtCompound::new())
             }
 
             fn as_any(&self) -> &dyn std::any::Any {

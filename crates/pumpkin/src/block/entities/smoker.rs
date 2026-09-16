@@ -22,6 +22,7 @@ use crate::{
 
 pub struct SmokerBlockEntity {
     pub position: BlockPos,
+    pub world: StdMutex<std::sync::Weak<crate::world::World>>,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
 
@@ -45,6 +46,7 @@ impl SmokerBlockEntity {
     pub fn new(position: BlockPos) -> Self {
         Self {
             position,
+            world: StdMutex::new(std::sync::Weak::new()),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
@@ -57,7 +59,7 @@ impl SmokerBlockEntity {
     }
 }
 
-impl_cooking_block_entity_base!(SmokerBlockEntity);
+impl_cooking_block_entity_base!(SmokerBlockEntity, CookingRecipeKind::Smoking);
 impl_block_entity_for_cooking!(SmokerBlockEntity, CookingRecipeKind::Smoking);
 impl_inventory_for_cooking!(SmokerBlockEntity);
 impl_clearable_for_cooking!(SmokerBlockEntity);

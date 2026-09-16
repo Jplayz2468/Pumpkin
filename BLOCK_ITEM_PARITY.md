@@ -896,3 +896,34 @@ so they must not be used to reconstruct audit completion.
   loot RNG, dynamic support/outline/raycast geometry, mover-type-specific motion,
   all item entity initialization randomness, negative/large open counts and
   protocol/Bedrock-specific updates. These are source ports, not parity closure.
+
+## Continued source port: brewing stands and furnace families
+
+- Brewing/furnace/smoker/blast-furnace placement no longer recreates block entities.
+  Menus open before their use statistic, all return the source success result,
+  and removals notify comparators. Cooking entities scatter contents and award
+  per-recipe XP in their removal callback, covering explosions and replacements.
+- Brewing completion waits until a following tick to start another cycle, returns
+  ingredient crafting remainders (including dragon-breath bottles), and sends
+  brewing world event 1035. Container mixes precede potion mixes and a successful
+  built-in mix creates fresh potion contents. Missing-potion container recipes
+  still consume the ingredient as in the source.
+- Brewing insertion accepts actual ingredients (including blaze powder), restricts
+  bottle slots to the four supported items and empty slots, and keeps the source
+  sided extraction rules. Every nonempty bottle slot affects state; the first
+  loaded tick reconciles presence with flag 2. Fuel/timer changes mark comparator
+  output dirty, and menu property writes update the timers.
+- Furnace output acceptance compares components and the complete result count;
+  crafting adds that count. Input changes choose the correct smelting/blasting/
+  smoking recipe and use the source 200-tick fallback. Missing recipes while lit
+  retain progress. Fuel remainder lookup retains the original fuel item. XP
+  rounding consumes level random only for fractional results; removal scatters
+  inventory before spawning each recipe's XP at block center.
+- All four inventories accept carried Container components, clamp inserted
+  stacks, validate menu identity/distance, and keep no-update removals distinct.
+  Client chunk tags are empty; full timers/recipes/items stay in persistent NBT.
+- No builds/tests. Remaining: signed furnace counter/plugin ABI migration,
+  identity-map recipe iteration and exact orb RNG, recipe/component/datapack
+  completeness, XP recipe awards/advancements, custom names/locks, immediate
+  comparator ordering, block-entity placement/pick components and other shared
+  engine gaps. Complete block/item parity is still open.

@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::sync::{
-    Arc, Mutex as StdMutex, RwLock,
+    Arc, Mutex as StdMutex, RwLock, Weak,
     atomic::AtomicI32,
     atomic::{AtomicBool, Ordering},
 };
@@ -10,16 +10,15 @@ use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::potion::Potion;
 use pumpkin_data::potion_brewing::BREWING_RECIPES;
-use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_data::tag::{self, Taggable};
-use pumpkin_inventory::{Inventory, sync_read_items_from_nbt, sync_write_items_to_nbt};
+use pumpkin_inventory::{Inventory, sync_read_items_from_nbt};
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_protocol::codec::recipe::DynamicRecipe;
 use pumpkin_util::math::position::BlockPos;
-use pumpkin_util::math::vector3::Vector3;
 
 pub struct BrewingStandBlockEntity {
     pub position: BlockPos,
+    world: StdMutex<Weak<crate::world::World>>,
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
@@ -38,6 +37,7 @@ impl BrewingStandBlockEntity {
         use std::array::from_fn;
         Self {
             position,
+            world: StdMutex::new(Weak::new()),
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
@@ -48,9 +48,9 @@ impl BrewingStandBlockEntity {
         }
     }
 
-    /// Vanilla `setChanged` only persists the entity, comparators react to slot changes instead.
+    /// BlockEntity.setChanged persists state and notifies output comparators.
     fn mark_timer_dirty(&self) {
-        self.dirty.store(true, Ordering::Relaxed);
+        self.mark_dirty();
     }
 
     /// Check if the current ingredient matches the stored ingredient
@@ -59,6 +59,64 @@ impl BrewingStandBlockEntity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .is_some_and(|stored| !ingredient.is_empty() && ingredient.get_item().id == stored.id)
+    }
+
+    fn is_ingredient(&self, stack: &ItemStack) -> bool {
+        let Some(world) = self
+            .world
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .upgrade()
+        else {
+            return false;
+        };
+        if stack.is_empty() {
+            return false;
+        }
+        if BREWING_RECIPES
+            .iter()
+            .any(|recipe| recipe.ingredient().id == stack.item.id)
+        {
+            return true;
+        }
+        world.server.upgrade().is_some_and(|server| server.recipe_manager.get_dynamic_recipes_internal().iter().any(|recipe| {
+            matches!(recipe, DynamicRecipe::Brewing(recipe) if recipe.reagent.strip_prefix("minecraft:").unwrap_or(&recipe.reagent) == stack.item.registry_key)
+        }))
+    }
+
+    fn container_mix(source: &ItemStack, ingredient: &ItemStack) -> Option<&'static Item> {
+        if source.item == &Item::POTION && ingredient.item == &Item::GUNPOWDER {
+            Some(&Item::SPLASH_POTION)
+        } else if source.item == &Item::SPLASH_POTION && ingredient.item == &Item::DRAGON_BREATH {
+            Some(&Item::LINGERING_POTION)
+        } else {
+            None
+        }
+    }
+
+    fn mix_builtin(source: &ItemStack, ingredient: &ItemStack) -> Option<ItemStack> {
+        use pumpkin_data::data_component_impl::PotionContentsImpl;
+        let potion = source
+            .get_data_component::<PotionContentsImpl>()?
+            .potion_id?;
+        let (item, potion) = if let Some(item) = Self::container_mix(source, ingredient) {
+            (item, potion)
+        } else {
+            let recipe = BREWING_RECIPES.iter().find(|recipe| {
+                source.item.id == recipe.from_item().id
+                    && ingredient.item.id == recipe.ingredient().id
+                    && potion == i32::from(recipe.from_potion().id)
+            })?;
+            (recipe.to_item(), i32::from(recipe.to_potion().id))
+        };
+        let mut result = ItemStack::new(1, item);
+        result.set_data_component(PotionContentsImpl {
+            potion_id: Some(potion),
+            custom_color: None,
+            custom_effects: Vec::new(),
+            custom_name: None,
+        });
+        Some(result)
     }
 
     /// Check if any potion slot has a valid recipe with the ingredient
@@ -83,6 +141,10 @@ impl BrewingStandBlockEntity {
             let potion_id = slot
                 .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
                 .and_then(|pc| pc.potion_id);
+
+            if Self::container_mix(slot, ingredient).is_some() {
+                return true;
+            }
 
             // 1. Check data-driven BREWING_RECIPES from datapack
             for recipe in &BREWING_RECIPES {
@@ -128,8 +190,6 @@ impl BrewingStandBlockEntity {
             return;
         }
 
-        let ingredient_id = ingredient.get_item().id;
-
         // Fire BrewEvent before mutating items
         if let Some(server) = world.server.upgrade() {
             let mut brew_event = crate::plugin::api::events::inventory::brew::BrewEvent::new(
@@ -145,7 +205,7 @@ impl BrewingStandBlockEntity {
         }
 
         // Brew potion slots
-        let mut ingredient_used = false;
+        let mut leftover = None;
         {
             let Ok(mut items) = self.items.write() else {
                 return;
@@ -157,38 +217,12 @@ impl BrewingStandBlockEntity {
                     continue;
                 }
 
-                let slot_item_id = slot.get_item().id;
                 let potion_id = slot
                     .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
                     .and_then(|pc| pc.potion_id);
 
-                // 1. Try data-driven BREWING_RECIPES
-                let mut item_brewed = false;
-                for recipe in &BREWING_RECIPES {
-                    if slot_item_id == recipe.from_item().id
-                        && recipe.ingredient().id == ingredient_id
-                        && potion_id == Some(recipe.from_potion().id as i32)
-                    {
-                        let mut new_slot = ItemStack::new(1, recipe.to_item());
-                        let mut pc = slot
-                            .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
-                            .cloned()
-                            .unwrap_or_else(|| pumpkin_data::data_component_impl::PotionContentsImpl {
-                                potion_id: None,
-                                custom_color: None,
-                                custom_effects: Vec::new(),
-                                custom_name: None,
-                            });
-                        pc.potion_id = Some(recipe.to_potion().id as i32);
-                        new_slot.set_data_component(pc);
-                        *slot = new_slot;
-                        item_brewed = true;
-                        ingredient_used = true;
-                        break;
-                    }
-                }
-
-                if item_brewed {
+                if let Some(result) = Self::mix_builtin(slot, ingredient) {
+                    *slot = result;
                     continue;
                 }
 
@@ -236,7 +270,6 @@ impl BrewingStandBlockEntity {
                                 }
                                 new_slot.set_data_component(pc);
                                 *slot = new_slot;
-                                ingredient_used = true;
                                 break;
                             }
                         }
@@ -244,57 +277,32 @@ impl BrewingStandBlockEntity {
                 }
             }
 
-            // Consume one ingredient
-            if ingredient_used {
-                items[3].decrement(1);
-            }
-        }
-
-        if !ingredient_used {
-            return;
-        }
-
-        // Check if remaining ingredient matches or clear it
-        if let Ok(items) = self.items.read() {
-            let remaining = &items[3];
-            if remaining.is_empty()
-                || !self
-                    .ingredient_item
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .is_some_and(|stored| remaining.get_item().id == stored.id)
+            items[3].decrement(1);
+            if let Some(item) =
+                pumpkin_data::recipe_remainder::get_recipe_remainder_id(ingredient.item.id)
+                    .and_then(Item::from_id)
             {
-                *self
-                    .ingredient_item
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+                let remainder = ItemStack::new(1, item);
+                if items[3].is_empty() {
+                    items[3] = remainder;
+                } else {
+                    leftover = Some(remainder);
+                }
             }
         }
-
-        // Check if we can immediately start the next brew
-        if let Ok(items) = self.items.read() {
-            let ingredient = items[3].clone();
-            drop(items);
-            if self.fuel.load(Ordering::Relaxed) > 0 && self.is_brewable(&ingredient, world) {
-                self.fuel.fetch_sub(1, Ordering::Relaxed);
-                self.brew_time.store(400, Ordering::Relaxed);
-                *self
-                    .ingredient_item
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner) =
-                    Some(ingredient.get_item());
-            } else {
-                self.brew_time.store(0, Ordering::Relaxed);
-            }
+        if let Some(remainder) = leftover {
+            world.scatter_stack(
+                f64::from(self.position.0.x),
+                f64::from(self.position.0.y),
+                f64::from(self.position.0.z),
+                remainder,
+            );
         }
-
-        // Play sound at the center of the block
-        let pos = Vector3::new(
-            self.position.0.x as f64 + 0.5,
-            self.position.0.y as f64 + 0.5,
-            self.position.0.z as f64 + 0.5,
+        world.sync_world_event(
+            pumpkin_data::world::WorldEvent::SoundBrewingStandBrew,
+            self.position,
+            0,
         );
-        world.play_sound(Sound::BlockBrewingStandBrew, SoundCategory::Blocks, &pos);
 
         // Mark dirty to trigger update
         self.mark_dirty();
@@ -383,7 +391,6 @@ impl pumpkin_inventory::Inventory for BrewingStandBlockEntity {
             .write()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         let removed = std::mem::replace(&mut items[slot], ItemStack::EMPTY.clone());
-        self.mark_dirty();
         removed
     }
 
@@ -404,7 +411,12 @@ impl pumpkin_inventory::Inventory for BrewingStandBlockEntity {
         taken
     }
 
-    fn set_stack(&self, slot: usize, stack: ItemStack) {
+    fn set_stack(&self, slot: usize, mut stack: ItemStack) {
+        stack.item_count = stack.item_count.min(
+            stack
+                .get_max_stack_size()
+                .min(self.get_max_count_per_stack()),
+        );
         let mut items = self
             .items
             .write()
@@ -443,28 +455,28 @@ impl pumpkin_inventory::Inventory for BrewingStandBlockEntity {
         slot != 3 || stack.item == &pumpkin_data::item::Item::GLASS_BOTTLE
     }
     fn is_valid_slot_for(&self, slot: usize, stack: &ItemStack) -> bool {
-        if stack.is_empty() {
-            return true;
-        }
-
         match slot {
-            // Slots 0-2 - potion bottles
-            0..=2 => stack
-                .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
-                .is_some(),
-            // Slot 3 - ingredient (must be tagged as brewable)
-            3 => {
-                // Check if item is a valid brewing ingredient
-                if stack.get_item().has_tag(&tag::Item::MINECRAFT_BREWING_FUEL) {
-                    return false; // Fuel should not go in ingredient slot
-                }
-                // Allow any item that's not fuel (ingredient validation happens during brewing)
-                true
+            0..=2 => {
+                [
+                    Item::POTION.id,
+                    Item::SPLASH_POTION.id,
+                    Item::LINGERING_POTION.id,
+                    Item::GLASS_BOTTLE.id,
+                ]
+                .contains(&stack.item.id)
+                    && self.get_stack(slot).is_empty()
             }
-            // Slot 4 - fuel
-            4 => stack.get_item().has_tag(&tag::Item::MINECRAFT_BREWING_FUEL),
+            3 => self.is_ingredient(stack),
+            4 => stack.item.has_tag(&tag::Item::MINECRAFT_BREWING_FUEL),
             _ => false,
         }
+    }
+
+    fn can_player_use(
+        &self,
+        player: &dyn pumpkin_inventory::screen_handler::InventoryPlayer,
+    ) -> bool {
+        player.can_use_block_inventory(self.position, self)
     }
 }
 
@@ -517,30 +529,12 @@ impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         sync_read_items_from_nbt(nbt, items);
 
-        // If there's an ingredient in slot 3, remember its base item for matching
-        let ingredient_item = (!items[3].is_empty()).then(|| items[3].get_item());
-
-        // Recompute last_potion_count so visuals are correct after load
-        let mut current: [bool; 3] = [false; 3];
-        for (i, slot) in items.iter().take(3).enumerate() {
-            current[i] = !slot.is_empty()
-                && (slot
-                    .get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>()
-                    .is_some()
-                    || slot.get_item().id == pumpkin_data::item::Item::GLASS_BOTTLE.id);
-        }
-
-        if let Some(item) = ingredient_item {
+        if entity.brew_time.load(Ordering::Relaxed) > 0 {
             *entity
                 .ingredient_item
                 .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(item);
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(items[3].item);
         }
-
-        *entity
-            .last_potion_count
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(current);
 
         entity
     }
@@ -554,18 +548,37 @@ impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
         self.write_inventory_nbt(nbt, true);
     }
 
+    fn apply_components_from_item_stack(&self, stack: &ItemStack) {
+        let mut items = self
+            .items
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        items.fill_with(|| ItemStack::EMPTY.clone());
+        if let Some(container) =
+            stack.get_data_component::<pumpkin_data::data_component_impl::ContainerImpl>()
+        {
+            for (slot, stored) in &container.items {
+                if let Some(target) = items.get_mut(usize::from(*slot)) {
+                    *target = stored.clone();
+                }
+            }
+        }
+        self.mark_dirty();
+    }
+
     fn get_inventory(self: Arc<Self>) -> Option<Arc<dyn Inventory>> {
         Some(self)
     }
 
     fn chunk_data_nbt(&self) -> Option<NbtCompound> {
-        let mut nbt = NbtCompound::new();
-        nbt.put_short("BrewTime", self.brew_time.load(Ordering::Relaxed) as i16);
-        nbt.put_byte("Fuel", self.fuel.load(Ordering::Relaxed) as i8);
-        if let Ok(items) = self.items.try_read() {
-            sync_write_items_to_nbt(&*items, &mut nbt);
-        }
-        Some(nbt)
+        Some(NbtCompound::new())
+    }
+
+    fn set_world(&self, world: Weak<crate::world::World>) {
+        *self
+            .world
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = world;
     }
 
     fn is_comparator_dirty(&self) -> bool {
@@ -592,6 +605,9 @@ impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
     fn tick(&self, world: &Arc<crate::world::World>) {
         // Refill fuel counter from fuel item if needed
         let fuel_refilled = self.try_refill_fuel(world);
+        if fuel_refilled {
+            self.mark_timer_dirty();
+        }
 
         // Get current ingredient and check brewing state
         let Ok(items) = self.items.try_read() else {
@@ -611,6 +627,7 @@ impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
             if is_done_brewing && brewable {
                 // Brewing complete
                 self.do_brew(world, &ingredient);
+                self.mark_timer_dirty();
             } else if !brewable || !self.ingredient_matches(&ingredient) {
                 // Cancel brewing
                 self.brew_time.store(0, Ordering::Relaxed);
@@ -657,7 +674,7 @@ impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
         if let Ok(items_guard) = self.items.try_read() {
             for (i, slot) in items_guard.iter().take(3).enumerate() {
                 // Consider a potion slot "present" when it has an item and a PotionContents component or is a glass bottle
-                current[i] = !slot.is_empty() && (slot.get_data_component::<pumpkin_data::data_component_impl::PotionContentsImpl>().is_some() || slot.get_item().id == Item::GLASS_BOTTLE.id);
+                current[i] = !slot.is_empty();
             }
         }
 
@@ -677,6 +694,9 @@ impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
         if needs_update {
             // Update the block state properties for the brewing stand to reflect bottle presence
             let (block, state) = world.get_block_and_state(&self.position);
+            if block != &pumpkin_data::Block::BREWING_STAND {
+                return;
+            }
             // Use generated block properties helper to produce a new state id with the bits set
             let mut props =
                 pumpkin_data::block_properties::BrewingStandLikeProperties::from_state_id(state.id);
@@ -688,7 +708,7 @@ impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
             world.set_block_state(
                 &self.position,
                 props.to_state_id(block),
-                crate::world::BlockFlags::NOTIFY_ALL,
+                crate::world::BlockFlags::NOTIFY_LISTENERS,
             );
 
             // Also mark dirty so inventory/container updates are sent to open screens.
@@ -711,7 +731,13 @@ impl PropertyDelegate for BrewingStandBlockEntity {
         }
     }
 
-    fn set_property(&self, _index: i32, _value: i32) {}
+    fn set_property(&self, index: i32, value: i32) {
+        match index {
+            0 => self.brew_time.store(value, Ordering::Relaxed),
+            1 => self.fuel.store(value, Ordering::Relaxed),
+            _ => {}
+        }
+    }
 
     fn get_properties_size(&self) -> i32 {
         2

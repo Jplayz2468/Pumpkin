@@ -2,14 +2,13 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use crate::block::{
-    GetComparatorOutputArgs, GetScreenHandlerFactoryArgs, PathComputationType, PlacedArgs,
+    GetComparatorOutputArgs, GetScreenHandlerFactoryArgs, OnStateReplacedArgs, PathComputationType,
 };
 use crate::block::{
     registry::BlockActionResult,
     {BlockBehaviour, NormalUseArgs},
 };
 
-use crate::block::entities::brewing_stand::BrewingStandBlockEntity;
 use pumpkin_data::BlockState;
 use pumpkin_data::translation;
 use pumpkin_inventory::Inventory;
@@ -57,13 +56,13 @@ impl BlockBehaviour for BrewingStandBlock {
             position: args.position,
             player: args.player,
         }) {
+            args.player
+                .open_handled_screen(factory.as_ref(), Some(*args.position));
             args.player.increment_stat(
                 pumpkin_data::statistic::StatisticCategory::Custom,
                 pumpkin_data::statistic::CustomStatistic::InteractWithBrewingstand as i32,
                 1,
             );
-            args.player
-                .open_handled_screen(factory.as_ref(), Some(*args.position));
         }
 
         BlockActionResult::Success
@@ -79,9 +78,9 @@ impl BlockBehaviour for BrewingStandBlock {
         Some(Box::new(BrewingScreenFactory(inventory, pd)))
     }
 
-    fn placed(&self, args: PlacedArgs<'_>) {
-        let be = BrewingStandBlockEntity::new(*args.position);
-        args.world.add_block_entity(Arc::new(be));
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
+        args.world
+            .update_neighbour_for_output_signal(args.position, args.block);
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
