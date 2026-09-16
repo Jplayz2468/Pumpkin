@@ -1569,3 +1569,13 @@ Remaining functions and broader block/engine gates are recorded in ENGINE_GAPS.m
   cases. Expanded library checks include data, inventory and protocol packages;
   see `ENGINE_GAPS.md` for the final result and remaining text/component limits.
 - This is shared engine/item-component work, not a full mob or all-item pass.
+
+### Component patch / trim checkpoint
+
+All six built-in component-patch loot declarations are implemented; three
+exploration-map declarations remain unsupported. Shared validation/rollback and
+prototype normalization match 828 Java cases. Trim wire/NBT/hash handling matches
+201 Java fixtures. Background six-package suite: 1,061 passed with the same two
+previously separately passing socket tests excluded. Broader component codecs,
+locks, reloads, live integration and other ENGINE_GAPS.md gates remain open.
+Full mob passes remain paused.

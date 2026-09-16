@@ -356,3 +356,29 @@ cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- item loo
 
 The fixtures do not certify entity-resolved text, every text/argument type, other
 component hashes, registry reloads, older protocol versions or live item-use flow.
+
+### Component patches and armor trims
+
+`LootPatchTrimOracle.java` loads canonical trim registries, binds compared item
+prototypes and exports typed NBT through `DataComponentPatch.CODEC` for every
+built-in `set_components` input plus fixture inputs. The generator looks up exact
+JSON in `assets/loot_component_patches.json`; new inputs require rerunning the
+exporter. This avoids lossy JSON-to-NBT numeric inference.
+
+Twenty-three production-generated tables yield 828 Java cases: prototype
+normalization/removals, all-or-nothing rollback, stack/damage restrictions,
+container/bundle/charged sizes, fraction overflow, temporary zero/oversized counts
+and both RNGs with following values. The oracle's error log includes intentional
+validation rejections. Another 201 fixtures cover all material/pattern pairs and
+inline/mixed trim holders, network bytes, NBT and component hashes.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/LootPatchTrimOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' LootPatchTrimOracle
+cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_patch_test_tables
+```
+
+Registry-reference network bytes compare exactly; inline text compounds compare
+semantically because key order may differ. Nested ItemStackTemplate fixtures
+normalize omitted default count/components for comparison. These fixtures do not
+certify every component codec, registry reloads, live menus or full mob behavior.

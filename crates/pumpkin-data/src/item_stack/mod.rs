@@ -234,13 +234,7 @@ impl ItemStack {
     }
 
     pub fn set_data_component<T: DataComponentImpl + 'static>(&mut self, component: T) {
-        let to_set_id = T::get_enum();
-        let boxed = Some(Box::new(component) as _);
-        if let Some((_, c)) = self.patch.iter_mut().find(|(id, _)| *id == to_set_id) {
-            *c = boxed;
-        } else {
-            self.patch.push((to_set_id, boxed));
-        }
+        self.set_data_component_dyn(Box::new(component));
     }
 
     pub fn remove_data_component(&mut self, to_remove_id: DataComponent) {
@@ -822,7 +816,7 @@ impl ItemStack {
         // Try to get item by registry key
         let item = Item::from_registry_key(registry_key)?;
 
-        let count = compound.get_int("count")? as u8;
+        let count = compound.get_int("count").unwrap_or(1) as u8;
 
         // Create the item stack
         let mut item_stack = Self::new(count, item);

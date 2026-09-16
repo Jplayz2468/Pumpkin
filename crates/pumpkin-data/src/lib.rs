@@ -109,6 +109,9 @@ pub mod data_component_impl;
 #[cfg(feature = "data_component")]
 pub mod component_hash;
 
+#[cfg(feature = "data_component")]
+pub mod component_patch;
+
 #[cfg(feature = "attributes")]
 #[rustfmt::skip]
 #[path = "generated/attributes.rs"]

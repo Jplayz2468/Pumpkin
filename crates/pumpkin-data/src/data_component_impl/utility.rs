@@ -160,8 +160,13 @@ pub struct BundleContentsImpl {
     pub items: Vec<crate::item_stack::ItemStack>,
 }
 impl PartialEq for BundleContentsImpl {
-    fn eq(&self, _other: &Self) -> bool {
-        false
+    fn eq(&self, other: &Self) -> bool {
+        self.items.len() == other.items.len()
+            && self
+                .items
+                .iter()
+                .zip(&other.items)
+                .all(|(a, b)| crate::item_stack::ItemStack::are_equal(a, b))
     }
 }
 impl Eq for BundleContentsImpl {}

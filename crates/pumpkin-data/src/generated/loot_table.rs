@@ -43112,9 +43112,18 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                 functions: &[
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_components",
-                                        ),
+                                        kind: LootFunctionKind::SetComponents(&[
+                                            10u8, 10u8, 0u8, 14u8, 109u8, 105u8, 110u8, 101u8,
+                                            99u8, 114u8, 97u8, 102u8, 116u8, 58u8, 116u8, 114u8,
+                                            105u8, 109u8, 8u8, 0u8, 8u8, 109u8, 97u8, 116u8, 101u8,
+                                            114u8, 105u8, 97u8, 108u8, 0u8, 16u8, 109u8, 105u8,
+                                            110u8, 101u8, 99u8, 114u8, 97u8, 102u8, 116u8, 58u8,
+                                            99u8, 111u8, 112u8, 112u8, 101u8, 114u8, 8u8, 0u8, 7u8,
+                                            112u8, 97u8, 116u8, 116u8, 101u8, 114u8, 110u8, 0u8,
+                                            14u8, 109u8, 105u8, 110u8, 101u8, 99u8, 114u8, 97u8,
+                                            102u8, 116u8, 58u8, 98u8, 111u8, 108u8, 116u8, 0u8,
+                                            0u8,
+                                        ]),
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
@@ -43152,9 +43161,18 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                 functions: &[
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_components",
-                                        ),
+                                        kind: LootFunctionKind::SetComponents(&[
+                                            10u8, 10u8, 0u8, 14u8, 109u8, 105u8, 110u8, 101u8,
+                                            99u8, 114u8, 97u8, 102u8, 116u8, 58u8, 116u8, 114u8,
+                                            105u8, 109u8, 8u8, 0u8, 8u8, 109u8, 97u8, 116u8, 101u8,
+                                            114u8, 105u8, 97u8, 108u8, 0u8, 16u8, 109u8, 105u8,
+                                            110u8, 101u8, 99u8, 114u8, 97u8, 102u8, 116u8, 58u8,
+                                            99u8, 111u8, 112u8, 112u8, 101u8, 114u8, 8u8, 0u8, 7u8,
+                                            112u8, 97u8, 116u8, 116u8, 101u8, 114u8, 110u8, 0u8,
+                                            14u8, 109u8, 105u8, 110u8, 101u8, 99u8, 114u8, 97u8,
+                                            102u8, 116u8, 58u8, 98u8, 111u8, 108u8, 116u8, 0u8,
+                                            0u8,
+                                        ]),
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
@@ -43204,9 +43222,18 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                 functions: &[
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_components",
-                                        ),
+                                        kind: LootFunctionKind::SetComponents(&[
+                                            10u8, 10u8, 0u8, 14u8, 109u8, 105u8, 110u8, 101u8,
+                                            99u8, 114u8, 97u8, 102u8, 116u8, 58u8, 116u8, 114u8,
+                                            105u8, 109u8, 8u8, 0u8, 8u8, 109u8, 97u8, 116u8, 101u8,
+                                            114u8, 105u8, 97u8, 108u8, 0u8, 16u8, 109u8, 105u8,
+                                            110u8, 101u8, 99u8, 114u8, 97u8, 102u8, 116u8, 58u8,
+                                            99u8, 111u8, 112u8, 112u8, 101u8, 114u8, 8u8, 0u8, 7u8,
+                                            112u8, 97u8, 116u8, 116u8, 101u8, 114u8, 110u8, 0u8,
+                                            14u8, 109u8, 105u8, 110u8, 101u8, 99u8, 114u8, 97u8,
+                                            102u8, 116u8, 58u8, 102u8, 108u8, 111u8, 119u8, 0u8,
+                                            0u8,
+                                        ]),
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
@@ -43244,9 +43271,18 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                 functions: &[
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_components",
-                                        ),
+                                        kind: LootFunctionKind::SetComponents(&[
+                                            10u8, 10u8, 0u8, 14u8, 109u8, 105u8, 110u8, 101u8,
+                                            99u8, 114u8, 97u8, 102u8, 116u8, 58u8, 116u8, 114u8,
+                                            105u8, 109u8, 8u8, 0u8, 8u8, 109u8, 97u8, 116u8, 101u8,
+                                            114u8, 105u8, 97u8, 108u8, 0u8, 16u8, 109u8, 105u8,
+                                            110u8, 101u8, 99u8, 114u8, 97u8, 102u8, 116u8, 58u8,
+                                            99u8, 111u8, 112u8, 112u8, 101u8, 114u8, 8u8, 0u8, 7u8,
+                                            112u8, 97u8, 116u8, 116u8, 101u8, 114u8, 110u8, 0u8,
+                                            14u8, 109u8, 105u8, 110u8, 101u8, 99u8, 114u8, 97u8,
+                                            102u8, 116u8, 58u8, 102u8, 108u8, 111u8, 119u8, 0u8,
+                                            0u8,
+                                        ]),
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
@@ -43296,9 +43332,18 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                 functions: &[
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_components",
-                                        ),
+                                        kind: LootFunctionKind::SetComponents(&[
+                                            10u8, 10u8, 0u8, 14u8, 109u8, 105u8, 110u8, 101u8,
+                                            99u8, 114u8, 97u8, 102u8, 116u8, 58u8, 116u8, 114u8,
+                                            105u8, 109u8, 8u8, 0u8, 8u8, 109u8, 97u8, 116u8, 101u8,
+                                            114u8, 105u8, 97u8, 108u8, 0u8, 16u8, 109u8, 105u8,
+                                            110u8, 101u8, 99u8, 114u8, 97u8, 102u8, 116u8, 58u8,
+                                            99u8, 111u8, 112u8, 112u8, 101u8, 114u8, 8u8, 0u8, 7u8,
+                                            112u8, 97u8, 116u8, 116u8, 101u8, 114u8, 110u8, 0u8,
+                                            14u8, 109u8, 105u8, 110u8, 101u8, 99u8, 114u8, 97u8,
+                                            102u8, 116u8, 58u8, 102u8, 108u8, 111u8, 119u8, 0u8,
+                                            0u8,
+                                        ]),
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,
@@ -43336,9 +43381,18 @@ pub static EQUIPMENT_TRIAL_CHAMBER: LootTable = LootTable {
                                 functions: &[
                                     LootFunction {
                                         condition: LootCondition::None,
-                                        kind: LootFunctionKind::Unsupported(
-                                            "minecraft:set_components",
-                                        ),
+                                        kind: LootFunctionKind::SetComponents(&[
+                                            10u8, 10u8, 0u8, 14u8, 109u8, 105u8, 110u8, 101u8,
+                                            99u8, 114u8, 97u8, 102u8, 116u8, 58u8, 116u8, 114u8,
+                                            105u8, 109u8, 8u8, 0u8, 8u8, 109u8, 97u8, 116u8, 101u8,
+                                            114u8, 105u8, 97u8, 108u8, 0u8, 16u8, 109u8, 105u8,
+                                            110u8, 101u8, 99u8, 114u8, 97u8, 102u8, 116u8, 58u8,
+                                            99u8, 111u8, 112u8, 112u8, 101u8, 114u8, 8u8, 0u8, 7u8,
+                                            112u8, 97u8, 116u8, 116u8, 101u8, 114u8, 110u8, 0u8,
+                                            14u8, 109u8, 105u8, 110u8, 101u8, 99u8, 114u8, 97u8,
+                                            102u8, 116u8, 58u8, 102u8, 108u8, 111u8, 119u8, 0u8,
+                                            0u8,
+                                        ]),
                                     },
                                     LootFunction {
                                         condition: LootCondition::None,

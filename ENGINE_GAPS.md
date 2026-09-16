@@ -1165,3 +1165,27 @@ whole inside-effect pipeline matches Java yet.
   reloadable registries and older-client/live menu integration. Instrument gameplay
   event delivery/cooldown interaction still needs live verification. Other shared
   engine/block gates remain open; no full mob pass was started.
+
+## Component patch validation and armor trims
+
+- Added all six built-in `set_components` declarations. The production generator
+  uses typed NBT exported by Java's actual component codec; new declarations must
+  be exported explicitly rather than guessing JSON numeric types. Three built-in
+  function declarations remain unsupported, all `exploration_map`.
+- Shared patch application normalizes prototype defaults/removals, validates stack
+  limits, damage/stackability, contained-item sizes and bundle fraction overflow,
+  and rolls back the entire patch on failure. Temporarily empty loot stacks and
+  counts before final splitting retain Java's behavior. Empty bundle/container
+  equality and omitted nested item counts are handled.
+- Trim components now preserve registry and inline material/pattern values through
+  network, NBT and hashing. Invalid registry IDs reject without integer overflow.
+- `LootPatchTrimOracle` runs Java's actual codecs/evaluator for **23 tables and 828
+  cases**, both RNGs and their following values. **201 trim fixtures** cover every
+  registered material/pattern pair plus inline/mixed holders, saved values, network
+  round trips and Java CRC32C hashes. Rust tables use the production generator.
+- Background six-package suite passed **1,061 tests** (544 engine, 73 data,
+  23 inventory, 114 protocol, 66 utility, 241 world), with the same two previously
+  separately passing localhost tests excluded.
+- This is not full component-codec or engine certification: remaining stub codecs,
+  exploration maps, dynamic registries/context producers, text forms, locks and
+  live client/gameplay integration remain open. No full mob pass was started.

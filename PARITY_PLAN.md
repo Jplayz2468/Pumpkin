@@ -513,3 +513,13 @@ Java fixtures cover 736 loot cases and 20 component network/hash/playback cases.
 Nine built-in function declarations remain unsupported (component patches/maps).
 Entity text resolution, complete text forms/component hashes, reloads and live
 integration remain open with the other engine/block dependencies.
+
+### Component patch / trim checkpoint
+
+All six built-in component-patch loot declarations are implemented; three
+exploration-map declarations remain unsupported. Shared validation/rollback and
+prototype normalization match 828 Java cases. Trim wire/NBT/hash handling matches
+201 Java fixtures. Background six-package suite: 1,061 passed with the same two
+previously separately passing socket tests excluded. Broader component codecs,
+locks, reloads, live integration and other ENGINE_GAPS.md gates remain open.
+Full mob passes remain paused.

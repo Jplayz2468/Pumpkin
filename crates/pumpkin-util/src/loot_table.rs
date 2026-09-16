@@ -126,6 +126,8 @@ pub enum LootRegistrySet {
 #[derive(Clone, Copy, Debug)]
 pub enum LootFunctionKind {
     SetInstrument(LootRegistrySet),
+    /// Canonical NBT exported through Java DataComponentPatch.CODEC.
+    SetComponents(&'static [u8]),
     SetName { name_json: Option<&'static str>, item_name: bool },
     EnchantRandomly {
         options: LootRegistrySet,

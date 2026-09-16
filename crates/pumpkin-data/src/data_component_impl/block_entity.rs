@@ -62,8 +62,26 @@ pub struct ContainerImpl {
     pub items: Vec<(u8, crate::item_stack::ItemStack)>,
 }
 impl PartialEq for ContainerImpl {
-    fn eq(&self, _other: &Self) -> bool {
-        false
+    fn eq(&self, other: &Self) -> bool {
+        self.items
+            .iter()
+            .filter(|(_, item)| !item.is_empty())
+            .count()
+            == other
+                .items
+                .iter()
+                .filter(|(_, item)| !item.is_empty())
+                .count()
+            && self
+                .items
+                .iter()
+                .filter(|(_, item)| !item.is_empty())
+                .all(|(slot, item)| {
+                    other.items.iter().any(|(other_slot, other_item)| {
+                        slot == other_slot
+                            && crate::item_stack::ItemStack::are_equal(item, other_item)
+                    })
+                })
     }
 }
 impl Eq for ContainerImpl {}

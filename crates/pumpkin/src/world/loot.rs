@@ -701,6 +701,13 @@ fn apply_functions(
                     });
                 }
             }
+            LootFunctionKind::SetComponents(bytes) => {
+                if let Some(patch) = pumpkin_data::component_patch::decode(bytes) {
+                    output.stack.apply_components_and_validate(&patch, current);
+                } else {
+                    tracing::warn!("Unable to decode loot component patch; leaving the stack unchanged");
+                }
+            }
             LootFunctionKind::SetName {
                 name_json,
                 item_name,
@@ -2649,3 +2656,7 @@ mod enchantment_tests {
 #[cfg(test)]
 #[path = "loot_name_instrument_tests.rs"]
 mod name_instrument_tests;
+
+#[cfg(test)]
+#[path = "loot_patch_tests.rs"]
+mod patch_tests;

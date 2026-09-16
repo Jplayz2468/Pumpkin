@@ -1360,6 +1360,65 @@ impl TrimImpl {
     }
 }
 impl DataComponentImpl for TrimImpl {
+    fn get_hash(&self) -> i32 {
+        use crate::{component_hash, data_component_impl::get_str_hash};
+        fn holder(value: &NbtTag, material: bool) -> u32 {
+            if let NbtTag::String(name) = value {
+                return get_str_hash(&if name.contains(':') {
+                    name.to_string()
+                } else {
+                    format!("minecraft:{name}")
+                });
+            }
+            let Some(value) = value.extract_compound() else {
+                return 0;
+            };
+            let asset = if material { "asset_name" } else { "asset_id" };
+            let Some(name) = value.get_string(asset) else {
+                return 0;
+            };
+            let Some(description) = value.get("description") else {
+                return 0;
+            };
+            let mut fields = vec![
+                (get_str_hash(asset), get_str_hash(name)),
+                (
+                    get_str_hash("description"),
+                    component_hash::text(&pumpkin_util::text::TextComponent::from_nbt(description)),
+                ),
+            ];
+            if material {
+                if let Some(overrides) = value.get_compound("override_armor_assets")
+                    && !overrides.child_tags.is_empty()
+                {
+                    fields.push((
+                        get_str_hash("override_armor_assets"),
+                        component_hash::map(
+                            overrides
+                                .child_tags
+                                .iter()
+                                .filter_map(|(key, value)| {
+                                    Some((get_str_hash(key), get_str_hash(value.extract_string()?)))
+                                })
+                                .collect(),
+                        ),
+                    ));
+                }
+            } else {
+                fields.push((
+                    get_str_hash("decal"),
+                    component_hash::json(&pumpkin_util::serde_json::Value::Bool(
+                        value.get_bool("decal").unwrap_or(false),
+                    )),
+                ));
+            }
+            component_hash::map(fields)
+        }
+        component_hash::map(vec![
+            (get_str_hash("material"), holder(&self.material, true)),
+            (get_str_hash("pattern"), holder(&self.pattern, false)),
+        ]) as i32
+    }
     fn write_data(&self) -> NbtTag {
         let mut compound = NbtCompound::new();
         compound.put("material", self.material.clone());

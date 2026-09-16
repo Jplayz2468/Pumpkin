@@ -609,6 +609,15 @@ fn functions_tokens(functions: &[EntryFunctionStruct]) -> TokenStream {
         let f = &function.fields;
         let field = |key: &str| f.get(key).unwrap_or(&serde_json::Value::Null);
         let kind = match function.function.as_str() {
+            "minecraft:set_components" => {
+                static PATCHES: std::sync::LazyLock<Vec<serde_json::Value>> = std::sync::LazyLock::new(|| {
+                    serde_json::from_str(&fs::read_to_string("../../assets/loot_component_patches.json").expect("canonical component patch export")).expect("component patch JSON")
+                });
+                let patch = PATCHES.iter().find(|patch| &patch["components"] == field("components"))
+                    .expect("New component patch: rerun tools/vanilla/LootPatchTrimOracle.java to export canonical typed NBT");
+                let bytes: Vec<u8> = patch["nbt"].as_array().expect("patch bytes").iter().map(|b| u8::try_from(b.as_u64().expect("byte")).expect("byte range")).collect();
+                quote! { LootFunctionKind::SetComponents(&[#(#bytes),*]) }
+            }
             "minecraft:set_instrument" => {
                 let options = registry_set_tokens(field("options"));
                 quote! { LootFunctionKind::SetInstrument(#options) }
@@ -961,6 +970,15 @@ pub fn build_name_instrument_fixtures() -> TokenStream {
         &fs::read_to_string("../../crates/pumpkin/src/world/loot_name_instrument_tables.json")
             .expect("name/instrument fixture tables"),
     ).expect("name/instrument fixture JSON");
+    let tables: Vec<_> = tables.iter().map(table_tokens).collect();
+    quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
+}
+
+
+pub fn build_patch_fixtures() -> TokenStream {
+    let tables: Vec<ChestLootTableJson> = serde_json::from_str(
+        &fs::read_to_string("../../crates/pumpkin/src/world/loot_patch_tables.json").expect("patch fixture tables")
+    ).expect("patch fixture JSON");
     let tables: Vec<_> = tables.iter().map(table_tokens).collect();
     quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
 }

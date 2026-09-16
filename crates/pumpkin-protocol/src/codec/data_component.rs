@@ -2362,19 +2362,127 @@ impl DataComponentCodec<Self> for WrittenBookContentImpl {
     }
 }
 
+fn write_trim_reference(
+    registry: &str,
+    value: &NbtTag,
+    seq: &mut impl NetworkWriteExt,
+) -> Result<bool, WritingError> {
+    if let NbtTag::String(name) = value {
+        let id = pumpkin_data::registry_reference::id(registry, name)
+            .ok_or_else(|| WritingError::Message(format!("Unknown {registry} {name}")))?;
+        seq.write_var_int(&VarInt(id + 1))?;
+        Ok(true)
+    } else if matches!(value, NbtTag::Compound(_)) {
+        seq.write_var_int(&VarInt(0))?;
+        Ok(false)
+    } else {
+        Err(WritingError::Message(format!("Invalid {registry} holder")))
+    }
+}
+fn read_trim_reference(
+    registry: &str,
+    seq: &mut impl NetworkReadExt,
+) -> Result<Option<NbtTag>, ReadingError> {
+    let id = seq.get_var_int()?.0;
+    if id == 0 {
+        return Ok(None);
+    }
+    let name = id
+        .checked_sub(1)
+        .and_then(|id| pumpkin_data::registry_reference::name(registry, id))
+        .ok_or_else(|| ReadingError::Message(format!("Invalid {registry} id {id}")))?;
+    Ok(Some(NbtTag::String(name.into())))
+}
 impl DataComponentCodec<Self> for TrimImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_var_int(&VarInt(0))?;
-        seq.write_var_int(&VarInt(0))
+        if !write_trim_reference("trim_material", &self.material, seq)? {
+            let material = self.material.extract_compound().unwrap();
+            seq.write_string(
+                material
+                    .get_string("asset_name")
+                    .ok_or_else(|| WritingError::Message("Missing trim asset name".into()))?,
+            )?;
+            let overrides = material.get_compound("override_armor_assets");
+            seq.write_var_int(&VarInt(overrides.map_or(0, |v| v.child_tags.len()) as i32))?;
+            if let Some(overrides) = overrides {
+                let mut entries: Vec<_> = overrides.child_tags.iter().collect();
+                entries.sort_by_key(|(key, _)| *key);
+                for (key, value) in entries {
+                    seq.write_string(key)?;
+                    seq.write_string(value.extract_string().ok_or_else(|| {
+                        WritingError::Message("Invalid trim asset override".into())
+                    })?)?;
+                }
+            }
+            let description = material
+                .get("description")
+                .ok_or_else(|| WritingError::Message("Missing trim material description".into()))?;
+            seq.write_slice(
+                &pumpkin_util::text::TextComponent::from_nbt(description)
+                    .encode_for_version(&JavaMinecraftVersion::V_26_2),
+            )?;
+        }
+        if !write_trim_reference("trim_pattern", &self.pattern, seq)? {
+            let pattern = self.pattern.extract_compound().unwrap();
+            seq.write_string(
+                pattern
+                    .get_string("asset_id")
+                    .ok_or_else(|| WritingError::Message("Missing trim pattern asset id".into()))?,
+            )?;
+            let description = pattern
+                .get("description")
+                .ok_or_else(|| WritingError::Message("Missing trim pattern description".into()))?;
+            seq.write_slice(
+                &pumpkin_util::text::TextComponent::from_nbt(description)
+                    .encode_for_version(&JavaMinecraftVersion::V_26_2),
+            )?;
+            seq.write_bool(pattern.get_bool("decal").unwrap_or(false))?;
+        }
+        Ok(())
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let _material = seq.get_var_int()?;
-        let _pattern = seq.get_var_int()?;
-        Ok(Self {
-            material: NbtTag::String("minecraft:quartz".into()),
-            pattern: NbtTag::String("minecraft:coast".into()),
-        })
+        let material = if let Some(value) = read_trim_reference("trim_material", seq)? {
+            value
+        } else {
+            let mut value = pumpkin_nbt::compound::NbtCompound::new();
+            value.put_string("asset_name", seq.get_str()?.to_string());
+            let count = seq.get_var_int()?.0;
+            if count < 0 {
+                return Err(ReadingError::Message("Negative trim override count".into()));
+            }
+            let mut overrides = pumpkin_nbt::compound::NbtCompound::new();
+            for _ in 0..count {
+                let key = seq.get_str()?.to_string();
+                overrides.put_string(&key, seq.get_str()?.to_string());
+            }
+            if count > 0 {
+                value.put_compound("override_armor_assets", overrides);
+            }
+            value.put(
+                "description",
+                seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?
+                    .ok_or_else(|| {
+                        ReadingError::Message("Missing trim material description".into())
+                    })?,
+            );
+            NbtTag::Compound(value)
+        };
+        let pattern = if let Some(value) = read_trim_reference("trim_pattern", seq)? {
+            value
+        } else {
+            let mut value = pumpkin_nbt::compound::NbtCompound::new();
+            value.put_string("asset_id", seq.get_str()?.to_string());
+            value.put(
+                "description",
+                seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?
+                    .ok_or_else(|| {
+                        ReadingError::Message("Missing trim pattern description".into())
+                    })?,
+            );
+            value.put_bool("decal", seq.get_bool()?);
+            NbtTag::Compound(value)
+        };
+        Ok(Self { material, pattern })
     }
 }
 
