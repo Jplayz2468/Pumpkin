@@ -35,6 +35,13 @@ impl ScreenHandlerFactory for HopperBlockScreenFactory {
         player_inventory: &Arc<PlayerInventory>,
         player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
+        if !crate::block::entities::container_lock::can_open_inventory(
+            self.0.as_ref(),
+            player,
+            self.get_display_name(),
+        ) {
+            return None;
+        }
         let concrete_handler = create_hopper(sync_id, player_inventory, self.0.clone(), player);
         let concrete_arc = Arc::new(Mutex::new(concrete_handler));
 
@@ -150,5 +157,19 @@ fn check_powered_state(world: &Arc<World>, pos: &BlockPos, state_id: BlockStateI
     if signal != state.enabled {
         state.enabled = signal;
         world.set_block_state(pos, state.to_state_id(block), BlockFlags::NOTIFY_LISTENERS);
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+    #[test]
+    fn menu_honors_main_hand_lock_and_spectator_bypass() {
+        let entity = Arc::new(crate::block::entities::hopper::HopperBlockEntity::new(
+            pumpkin_util::math::position::BlockPos::new(0, 0, 0),
+            pumpkin_data::block_properties::FacingHopper::Down,
+        ));
+        let factory = HopperBlockScreenFactory(entity.clone());
+        crate::block::entities::container_lock::menu_tests::check(&factory, &[entity.as_ref()]);
     }
 }

@@ -388,6 +388,7 @@ macro_rules! impl_inventory_for_cooking {
 macro_rules! impl_block_entity_for_cooking {
     ($struct_name:ty,$recipe_kind:expr) => {
         impl $crate::block::entities::BlockEntity for $struct_name {
+            fn container_lock(&self) -> Option<&$crate::block::entities::container_lock::ContainerLock> {Some(&self.container_lock)}
             #[expect(clippy::too_many_lines)]
             fn tick(
                 &self,
@@ -625,6 +626,7 @@ macro_rules! impl_block_entity_for_cooking {
 
                 let mut furnace = Self {
                     position,
+                    container_lock: $crate::block::entities::container_lock::ContainerLock::default(),
                     world: std::sync::Mutex::new(std::sync::Weak::new()),
                     dirty: AtomicBool::new(false),
                     comparator_dirty: AtomicBool::new(false),
@@ -637,10 +639,12 @@ macro_rules! impl_block_entity_for_cooking {
                 };
                 pumpkin_inventory::sync_read_items_from_nbt(nbt, furnace.items.get_mut().unwrap_or_else(std::sync::PoisonError::into_inner));
 
+                furnace.container_lock.read_nbt(nbt);
                 furnace
             }
 
             fn write_nbt(&self, nbt: &mut pumpkin_nbt::compound::NbtCompound) {
+                self.container_lock.write_nbt(nbt);
                 nbt.put_short("cooking_total_time", self.get_cooking_total_time() as i16);
                 nbt.put_short("cooking_time_spent", self.get_cooking_time_spent() as i16);
                 nbt.put_short("lit_total_time", self.get_lit_total_time() as i16);

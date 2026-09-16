@@ -86,6 +86,13 @@ impl ScreenHandlerFactory for DispenserScreenFactory {
         player_inventory: &Arc<PlayerInventory>,
         player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
+        if !crate::block::entities::container_lock::can_open_inventory(
+            self.0.as_ref(),
+            player,
+            self.get_display_name(),
+        ) {
+            return None;
+        }
         let handler = create_generic_3x3(sync_id, player_inventory, self.0.clone(), player);
         let screen_handler_arc = Arc::new(Mutex::new(handler));
 
@@ -1329,4 +1336,19 @@ pub(super) fn spawn_default_item(
     world.spawn_entity(Arc::new(ItemEntity::new_with_velocity(
         entity, stack, velocity, 0,
     )));
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+    #[test]
+    fn menu_honors_main_hand_lock_and_spectator_bypass() {
+        let entity = Arc::new(
+            crate::block::entities::dispenser::DispenserBlockEntity::new(
+                pumpkin_util::math::position::BlockPos::new(0, 0, 0),
+            ),
+        );
+        let factory = DispenserScreenFactory(entity.clone());
+        crate::block::entities::container_lock::menu_tests::check(&factory, &[entity.as_ref()]);
+    }
 }

@@ -1152,11 +1152,9 @@ impl<W: Write> NetworkWriteExt for W {
     }
 
     fn write_string_bounded(&mut self, data: &str, bound: usize) -> Result<(), WritingError> {
-        if data.len() > bound {
+        if data.encode_utf16().nth(bound).is_some() {
             return Err(WritingError::Message(format!(
-                "string length {} exceeds bound {}",
-                data.len(),
-                bound
+                "string exceeds UTF-16 length bound {bound}"
             )));
         }
         self.write_var_int(&data.len().try_into().map_err(|_| {

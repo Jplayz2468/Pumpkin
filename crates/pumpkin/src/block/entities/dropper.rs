@@ -12,13 +12,18 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 pub struct DropperBlockEntity {
     pub position: BlockPos,
+    pub(crate) container_lock: super::container_lock::ContainerLock,
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
 }
 
 impl BlockEntity for DropperBlockEntity {
+    fn container_lock(&self) -> Option<&super::container_lock::ContainerLock> {
+        Some(&self.container_lock)
+    }
     fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.container_lock.write_nbt(nbt);
         self.write_inventory_nbt(nbt, true);
     }
 
@@ -28,6 +33,7 @@ impl BlockEntity for DropperBlockEntity {
     {
         let mut dropper = Self {
             position,
+            container_lock: super::container_lock::ContainerLock::default(),
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),
@@ -41,6 +47,7 @@ impl BlockEntity for DropperBlockEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner),
         );
 
+        dropper.container_lock.read_nbt(nbt);
         dropper
     }
 
@@ -93,6 +100,7 @@ impl DropperBlockEntity {
     pub fn new(position: BlockPos) -> Self {
         Self {
             position,
+            container_lock: super::container_lock::ContainerLock::default(),
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),

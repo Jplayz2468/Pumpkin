@@ -16,11 +16,12 @@ pub mod bell;
 pub mod blasting_furnace;
 pub mod brewing_stand;
 pub mod chest;
-pub mod components;
 pub mod chest_like_block_entity;
 pub mod chiseled_bookshelf;
 pub mod command_block;
 pub mod comparator;
+pub mod components;
+pub mod container_lock;
 pub mod daylight_detector;
 pub mod dropper;
 pub mod end_portal;
@@ -132,6 +133,10 @@ pub trait BlockEntity: Any + Send + Sync {
             .unwrap_or(0) as u32
     }
 
+    fn container_lock(&self) -> Option<&container_lock::ContainerLock> {
+        None
+    }
+
     fn component_storage(&self) -> Option<&components::BlockEntityComponents> {
         None
     }
@@ -144,13 +149,23 @@ pub trait BlockEntity: Any + Send + Sync {
             storage.collect(stack);
         }
         self.collect_implicit_components(stack);
+        if let Some(lock) = self.container_lock() {
+            lock.collect(stack);
+        }
     }
 
     /// Applies subclass fields, then retains the unconsumed added patch entries.
     fn apply_components_from_item_stack(&self, stack: &ItemStack) {
         self.apply_implicit_components(stack);
+        if let Some(lock) = self.container_lock() {
+            lock.apply(stack);
+        }
         if let Some(storage) = self.component_storage() {
-            storage.apply(stack, self.implicit_component_types());
+            let mut consumed = self.implicit_component_types().to_vec();
+            if self.container_lock().is_some() {
+                consumed.push(pumpkin_data::data_component::DataComponent::Lock);
+            }
+            storage.apply(stack, &consumed);
         }
     }
 

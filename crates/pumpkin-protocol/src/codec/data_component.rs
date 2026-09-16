@@ -2293,71 +2293,112 @@ impl DataComponentCodec<Self> for PotionDurationScaleImpl {
     }
 }
 
+fn write_book_value<T, W: NetworkWriteExt>(
+    seq: &mut W,
+    value: &Filterable<T>,
+    mut write: impl FnMut(&mut W, &T) -> Result<(), WritingError>,
+) -> Result<(), WritingError> {
+    write(seq, &value.raw)?;
+    seq.write_bool(value.filtered.is_some())?;
+    if let Some(v) = &value.filtered {
+        write(seq, v)?;
+    }
+    Ok(())
+}
+fn read_book_value<T, R: NetworkReadExt>(
+    seq: &mut R,
+    mut read: impl FnMut(&mut R) -> Result<T, ReadingError>,
+) -> Result<Filterable<T>, ReadingError> {
+    let raw = read(seq)?;
+    let filtered = if seq.get_bool()? {
+        Some(read(seq)?)
+    } else {
+        None
+    };
+    Ok(Filterable { raw, filtered })
+}
+fn read_book_text(
+    seq: &mut impl NetworkReadExt,
+) -> Result<pumpkin_util::text::TextComponent, ReadingError> {
+    let tag = seq
+        .get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?
+        .ok_or_else(|| ReadingError::Message("Missing book page".into()))?;
+    pumpkin_util::text::TextComponent::try_from_nbt(&tag)
+        .ok_or_else(|| ReadingError::Message("Invalid book page".into()))
+}
 impl DataComponentCodec<Self> for WritableBookContentImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_var_int(&VarInt::from(self.pages.len() as i32))?;
+        if self.pages.len() > 100 {
+            return Err(WritingError::Message("Too many writable book pages".into()));
+        }
+        seq.write_var_int(&VarInt(self.pages.len() as i32))?;
         for page in &self.pages {
-            seq.write_string(page)?;
-            seq.write_bool(false)?;
+            write_book_value(seq, page, |seq, v| seq.write_string_bounded(v, 1024))?;
         }
         Ok(())
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let len = seq.get_var_int()?.0 as usize;
-        let mut pages = Vec::with_capacity(len);
+        let len = seq.get_var_int()?.0;
+        if !(0..=100).contains(&len) {
+            return Err(ReadingError::Message(
+                "Invalid writable book page count".into(),
+            ));
+        }
+        let mut pages = Vec::with_capacity(len as usize);
         for _ in 0..len {
-            let raw = seq.get_str()?.to_string();
-            let has_filtered = seq.get_bool()?;
-            if has_filtered {
-                let _ = seq.get_str()?;
-            }
-            pages.push(raw);
+            pages.push(read_book_value(seq, |seq| {
+                Ok(seq.get_str_bounded(1024)?.to_string())
+            })?);
         }
         Ok(Self { pages })
     }
 }
-
 impl DataComponentCodec<Self> for WrittenBookContentImpl {
     fn serialize(&self, seq: &mut impl NetworkWriteExt) -> Result<(), WritingError> {
-        seq.write_string(&self.title)?;
-        seq.write_bool(false)?;
+        if !(0..=3).contains(&self.generation) {
+            return Err(WritingError::Message(
+                "Invalid written book generation".into(),
+            ));
+        }
+        write_book_value(seq, &self.title, |seq, v| seq.write_string_bounded(v, 32))?;
         seq.write_string(&self.author)?;
-        seq.write_var_int(&VarInt(0))?;
-        seq.write_var_int(&VarInt::from(self.pages.len() as i32))?;
+        seq.write_var_int(&VarInt(self.generation))?;
+        seq.write_var_int(&VarInt(i32::try_from(self.pages.len()).map_err(|_| {
+            WritingError::Message("Too many written book pages".into())
+        })?))?;
         for page in &self.pages {
-            let comp = pumpkin_util::text::TextComponent::text(page.clone());
-            seq.write_slice(&comp.encode_for_version(&JavaMinecraftVersion::V_26_2))?;
-            seq.write_bool(false)?;
+            write_book_value(seq, page, |seq, v| {
+                seq.write_slice(&v.encode_for_version(&JavaMinecraftVersion::V_26_2))
+            })?;
         }
-        seq.write_bool(true)
+        seq.write_bool(self.resolved)
     }
-
     fn deserialize(seq: &mut impl NetworkReadExt) -> Result<Self, ReadingError> {
-        let title = seq.get_str()?.to_string();
-        if seq.get_bool()? {
-            let _ = seq.get_str()?;
-        }
+        let title = read_book_value(seq, |seq| Ok(seq.get_str_bounded(32)?.to_string()))?;
         let author = seq.get_str()?.to_string();
-        let _generation = seq.get_var_int()?.0;
-        let pages_len = seq.get_var_int()?.0 as usize;
-        let mut pages = Vec::with_capacity(pages_len);
-        for _ in 0..pages_len {
-            let tag = seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?;
-            let comp = tag.as_ref().map_or_else(
-                pumpkin_util::text::TextComponent::empty,
-                pumpkin_util::text::TextComponent::from_nbt,
-            );
-            if seq.get_bool()? {
-                let _ = seq.get_nbt_with_version(&JavaMinecraftVersion::V_26_2)?;
-            }
-            pages.push(comp.get_text());
+        let generation = seq.get_var_int()?.0;
+        if !(0..=3).contains(&generation) {
+            return Err(ReadingError::Message(
+                "Invalid written book generation".into(),
+            ));
         }
-        let _resolved = seq.get_bool()?;
+        let len = seq.get_var_int()?.0;
+        if len < 0 {
+            return Err(ReadingError::Message(
+                "Negative written book page count".into(),
+            ));
+        }
+        let mut pages = Vec::new();
+        for _ in 0..len {
+            pages.push(read_book_value(seq, read_book_text)?);
+        }
+        let resolved = seq.get_bool()?;
         Ok(Self {
             title,
             author,
+            generation,
             pages,
+            resolved,
         })
     }
 }
@@ -3134,5 +3175,95 @@ mod bucket_tests {
             .unwrap();
         assert_eq!(actual, original);
         assert_eq!(input.position(), input.get_ref().len() as u64);
+    }
+}
+
+#[cfg(test)]
+mod book_component_tests {
+    use super::*;
+    use pumpkin_nbt::deserializer::NbtReadHelperJava;
+    use pumpkin_util::serde_json::Value;
+    fn bytes(value: &Value) -> Vec<u8> {
+        value
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_u64().unwrap() as u8)
+            .collect()
+    }
+    fn tag(value: &Value) -> NbtTag {
+        NbtTag::deserialize(&mut NbtReadHelperJava::new(&mut std::io::Cursor::new(
+            bytes(value),
+        )))
+        .unwrap()
+    }
+    fn check<T: DataComponentImpl + DataComponentCodec<T> + std::fmt::Debug + PartialEq>(
+        case: &Value,
+        index: usize,
+        read: impl Fn(&NbtTag) -> Option<T>,
+    ) {
+        let input = read(&tag(&case["input_nbt"]));
+        assert_eq!(
+            input.is_some(),
+            case["valid"].as_bool().unwrap(),
+            "book codec acceptance {index}"
+        );
+        if !case["valid"].as_bool().unwrap() {
+            return;
+        }
+        let expected = tag(&case["nbt"]);
+        let component = read(&expected).unwrap();
+        assert_eq!(component.write_data(), expected, "saved book {index}");
+        assert_eq!(
+            component.get_hash(),
+            case["hash"].as_i64().unwrap() as i32,
+            "book hash {index}"
+        );
+        let mut java = std::io::Cursor::new(bytes(&case["wire"]));
+        let decoded = <T as DataComponentCodec<T>>::deserialize(&mut java).unwrap();
+        assert_eq!(decoded, component, "Java book wire {index}");
+        assert_eq!(java.position(), java.get_ref().len() as u64);
+        let mut encoded = Vec::new();
+        component.serialize(&mut encoded).unwrap();
+        if case["exact_wire"].as_bool().unwrap() {
+            assert_eq!(encoded, bytes(&case["wire"]), "book wire bytes {index}");
+        }
+        let mut input = std::io::Cursor::new(encoded);
+        assert_eq!(
+            <T as DataComponentCodec<T>>::deserialize(&mut input).unwrap(),
+            component
+        );
+        assert_eq!(input.position(), input.get_ref().len() as u64);
+    }
+    #[test]
+    fn books_preserve_java_saved_wire_hash_and_codec_boundaries() {
+        let cases: Vec<Value> =
+            pumpkin_util::serde_json::from_str(include_str!("book_component_cases.json")).unwrap();
+        assert_eq!(cases.len(), 42);
+        for (index, case) in cases.iter().enumerate() {
+            if case["component"] == "minecraft:writable_book_content" {
+                check(case, index, WritableBookContentImpl::read_data);
+            } else {
+                check(case, index, WrittenBookContentImpl::read_data);
+            }
+        }
+    }
+    #[test]
+    fn malformed_book_wire_rejects_negative_counts_and_invalid_generation() {
+        for count in [-1, 101, i32::MAX] {
+            let mut bytes = Vec::new();
+            bytes.write_var_int(&VarInt(count)).unwrap();
+            assert!(
+                WritableBookContentImpl::deserialize(&mut std::io::Cursor::new(bytes)).is_err()
+            );
+        }
+        for generation in [-1, 4, i32::MAX] {
+            let mut bytes = Vec::new();
+            bytes.write_string("title").unwrap();
+            bytes.write_bool(false).unwrap();
+            bytes.write_string("author").unwrap();
+            bytes.write_var_int(&VarInt(generation)).unwrap();
+            assert!(WrittenBookContentImpl::deserialize(&mut std::io::Cursor::new(bytes)).is_err());
+        }
     }
 }

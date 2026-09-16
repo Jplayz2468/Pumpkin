@@ -27,6 +27,7 @@ use super::BlockEntity;
 
 pub struct BarrelBlockEntity {
     pub position: BlockPos,
+    pub(crate) container_lock: super::container_lock::ContainerLock,
     components: super::components::BlockEntityComponents,
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
     pub dirty: AtomicBool,
@@ -42,6 +43,9 @@ pub struct BarrelBlockEntity {
 }
 
 impl BlockEntity for BarrelBlockEntity {
+    fn container_lock(&self) -> Option<&super::container_lock::ContainerLock> {
+        Some(&self.container_lock)
+    }
     fn component_storage(&self) -> Option<&super::components::BlockEntityComponents> {
         Some(&self.components)
     }
@@ -82,10 +86,12 @@ impl BlockEntity for BarrelBlockEntity {
             .unwrap_or_else(std::sync::PoisonError::into_inner) =
             nbt.get("CustomName").map(TextComponent::from_nbt);
         entity.components.read_nbt(nbt);
+        entity.container_lock.read_nbt(nbt);
         entity
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.container_lock.write_nbt(nbt);
         self.components.write_nbt(nbt);
         if let Some(name) = self
             .custom_name
@@ -265,6 +271,7 @@ impl BarrelBlockEntity {
     pub fn new(position: BlockPos) -> Self {
         Self {
             position,
+            container_lock: super::container_lock::ContainerLock::default(),
             components: super::components::BlockEntityComponents::new(),
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),

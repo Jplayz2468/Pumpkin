@@ -1383,6 +1383,21 @@ impl TextComponent {
         Self::text("")
     }
 
+    /// Validates the supported text representation before preserving NBT argument widths.
+    pub fn try_from_nbt(tag: &pumpkin_nbt::tag::NbtTag) -> Option<Self> {
+        if let pumpkin_nbt::tag::NbtTag::List(values) = tag {
+            if values.is_empty() {
+                return None;
+            }
+            for value in values {
+                Self::try_from_nbt(value)?;
+            }
+        } else {
+            let _: Self = serde_json::from_value(nbt_tag_to_json(tag)).ok()?;
+        }
+        Some(Self::from_nbt(tag))
+    }
+
     /// Parses a text component from its NBT representation
     #[must_use]
     pub fn from_nbt(tag: &pumpkin_nbt::tag::NbtTag) -> Self {

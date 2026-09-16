@@ -18,6 +18,7 @@ use pumpkin_util::math::position::BlockPos;
 
 pub struct BrewingStandBlockEntity {
     pub position: BlockPos,
+    pub(crate) container_lock: super::container_lock::ContainerLock,
     world: StdMutex<Weak<crate::world::World>>,
     pub items: RwLock<[ItemStack; Self::INVENTORY_SIZE]>,
     pub dirty: AtomicBool,
@@ -37,6 +38,7 @@ impl BrewingStandBlockEntity {
         use std::array::from_fn;
         Self {
             position,
+            container_lock: super::container_lock::ContainerLock::default(),
             world: StdMutex::new(Weak::new()),
             items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
             dirty: AtomicBool::new(false),
@@ -492,6 +494,9 @@ impl pumpkin_inventory::Clearable for BrewingStandBlockEntity {
 }
 
 impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
+    fn container_lock(&self) -> Option<&super::container_lock::ContainerLock> {
+        Some(&self.container_lock)
+    }
     fn resource_location(&self) -> &'static str {
         Self::ID
     }
@@ -536,10 +541,12 @@ impl crate::block::entities::BlockEntity for BrewingStandBlockEntity {
                 .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(items[3].item);
         }
 
+        entity.container_lock.read_nbt(nbt);
         entity
     }
 
     fn write_nbt(&self, nbt: &mut NbtCompound) {
+        self.container_lock.write_nbt(nbt);
         // Persist brew state
         nbt.put_short("BrewTime", self.brew_time.load(Ordering::Relaxed) as i16);
         nbt.put_byte("Fuel", self.fuel.load(Ordering::Relaxed) as i8);

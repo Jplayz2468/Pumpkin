@@ -532,3 +532,13 @@ indexed/invalid formats. The Java oracle covers 69 cases. Final background run 6
 passed 1,062 tests with the established two socket-test exclusions. Container lock predicates
 and remaining text/context/lifecycle integration remain open. Full mob passes
 remain paused.
+
+### Container locks / books checkpoint
+
+Shared lock storage and production menu checks now cover all 12 container families,
+including both chest halves, main-hand keys and spectator access. Predicate fixtures
+cover 16,380 Java evaluations; books have 42 codec/wire/hash cases plus a lectern
+persistence check. Book state and Unicode strings are preserved; signing keeps item
+patches and honors the requested inventory slot. See ENGINE_GAPS.md for validation
+and the remaining lock codecs, names, text/context and live integration limits.
+Full mob passes remain paused; other engine/block gates are still open.

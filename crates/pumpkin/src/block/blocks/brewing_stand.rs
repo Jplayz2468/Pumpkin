@@ -29,8 +29,15 @@ impl ScreenHandlerFactory for BrewingScreenFactory {
         &self,
         sync_id: u8,
         player_inventory: &Arc<PlayerInventory>,
-        _player: &dyn InventoryPlayer,
+        player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
+        if !crate::block::entities::container_lock::can_open_inventory(
+            self.0.as_ref(),
+            player,
+            self.get_display_name(),
+        ) {
+            return None;
+        }
         let inventory = self.0.clone();
         pumpkin_inventory::brewing::create_brewing(sync_id, player_inventory, inventory, &self.1)
             .map(|handler| Arc::new(Mutex::new(handler)) as SharedScreenHandler)
@@ -89,5 +96,20 @@ impl BlockBehaviour for BrewingStandBlock {
 
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {
         false
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+    #[test]
+    fn menu_honors_main_hand_lock_and_spectator_bypass() {
+        let entity = Arc::new(
+            crate::block::entities::brewing_stand::BrewingStandBlockEntity::new(
+                pumpkin_util::math::position::BlockPos::new(0, 0, 0),
+            ),
+        );
+        let factory = BrewingScreenFactory(entity.clone(), entity.clone());
+        crate::block::entities::container_lock::menu_tests::check(&factory, &[entity.as_ref()]);
     }
 }

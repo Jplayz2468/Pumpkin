@@ -321,3 +321,46 @@ impl Clearable for LecternBlockEntity {
         self.set_book(ItemStack::EMPTY.clone());
     }
 }
+
+#[cfg(test)]
+mod book_component_tests {
+    use super::*;
+    use pumpkin_data::{data_component_impl::Filterable, item::Item};
+    use pumpkin_util::text::TextComponent;
+    #[test]
+    fn saved_lectern_preserves_filtered_styled_book_and_selected_page() {
+        let content = WrittenBookContentImpl {
+            title: Filterable {
+                raw: "Title".into(),
+                filtered: Some("Safe title".into()),
+            },
+            author: "Author".into(),
+            generation: 2,
+            resolved: true,
+            pages: vec![
+                Filterable {
+                    raw: TextComponent::text("raw").bold(),
+                    filtered: Some(TextComponent::text("safe").italic()),
+                },
+                TextComponent::text("second").into(),
+            ],
+        };
+        let mut book = ItemStack::new(1, &Item::WRITTEN_BOOK);
+        book.set_data_component(content.clone());
+        let pos = BlockPos::new(0, 0, 0);
+        let lectern = LecternBlockEntity::new(pos);
+        lectern.set_book(book);
+        lectern.set_page(1);
+        let mut saved = NbtCompound::new();
+        lectern.write_nbt(&mut saved);
+        let loaded = LecternBlockEntity::from_nbt(&saved, pos);
+        assert_eq!(loaded.page.load(Ordering::Relaxed), 1);
+        assert_eq!(loaded.page_count(), 2);
+        let removed = loaded.remove_stack(0);
+        assert_eq!(
+            removed.get_data_component::<WrittenBookContentImpl>(),
+            Some(&content)
+        );
+        assert!(!loaded.has_book());
+    }
+}

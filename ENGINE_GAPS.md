@@ -49,8 +49,9 @@ BaseCommandBlock.performCommand and CommandBlock.executeChain.
 4. **D04: entity foundations.** Per-entity Java random streams, dynamic environment
    attributes, remaining linked-entity ownership/lifecycles, piglin anger and entity-specific
    random draw ordering. This work precedes full per-mob passes.
-5. **D05/D06: containers and clients.** Lock predicates, component-form names/output,
-   raw comparator values, menu/protocol details and Bedrock verification.
+5. **D05/D06: containers and clients.** Remaining lock codec/predicate coverage,
+   component-form names/output, raw comparator values, menu/protocol details and
+   Bedrock verification.
 6. **Remaining block systems:** creaking-heart/resin/protector lifecycle, structure
    save/load, portal transitions/passenger trees, rotated summon patterns,
    detailed spawner/trial-spawner/beacon behavior and exhaustive data/shape comparison.
@@ -1222,3 +1223,45 @@ whole inside-effect pipeline matches Java yet.
   the shared matcher layer, lock persistence/implicit components across container
   families, both halves of double chests, spectator bypass and denial feedback.
   That dependency remains open; it has not been replaced with a name-only lock.
+
+## Container lock and book component continuation
+
+- Added shared item/component predicate evaluation and lock storage across all 12
+  BaseContainer families: chest/trapped chest, barrel, shulker box, furnace/blast
+  furnace/smoker, brewing stand, dispenser/dropper, hopper and crafter. Placement,
+  saved root `lock`, drop-component collection and replacement clearing preserve
+  predicates without duplicating them in retained components.
+- Production menu factories check the main hand before creating a menu or unpacking
+  loot. Both double-chest locks are checked; spectators bypass locks but retain the
+  pending-loot restriction. Denial uses Java's overlay and chest-locked sound, with
+  the combined chest position. Factory tests use an InventoryPlayer test double;
+  live sound/packet delivery is not established by those tests.
+- Item predicates cover item/tag sets, counts, effective component presence/exact
+  values and specialized partial matchers. Custom-data predicates parse Java's
+  saved SNBT form. Potion components now save registry names, and slash-separated
+  component names resolve correctly. Enchantment/stored-enchantment equality and
+  Rust/CRC32C hashes are independent of entry order, matching Java's map semantics.
+- `ItemPredicateOracle` supplies **52 predicates × 315 states = 16,380 comparisons**,
+  using actual Java codecs/evaluation, real item/enchantment tags, prototype values,
+  removals, counts, nested containers/bundles, fireworks, trims, variants and books.
+  Multi-enchantment cases also compare Java component hashes.
+- Writable/written books preserve filtered values, styled text, title/author,
+  generation and resolved state through NBT, network and component hashes. Readers
+  enforce page/title/generation bounds. Shared string writing now measures UTF-16
+  characters, allowing valid multibyte Unicode instead of rejecting by byte length.
+  Book edits honor the requested hotbar/off-hand slot and signing retains patches;
+  invalid page counts reject before consuming a malformed packet body.
+- `BookComponentOracle` covers **42 Java cases** for accepted/rejected data, saved
+  NBT, network bytes and hashes, including UTF-16 and flattened page-size boundaries.
+  A lectern save/reload/removal check preserves styled/filtered book data and page.
+- Background combined run 1 passed **1,080 tests** (559 engine, 74 data,
+  23 inventory, 117 protocol, 66 utility, 241 world), with the same two previously
+  separately passing localhost tests excluded. After adding the two final Gson
+  line-separator size-boundary cases, run 2 has also passed the engine/data/
+  inventory/protocol/utility packages; its world package was still running when
+  this checkpoint was prepared. The refined book cases passed in that run.
+- Remaining here: malformed lock codec fallback/normalization, full attribute and
+  jukebox component codecs/predicate evidence, unsupported text/hover forms and
+  entity resolution, filtering-service integration, complete container naming and
+  live client feedback. Other D01–D06/block gates remain open. These comparisons
+  are not full-engine certification. No full mob pass was started.

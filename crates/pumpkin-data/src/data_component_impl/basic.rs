@@ -727,9 +727,8 @@ impl DataComponentImpl for PotDecorationsImpl {
     default_impl!(PotDecorations);
 }
 
-/// The lock's item predicate, kept as its raw NBT compound since Pumpkin does
-/// not yet model item predicates.
-// TODO: replace `predicate` with a typed item predicate once item predicates are modelled.
+/// The lock's saved item predicate. The engine evaluates this shared representation
+/// when opening containers; it is a persistent-only component in Java 26.2.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LockImpl {
     pub predicate: NbtCompound,

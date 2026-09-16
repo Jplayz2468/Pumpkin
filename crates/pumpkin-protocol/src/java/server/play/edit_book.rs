@@ -19,13 +19,16 @@ impl<'a> ServerPacket<'a> for SEditBook<'a> {
     fn read(read: &mut &'a [u8], version: &JavaMinecraftVersion) -> Result<Self, ReadingError> {
         if *version >= JavaMinecraftVersion::V_1_17_1 {
             let slot = read.get_var_int()?;
-            let count = read.get_var_int()?.0 as usize;
+            let count = read.get_var_int()?.0;
             let max_pages = if *version >= JavaMinecraftVersion::V_1_21_2 {
                 100
             } else {
                 200
             };
-            let count = count.min(max_pages);
+            if !(0..=max_pages).contains(&count) {
+                return Err(ReadingError::Message("Invalid edit-book page count".into()));
+            }
+            let count = count as usize;
             let char_limit = if *version >= JavaMinecraftVersion::V_1_21_2 {
                 1024
             } else {
@@ -81,5 +84,31 @@ impl crate::ClientPacket for SEditBook<'_> {
             write.write_bool(false)?;
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ser::NetworkWriteExt;
+    #[test]
+    fn edit_book_rejects_bad_count_before_reading_pages_or_title() {
+        for count in [-1, 101, i32::MAX] {
+            let mut data = Vec::new();
+            data.write_var_int(&VarInt(40)).unwrap();
+            data.write_var_int(&VarInt(count)).unwrap();
+            let mut input = data.as_slice();
+            assert!(SEditBook::read(&mut input, &JavaMinecraftVersion::V_26_2).is_err());
+        }
+        let mut data = Vec::new();
+        data.write_var_int(&VarInt(40)).unwrap();
+        data.write_var_int(&VarInt(1)).unwrap();
+        data.write_string("🐝".repeat(512).as_str()).unwrap();
+        data.write_bool(false).unwrap();
+        let mut input = data.as_slice();
+        let packet = SEditBook::read(&mut input, &JavaMinecraftVersion::V_26_2).unwrap();
+        assert_eq!(packet.slot.0, 40);
+        assert_eq!(packet.pages.len(), 1);
+        assert!(input.is_empty());
     }
 }

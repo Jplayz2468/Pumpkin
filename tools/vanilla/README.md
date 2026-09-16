@@ -402,3 +402,26 @@ hash and rendered output; tests compare the respective Java states. NBT number
 widths remain distinct even when their JSON values appear equal. The fixture does
 not cover entity resolution, every hover/text form, all floating-point bit patterns
 or live clients. Full engine/block parity remains a separate integration gate.
+
+### Item predicates and book components
+
+`ItemPredicateOracle.java` initializes actual item tags/enchantment and trim
+registries, binds the component prototypes compared by the fixture, and exports
+canonical item predicates, component patches and Java evaluation results. Its 52
+predicates over 315 states cover 16,380 comparisons, including exact multi-
+enchantment matching/hashes, partial component predicates, nested items, counts,
+removals, custom-data SNBT and filtered/styled book raw-value predicates.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*:/tmp' -d /tmp tools/vanilla/LootEnchantmentOracle.java tools/vanilla/LootPatchTrimOracle.java tools/vanilla/ItemPredicateOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' ItemPredicateOracle
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/BookComponentOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' BookComponentOracle
+```
+
+The separate book oracle exports 42 accepted/rejected codec cases and valid NBT,
+network and CRC32C states, including filtered values, styled pages, generations,
+resolution, Unicode and length boundaries. Network comparison is byte-for-byte
+for string-only pages and semantic for text compounds whose field order may differ.
+Predicate fixtures do not yet cover attribute/jukebox codecs or malformed lock
+fallback. They are not live menu, packet feedback or all-component certification.

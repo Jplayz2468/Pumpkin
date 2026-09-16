@@ -32,6 +32,13 @@ impl ScreenHandlerFactory for ShulkerBoxScreenFactory {
         player_inventory: &Arc<PlayerInventory>,
         player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
+        if !crate::block::entities::container_lock::can_open_inventory(
+            self.0.as_ref(),
+            player,
+            self.get_display_name(),
+        ) {
+            return None;
+        }
         let shulker = self.0.as_any().downcast_ref::<ShulkerBoxBlockEntity>()?;
         if player.is_spectator() && shulker.has_loot_table() {
             return None;
@@ -167,4 +174,19 @@ impl BlockBehaviour for ShulkerBoxBlock {
 
 impl ShulkerBoxBlock {
     pub const OPEN_ANIMATION_EVENT_TYPE: u8 = 1;
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+    #[test]
+    fn menu_honors_main_hand_lock_and_spectator_bypass() {
+        let entity = Arc::new(
+            crate::block::entities::shulker_box::ShulkerBoxBlockEntity::new(
+                pumpkin_util::math::position::BlockPos::new(0, 0, 0),
+            ),
+        );
+        let factory = ShulkerBoxScreenFactory(entity.clone());
+        crate::block::entities::container_lock::menu_tests::check(&factory, &[entity.as_ref()]);
+    }
 }

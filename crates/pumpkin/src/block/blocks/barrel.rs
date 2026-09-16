@@ -32,6 +32,13 @@ impl ScreenHandlerFactory for BarrelScreenFactory {
         player_inventory: &Arc<PlayerInventory>,
         player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
+        if !crate::block::entities::container_lock::can_open_inventory(
+            self.0.as_ref(),
+            player,
+            self.get_display_name(),
+        ) {
+            return None;
+        }
         let barrel = self.0.as_any().downcast_ref::<BarrelBlockEntity>()?;
         if player.is_spectator() && barrel.has_loot_table() {
             return None;
@@ -110,5 +117,18 @@ impl BlockBehaviour for BarrelBlock {
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
         crate::block::container_comparator_output(&args)
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+    #[test]
+    fn menu_honors_main_hand_lock_and_spectator_bypass() {
+        let entity = Arc::new(crate::block::entities::barrel::BarrelBlockEntity::new(
+            pumpkin_util::math::position::BlockPos::new(0, 0, 0),
+        ));
+        let factory = BarrelScreenFactory(entity.clone());
+        crate::block::entities::container_lock::menu_tests::check(&factory, &[entity.as_ref()]);
     }
 }

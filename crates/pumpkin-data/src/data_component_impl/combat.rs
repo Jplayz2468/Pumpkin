@@ -59,10 +59,33 @@ impl DataComponentImpl for AttributeModifiersImpl {
     default_impl!(AttributeModifiers);
 }
 
-#[derive(Clone, Hash, PartialEq, Eq, Default)]
+#[derive(Clone, Default)]
 pub struct EnchantmentsImpl {
     pub enchantment: Cow<'static, [(&'static Enchantment, i32)]>,
 }
+// Java ItemEnchantments is a map: insertion order affects neither equality nor hashing.
+fn enchantment_entries(values: &[(&Enchantment, i32)]) -> Vec<(u8, i32)> {
+    let mut entries: Vec<_> = values.iter().map(|(e, level)| (e.id, *level)).collect();
+    entries.sort_unstable();
+    entries
+}
+macro_rules! enchantment_map_equality {
+    ($ty:ty) => {
+        impl PartialEq for $ty {
+            fn eq(&self, other: &Self) -> bool {
+                enchantment_entries(&self.enchantment) == enchantment_entries(&other.enchantment)
+            }
+        }
+        impl Eq for $ty {}
+        impl Hash for $ty {
+            fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+                enchantment_entries(&self.enchantment).hash(state);
+            }
+        }
+    };
+}
+enchantment_map_equality!(EnchantmentsImpl);
+enchantment_map_equality!(StoredEnchantmentsImpl);
 impl EnchantmentsImpl {
     pub fn read_data(data: &NbtTag) -> Option<Self> {
         let compound = data.extract_compound()?;
@@ -91,14 +114,12 @@ impl DataComponentImpl for EnchantmentsImpl {
         NbtTag::Compound(data)
     }
     fn get_hash(&self) -> i32 {
-        let mut digest = Digest::new(Crc32Iscsi);
-        digest.update(&[2u8]);
-        for (enc, level) in self.enchantment.iter() {
-            digest.update(&get_str_hash(enc.name).to_le_bytes());
-            digest.update(&get_i32_hash(*level).to_le_bytes());
-        }
-        digest.update(&[3u8]);
-        digest.finalize() as i32
+        crate::component_hash::map(
+            self.enchantment
+                .iter()
+                .map(|(enc, level)| (get_str_hash(enc.name), get_i32_hash(*level)))
+                .collect(),
+        ) as i32
     }
     default_impl!(Enchantments);
 }
@@ -1279,7 +1300,7 @@ impl DataComponentImpl for AdditionalTradeCostImpl {
     default_impl!(AdditionalTradeCost);
 }
 
-#[derive(Clone, Hash, PartialEq, Eq)]
+#[derive(Clone)]
 pub struct StoredEnchantmentsImpl {
     pub enchantment: Cow<'static, [(&'static Enchantment, i32)]>,
 }
@@ -1311,14 +1332,12 @@ impl DataComponentImpl for StoredEnchantmentsImpl {
         NbtTag::Compound(data)
     }
     fn get_hash(&self) -> i32 {
-        let mut digest = Digest::new(Crc32Iscsi);
-        digest.update(&[2u8]);
-        for (enc, level) in self.enchantment.iter() {
-            digest.update(&get_str_hash(enc.name).to_le_bytes());
-            digest.update(&get_i32_hash(*level).to_le_bytes());
-        }
-        digest.update(&[3u8]);
-        digest.finalize() as i32
+        crate::component_hash::map(
+            self.enchantment
+                .iter()
+                .map(|(enc, level)| (get_str_hash(enc.name), get_i32_hash(*level)))
+                .collect(),
+        ) as i32
     }
     default_impl!(StoredEnchantments);
 }
@@ -1597,5 +1616,43 @@ mod spear_component_tests {
         let decoded = AttackRangeImpl::read_data(&encoded).expect("should decode");
 
         assert_eq!(decoded, range);
+    }
+}
+
+#[cfg(test)]
+mod enchantment_order_tests {
+    use super::*;
+    use std::hash::{DefaultHasher, Hasher};
+    fn hash(value: &impl Hash) -> u64 {
+        let mut h = DefaultHasher::new();
+        value.hash(&mut h);
+        h.finish()
+    }
+    #[test]
+    fn map_equality_and_hashes_ignore_order() {
+        let forward = vec![(&Enchantment::SHARPNESS, 3), (&Enchantment::UNBREAKING, 2)];
+        let reverse = forward.iter().copied().rev().collect::<Vec<_>>();
+        let a = EnchantmentsImpl {
+            enchantment: forward.clone().into(),
+        };
+        let b = EnchantmentsImpl {
+            enchantment: reverse.clone().into(),
+        };
+        assert!(a == b);
+        assert_eq!(hash(&a), hash(&b));
+        assert_eq!(a.get_hash(), b.get_hash());
+        let a = StoredEnchantmentsImpl {
+            enchantment: forward.into(),
+        };
+        let b = StoredEnchantmentsImpl {
+            enchantment: reverse.into(),
+        };
+        assert!(a == b);
+        assert_eq!(hash(&a), hash(&b));
+        assert_eq!(a.get_hash(), b.get_hash());
+        let different = StoredEnchantmentsImpl {
+            enchantment: vec![(&Enchantment::SHARPNESS, 2), (&Enchantment::UNBREAKING, 3)].into(),
+        };
+        assert!(a != different);
     }
 }

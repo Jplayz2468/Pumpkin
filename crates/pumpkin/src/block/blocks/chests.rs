@@ -37,7 +37,27 @@ impl ScreenHandlerFactory for ChestScreenFactory {
         player_inventory: &Arc<PlayerInventory>,
         player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
-        if player.is_spectator() && self.1.iter().any(|chest| chest.has_loot_table()) {
+        let spectator_loot =
+            player.is_spectator() && self.1.iter().any(|chest| chest.has_loot_table());
+        if spectator_loot
+            || self.1.iter().any(|chest| {
+                !crate::block::entities::container_lock::can_open(chest.as_ref(), player)
+            })
+        {
+            // Combined chests send the lock notification even for a spectator
+            // denied by a pending loot table; single randomizable containers do not.
+            if self.1.len() > 1 || !player.is_spectator() {
+                let mut center = pumpkin_util::math::vector3::Vector3::new(0.0, 0.0, 0.0);
+                for chest in &self.1 {
+                    center = center + chest.get_position().to_centered_f64();
+                }
+                center = center * (1.0 / self.1.len() as f64);
+                crate::block::entities::container_lock::notify_locked(
+                    player,
+                    center,
+                    self.get_display_name(),
+                );
+            }
             return None;
         }
         let opener = player.as_any().downcast_ref::<Player>();
@@ -646,5 +666,30 @@ impl ChestTypeExt for ChestType {
             Self::Left => Self::Right,
             Self::Right => Self::Left,
         }
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+    #[test]
+    fn single_and_double_chest_menus_check_every_lock() {
+        let p = BlockPos::new(0, 0, 0);
+        let first = Arc::new(ChestBlockEntity::new(p));
+        let second = Arc::new(ChestBlockEntity::new(p.up()));
+        let single = ChestScreenFactory(first.clone(), vec![first.clone()]);
+        crate::block::entities::container_lock::menu_tests::check(&single, &[first.as_ref()]);
+        let double = ChestScreenFactory(
+            DoubleInventory::new(first.clone(), second.clone()),
+            vec![first.clone(), second.clone()],
+        );
+        crate::block::entities::container_lock::menu_tests::check(
+            &double,
+            &[first.as_ref(), second.as_ref()],
+        );
+        let trapped =
+            Arc::new(crate::block::entities::trapped_chest::TrappedChestBlockEntity::new(p));
+        let single = ChestScreenFactory(trapped.clone(), vec![trapped.clone()]);
+        crate::block::entities::container_lock::menu_tests::check(&single, &[trapped.as_ref()]);
     }
 }

@@ -35,6 +35,13 @@ impl ScreenHandlerFactory for DropperScreenFactory {
         player_inventory: &Arc<PlayerInventory>,
         player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
+        if !crate::block::entities::container_lock::can_open_inventory(
+            self.0.as_ref(),
+            player,
+            self.get_display_name(),
+        ) {
+            return None;
+        }
         let handler = create_generic_3x3(sync_id, player_inventory, self.0.clone(), player);
         let screen_handler_arc = Arc::new(Mutex::new(handler));
 
@@ -195,5 +202,18 @@ impl BlockBehaviour for DropperBlock {
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
         crate::block::container_comparator_output(&args)
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+    #[test]
+    fn menu_honors_main_hand_lock_and_spectator_bypass() {
+        let entity = Arc::new(crate::block::entities::dropper::DropperBlockEntity::new(
+            pumpkin_util::math::position::BlockPos::new(0, 0, 0),
+        ));
+        let factory = DropperScreenFactory(entity.clone());
+        crate::block::entities::container_lock::menu_tests::check(&factory, &[entity.as_ref()]);
     }
 }

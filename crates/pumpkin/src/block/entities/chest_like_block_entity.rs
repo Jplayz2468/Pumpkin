@@ -2,6 +2,11 @@
 macro_rules! impl_block_entity_for_chest {
     ($struct_name:ty) => {
         impl $crate::block::entities::BlockEntity for $struct_name {
+            fn container_lock(
+                &self,
+            ) -> Option<&$crate::block::entities::container_lock::ContainerLock> {
+                Some(&self.container_lock)
+            }
             fn component_storage(
                 &self,
             ) -> Option<&$crate::block::entities::components::BlockEntityComponents> {
@@ -45,10 +50,12 @@ macro_rules! impl_block_entity_for_chest {
                     .get_mut()
                     .unwrap_or_else(std::sync::PoisonError::into_inner) =
                     nbt.get("CustomName").map(TextComponent::from_nbt);
+                entity.container_lock.read_nbt(nbt);
                 entity
             }
 
             fn write_nbt(&self, nbt: &mut NbtCompound) {
+                self.container_lock.write_nbt(nbt);
                 self.components.write_nbt(nbt);
                 if let Some(name) = self
                     .custom_name
@@ -386,6 +393,8 @@ macro_rules! impl_chest_helper_methods {
             pub fn new(position: BlockPos) -> Self {
                 Self {
                     position,
+                    container_lock: $crate::block::entities::container_lock::ContainerLock::default(
+                    ),
                     components: $crate::block::entities::components::BlockEntityComponents::new(),
                     items: RwLock::new(from_fn(|_| ItemStack::EMPTY.clone())),
                     dirty: AtomicBool::new(false),

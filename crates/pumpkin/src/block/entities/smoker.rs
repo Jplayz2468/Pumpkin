@@ -22,6 +22,7 @@ use crate::{
 
 pub struct SmokerBlockEntity {
     pub position: BlockPos,
+    pub(crate) container_lock: super::container_lock::ContainerLock,
     pub world: StdMutex<std::sync::Weak<crate::world::World>>,
     pub dirty: AtomicBool,
     pub comparator_dirty: AtomicBool,
@@ -46,6 +47,7 @@ impl SmokerBlockEntity {
     pub fn new(position: BlockPos) -> Self {
         Self {
             position,
+            container_lock: super::container_lock::ContainerLock::default(),
             world: StdMutex::new(std::sync::Weak::new()),
             dirty: AtomicBool::new(false),
             comparator_dirty: AtomicBool::new(false),

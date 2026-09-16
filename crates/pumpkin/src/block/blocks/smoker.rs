@@ -43,8 +43,15 @@ impl ScreenHandlerFactory for SmokerScreenFactory {
         &self,
         sync_id: u8,
         player_inventory: &Arc<PlayerInventory>,
-        _player: &dyn InventoryPlayer,
+        player: &dyn InventoryPlayer,
     ) -> Option<SharedScreenHandler> {
+        if !crate::block::entities::container_lock::can_open_inventory(
+            self.inventory.as_ref(),
+            player,
+            self.get_display_name(),
+        ) {
+            return None;
+        }
         let concrete_handler = FurnaceLikeScreenHandler::new(
             sync_id,
             player_inventory,
@@ -123,5 +130,18 @@ impl BlockBehaviour for SmokerBlock {
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
         crate::block::container_comparator_output(&args)
+    }
+}
+
+#[cfg(test)]
+mod lock_tests {
+    use super::*;
+    #[test]
+    fn menu_honors_main_hand_lock_and_spectator_bypass() {
+        let entity = Arc::new(crate::block::entities::smoker::SmokerBlockEntity::new(
+            pumpkin_util::math::position::BlockPos::new(0, 0, 0),
+        ));
+        let factory = SmokerScreenFactory::new(entity.clone(), entity.clone(), entity.clone());
+        crate::block::entities::container_lock::menu_tests::check(&factory, &[entity.as_ref()]);
     }
 }
