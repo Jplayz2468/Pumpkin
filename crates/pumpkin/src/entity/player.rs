@@ -3841,7 +3841,7 @@ impl Player {
             pitch_rad.cos() * yaw_rad.sin(),
         );
         let end_pos = eye_pos + dir * max_distance;
-        let res = world.raycast(eye_pos, end_pos, |pos, w| !w.get_block_state(pos).is_air());
+        let res = world.ray_trace_block_with_context(eye_pos, end_pos, crate::world::RayFluidHandling::None, false, Some(self));
         res.map(|(pos, _)| pos)
     }
 

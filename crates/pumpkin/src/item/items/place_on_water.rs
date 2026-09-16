@@ -1,14 +1,11 @@
 use std::any::Any;
-use std::sync::Arc;
 
 use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
-use crate::world::{BlockFlags, World};
+use crate::world::BlockFlags;
 use pumpkin_data::Block;
-use pumpkin_data::block_properties::WaterProperties;
 use pumpkin_data::item::Item;
 use pumpkin_data::sound::Sound;
-use pumpkin_util::math::position::BlockPos;
 
 pub struct PlaceOnWaterBlockItem;
 
@@ -22,38 +19,35 @@ impl ItemBehaviour for PlaceOnWaterBlockItem {
     fn normal_use(&self, item: &Item, player: &Player) {
         let world = player.world();
         let (start_pos, end_pos) = self.get_start_and_end_pos(player);
-        let checker = |pos: &BlockPos, world_inner: &Arc<World>| {
-            let state_id = world_inner.get_block_state_id(pos);
-            if state_id == Block::AIR.default_state.id {
-                return false;
-            }
-            let block = Block::from_state_id(state_id);
-            if block.id == Block::WATER.id {
-                // PlaceOnWaterBlockItem.java:24: getPlayerPOVHitResult(..., ClipContext.
-                // Fluid.SOURCE_ONLY) only registers a hit on a still-water *source*
-                // (level 0), matching GlassBottleItem's raycast (glass_bottle.rs). Any
-                // other fluid (flowing water, lava) must NOT register a hit here -- the
-                // previous `Fluid::from_state_id(state_id).is_some()` accepted every
-                // fluid, including lava and flowing water, which vanilla's SOURCE_ONLY
-                // clip explicitly excludes.
-                return WaterProperties::from_state_id(state_id).level == 0;
-            }
-            block.is_waterlogged(state_id)
-        };
-
-        let Some((hit_pos, _)) = world.raycast(start_pos, end_pos, checker) else {
+        let Some((hit_pos, _)) = world.ray_trace_block_with_context(
+            start_pos,
+            end_pos,
+            crate::world::RayFluidHandling::Source,
+            false,
+            Some(player),
+        ) else {
             return;
         };
 
         let above_pos = hit_pos.up();
         let above_state = world.get_block_state(&above_pos);
-        if above_state.is_air() {
-            let (placed_block, sound) = if item.id == Item::LILY_PAD.id {
-                (&Block::LILY_PAD, Sound::BlockLilyPadPlace)
-            } else {
-                (&Block::FROGSPAWN, Sound::BlockFrogspawnPlace)
-            };
-
+        let (placed_block, sound) = if item.id == Item::LILY_PAD.id {
+            (&Block::LILY_PAD, Sound::BlockLilyPadPlace)
+        } else {
+            (&Block::FROGSPAWN, Sound::BlockFrogspawnPlace)
+        };
+        let valid_support = world.block_registry.can_place_at(
+            None,
+            Some(&world),
+            world.as_ref(),
+            Some(player),
+            placed_block,
+            placed_block.default_state,
+            &above_pos,
+            None,
+            None,
+        );
+        if above_state.is_air() && valid_support {
             world.set_block_state(
                 &above_pos,
                 placed_block.default_state.id,

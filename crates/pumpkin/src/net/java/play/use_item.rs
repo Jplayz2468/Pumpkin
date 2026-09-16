@@ -39,16 +39,13 @@ impl JavaClient {
         let (item_id, _item) = (item_in_hand.item.id, item_in_hand.item);
         player.increment_stat(StatisticCategory::Used, item_id as i32, 1);
 
-        let hit_result = player.world().raycast(
+        let hit_result = player.world().ray_trace_block_with_context(
             player.eye_position(),
             player.eye_position().add(
                 &(Vector3::rotation_vector(f64::from(use_item.pitch), f64::from(use_item.yaw))
                     * 4.5),
             ),
-            |pos, world| {
-                let block = world.get_block(pos);
-                block != &Block::AIR && block != &Block::WATER && block != &Block::LAVA
-            },
+            crate::world::RayFluidHandling::None, false, Some(player.as_ref()),
         );
 
         let event = if let Some((hit_pos, _hit_dir)) = hit_result {

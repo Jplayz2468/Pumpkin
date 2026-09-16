@@ -250,8 +250,9 @@ whole inside-effect pipeline matches Java yet.
 
 ## Next shared-engine work
 
-1. General ray APIs still use older slab clipping/empty-outline fallbacks; the new
-   source-verified traversal/clip path currently serves the fall-reset query only.
+1. General block rays now share source-verified traversal and shape clipping (see
+   checkpoint below). Remaining ray integration includes entity-AABB targeting,
+   callers that still omit an entity context, and live world/client verification.
 2. Complete ridden vehicle integration (controlled vehicle/navigation/packet paths),
    direct movement and portal/passenger transitions, remaining contextual shapes and
    live gameplay verification. SulfurCube's omnidirectional override belongs to its
@@ -262,3 +263,40 @@ whole inside-effect pipeline matches Java yet.
    shared double counter fixes representation and dispatch, not these separate gates.
 4. Continue D02–D06 and remaining block-system gates listed above. Do not treat this
    bounded movement checkpoint as full engine or block parity.
+
+## Shared block ray and fluid clipping checkpoint
+
+- Replaced duplicate block DDAs and slab/full-cube fallbacks with Java traversal
+  and `VoxelShape.clip`: original endpoints, short-segment rejection, inside probes,
+  entering-face tie order, nearest component selection and exact hit positions.
+- Removed synthetic water geometry from block outlines. Waterlogged blocks now
+  participate through explicit NONE/SOURCE/ANY/WATER fluid selection and actual
+  fluid shapes. The closer block/fluid hit wins; block geometry wins a distance tie.
+  Java 26.2 caches a fluid state's first queried shape height; the shared ray cache
+  preserves that behavior, including fall-reset rays. Live fluid physics retains
+  uncached world height.
+- Exported every nonempty Java interaction shape (59 states, seven shapes) for
+  cauldrons, composters, hoppers and scaffolding. A closer interaction volume changes
+  only the face of an existing block hit.
+- Shared contextual collision boxes between movement and rays, including moving
+  pistons, open shulkers, powder snow and scaffolding. Entity-aware outlines also
+  honor held light blocks/scaffolding. Player/item targeting supplies this context.
+- Bucket, bottle, water-placement and spawn-egg rays stop at intervening outlines
+  and use the source fluid mode; boats use ANY and the actual intersection position.
+  Water-placement items validate the existing block support rule after targeting.
+  Spawn eggs still require a liquid block after the source ray; no mob pass was done.
+- Explosion exposure and shared target tracking now use collision shapes and the
+  tested entity's context instead of outlines or a solid-block prefilter.
+- Java probes: 5,000 real block outline/interaction cases compare exact position
+  bits, direction and inside flags; 1,000 block/fluid scenes cover the four fluid
+  modes; the existing 600 traversal/water-height cases remain. Fluid-scene tests
+  use recorded uncached Java heights and preserve its shape-cache query sequence;
+  they do not certify live world fluid refresh. Bootstrap's
+  water tag is explicitly bound to the two built-in water fluids in that probe.
+- The Java probes exposed synthetic water outlines and missing fluid-shape caching.
+  Final background run 6 passed **479 pumpkin + 73 pumpkin-data tests**, with only
+  the two previously separately passing socket tests excluded. No live server,
+  client or contraption comparison was performed.
+- This closes the old general block ray fallback/selection gate. Entity ray slab
+  semantics, remaining context-free callers, packet/menu integration and all other
+  D01–D06/live-world gates remain open. Full mob passes remain paused.

@@ -152,13 +152,18 @@ impl Goal for TrackTargetGoal {
 
         if self.check_visibility {
             let world = mob_entity.living_entity.entity.world.load();
-            let has_line_of_sight = world
-                .raycast(
-                    mob_entity.living_entity.entity.get_eye_pos(),
-                    target.entity.get_eye_pos(),
-                    |block_pos, world| world.get_block_state(block_pos).is_solid(),
-                )
-                .is_none();
+            let start = mob_entity.living_entity.entity.get_eye_pos();
+            let end = target.entity.get_eye_pos();
+            let has_line_of_sight = start.squared_distance_to_vec(&end) <= 128.0 * 128.0
+                && world
+                    .ray_trace_block_with_context(
+                        start,
+                        end,
+                        crate::world::RayFluidHandling::None,
+                        true,
+                        Some(mob),
+                    )
+                    .is_none();
 
             if !self.remembers_visible_target(has_line_of_sight) {
                 return false;

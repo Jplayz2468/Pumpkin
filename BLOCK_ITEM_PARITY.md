@@ -1348,3 +1348,13 @@ movement and preserves distance through damage recording. Shared landing dispatc
 covers passengers and falling entities, including block-specific distance changes.
 Java accumulation and precision regression checks accompany the implementation;
 remaining fluid/particle/impulse/live-world gates are explicit in ENGINE_GAPS.md.
+
+
+### Shared block ray targeting
+
+Block rays now use Java shape clipping with explicit fluid modes, separate
+waterlogged fluid surfaces, interaction-face overrides and contextual shapes.
+Boats use exact intersections; fluid-using items respect intervening outlines.
+Explosion visibility/shared target tracking use collision shapes. Java outline
+and fluid-scene fixtures accompany this checkpoint; see ENGINE_GAPS.md for scope
+and verification limits. Full mob passes remain paused.

@@ -461,7 +461,7 @@ impl<'a> Explosion<'a> {
             let exposure = if !should_damage && knockback_multiplier == 0.0 {
                 0.0
             } else {
-                Self::calculate_exposure(&self.pos, entity, world) as f64
+                Self::calculate_exposure(&self.pos, entity_base.as_ref(), world) as f64
             };
 
             if should_damage {
@@ -499,10 +499,10 @@ impl<'a> Explosion<'a> {
 
     fn calculate_exposure(
         explosion_pos: &Vector3<f64>,
-        entity: &Entity,
+        entity: &dyn EntityBase,
         world: &Arc<World>,
     ) -> f32 {
-        let bbox = entity.bounding_box.load();
+        let bbox = entity.get_entity().bounding_box.load();
 
         let step_x = 1.0 / ((bbox.max.x - bbox.min.x) * 2.0 + 1.0);
         let step_y = 1.0 / ((bbox.max.y - bbox.min.y) * 2.0 + 1.0);
@@ -531,10 +531,13 @@ impl<'a> Explosion<'a> {
                     let vec3d = Vector3::new(n + offset_x, o, p + offset_z);
 
                     if world
-                        .raycast(vec3d, *explosion_pos, |pos, world_ref| {
-                            let state = world_ref.get_block_state(pos);
-                            !state.is_air() && !state.collision_shapes.is_empty()
-                        })
+                        .ray_trace_block_with_context(
+                            vec3d,
+                            *explosion_pos,
+                            crate::world::RayFluidHandling::None,
+                            true,
+                            Some(entity),
+                        )
                         .is_none()
                     {
                         visible_points += 1;

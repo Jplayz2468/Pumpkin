@@ -374,23 +374,16 @@ impl ItemBehaviour for EmptyBucketItem {
         let world = player.world();
         let (start_pos, end_pos) = get_start_and_end_pos(player, yaw, pitch);
 
-        let checker = |pos: &BlockPos, world_inner: &Arc<World>| {
-            let state_id = world_inner.get_block_state_id(pos);
-
-            let block = Block::from_state_id(state_id);
-
-            if state_id == Block::AIR.default_state.id {
-                return false;
-            }
-
-            (block.id != Block::WATER.id && block.id != Block::LAVA.id)
-                || ((block.id == Block::WATER.id && state_id == Block::WATER.default_state.id)
-                    || (block.id == Block::LAVA.id && state_id == Block::LAVA.default_state.id))
-        };
-
-        let Some((block_pos, direction)) = world.raycast(start_pos, end_pos, checker) else {
+        let Some((block_pos, hit)) = world.ray_trace_block_with_context(
+            start_pos,
+            end_pos,
+            crate::world::RayFluidHandling::Source,
+            false,
+            Some(player),
+        ) else {
             return;
         };
+        let direction = hit.direction;
 
         let Some(item) = try_pickup_bucket_item(&world, block_pos, direction) else {
             return;
@@ -610,11 +603,16 @@ fn release_player_bucket(
 ) {
     let world = player.world();
     let (start, end) = get_start_and_end_pos(player, yaw, pitch);
-    let Some((pos, direction)) = world.raycast(start, end, |pos, world| {
-        !world.get_block_state(pos).is_air() && !world.get_block_state(pos).is_liquid()
-    }) else {
+    let Some((pos, hit)) = world.ray_trace_block_with_context(
+        start,
+        end,
+        crate::world::RayFluidHandling::None,
+        false,
+        Some(player),
+    ) else {
         return;
     };
+    let direction = hit.direction;
     if let Some(server) = world.server.upgrade()
         && let Some(player_arc) = world.get_player_by_uuid(player.gameprofile.id)
     {

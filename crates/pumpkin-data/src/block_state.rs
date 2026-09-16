@@ -298,34 +298,20 @@ impl BlockState {
     }
 
     pub fn get_block_outline_shapes(&self) -> impl Iterator<Item = BoundingBox> + '_ {
-        let base_shapes = self
-            .outline_shapes
+        self.outline_shapes
             .iter()
-            .map(|&id| COLLISION_SHAPES[id as usize]);
-
-        let water_shape = self
-            .is_waterlogged()
-            .then(|| BoundingBox::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.875, 1.0)));
-
-        base_shapes.chain(water_shape)
+            .map(|&id| COLLISION_SHAPES[id as usize])
     }
 
-    /// Returns block-local outline shapes with vanilla's coordinate-derived offset applied.
+    /// Block outlines exclude fluids, including water inside waterlogged blocks.
+    /// Fluid clipping is selected separately by the ray's fluid context.
     pub fn get_block_outline_shapes_at(
         &self,
         pos: &BlockPos,
     ) -> impl Iterator<Item = BoundingBox> + '_ {
         let offset = Block::from_state_id(self.id).shape_offset_delta(pos);
-        let base_shapes = self
-            .outline_shapes
-            .iter()
-            .map(move |&id| COLLISION_SHAPES[id as usize].shift(offset));
-
-        let water_shape = self
-            .is_waterlogged()
-            .then(|| BoundingBox::new(Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.875, 1.0)));
-
-        base_shapes.chain(water_shape)
+        self.get_block_outline_shapes()
+            .map(move |shape| shape.shift(offset))
     }
 
     #[must_use]

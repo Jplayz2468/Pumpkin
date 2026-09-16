@@ -19,6 +19,8 @@ use tracing::{debug, error, info, trace, warn};
 
 mod active_chunks;
 mod block_ray;
+pub use block_ray::{RayFluidHandling, RayHit};
+mod block_interaction_shapes;
 pub mod chunker;
 pub mod explosion;
 pub mod generation_cache;
@@ -2573,6 +2575,28 @@ impl World {
         state.get_block_collision_shapes_at(pos).collect()
     }
 
+    fn block_collision_boxes_for_entity(
+        &self,
+        pos: &BlockPos,
+        entity: &dyn EntityBase,
+    ) -> Vec<BoundingBox> {
+        let (block, state) = self.get_block_and_state(pos);
+        if block == &Block::POWDER_SNOW {
+            crate::block::blocks::powder_snow::collision_shape_for_entity(entity, pos)
+                .into_iter()
+                .collect()
+        } else if block == &Block::SCAFFOLDING {
+            crate::block::blocks::scaffolding::ScaffoldingBlock::collision_boxes(
+                state.id,
+                pos,
+                entity.get_entity().bounding_box.load().min.y,
+                entity.get_entity().is_sneaking(),
+            )
+        } else {
+            self.block_collision_boxes(pos)
+        }
+    }
+
     pub fn get_entity_collisions(
         &self,
         source: &dyn EntityBase,
@@ -2674,21 +2698,7 @@ impl World {
                 continue;
             }
 
-            let block = Block::from_state_id(state.id);
-            let local: Vec<_> = if block == &Block::POWDER_SNOW {
-                crate::block::blocks::powder_snow::collision_shape_for_entity(entity, &pos)
-                    .into_iter()
-                    .collect()
-            } else if block == &Block::SCAFFOLDING {
-                crate::block::blocks::scaffolding::ScaffoldingBlock::collision_boxes(
-                    state.id,
-                    &pos,
-                    entity.get_entity().bounding_box.load().min.y,
-                    entity.get_entity().is_sneaking(),
-                )
-            } else {
-                self.block_collision_boxes(&pos)
-            };
+            let local = self.block_collision_boxes_for_entity(&pos, entity);
             let shapes: Vec<_> = local.into_iter().map(|shape| shape.at_pos(pos)).collect();
             if shapes.iter().any(|shape| shape.intersects(&bounding_box)) {
                 // BlockCollisions returns the complete VoxelShape once it intersects.
@@ -7459,178 +7469,124 @@ impl World {
         from: Vector3<f64>,
         to: Vector3<f64>,
     ) -> Option<(BlockDirection, Vector3<f64>)> {
-        let state = self.get_block_state(block_pos);
-
-        if state.outline_shapes.is_empty() {
-            let block_min = block_pos.0.to_f64();
-            let block_max = block_min.add_raw(1.0, 1.0, 1.0);
-            return Self::intersects_aabb_with_hit(from, to, block_min, block_max)
-                .map(|(_, dir, hit_pos)| (dir, hit_pos));
-        }
-
-        let bounding_boxes = state.get_block_outline_shapes_at(block_pos);
-        let mut closest_hit: Option<(f64, BlockDirection, Vector3<f64>)> = None;
-
-        for shape in bounding_boxes {
-            let world_min = shape.min.add(&block_pos.0.to_f64());
-            let world_max = shape.max.add(&block_pos.0.to_f64());
-
-            if let Some((t, dir, hit_pos)) =
-                Self::intersects_aabb_with_hit(from, to, world_min, world_max)
-                && closest_hit
-                    .as_ref()
-                    .is_none_or(|(closest_t, _, _)| t < *closest_t)
-            {
-                closest_hit = Some((t, dir, hit_pos));
-            }
-        }
-
-        closest_hit.map(|(_, dir, hit_pos)| (dir, hit_pos))
+        self.clip_block_cell(block_pos, from, to, false, RayFluidHandling::None, None)
+            .map(|hit| (hit.direction, hit.position))
     }
 
-    fn ray_outline_check(
-        &self,
-        block_pos: &BlockPos,
-        from: Vector3<f64>,
-        to: Vector3<f64>,
-    ) -> (bool, Option<BlockDirection>) {
-        if let Some((dir, _)) = self.ray_outline_check_detailed(block_pos, from, to) {
-            (true, Some(dir))
-        } else {
-            let state = self.get_block_state(block_pos);
-            if state.outline_shapes.is_empty() {
-                (true, None)
-            } else {
-                (false, None)
-            }
-        }
-    }
-
-    #[allow(clippy::too_many_lines)]
+    /// Outline and optional fluid clipping with the original segment endpoints.
     pub fn ray_trace_block(
         &self,
-        start_pos: Vector3<f64>,
-        end_pos: Vector3<f64>,
+        start: Vector3<f64>,
+        end: Vector3<f64>,
         include_fluids: bool,
     ) -> Option<(BlockPos, BlockDirection, Vector3<f64>)> {
-        if start_pos == end_pos {
-            return None;
-        }
-
-        let adjust = -1.0e-7f64;
-        let to = end_pos.lerp(&start_pos, adjust);
-        let from = start_pos.lerp(&end_pos, adjust);
-
-        let mut block = BlockPos::floored(from.x, from.y, from.z);
-
-        let state = self.get_block_state(&block);
-        let valid_start = if include_fluids {
-            !state.is_air()
+        let fluids = if include_fluids {
+            RayFluidHandling::Any
         } else {
-            !state.is_air() && !state.is_liquid()
+            RayFluidHandling::None
         };
-        if valid_start
-            && let Some((dir, hit_pos)) = self.ray_outline_check_detailed(&block, from, to)
-        {
-            return Some((block, dir, hit_pos));
-        }
+        self.ray_trace_block_with_fluid(start, end, fluids)
+            .map(|(pos, hit)| (pos, hit.direction, hit.position))
+    }
 
-        let difference = to.sub(&from);
-        let step = difference.sign();
+    pub fn ray_trace_block_with_fluid(
+        &self,
+        start: Vector3<f64>,
+        end: Vector3<f64>,
+        fluids: RayFluidHandling,
+    ) -> Option<(BlockPos, RayHit)> {
+        self.ray_trace_block_with_context(start, end, fluids, false, None)
+    }
 
-        let delta = Vector3::new(
-            if step.x == 0 {
-                f64::MAX
+    /// Shared entity-aware outline/collision ray, also used by explosion exposure.
+    pub fn ray_trace_block_with_context(
+        &self,
+        start: Vector3<f64>,
+        end: Vector3<f64>,
+        fluids: RayFluidHandling,
+        collision: bool,
+        entity: Option<&dyn EntityBase>,
+    ) -> Option<(BlockPos, RayHit)> {
+        block_ray::traverse(start, end, |pos| {
+            self.clip_block_cell(&pos, start, end, collision, fluids, entity)
+                .map(|hit| (pos, hit))
+        })
+    }
+
+    fn clip_block_cell(
+        &self,
+        pos: &BlockPos,
+        from: Vector3<f64>,
+        to: Vector3<f64>,
+        collision: bool,
+        fluids: RayFluidHandling,
+        entity: Option<&dyn EntityBase>,
+    ) -> Option<RayHit> {
+        let state = self.get_block_state(pos);
+        let block = state.id.to_block();
+        let held = entity
+            .filter(|_| !collision && (block == &Block::SCAFFOLDING || block == &Block::LIGHT))
+            .and_then(|entity| {
+                entity
+                    .get_living_entity()
+                    .map(|living| living.held_item(entity))
+            });
+        let holding_outline_item = held.as_ref().is_some_and(|held| {
+            !held.is_empty()
+                && ((block == &Block::SCAFFOLDING
+                    && held.item == &pumpkin_data::item::Item::SCAFFOLDING)
+                    || (block == &Block::LIGHT && held.item == &pumpkin_data::item::Item::LIGHT))
+        });
+        let local_boxes = if collision {
+            if let Some(entity) = entity {
+                self.block_collision_boxes_for_entity(pos, entity)
             } else {
-                (f64::from(step.x)) / difference.x
-            },
-            if step.y == 0 {
-                f64::MAX
-            } else {
-                (f64::from(step.y)) / difference.y
-            },
-            if step.z == 0 {
-                f64::MAX
-            } else {
-                (f64::from(step.z)) / difference.z
-            },
-        );
-
-        let mut next = Vector3::new(
-            delta.x
-                * (if step.x > 0 {
-                    1.0 - (from.x - from.x.floor())
-                } else {
-                    from.x - from.x.floor()
-                }),
-            delta.y
-                * (if step.y > 0 {
-                    1.0 - (from.y - from.y.floor())
-                } else {
-                    from.y - from.y.floor()
-                }),
-            delta.z
-                * (if step.z > 0 {
-                    1.0 - (from.z - from.z.floor())
-                } else {
-                    from.z - from.z.floor()
-                }),
-        );
-
-        while next.x <= 1.0 || next.y <= 1.0 || next.z <= 1.0 {
-            let block_direction = match (next.x, next.y, next.z) {
-                (x, y, z) if x < y && x < z => {
-                    block.0.x += step.x;
-                    next.x += delta.x;
-                    if step.x > 0 {
-                        BlockDirection::West
-                    } else {
-                        BlockDirection::East
-                    }
-                }
-                (_, y, z) if y < z => {
-                    block.0.y += step.y;
-                    next.y += delta.y;
-                    if step.y > 0 {
-                        BlockDirection::Down
-                    } else {
-                        BlockDirection::Up
-                    }
-                }
-                _ => {
-                    block.0.z += step.z;
-                    next.z += delta.z;
-                    if step.z > 0 {
-                        BlockDirection::North
-                    } else {
-                        BlockDirection::South
-                    }
-                }
-            };
-
-            let state = self.get_block_state(&block);
-            let hit = if include_fluids {
-                !state.is_air()
-            } else {
-                !state.is_air() && !state.is_liquid()
-            };
-
-            if hit {
-                if let Some((dir, hit_pos)) = self.ray_outline_check_detailed(&block, from, to) {
-                    return Some((block, dir, hit_pos));
-                }
-                let block_min = block.0.to_f64();
-                let block_max = block_min.add_raw(1.0, 1.0, 1.0);
-                if let Some((_, dir, hit_pos)) =
-                    Self::intersects_aabb_with_hit(from, to, block_min, block_max)
-                {
-                    return Some((block, dir, hit_pos));
-                }
-                return Some((block, block_direction, to));
+                self.block_collision_boxes(pos)
             }
-        }
-
-        None
+        } else if holding_outline_item {
+            vec![BoundingBox::new_array([0.0, 0.0, 0.0], [1.0, 1.0, 1.0])]
+        } else if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_SHULKER_BOXES) {
+            self.block_collision_boxes(pos)
+        } else {
+            state.get_block_outline_shapes_at(pos).collect()
+        };
+        let offset = pos.0.to_f64();
+        let boxes: Vec<_> = local_boxes
+            .into_iter()
+            .map(|shape| shape.shift(offset))
+            .collect();
+        let block_hit = block_ray::clip(from, to, &boxes);
+        let block_hit = if block_hit.is_some() {
+            let interaction: Vec<_> = block_interaction_shapes::boxes(state.id.as_u16())
+                .iter()
+                .map(|b| {
+                    BoundingBox::new_array([b[0], b[1], b[2]], [b[3], b[4], b[5]]).shift(offset)
+                })
+                .collect();
+            block_ray::with_interaction_override(
+                from,
+                block_hit,
+                block_ray::clip(from, to, &interaction),
+            )
+        } else {
+            None
+        };
+        let (fluid, fluid_state) = Self::fluid_state_from_block_state(state.id);
+        let fluid_hit = if fluids.can_pick(fluid, &fluid_state) {
+            let height = f64::from(block_ray::fluid_shape_height(
+                fluid,
+                &fluid_state,
+                self.get_fluid_height(pos, fluid, &fluid_state),
+            ));
+            block_ray::clip(
+                from,
+                to,
+                &[BoundingBox::new(offset, offset.add_raw(1.0, height, 1.0))],
+            )
+        } else {
+            None
+        };
+        block_ray::nearest(from, block_hit, fluid_hit)
     }
 
     pub fn ray_trace_entities(
@@ -7697,35 +7653,14 @@ impl World {
         end: Vector3<f64>,
         hit_check: impl Fn(&BlockPos, &Arc<Self>) -> bool,
     ) -> Option<(BlockPos, BlockDirection)> {
-        self.raycast_with_shape(start, end, hit_check, false, false)
+        self.raycast_with_shape(start, end, hit_check, false, RayFluidHandling::None)
     }
 
     pub fn has_line_of_sight(self: &Arc<Self>, start: Vector3<f64>, end: Vector3<f64>) -> bool {
         start.squared_distance_to_vec(&end) <= 128.0 * 128.0
             && self
-                .raycast_with_shape(start, end, |_, _| true, true, false)
+                .raycast_with_shape(start, end, |_, _| true, true, RayFluidHandling::None)
                 .is_none()
-    }
-
-    fn ray_collision_check(
-        &self,
-        pos: &BlockPos,
-        from: Vector3<f64>,
-        to: Vector3<f64>,
-    ) -> (bool, Option<BlockDirection>) {
-        let hit = self
-            .get_block_state(pos)
-            .get_block_collision_shapes_at(pos)
-            .filter_map(|shape| {
-                Self::intersects_aabb_with_hit(
-                    from,
-                    to,
-                    shape.min + pos.0.to_f64(),
-                    shape.max + pos.0.to_f64(),
-                )
-            })
-            .min_by(|a, b| a.0.total_cmp(&b.0));
-        (hit.is_some(), hit.map(|(_, direction, _)| direction))
     }
 
     /// Entity.move's FALLDAMAGE_RESETTING / WATER ray, capped by the caller at
@@ -7760,7 +7695,11 @@ impl World {
             }
             let (fluid, fluid_state) = Self::fluid_state_from_block_state(state.id);
             if !fluid_state.is_empty && fluid.matches_type(&Fluid::WATER) {
-                let height = f64::from(self.get_fluid_height(&pos, fluid, &fluid_state));
+                let height = f64::from(block_ray::fluid_shape_height(
+                    fluid,
+                    &fluid_state,
+                    self.get_fluid_height(&pos, fluid, &fluid_state),
+                ));
                 if block_ray::intersects_box(
                     from,
                     to,
@@ -7781,159 +7720,25 @@ impl World {
         start: Vector3<f64>,
         end: Vector3<f64>,
     ) -> Option<BlockPos> {
-        self.raycast_with_shape(start, end, |_, _| true, true, true)
+        self.raycast_with_shape(start, end, |_, _| true, true, RayFluidHandling::Source)
             .map(|(pos, _)| pos)
-    }
-
-    fn ray_source_fluid_check(
-        &self,
-        pos: &BlockPos,
-        from: Vector3<f64>,
-        to: Vector3<f64>,
-    ) -> (bool, Option<BlockDirection>) {
-        let collision = self.ray_collision_check(pos, from, to);
-        if collision.0 {
-            return collision;
-        }
-        let (fluid, state) = Self::fluid_state_from_block_state(self.get_block_state_id(pos));
-        if !state.is_source || state.is_empty {
-            return (false, None);
-        }
-        let min = pos.0.to_f64();
-        let max = min.add_raw(
-            1.0,
-            f64::from(self.get_fluid_height(pos, fluid, &state)),
-            1.0,
-        );
-        let hit = Self::intersects_aabb_with_hit(from, to, min, max);
-        (hit.is_some(), hit.map(|(_, face, _)| face))
     }
 
     fn raycast_with_shape(
         self: &Arc<Self>,
-        start_pos: Vector3<f64>,
-        end_pos: Vector3<f64>,
+        start: Vector3<f64>,
+        end: Vector3<f64>,
         hit_check: impl Fn(&BlockPos, &Arc<Self>) -> bool,
         collision_shape: bool,
-        source_fluids: bool,
+        fluids: RayFluidHandling,
     ) -> Option<(BlockPos, BlockDirection)> {
-        if start_pos == end_pos {
-            return None;
-        }
-
-        let adjust = -1.0e-7f64;
-        let to = end_pos.lerp(&start_pos, adjust);
-        let from = start_pos.lerp(&end_pos, adjust);
-
-        let mut block = BlockPos::floored(from.x, from.y, from.z);
-
-        if hit_check(&block, self) {
-            let (collision, direction) = if source_fluids {
-                self.ray_source_fluid_check(&block, from, to)
-            } else if collision_shape {
-                self.ray_collision_check(&block, from, to)
-            } else {
-                self.ray_outline_check(&block, from, to)
-            };
-            if let Some(dir) = direction
-                && collision
-            {
-                return Some((block, dir));
+        block_ray::traverse(start, end, |pos| {
+            if !hit_check(&pos, self) {
+                return None;
             }
-        }
-
-        let difference = to.sub(&from);
-
-        let step = difference.sign();
-
-        let delta = Vector3::new(
-            if step.x == 0 {
-                f64::MAX
-            } else {
-                (f64::from(step.x)) / difference.x
-            },
-            if step.y == 0 {
-                f64::MAX
-            } else {
-                (f64::from(step.y)) / difference.y
-            },
-            if step.z == 0 {
-                f64::MAX
-            } else {
-                (f64::from(step.z)) / difference.z
-            },
-        );
-
-        let mut next = Vector3::new(
-            delta.x
-                * (if step.x > 0 {
-                    1.0 - (from.x - from.x.floor())
-                } else {
-                    from.x - from.x.floor()
-                }),
-            delta.y
-                * (if step.y > 0 {
-                    1.0 - (from.y - from.y.floor())
-                } else {
-                    from.y - from.y.floor()
-                }),
-            delta.z
-                * (if step.z > 0 {
-                    1.0 - (from.z - from.z.floor())
-                } else {
-                    from.z - from.z.floor()
-                }),
-        );
-
-        while next.x <= 1.0 || next.y <= 1.0 || next.z <= 1.0 {
-            let block_direction = match (next.x, next.y, next.z) {
-                (x, y, z) if x < y && x < z => {
-                    block.0.x += step.x;
-                    next.x += delta.x;
-                    if step.x > 0 {
-                        BlockDirection::West
-                    } else {
-                        BlockDirection::East
-                    }
-                }
-                (_, y, z) if y < z => {
-                    block.0.y += step.y;
-                    next.y += delta.y;
-                    if step.y > 0 {
-                        BlockDirection::Down
-                    } else {
-                        BlockDirection::Up
-                    }
-                }
-                _ => {
-                    block.0.z += step.z;
-                    next.z += delta.z;
-                    if step.z > 0 {
-                        BlockDirection::North
-                    } else {
-                        BlockDirection::South
-                    }
-                }
-            };
-
-            if hit_check(&block, self) {
-                let (collision, direction) = if source_fluids {
-                    self.ray_source_fluid_check(&block, from, to)
-                } else if collision_shape {
-                    self.ray_collision_check(&block, from, to)
-                } else {
-                    self.ray_outline_check(&block, from, to)
-                };
-                if collision {
-                    if let Some(dir) = direction {
-                        return Some((block, dir));
-                    }
-                    return Some((block, block_direction));
-                }
-            }
-        }
-
-        None
+            self.clip_block_cell(&pos, start, end, collision_shape, fluids, None)
+                .map(|hit| (pos, hit.direction))
+        })
     }
 
     /// Broadcasts a packet to all players who currently have the target chunk loaded.

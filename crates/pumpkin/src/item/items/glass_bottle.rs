@@ -8,7 +8,7 @@ use crate::entity::player::Player;
 use crate::item::{ItemBehaviour, ItemMetadata};
 use crate::server::Server;
 use crate::world::World;
-use pumpkin_data::block_properties::{WaterCauldronLikeProperties, WaterProperties};
+use pumpkin_data::block_properties::WaterCauldronLikeProperties;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
@@ -114,21 +114,18 @@ impl ItemBehaviour for GlassBottleItem {
         }
 
         let (start_pos, end_pos) = self.get_start_and_end_pos(player);
-        let checker = |pos: &BlockPos, world_inner: &Arc<World>| {
-            let state_id = world_inner.get_block_state_id(pos);
-            let block = Block::from_state_id(state_id);
-            if state_id == Block::AIR.default_state.id {
-                return false;
+        if let Some((hit_pos, _)) = world.ray_trace_block_with_context(
+            start_pos,
+            end_pos,
+            crate::world::RayFluidHandling::Source,
+            false,
+            Some(player),
+        ) {
+            let (fluid, state) =
+                World::fluid_state_from_block_state(world.get_block_state_id(&hit_pos));
+            if state.is_empty || !fluid.matches_type(&pumpkin_data::fluid::Fluid::WATER) {
+                return;
             }
-            if block.id == Block::WATER.id {
-                // BottleItem.java:46: getPlayerPOVHitResult(..., ClipContext.Fluid.SOURCE_ONLY)
-                // only registers a hit on a still-water *source* (level 0), not flowing water.
-                return WaterProperties::from_state_id(state_id).level == 0;
-            }
-            block.is_waterlogged(state_id)
-        };
-
-        if let Some((hit_pos, _)) = world.raycast(start_pos, end_pos, checker) {
             world.play_sound(
                 Sound::ItemBottleFill,
                 SoundCategory::Players,

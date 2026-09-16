@@ -29,12 +29,14 @@ impl BrushItem {
         let world = player.world();
         let start = player.eye_position();
         let end = start + player.get_looking_vector() * player.block_interaction_range();
-        let (pos, _) = world.raycast(start, end, |pos, world| {
-            let state = world.get_block_state(pos);
-            !state.is_air() && !state.is_liquid() && !state.outline_shapes.is_empty()
-        })?;
-        let (face, point) = world.ray_outline_check_detailed(&pos, start, end)?;
-        let hit = (pos, face, point);
+        let (pos, result) = world.ray_trace_block_with_context(
+            start,
+            end,
+            crate::world::RayFluidHandling::None,
+            false,
+            Some(player),
+        )?;
+        let hit = (pos, result.direction, result.position);
         let block_distance = (hit.2 - start).length();
         if world
             .ray_trace_entities(start, end)

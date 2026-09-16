@@ -175,9 +175,13 @@ impl ItemBehaviour for DebugStickItem {
         if player.can_use_game_master_blocks() {
             let (start, end) = self.get_start_and_end_pos(player);
             let world = player.world();
-            if let Some((pos, _)) =
-                world.raycast(start, end, |pos, world| world.get_block(pos) != &Block::AIR)
-            {
+            if let Some((pos, _)) = world.ray_trace_block_with_context(
+                start,
+                end,
+                crate::world::RayFluidHandling::None,
+                false,
+                Some(player),
+            ) {
                 let (block, state) = world.get_block_and_state(&pos);
                 Self::handle_interaction(player, &pos, block, state.id, false);
             }

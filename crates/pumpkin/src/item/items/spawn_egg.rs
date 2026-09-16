@@ -14,7 +14,6 @@ use pumpkin_data::data_component_impl::{
     RabbitVariantImpl, SheepColorImpl, ShulkerColorImpl, VillagerVariantImpl, WolfVariantImpl,
 };
 use pumpkin_data::entity::entity_from_egg;
-use pumpkin_data::fluid::Fluid;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::{Block, BlockDirection};
@@ -87,17 +86,19 @@ impl ItemBehaviour for SpawnEggItem {
         if let Some(entity_type) = entity_from_egg(item.id) {
             let world = player.world();
             let (start_pos, end_pos) = self.get_start_and_end_pos(player);
-            let checker = |pos: &BlockPos, world_inner: &Arc<World>| {
-                let state_id = world_inner.get_block_state_id(pos);
-                if state_id == Block::AIR.default_state.id {
-                    return false;
-                }
-                Fluid::from_state_id(state_id).is_some()
-            };
-
-            let Some((hit_pos, _)) = world.raycast(start_pos, end_pos, checker) else {
+            let Some((hit_pos, _)) = world.ray_trace_block_with_context(
+                start_pos,
+                end_pos,
+                crate::world::RayFluidHandling::Source,
+                false,
+                Some(player),
+            ) else {
                 return;
             };
+            // The source ray stops at solid outlines too; only a liquid block permits use.
+            if !world.get_block_state(&hit_pos).is_liquid() {
+                return;
+            }
 
             let pos = Vector3::new(
                 f64::from(hit_pos.0.x) + 0.5,
