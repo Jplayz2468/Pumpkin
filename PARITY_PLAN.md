@@ -24,8 +24,8 @@
 | B10 | Sculk and bees | 8 | Carried source passes; documented dependencies retained |
 | B11 | Terrain, growth and physical effects | 32 | Carried source passes; documented dependencies retained |
 | B12 | Containers and furnishings | 23 | Carried source passes; documented dependencies retained |
-| B13 | Remaining blocks and shared module routing | 23 | Pending batch closure; reuse prior ports |
-| B14 | Vanilla registry, inheritance and data coverage | registry gate | Pending batch closure; reuse prior ports |
+| B13 | Remaining blocks and shared module routing | 23 | Reviewed/carried; entity-effect dependencies retained |
+| B14 | Vanilla registry, inheritance and data coverage | registry gate | Data checked; exhaustive behavior/shape gate remains open |
 
 ## Source checklist
 
@@ -234,29 +234,29 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B12 | [shelf.rs](crates/pumpkin/src/block/blocks/shelf.rs) | Carried |
 | B12 | [shulker_box.rs](crates/pumpkin/src/block/blocks/shulker_box.rs) | Carried |
 | B12 | [smoker.rs](crates/pumpkin/src/block/blocks/smoker.rs) | Carried |
-| B13 | [abstract_wall_mounting.rs](crates/pumpkin/src/block/blocks/abstract_wall_mounting.rs) | Pending |
-| B13 | [amethyst.rs](crates/pumpkin/src/block/blocks/amethyst.rs) | Pending |
-| B13 | [carpet.rs](crates/pumpkin/src/block/blocks/carpet.rs) | Pending |
-| B13 | [cobweb.rs](crates/pumpkin/src/block/blocks/cobweb.rs) | Pending |
+| B13 | [abstract_wall_mounting.rs](crates/pumpkin/src/block/blocks/abstract_wall_mounting.rs) | Reviewed |
+| B13 | [amethyst.rs](crates/pumpkin/src/block/blocks/amethyst.rs) | Carried |
+| B13 | [carpet.rs](crates/pumpkin/src/block/blocks/carpet.rs) | Carried |
+| B13 | [cobweb.rs](crates/pumpkin/src/block/blocks/cobweb.rs) | Reviewed |
 | B13 | [doors.rs](crates/pumpkin/src/block/blocks/doors.rs) | Carried |
 | B13 | [fence_gates.rs](crates/pumpkin/src/block/blocks/fence_gates.rs) | Carried |
-| B13 | [hay.rs](crates/pumpkin/src/block/blocks/hay.rs) | Pending |
-| B13 | [honey.rs](crates/pumpkin/src/block/blocks/honey.rs) | Pending |
+| B13 | [hay.rs](crates/pumpkin/src/block/blocks/hay.rs) | Reviewed |
+| B13 | [honey.rs](crates/pumpkin/src/block/blocks/honey.rs) | Reviewed |
 | B13 | [huge_mushroom.rs](crates/pumpkin/src/block/blocks/huge_mushroom.rs) | Carried |
-| B13 | [infested.rs](crates/pumpkin/src/block/blocks/infested.rs) | Pending |
-| B13 | [infested_rotated_pillar.rs](crates/pumpkin/src/block/blocks/infested_rotated_pillar.rs) | Pending |
+| B13 | [infested.rs](crates/pumpkin/src/block/blocks/infested.rs) | Carried |
+| B13 | [infested_rotated_pillar.rs](crates/pumpkin/src/block/blocks/infested_rotated_pillar.rs) | Carried |
 | B13 | [leaves.rs](crates/pumpkin/src/block/blocks/leaves.rs) | Carried |
-| B13 | [logs.rs](crates/pumpkin/src/block/blocks/logs.rs) | Pending |
-| B13 | [magma.rs](crates/pumpkin/src/block/blocks/magma.rs) | Pending |
-| B13 | [mangrove_roots.rs](crates/pumpkin/src/block/blocks/mangrove_roots.rs) | Pending |
-| B13 | [mod.rs](crates/pumpkin/src/block/blocks/mod.rs) | Pending |
+| B13 | [logs.rs](crates/pumpkin/src/block/blocks/logs.rs) | Reviewed |
+| B13 | [magma.rs](crates/pumpkin/src/block/blocks/magma.rs) | Reviewed |
+| B13 | [mangrove_roots.rs](crates/pumpkin/src/block/blocks/mangrove_roots.rs) | Reviewed |
+| B13 | [mod.rs](crates/pumpkin/src/block/blocks/mod.rs) | Reviewed |
 | B13 | [note.rs](crates/pumpkin/src/block/blocks/note.rs) | Carried |
-| B13 | [pumpkin.rs](crates/pumpkin/src/block/blocks/pumpkin.rs) | Pending |
-| B13 | [slime.rs](crates/pumpkin/src/block/blocks/slime.rs) | Pending |
-| B13 | [soul_sand.rs](crates/pumpkin/src/block/blocks/soul_sand.rs) | Pending |
-| B13 | [tinted_glass.rs](crates/pumpkin/src/block/blocks/tinted_glass.rs) | Pending |
+| B13 | [pumpkin.rs](crates/pumpkin/src/block/blocks/pumpkin.rs) | Reviewed |
+| B13 | [slime.rs](crates/pumpkin/src/block/blocks/slime.rs) | Reviewed |
+| B13 | [soul_sand.rs](crates/pumpkin/src/block/blocks/soul_sand.rs) | Reviewed |
+| B13 | [tinted_glass.rs](crates/pumpkin/src/block/blocks/tinted_glass.rs) | Reviewed |
 | B13 | [trapdoor.rs](crates/pumpkin/src/block/blocks/trapdoor.rs) | Carried |
-| B13 | [vine.rs](crates/pumpkin/src/block/blocks/vine.rs) | Pending |
+| B13 | [vine.rs](crates/pumpkin/src/block/blocks/vine.rs) | Reviewed |
 
 ## B01 evidence and limits
 
@@ -443,3 +443,19 @@ Item source inventory:
   scheduling and loot contexts remain shared work across the carried terrain ports.
 - B12 / D02–D06/I02: locks, loot, names/components, menus/recipes, opener timing,
   collision and protocol dependencies from each container/furnishing log remain.
+
+### B13 / B14 transition checkpoint
+
+- Pumpkin carving now uses the bundled interaction loot table, directional seed
+  ejection, carve sound, attributed shear event and used-item statistic. Its loot
+  evaluator still has the D02 context/random-stream limitations.
+- Vines use normal block-item placement/consumption for extra faces, with corrected
+  context direction ordering. Slime applies the source step-speed reduction.
+- D01/D04: honey side sliding/effects, full landing/suppress-bounce behavior,
+  magma enchantment-driven immunity and cobweb inside-effect aggregation remain
+  entity/engine work, now available to the mob pass.
+- B14 data evidence is in PARITY_BLOCK_DATA_AUDIT.md. Exhaustive Java constructor
+  inheritance, runtime routing and contextual shape parity remain open. User's
+  request to prioritize mobs does not turn this unfinished gate into a pass.
+- Next active work: mobs; item batches remain queued. All block source files now
+  have a reviewed or carried source-pass disposition, not a 1:1 certification.

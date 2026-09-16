@@ -1,7 +1,7 @@
 use crate::{
     block::{
         BlockBehaviour, CanPlaceAtArgs, CanUpdateAtArgs, GetStateForNeighborUpdateArgs,
-        OnPlaceArgs, RandomTickArgs, UseWithItemArgs, registry::BlockActionResult,
+        OnPlaceArgs, RandomTickArgs, registry::BlockActionResult,
     },
     entity::{EntityBase, player::Player},
     world::World,
@@ -235,8 +235,11 @@ impl BlockBehaviour for VineBlock {
             VineLikeProperties::default(args.block)
         };
 
-        let nearest_directions =
-            get_nearest_looking_directions(args.player, clicked_is_vine, args.direction);
+        let nearest_directions = get_nearest_looking_directions(
+            args.player,
+            *args.position == args.use_item_on.position,
+            args.direction.opposite(),
+        );
 
         for direction in nearest_directions {
             if direction != BlockDirection::Down {
@@ -340,55 +343,6 @@ impl BlockBehaviour for VineBlock {
         count_faces(&props) < 5
     }
 
-    fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
-        {
-            if args.item_stack.item.id != Item::VINE.id {
-                return BlockActionResult::Pass;
-            }
-
-            let state = args.world.get_block_state(args.position);
-            let mut props = VineLikeProperties::from_state_id(state.id);
-            if count_faces(&props) >= 5 {
-                return BlockActionResult::Pass;
-            }
-
-            let nearest_directions =
-                get_nearest_looking_directions(args.player, true, BlockDirection::Down);
-
-            for direction in nearest_directions {
-                if direction != BlockDirection::Down {
-                    let face_occupied = has_face_property(&props, direction);
-                    if !face_occupied
-                        && can_support_at_face(&**args.world, args.position, direction)
-                    {
-                        set_face_property(&mut props, direction, true);
-                        args.world.set_block_state(
-                            args.position,
-                            props.to_state_id(args.block),
-                            BlockFlags::NOTIFY_ALL,
-                        );
-                        // Vanilla `VineBlock` has no `useItemOn` override at all (checked
-                        // VineBlock.java): attaching an extra face happens purely through
-                        // `canBeReplaced`/`getStateForPlacement` (VineBlock.java:283-292),
-                        // the ordinary BlockItem placement flow that consumes through
-                        // `BlockItem.place` -> `ItemStack.consume` (BlockItem.java:89,
-                        // ItemStack.java:1082-1086). This `use_with_item` arm duplicates
-                        // that combine logic and returns `Consume`, which short-circuits
-                        // before Pumpkin's placement-decrement logic in `use_item_on.rs`
-                        // ever runs, so the decrement has to happen here instead.
-                        if !args.player.has_infinite_materials() {
-                            args.item_stack.decrement(1);
-                        }
-                        return BlockActionResult::Consume;
-                    }
-                }
-            }
-
-            BlockActionResult::Pass
-        }
-    }
-
-    #[expect(clippy::too_many_lines)]
     fn random_tick(&self, mut args: RandomTickArgs<'_>) {
         let do_spread = matches!(
             args.world
@@ -537,8 +491,7 @@ impl BlockBehaviour for VineBlock {
                 ] {
                     let rel_pos = above_pos.offset(direction.to_offset());
                     let (rel_block, rel_state) = args.world.get_block_and_state(&rel_pos);
-                    if args.rand_bool()
-                        || !is_acceptable_neighbour(rel_block, rel_state, direction)
+                    if args.rand_bool() || !is_acceptable_neighbour(rel_block, rel_state, direction)
                     {
                         set_face_property(&mut above_props, direction, false);
                     }
@@ -569,9 +522,7 @@ impl BlockBehaviour for VineBlock {
                     BlockDirection::West,
                     BlockDirection::East,
                 ] {
-                    if args.rand_bool()
-                        && has_face_property(&state_props, direction)
-                    {
+                    if args.rand_bool() && has_face_property(&state_props, direction) {
                         set_face_property(&mut after_props, direction, true);
                     }
                 }

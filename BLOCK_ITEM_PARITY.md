@@ -1221,3 +1221,23 @@ so they must not be used to reconstruct audit completion.
   does not verify every changed gameplay path.
 - User priority changed: move to mobs after the bounded block pass, keeping the
   original item queue and unresolved block engine dependencies for later work.
+
+## B13/B14 transition to the requested mob priority
+
+- Reused inherited amethyst, carpet, infested and pillar work. Checked remaining
+  handlers/module routes; retained incomplete honey/landing/effect behavior as
+  explicit shared entity work.
+- Carving pumpkin seeds uses the interaction loot table and source launch geometry,
+  velocity, sound, shear attribution and used-item statistic. Removed the custom
+  vine item-use path so normal placement handles consumption/context; added slime
+  stepping slowdown and its sneaking landing guard.
+- Data check: all 265 block-tag and 1,113 block-loot JSONs match local vanilla.
+  Asset default/shape references and ID uniqueness are structurally valid. See
+  PARITY_BLOCK_DATA_AUDIT.md for scope; full runtime/shape/inheritance parity is open.
+- Builds 19–20 exposed one private ItemEntity field access in carving; corrected to
+  the EntityBase accessor. The corrected follow-up runs in the background.
+- The bounded block handler pass is checkpointed. This does not complete block
+  1:1 parity; the user requested mobs next, so open block dependencies and the item
+  queue remain documented while work moves to mobs.
+
+- Corrected final block background run 21: **123 passed, 0 failed**.
