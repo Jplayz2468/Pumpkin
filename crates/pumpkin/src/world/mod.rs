@@ -2597,6 +2597,39 @@ impl World {
         true
     }
 
+    /// DismountHelper ignores climbables and open trapdoors when locating the floor.
+    pub fn get_non_climbable_dismount_height(&self, pos: &BlockPos) -> f64 {
+        let shape_top = |pos: &BlockPos| {
+            let (block, state) = self.get_block_and_state(pos);
+            if block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_CLIMBABLE)
+                || (block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_TRAPDOORS)
+                    && block.properties(state.id).is_some_and(|props| {
+                        props
+                            .to_props()
+                            .iter()
+                            .any(|(key, value)| *key == "open" && *value == "true")
+                    }))
+            {
+                f64::NEG_INFINITY
+            } else {
+                state
+                    .get_block_collision_shapes_at(pos)
+                    .map(|shape| shape.max.y)
+                    .fold(f64::NEG_INFINITY, f64::max)
+            }
+        };
+        let top = shape_top(pos);
+        if top != f64::NEG_INFINITY {
+            return top;
+        }
+        let below = shape_top(&pos.down());
+        if below >= 1.0 {
+            below - 1.0
+        } else {
+            f64::NEG_INFINITY
+        }
+    }
+
     /// Vanilla's `BlockView.getDismountHeight()`.
     /// Returns the Y surface height for dismounting at the given block position,
     /// or `f64::NEG_INFINITY` if no valid surface exists.
@@ -4954,8 +4987,11 @@ impl World {
             .level_info
             .load()
             .game_rules
-            .players_sleeping_percentage
-            .clamp(0, 100);
+            .players_sleeping_percentage;
+        if sleep_percentage > 100 {
+            return false;
+        }
+        let sleep_percentage = sleep_percentage.max(0);
         let required_sleeping =
             ((player_count as f64 * sleep_percentage as f64) / 100.0).ceil() as usize;
         let required_sleeping = required_sleeping.max(1);

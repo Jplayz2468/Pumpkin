@@ -10,6 +10,7 @@ use pumpkin_protocol::ser::WritingError;
 use pumpkin_util::version::JavaMinecraftVersion;
 
 pub trait ErasedSerializer: Send + Sync {
+    fn value_any(&self) -> &dyn std::any::Any;
     fn write(
         &self,
         index: TrackedId,
@@ -28,6 +29,10 @@ struct SerializerHolder<T> {
 impl<T: MetadataSerializer + Clone + Send + Sync + 'static> ErasedSerializer
     for SerializerHolder<T>
 {
+    fn value_any(&self) -> &dyn std::any::Any {
+        &self.value
+    }
+
     fn write(
         &self,
         index: TrackedId,
@@ -147,6 +152,17 @@ impl SynchedEntityData {
     }
 
     #[must_use]
+    pub fn get<T: Clone + 'static>(&self, tracked: TrackedData) -> Option<T> {
+        self.items
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .get(&tracked)?
+            .serializer
+            .value_any()
+            .downcast_ref::<T>()
+            .cloned()
+    }
+
     pub fn is_dirty(&self) -> bool {
         self.is_dirty.load(Ordering::Acquire)
     }
@@ -230,7 +246,6 @@ impl SynchedEntityData {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -245,16 +260,48 @@ mod tests {
     #[test]
     fn renamed_field_pairs_are_two_names_for_one_field() {
         for (legacy, modern, what) in [
-            (td::creeper::CHARGED, td::creeper::DATA_IS_POWERED, "creeper charged"),
-            (td::cat::CAT_VARIANT, td::cat::DATA_VARIANT_ID, "cat variant"),
+            (
+                td::creeper::CHARGED,
+                td::creeper::DATA_IS_POWERED,
+                "creeper charged",
+            ),
+            (
+                td::cat::CAT_VARIANT,
+                td::cat::DATA_VARIANT_ID,
+                "cat variant",
+            ),
             (td::frog::VARIANT, td::frog::DATA_VARIANT_ID, "frog variant"),
-            (td::chicken::VARIANT, td::chicken::DATA_VARIANT_ID, "chicken variant"),
-            (td::shulker::COLOR, td::shulker::DATA_COLOR_ID, "shulker colour"),
-            (td::wolf::COLLAR_COLOR, td::wolf::DATA_COLLAR_COLOR, "wolf collar"),
-            (td::ocelot::TRUSTING, td::ocelot::DATA_TRUSTING, "ocelot trusting"),
+            (
+                td::chicken::VARIANT,
+                td::chicken::DATA_VARIANT_ID,
+                "chicken variant",
+            ),
+            (
+                td::shulker::COLOR,
+                td::shulker::DATA_COLOR_ID,
+                "shulker colour",
+            ),
+            (
+                td::wolf::COLLAR_COLOR,
+                td::wolf::DATA_COLLAR_COLOR,
+                "wolf collar",
+            ),
+            (
+                td::ocelot::TRUSTING,
+                td::ocelot::DATA_TRUSTING,
+                "ocelot trusting",
+            ),
             (td::sniffer::STATE, td::sniffer::DATA_STATE, "sniffer state"),
-            (td::item_frame::ROTATION, td::item_frame::DATA_ROTATION, "item frame rotation"),
-            (td::end_crystal::SHOW_BOTTOM, td::end_crystal::DATA_SHOW_BOTTOM, "end crystal base"),
+            (
+                td::item_frame::ROTATION,
+                td::item_frame::DATA_ROTATION,
+                "item frame rotation",
+            ),
+            (
+                td::end_crystal::SHOW_BOTTOM,
+                td::end_crystal::DATA_SHOW_BOTTOM,
+                "end crystal base",
+            ),
         ] {
             assert_eq!(legacy.r#type, modern.r#type, "{what}: type must not change");
             assert_eq!(

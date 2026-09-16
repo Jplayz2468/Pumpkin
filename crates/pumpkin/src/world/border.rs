@@ -145,7 +145,13 @@ impl Worldborder {
     #[must_use]
     pub fn contains_block(&self, x: i32, z: i32) -> bool {
         self.contains(f64::from(x), f64::from(z))
-            && self.contains(f64::from(x + 1), f64::from(z + 1))
+    }
+
+    #[must_use]
+    pub fn contains_box(&self, bounds: &pumpkin_util::math::boundingbox::BoundingBox) -> bool {
+        let epsilon = f64::from(1.0e-5_f32);
+        self.contains(bounds.min.x, bounds.min.z)
+            && self.contains(bounds.max.x - epsilon, bounds.max.z - epsilon)
     }
 
     #[must_use]

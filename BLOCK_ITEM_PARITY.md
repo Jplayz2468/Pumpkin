@@ -840,3 +840,34 @@ so they must not be used to reconstruct audit completion.
   treeified hash-bin ordering, entity/projectile hit reactions, explosion loot
   sequence fidelity, generic damage attribution and respawn dismount collision/
   danger checks remain open. Bed use/removal still needs its matching source pass.
+
+## Continued source port: beds, sleep checks and respawn positions
+
+- Bed heads now form only from player placement; shape updates synchronize
+  occupancy or remove an invalid half. Creative foot destruction suppresses the
+  head drop, replacing recursive double-break callbacks. Head placement checks
+  replacement and the source world-border block coordinate.
+- Bed use resolves/validates the head, uses the environment bed rule and shared
+  bad-respawn explosion, handles occupied beds before eligibility, and wakes the
+  first intersecting sleeping villager. Range uses bottom centers and a two-block
+  vertical limit. Creative players bypass the Monster query; parched replace the
+  incorrect ocelot/phantom entries, and zombified piglins require anger at player.
+- Sleep awards the stat before advancement, dismounts riders, reports disabled
+  night skipping, and the world respects sleeping percentages over 100. Common
+  suffocation overrides cover leaves, glass, grates, paths, farmland, mud and soul
+  sand. Bed bounce uses the current 0.75 restitution coefficient.
+- Bed/anchor respawn searches follow the source offset order and safe/unsafe
+  passes, including yaw-selected bed sides, bunk beds, collision floor heights,
+  climbable/open-trapdoor exclusions and player invalid-spawn tags. Candidate
+  bounding boxes use type dimensions and border checks. Forced anchors preserve
+  charges; eligible beds/anchors precede generic forced positions. Respawn faces
+  the bed/anchor, and generic forced respawn retains pitch.
+- Saved respawn data now retains yaw/pitch using the current keys while reading
+  legacy angle fields. Same-position bed use updates saved rotation. Typed reads
+  from synchronized entity data let wake-up use the actual sleeping bed, clear
+  occupancy safely, and choose the same stand-up positions.
+- No compilation/tests. Remaining: Mth atan2 approximation, dynamic shulker
+  suffocation/collision, complete generic restitution, exact block replaceability
+  contexts, custom environment rules/messages, persistent universal mob anger,
+  broader villager sleep AI and sleeping-position NBT, world-border interpolation,
+  and other shared engine/item gaps. This does not establish complete 1:1 parity.
