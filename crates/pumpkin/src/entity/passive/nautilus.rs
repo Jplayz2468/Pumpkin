@@ -1,7 +1,7 @@
 use crate::entity::ageable::{AgeableData, AgeableMob};
 use crossbeam::atomic::AtomicCell;
 use std::sync::{
-    Arc, Mutex,
+    Arc, Mutex, Weak,
     atomic::{AtomicBool, AtomicI32, Ordering},
 };
 use uuid::Uuid;
@@ -17,8 +17,14 @@ use pumpkin_data::{
 use pumpkin_nbt::compound::NbtCompound;
 use pumpkin_util::math::vector3::Vector3;
 
+use pumpkin_data::entity::EntityType;
+
 use crate::entity::{
     Entity, EntityBase,
+    ai::goal::{
+        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
+        wander_around::WanderAroundGoal,
+    },
     custom_sound::CustomSound,
     mob::{Mob, MobEntity},
     passive::animal::Animal,
@@ -50,7 +56,36 @@ impl NautilusEntity {
             inventory: Mutex::new(vec![ItemStack::new(0, &pumpkin_data::item::Item::AIR); 9]),
         };
 
-        Arc::new(nautilus)
+        let mob_arc = Arc::new(nautilus);
+        let mob_weak: Weak<dyn Mob> = {
+            let mob_arc: Arc<dyn Mob> = mob_arc.clone();
+            Arc::downgrade(&mob_arc)
+        };
+
+        // Vanilla drives the nautilus from a brain rather than goals. Its idle
+        // activity is a weighted choice between `RandomStroll.swim(1.0)` and
+        // `SetWalkTargetFromLookTarget`, over a `LookAtTargetSink` core
+        // behaviour (NautilusAi.initIdleActivity/initCoreActivity). The goals
+        // below reproduce that visible behaviour -- swimming about and looking
+        // around -- without a brain implementation, which is why a nautilus
+        // moves at all instead of standing still.
+        {
+            let mut goal_selector = mob_arc
+                .mob_entity
+                .goals_selector
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+
+            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
+            goal_selector.add_goal(4, Box::new(WanderAroundGoal::new(1.0)));
+            goal_selector.add_goal(
+                5,
+                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
+            );
+            goal_selector.add_goal(6, Box::new(RandomLookAroundGoal::default()));
+        }
+
+        mob_arc
     }
 
     pub fn is_dashing(&self) -> bool {

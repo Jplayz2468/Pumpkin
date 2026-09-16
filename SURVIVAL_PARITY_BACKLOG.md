@@ -108,6 +108,52 @@ produces, the grindstone's random experience half, and every menu lifecycle
 concern — shift-click, drag, menu close and result-slot take paths. Those need
 the integration tests, not oracles.
 
+## Mobs — 2026-09-16
+
+Triage: 87 of 91 mob types were already dispatched in the entity factory, built
+as families (a `ZombieEntityBase`/`SkeletonEntityBase` carrying the goals, thin
+per-species deltas over it). Per-species attributes, hitboxes, eye heights, fire
+immunity, XP rewards and spawn restrictions are generated from vanilla data. All
+94 entity loot tables are representable now that no unsupported loot functions
+remain. No dispatched mob is inert.
+
+**Added the four undispatched types.** They previously fell through to the
+factory's fallback and spawned as motionless `LivingEntity` blobs -- safe, but
+doing nothing.
+
+- `sulfur_cube` -- the only one reachable in ordinary survival: weight 100 in
+  `sulfur_caves`, which generates. Now a working cube mob on the shared slime
+  behaviour, sized 1-2 with its own sounds. **Known gap:** the archetype system.
+  Vanilla swallows an item, matches the `sulfur_cube_archetype` registry (12
+  entries, all their item tags already generated) and takes on that archetype's
+  attribute modifiers, explosion, contact damage, knockback and sounds; fuse
+  priming, redstone triggering, bucketing and shearing hang off the same system.
+- `camel_husk` -- delta over the camel: `camel_husk_food`, never breeds, never a
+  baby, own sounds. Saddling and riding are repeated from the camel rather than
+  delegated, because delegating would run the camel's own food rules.
+- `zombie_nautilus` -- delta over the nautilus: separate underwater and on-land
+  sound variants, never breeds, riding and dashing forwarded.
+- `mannequin` -- immobile player-shaped display entity, so `/summon` produces the
+  right entity. **Known gap:** the resolvable profile that gives it a skin, and
+  equipping it. No spawn egg and no natural spawn, so `/summon` only.
+
+**Fixed an existing mob:** the nautilus spawns in 9 biomes and had no goals and
+no brain, so it sat motionless unless ridden. It now has swim, wander, look-at
+and random-look goals.
+
+**Known gap -- no Brain framework.** Vanilla drives the nautilus, villager,
+piglin, axolotl, frog, camel and warden from Brains: weighted activities over
+memories and sensors. Pumpkin has a priority-ordered goal selector and one
+bespoke warden brain. The nautilus goals above reproduce what its brain visibly
+does, not how it arbitrates, so selection order differs. This is the largest
+remaining mob-fidelity item and wants an engine decision rather than per-species
+approximation.
+
+**Not merged:** four `agent/mob/*` branches carry unfinished AI for dolphins,
+guardians, phantoms, vexes, turtles and the wither. They are 119 commits behind
+and cover the complex species, not the simple families. Pushed to origin so they
+are preserved; rebasing them is a separate decision.
+
 ## Status and evidence
 
 - **Known gap:** an implementation limitation is recorded.

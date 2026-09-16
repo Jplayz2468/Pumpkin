@@ -64,6 +64,7 @@ pub mod shulker;
 pub mod silverfish;
 pub mod skeleton;
 pub mod slime;
+pub mod sulfur_cube;
 pub mod spider;
 pub mod vex;
 pub mod vindicator;

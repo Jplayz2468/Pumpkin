@@ -38,6 +38,10 @@ use crate::entity::mob::guardian::GuardianEntity;
 use crate::entity::mob::hoglin::HoglinEntity;
 use crate::entity::mob::illusioner::IllusionerEntity;
 use crate::entity::mob::magma_cube::MagmaCubeEntity;
+use crate::entity::mob::sulfur_cube::SulfurCubeEntity;
+use crate::entity::passive::camel_husk::CamelHuskEntity;
+use crate::entity::passive::zombie_nautilus::ZombieNautilusEntity;
+use crate::entity::decoration::mannequin::MannequinEntity;
 use crate::entity::mob::phantom::PhantomEntity;
 use crate::entity::mob::piglin::PiglinEntity;
 use crate::entity::mob::piglin_brute::PiglinBruteEntity;
@@ -162,6 +166,7 @@ pub fn from_type(
         id if id == EntityType::CAVE_SPIDER.id => CaveSpiderEntity::new(entity),
         id if id == EntityType::GHAST.id => GhastEntity::new(entity),
         id if id == EntityType::MAGMA_CUBE.id => MagmaCubeEntity::new(entity),
+        id if id == EntityType::SULFUR_CUBE.id => SulfurCubeEntity::new(entity),
         id if id == EntityType::PHANTOM.id => PhantomEntity::new(entity),
         id if id == EntityType::WITCH.id => WitchEntity::new(entity),
         id if id == EntityType::PIGLIN.id => PiglinEntity::new(entity),
@@ -206,6 +211,7 @@ pub fn from_type(
         id if id == EntityType::AXOLOTL.id => AxolotlEntity::new(entity),
         id if id == EntityType::BEE.id => BeeEntity::new(entity),
         id if id == EntityType::CAMEL.id => CamelEntity::new(entity),
+        id if id == EntityType::CAMEL_HUSK.id => CamelHuskEntity::new(entity),
         id if id == EntityType::COPPER_GOLEM.id => CopperGolemEntity::new(entity),
         id if id == EntityType::FROG.id => FrogEntity::new(entity),
         id if id == EntityType::GOAT.id => GoatEntity::new(entity),
@@ -225,6 +231,7 @@ pub fn from_type(
         id if id == EntityType::TADPOLE.id => TadpoleEntity::new(entity),
         id if id == EntityType::DOLPHIN.id => DolphinEntity::new(entity),
         id if id == EntityType::NAUTILUS.id => NautilusEntity::new(entity),
+        id if id == EntityType::ZOMBIE_NAUTILUS.id => ZombieNautilusEntity::new(entity),
 
         id if id == EntityType::SNOW_GOLEM.id => SnowGolemEntity::new(entity),
         id if id == EntityType::IRON_GOLEM.id => IronGolemEntity::new(entity),
@@ -236,6 +243,7 @@ pub fn from_type(
             crate::entity::area_effect_cloud::AreaEffectCloudEntity::new(entity)
         }
         id if id == EntityType::ARMOR_STAND.id => Arc::new(ArmorStandEntity::new(entity)),
+        id if id == EntityType::MANNEQUIN.id => Arc::new(MannequinEntity::new(entity)),
         id if id == EntityType::BLOCK_DISPLAY.id => BlockDisplayEntity::new(entity),
         id if id == EntityType::ITEM_DISPLAY.id => ItemDisplayEntity::new(entity),
         id if id == EntityType::TEXT_DISPLAY.id => TextDisplayEntity::new(entity),
