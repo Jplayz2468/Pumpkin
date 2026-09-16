@@ -1,5 +1,6 @@
 pub mod baby_dimensions;
 mod inside_blocks;
+pub mod inside_effects;
 mod baby_dimensions_data;
 pub mod spawn;
 use crate::{
@@ -72,11 +73,11 @@ use pumpkin_util::math::{
 use pumpkin_util::text::TextComponent;
 use pumpkin_util::text::hover::HoverEvent;
 use pumpkin_util::version::JavaMinecraftVersion;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::HashSet;
 use std::sync::{
     Arc,
     atomic::{
-        AtomicBool, AtomicI32, AtomicU8, AtomicU32,
+        AtomicBool, AtomicI32, AtomicI64, AtomicU8, AtomicU32,
         Ordering::{self, Relaxed},
     },
 };
@@ -554,7 +555,7 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         if entity.fire_ticks.load(Ordering::Relaxed) < ticks as i32 {
             entity.fire_ticks.store(ticks as i32, Ordering::Relaxed);
         }
-        // TODO: defrost
+        entity.set_frozen_ticks(0);
     }
 
     /// Called when a player collides with an entity
@@ -906,6 +907,7 @@ pub struct Entity {
     pub movement: AtomicCell<Vector3<f64>>,
     piston_movement: std::sync::Mutex<(i64, Vector3<f64>)>,
     inside_movements: std::sync::Mutex<Vec<inside_blocks::Movement>>,
+    last_inside_effects_tick: AtomicI64,
     /// The entity's position rounded to the nearest block coordinates
     pub block_pos: AtomicCell<BlockPos>,
     /// The block supporting the entity
@@ -1096,6 +1098,7 @@ impl Entity {
             movement: AtomicCell::new(Vector3::default()),
             piston_movement: std::sync::Mutex::new((0, Vector3::default())),
             inside_movements: std::sync::Mutex::new(Vec::new()),
+            last_inside_effects_tick: AtomicI64::new(i64::MIN),
             block_pos: AtomicCell::new(BlockPos(Vector3::new(floor_x, floor_y, floor_z))),
             supporting_block_pos: AtomicCell::new(None),
             chunk_pos: AtomicCell::new(Vector2::new(
@@ -1725,6 +1728,8 @@ impl Entity {
     }
 
     pub fn tick_block_collisions(&self, caller: &dyn EntityBase) -> bool {
+        self.last_inside_effects_tick
+            .store(self.world.load().get_world_age(), Ordering::Relaxed);
         if !self.is_affected_by_blocks() {
             self.inside_movements
                 .lock()
@@ -1801,10 +1806,7 @@ impl Entity {
                     original: None,
                 });
             }
-            let mut visited = rustc_hash::FxHashSet::default();
-            for movement in movements {
-                self.apply_inside_movement(caller, &server, movement, &mut visited, false);
-            }
+            self.apply_inside_movements(caller, &server, movements);
         }
 
         suffocating
@@ -2092,7 +2094,6 @@ impl Entity {
 
     fn update_fluid_state(&self, caller: &dyn EntityBase) {
         let is_pushed = caller.is_pushed_by_fluids();
-        let mut fluids = BTreeMap::new();
 
         let water_push = Vector3::default();
 
@@ -2143,8 +2144,6 @@ impl Entity {
                             in_fluid[i] = true;
 
                             if !is_pushed {
-                                fluids.insert(fluid.id, fluid);
-
                                 continue;
                             }
 
@@ -2157,21 +2156,15 @@ impl Entity {
                             fluid_push[i] += fluid_velo;
 
                             fluid_n[i] += 1;
-
-                            fluids.insert(fluid.id, fluid);
                         }
                     }
                 }
             }
         }
 
-        // BTreeMap auto-sorts water before lava as in vanilla
-
-        for (_, fluid) in fluids {
-            world
-                .block_registry
-                .on_entity_collision_fluid(fluid, caller);
-        }
+        // Fluid displacement is evaluated here. Inside-block effects are collected
+        // with block effects along the movement path, so water/lava ordering is
+        // determined by traversal steps instead of registry IDs.
 
         let lava_speed = if world.dimension.fast_lava {
             0.007
@@ -2490,16 +2483,14 @@ impl Entity {
         let from = self.pos.load();
         self.move_pos(adjusted);
         if let Some(server) = self.world.load().server.upgrade() {
-            self.apply_inside_movement(
+            self.apply_inside_movements(
                 caller,
                 &server,
-                inside_blocks::Movement {
+                [inside_blocks::Movement {
                     from,
                     to: self.pos.load(),
                     original: None,
-                },
-                &mut rustc_hash::FxHashSet::default(),
-                true,
+                }],
             );
         }
         self.send_pos();
@@ -2862,7 +2853,7 @@ impl Entity {
 
     /// Extinguishes this entity.
     pub fn extinguish(&self) {
-        self.fire_ticks.store(0, Ordering::Relaxed);
+        self.fire_ticks.fetch_min(0, Ordering::Relaxed);
     }
 
     /// Maximum freeze ticks (7 seconds at 20 tps)
@@ -2915,8 +2906,8 @@ impl Entity {
     }
 
     /// Ticks the frozen state of the entity.
-    /// In powder snow and freezeable: `frozen_ticks` increases by 1 (up to `MAX_FROZEN_TICKS`)
-    /// Otherwise: `frozen_ticks` decreases by 2 (down to 0)
+    /// The inside-effect collector increments freezing once per traversal step.
+    /// LivingEntity.aiStep only thaws outside powder snow or when immune.
     /// When fully frozen, deals 1 damage every 40 ticks
     pub fn tick_frozen(&self, caller: &dyn EntityBase) {
         let can_freeze = self.can_freeze(caller);
@@ -2924,8 +2915,7 @@ impl Entity {
         let old_frozen_ticks = self.frozen_ticks.load(Ordering::Relaxed);
 
         let new_frozen_ticks = if in_powder_snow && can_freeze {
-            // Increase frozen ticks when in powder snow
-            (old_frozen_ticks + 1).min(Self::MAX_FROZEN_TICKS)
+            old_frozen_ticks
         } else {
             // Vanilla: thaw whenever not in powder snow OR when freezing is prevented
             (old_frozen_ticks - 2).max(0)
@@ -3157,7 +3147,9 @@ impl Entity {
 
     #[must_use]
     pub fn is_on_fire(&self) -> bool {
-        self.fire_ticks.load(Ordering::Relaxed) > 0 || self.has_visual_fire.load(Ordering::Relaxed)
+        !self.entity_type.fire_immune
+            && !self.fire_immune.load(Ordering::Relaxed)
+            && self.fire_ticks.load(Ordering::Relaxed) > 0
     }
 
     pub fn get_horizontal_facing(&self) -> HorizontalFacing {
@@ -3655,7 +3647,10 @@ impl Entity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .is_empty();
-        if pending {
+        if pending
+            || self.last_inside_effects_tick.load(Ordering::Relaxed)
+                != self.world.load().get_world_age()
+        {
             self.tick_block_collisions(caller);
         }
     }
@@ -3681,13 +3676,68 @@ impl Entity {
         }
     }
 
+    fn apply_inside_movements(
+        &self,
+        caller: &dyn EntityBase,
+        server: &Server,
+        movements: impl IntoIterator<Item = inside_blocks::Movement>,
+    ) {
+        if !self.is_affected_by_blocks() {
+            return;
+        }
+        let was_on_fire = self.is_on_fire();
+        let was_freezing = self.get_frozen_ticks() > 0;
+        let previous_fire = self.fire_ticks.load(Ordering::Relaxed);
+        let effects = inside_effects::InsideEffects::default();
+        let mut visited = rustc_hash::FxHashSet::default();
+        for movement in movements {
+            self.apply_inside_movement(caller, server, movement, &mut visited, &effects);
+        }
+        effects.apply_and_clear(caller);
+        let world = self.world.load();
+        let pos = self.block_pos.load();
+        if world.is_raining_at(&pos)
+            || world.is_raining_at(&BlockPos::floored(
+                f64::from(pos.0.x),
+                self.bounding_box.load().max.y,
+                f64::from(pos.0.z),
+            ))
+        {
+            self.extinguish();
+        }
+        if (was_on_fire && !self.is_on_fire()) || (was_freezing && self.get_frozen_ticks() == 0) {
+            world.play_sound_fine(
+                Sound::EntityGenericExtinguishFire,
+                if caller.get_player().is_some() {
+                    SoundCategory::Players
+                } else {
+                    SoundCategory::Neutral
+                },
+                &self.pos.load(),
+                0.7,
+                1.6 + (world.rand_f32() - world.rand_f32()) * 0.4,
+            );
+        }
+        let was_ignited = self.fire_ticks.load(Ordering::Relaxed) > previous_fire;
+        if !self.is_on_fire() && !was_ignited {
+            self.fire_ticks.store(
+                if caller.get_player().is_some() {
+                    -20
+                } else {
+                    0
+                },
+                Ordering::Relaxed,
+            );
+        }
+    }
+
     fn apply_inside_movement(
         &self,
         caller: &dyn EntityBase,
         server: &Server,
         movement: inside_blocks::Movement,
         visited: &mut rustc_hash::FxHashSet<BlockPos>,
-        include_fluids: bool,
+        effects: &inside_effects::InsideEffects,
     ) {
         if !self.is_affected_by_blocks() {
             return;
@@ -3711,7 +3761,7 @@ impl Entity {
                         to,
                         visited,
                         remaining,
-                        include_fluids,
+                        effects,
                     );
                     from = to;
                 }
@@ -3724,7 +3774,7 @@ impl Entity {
                 movement.to,
                 visited,
                 remaining,
-                include_fluids,
+                effects,
             );
         }
         if remaining <= 0 {
@@ -3735,7 +3785,7 @@ impl Entity {
                 movement.to,
                 visited,
                 1,
-                include_fluids,
+                effects,
             );
         }
     }
@@ -3749,7 +3799,7 @@ impl Entity {
         to: Vector3<f64>,
         visited: &mut rustc_hash::FxHashSet<BlockPos>,
         limit: i32,
-        include_fluids: bool,
+        effects: &inside_effects::InsideEffects,
     ) -> i32 {
         let world = self.world.load();
         let dimensions = self.entity_dimension.load();
@@ -3785,8 +3835,7 @@ impl Entity {
                 is_full || inside_blocks::collided_along(bounds_from, travel, shape.at_pos(pos))
             });
             let (fluid, fluid_state) = world.get_fluid_and_fluid_state(&pos);
-            let in_fluid = include_fluids
-                && !fluid_state.is_empty
+            let in_fluid = !fluid_state.is_empty
                 && inside_blocks::collided_along(
                     bounds_from,
                     travel,
@@ -3802,9 +3851,7 @@ impl Entity {
                 );
             if (inside || in_fluid) && visited.insert(pos) {
                 if inside {
-                    if block == &Block::POWDER_SNOW {
-                        self.is_in_powder_snow.store(true, Ordering::Relaxed);
-                    }
+                    effects.advance_step(step);
                     world.block_registry.on_entity_collision_precise(
                         block,
                         &world,
@@ -3813,12 +3860,12 @@ impl Entity {
                         state,
                         server,
                         moved_far || target.intersects(&BoundingBox::from_block(&pos)),
+                        effects,
                     );
                 }
                 if in_fluid {
-                    world
-                        .block_registry
-                        .on_entity_collision_fluid(fluid, caller);
+                    effects.advance_step(step);
+                    world.block_registry.on_entity_collision_fluid_with_effects(fluid, caller, effects);
                 }
             }
             true
@@ -3829,16 +3876,14 @@ impl Entity {
     pub fn check_block_collision(entity: &dyn EntityBase, server: &Server) {
         let base = entity.get_entity();
         let pos = base.pos.load();
-        base.apply_inside_movement(
+        base.apply_inside_movements(
             entity,
             server,
-            inside_blocks::Movement {
+            [inside_blocks::Movement {
                 from: pos,
                 to: pos,
                 original: None,
-            },
-            &mut rustc_hash::FxHashSet::default(),
-            true,
+            }],
         );
     }
 
@@ -4838,7 +4883,7 @@ impl EntityBase for Entity {
                     self.extinguish();
                 }
             } else {
-                if fire_ticks % 20 == 0 {
+                if fire_ticks % 20 == 0 && !self.touching_lava.load(Ordering::Relaxed) {
                     caller.damage(caller, 1.0, DamageType::ON_FIRE);
                 }
 

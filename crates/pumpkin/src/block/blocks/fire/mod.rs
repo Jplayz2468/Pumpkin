@@ -13,8 +13,6 @@ use crate::entity::EntityBase;
 use crate::world::World;
 use crate::world::portal::nether::NetherPortal;
 use pumpkin_data::damage::DamageType;
-use pumpkin_data::entity::EntityType;
-use std::sync::atomic::Ordering;
 
 #[expect(clippy::module_inception)]
 pub mod fire;
@@ -117,36 +115,16 @@ impl FireBlockBase {
 
     /// Shared fire collision behavior used by `fire` and `soul_fire`.
     pub fn apply_fire_collision(args: &OnEntityCollisionArgs<'_>, extra_damage_for_living: bool) {
-        let base_entity = args.entity.get_entity();
-        if base_entity.frozen_ticks.load(Ordering::Relaxed) > 0 {
-            base_entity.set_frozen_ticks(0);
-        }
-        if !base_entity.entity_type.fire_immune && !base_entity.fire_immune.load(Ordering::Relaxed)
-        {
-            let ticks = base_entity.fire_ticks.load(Ordering::Relaxed);
-
-            // Timer logic
-            if ticks < 0 {
-                base_entity.fire_ticks.store(ticks + 1, Ordering::Relaxed);
-            } else if base_entity.entity_type == &EntityType::PLAYER {
-                let rnd_ticks = 1 + args.world.rand_bounded_i32(2);
-                base_entity
-                    .fire_ticks
-                    .store(ticks + rnd_ticks, Ordering::Relaxed);
-            }
-
-            // Apply fire ticks
-            if base_entity.fire_ticks.load(Ordering::Relaxed) >= 0 {
-                args.entity.set_on_fire_for(8.0);
-            }
-        }
-        // Damage is queued after ignition even for fire-immune entities; the
-        // entity's damage handler decides immunity to IN_FIRE.
-        base_entity.damage(
-            args.entity,
-            if extra_damage_for_living { 2.0 } else { 1.0 },
-            DamageType::IN_FIRE,
-        );
+        use crate::entity::inside_effects::Effect;
+        args.effects.apply(Effect::ClearFreeze);
+        args.effects.apply(Effect::FireIgnite);
+        args.effects.after(Effect::FireIgnite, move |entity| {
+            entity.damage(
+                entity,
+                if extra_damage_for_living { 2.0 } else { 1.0 },
+                DamageType::IN_FIRE,
+            );
+        });
     }
 
     pub fn placed(args: &crate::block::PlacedArgs<'_>) {

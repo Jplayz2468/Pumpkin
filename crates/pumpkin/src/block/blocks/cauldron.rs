@@ -1,4 +1,4 @@
-use std::sync::{Arc, atomic::Ordering};
+use std::sync::Arc;
 
 use crate::block::registry::BlockActionResult;
 use crate::block::{
@@ -383,52 +383,40 @@ impl BlockBehaviour for CauldronBlock {
         if level == 0 {
             return;
         }
-        let entity = args.entity.get_entity();
+        use crate::entity::inside_effects::Effect;
         if args.block == &Block::LAVA_CAULDRON {
-            entity.set_frozen_ticks(0);
-            if !entity.fire_immune.load(Ordering::Relaxed) {
-                args.entity.set_on_fire_for(15.0);
-                args.entity.damage_with_context(
-                    args.entity,
-                    4.0,
-                    pumpkin_data::damage::DamageType::LAVA,
-                    None,
-                    None,
-                    None,
-                );
-            }
+            args.effects.lava();
         } else {
-            let may_interact = if let Some(player) = args.entity.get_player() {
-                !args.world.is_in_spawn_protection(player, args.position)
-            } else {
-                !crate::entity::projectile::is_projectile(entity.entity_type)
-                    || crate::entity::projectile::may_interact(
-                        args.entity,
-                        args.world,
-                        args.position,
+            let world = args.world.clone();
+            let pos = *args.position;
+            args.effects.before(Effect::Extinguish, move |entity| {
+                let base = entity.get_entity();
+                let may_interact = if let Some(player) = entity.get_player() {
+                    !world.is_in_spawn_protection(player, &pos)
+                } else {
+                    !crate::entity::projectile::is_projectile(base.entity_type)
+                        || crate::entity::projectile::may_interact(entity, &world, &pos)
+                };
+                if base.is_on_fire()
+                    && may_interact
+                    && fire_cauldron_change(
+                        &world,
+                        pos,
+                        i32::from(level),
+                        i32::from(level - 1),
+                        CauldronChangeReason::Extinguish,
+                        world.get_entity_by_id(base.entity_id),
                     )
-            };
-            if entity.is_on_fire()
-                && may_interact
-                && fire_cauldron_change(
-                    args.world,
-                    *args.position,
-                    i32::from(level),
-                    i32::from(level - 1),
-                    CauldronChangeReason::Extinguish,
-                    args.world.get_entity_by_id(entity.entity_id),
-                )
-            {
-                // Burning entities melt powder snow into water before lowering it.
-                change_level(
-                    args.world,
-                    args.position,
-                    fill_state(&Block::WATER_CAULDRON, level - 1),
-                    true,
-                );
-            }
-            // clearFire preserves the negative fire-immunity countdown.
-            entity.fire_ticks.fetch_min(0, Ordering::Relaxed);
+                {
+                    change_level(
+                        &world,
+                        &pos,
+                        fill_state(&Block::WATER_CAULDRON, level - 1),
+                        true,
+                    );
+                }
+            });
+            args.effects.apply(Effect::Extinguish);
         }
     }
 

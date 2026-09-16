@@ -37,8 +37,7 @@ BaseCommandBlock.performCommand and CommandBlock.executeChain.
 
 ## Still open, in priority order
 
-1. **D01: movement and inside effects.** Ordered effect aggregation, fluid-phase
-   integration and replay semantics; full piston movement side effects, step-up/entity
+1. **D01: movement and inside effects.** Movement replay and remaining inside-effect lifecycle details; full piston movement side effects, step-up/entity
    collision interactions, nearest-support selection, scaffolding climbing.
 2. **D02: loot engine.** Full function/predicate/component contexts, reloadable
    tables and persistent named random streams. Vault now uses the existing loot
@@ -76,8 +75,22 @@ Do not mark these remaining dependencies complete from passing helper tests.
   separately passing localhost socket tests excluded. Final run 6 passed after
   the vehicle/projectile recording and world end-of-tick drain changes.
 
-Remaining for this pipeline: StepBasedCollector ordering/before-after callbacks,
-fluid effects currently still run through the existing update-fluid phase for
-ordinary movement, exact freeze/fire lifecycle, movement replay and other direct
-entity-specific position changes. Swept geometry coverage is not proof that the
+Remaining for this pipeline: movement replay, other direct entity-specific
+position changes, per-entity sound randomness/categories and full gameplay
+verification of freeze/fire lifecycle. Swept geometry coverage is not proof that the
 whole inside-effect pipeline matches Java yet.
+
+## Ordered inside effects continuation
+
+- Added Java's step collector: primary effects deduplicate per step, before/after
+  callbacks remain ordered, and effects stop when the entity dies.
+- Fire, powder snow, layered/lava cauldrons and water/lava contacts share the swept
+  traversal pipeline. Fluid force/height calculations remain in base tick.
+- Freezing increments in the collector; ignition clears freezing. Extinguishing
+  preserves negative immunity timers; fire immunity and periodic lava/fire damage
+  follow the shared source rules. Rain and extinguishing sound run after effects.
+- Exact collector traces match the unmodified Java server for 100 sequences of
+  80 operations. Background library run 3: **456 passed, 0 failed**, with the two
+  previously separately passing socket tests excluded. No live gameplay run.
+- Sound pitch currently uses world RNG; per-entity random streams and full sound
+  categories remain an explicit D04 gap. This is not full engine certification.

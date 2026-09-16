@@ -52,8 +52,12 @@ impl FluidBehaviour for FlowingWater {
         }
     }
 
-    fn on_entity_collision(&self, entity: &dyn EntityBase) {
-        entity.get_entity().extinguish();
+    fn on_entity_collision(
+        &self,
+        _entity: &dyn EntityBase,
+        effects: &crate::entity::inside_effects::InsideEffects,
+    ) {
+        effects.apply(crate::entity::inside_effects::Effect::Extinguish);
     }
 }
 

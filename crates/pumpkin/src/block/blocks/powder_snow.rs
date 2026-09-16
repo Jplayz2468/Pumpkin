@@ -1,9 +1,9 @@
-use pumpkin_data::BlockState;
 use pumpkin_data::data_component_impl::EquipmentSlot;
 use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::sound::Sound;
 use pumpkin_data::tag::{self, Taggable};
+use pumpkin_data::{Block, BlockState};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
@@ -101,22 +101,35 @@ impl BlockBehaviour for PowderSnowBlock {
     }
 
     fn on_entity_collision(&self, args: OnEntityCollisionArgs<'_>) {
+        use crate::entity::inside_effects::Effect;
         let entity = args.entity.get_entity();
-        entity.slow_movement(args.state, Vector3::new(0.9, 1.5, 0.9));
-
-        if entity.fire_ticks.load(std::sync::atomic::Ordering::Relaxed) > 0 {
-            let can_destroy = args.entity.get_player().is_some()
-                || args.world.level_info.load().game_rules.mob_griefing;
-            if can_destroy {
-                let _ = args.world.break_block(
-                    args.position,
-                    None,
-                    BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS,
-                );
-            }
+        if args.entity.get_living_entity().is_none()
+            || args.world.get_block(&entity.block_pos.load()) == &Block::POWDER_SNOW
+        {
+            entity.slow_movement(
+                args.state,
+                Vector3::new(f64::from(0.9_f32), 1.5, f64::from(0.9_f32)),
+            );
         }
-
-        entity.extinguish();
+        let world = args.world.clone();
+        let pos = *args.position;
+        args.effects.before(Effect::Extinguish, move |entity| {
+            let may_interact = if let Some(player) = entity.get_player() {
+                !world.is_in_spawn_protection(player, &pos)
+            } else {
+                !crate::entity::projectile::is_projectile(entity.get_entity().entity_type)
+                    || crate::entity::projectile::may_interact(entity, &world, &pos)
+            };
+            if entity.get_entity().is_on_fire()
+                && may_interact
+                && (entity.get_player().is_some()
+                    || world.level_info.load().game_rules.mob_griefing)
+            {
+                world.break_block(&pos, None, BlockFlags::NOTIFY_ALL | BlockFlags::SKIP_DROPS);
+            }
+        });
+        args.effects.apply(Effect::Freeze);
+        args.effects.apply(Effect::Extinguish);
     }
 
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {

@@ -20,3 +20,18 @@ both the complete visit order and step numbering, without sorting.
 
 This oracle verifies the traversal algorithm, not full entity effects, movement
 packet validation, fluid lifecycle or gameplay parity.
+
+## Ordered inside effects
+
+`InsideEffectsOracle.java` invokes the real Java 26.2 `StepBasedCollector`
+with 100 seeded sequences of 80 operations, recording primary effects and before/after
+callbacks. The minimal Entity probe bypasses its constructor and records effects;
+it does not test health, damage, fluid contacts or a running world.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/InsideEffectsOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' InsideEffectsOracle > crates/pumpkin/src/entity/inside_effects_cases.json
+```
+
+The Rust fixture compares exact output order, including repeated effects, callbacks
+without primaries, step changes and repeated apply/clear calls.

@@ -6,7 +6,6 @@ use crate::{
 };
 use pumpkin_data::{
     Block, BlockDirection, BlockState, BlockStateId,
-    damage::DamageType,
     fluid::{Falling, Fluid, FluidProperties, Level},
     tag::Taggable,
     world::WorldEvent,
@@ -16,7 +15,6 @@ use pumpkin_util::math::vector3::Vector3;
 use pumpkin_world::{tick::TickPriority, world::BlockFlags};
 use std::sync::Arc;
 type FlowingFluidProperties = pumpkin_data::fluid::FlowingWaterLikeFluidProperties;
-use std::sync::atomic::Ordering;
 
 pub struct FlowingLava;
 
@@ -179,15 +177,12 @@ impl FluidBehaviour for FlowingLava {
         }
     }
 
-    fn on_entity_collision(&self, entity: &dyn EntityBase) {
-        let base_entity = entity.get_entity();
-        if !base_entity.entity_type.fire_immune && !base_entity.fire_immune.load(Ordering::Relaxed)
-        {
-            entity.set_on_fire_for(15.0);
-
-            // Also apply lava damage
-            base_entity.damage(entity, 4.0, DamageType::LAVA);
-        }
+    fn on_entity_collision(
+        &self,
+        _entity: &dyn EntityBase,
+        effects: &crate::entity::inside_effects::InsideEffects,
+    ) {
+        effects.lava();
     }
 
     fn random_tick(

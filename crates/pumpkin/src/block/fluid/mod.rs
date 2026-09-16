@@ -88,7 +88,12 @@ pub trait FluidBehaviour: Send + Sync {
     ) {
     }
 
-    fn on_entity_collision(&self, _entity: &dyn EntityBase) {}
+    fn on_entity_collision(
+        &self,
+        _entity: &dyn EntityBase,
+        _effects: &crate::entity::inside_effects::InsideEffects,
+    ) {
+    }
 
     fn on_scheduled_tick(&self, _world: &Arc<World>, _fluid: &Fluid, _block_pos: &BlockPos) {}
 

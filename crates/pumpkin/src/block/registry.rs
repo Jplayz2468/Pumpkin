@@ -967,7 +967,10 @@ impl BlockRegistry {
         state: &BlockState,
         server: &Server,
     ) {
-        self.on_entity_collision_precise(block, world, entity, position, state, server, true);
+        let effects = crate::entity::inside_effects::InsideEffects::default();
+        effects.advance_step(0);
+        self.on_entity_collision_precise(block, world, entity, position, state, server, true, &effects);
+        effects.apply_and_clear(entity);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -980,10 +983,12 @@ impl BlockRegistry {
         state: &BlockState,
         server: &Server,
         is_precise: bool,
+        effects: &crate::entity::inside_effects::InsideEffects,
     ) {
         let pumpkin_block = self.get_pumpkin_block(block.id);
         if let Some(pumpkin_block) = pumpkin_block {
             pumpkin_block.on_entity_collision(OnEntityCollisionArgs {
+                effects,
                 is_precise,
                 server,
                 world,
@@ -1043,9 +1048,16 @@ impl BlockRegistry {
     }
 
     pub fn on_entity_collision_fluid(&self, fluid: &Fluid, entity: &dyn EntityBase) {
-        let pumpkin_fluid = self.get_pumpkin_fluid(fluid.id);
-        if let Some(pumpkin_fluid) = pumpkin_fluid {
-            pumpkin_fluid.on_entity_collision(entity);
+        let effects = crate::entity::inside_effects::InsideEffects::default();
+        effects.advance_step(0);
+        self.on_entity_collision_fluid_with_effects(fluid, entity, &effects);
+        effects.apply_and_clear(entity);
+    }
+
+    pub fn on_entity_collision_fluid_with_effects(&self, fluid: &Fluid, entity: &dyn EntityBase,
+        effects: &crate::entity::inside_effects::InsideEffects) {
+        if let Some(behavior) = self.get_pumpkin_fluid(fluid.id) {
+            behavior.on_entity_collision(entity, effects);
         }
     }
 

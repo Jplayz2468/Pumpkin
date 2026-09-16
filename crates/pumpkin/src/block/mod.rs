@@ -298,6 +298,7 @@ pub struct OnEntityCollisionArgs<'a> {
     pub position: &'a BlockPos,
     pub entity: &'a dyn EntityBase,
     pub is_precise: bool,
+    pub effects: &'a crate::entity::inside_effects::InsideEffects,
 }
 
 pub struct OnProjectileHitArgs<'a> {

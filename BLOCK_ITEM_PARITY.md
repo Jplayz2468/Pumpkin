@@ -1278,3 +1278,12 @@ recorded paths; piston motion applies its own swept path immediately.
 Step-based effect aggregation and ordinary fluid-phase integration remain open;
 see ENGINE_GAPS.md and tools/vanilla/README.md. No full mob pass or final parity
 certification was performed.
+
+### Shared inside effects (engine-first continuation)
+
+Fire, powder snow, layered/lava cauldrons and water/lava now defer shared effects
+through Java's step-ordered collector. Primary effects deduplicate per step while
+before/after callbacks retain order. Exact collector traces match 100 Java oracle
+cases; background library verification passed 456 tests (two socket tests excluded).
+Movement replay and other engine gates remain open in ENGINE_GAPS.md; mob passes
+remain paused.
