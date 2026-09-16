@@ -146,6 +146,9 @@ impl EntityBase for EnderPearlEntity {
                 world.clone(),
             );
 
+            owner.get_entity().fall_distance.store(0.0);
+            if let Some(living) = owner.get_living_entity() { living.reset_impulse_context(); }
+
             // Play teleport sound at new position
             world.play_sound(
                 Sound::EntityPlayerTeleport,

@@ -1346,7 +1346,17 @@ impl Player {
             // sound layered on top of the ordinary attack sound played below.
             // `postHurtEnemy` (MaceItem.java:86-90) then resets the attacker's fall
             // distance.
+            {
+                let mut context = self.living_entity.impulse_context.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+                let impact = context.mace_impact(self.position());
+                context.set_ignore(true, impact);
+            }
+            let entity = self.get_entity();
+            let velocity = entity.velocity.load();
+            entity.velocity.store(Vector3::new(velocity.x, f64::from(0.01_f32), velocity.z));
+            entity.send_velocity();
             let victim_on_ground = victim_entity.on_ground.load(Ordering::Relaxed);
+            if victim_on_ground { self.living_entity.extra_particles_on_fall.store(true, Ordering::Relaxed); }
             world.play_sound(
                 if victim_on_ground {
                     if fall_distance > 5.0 {
@@ -4779,6 +4789,7 @@ impl Player {
         }
 
         let gamemode = event.new_gamemode;
+        self.living_entity.reset_impulse_context();
         self.gamemode.store(gamemode);
         self.update_interaction_range_attributes();
         // TODO: Fix this when mojang fixes it

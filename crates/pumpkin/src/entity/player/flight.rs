@@ -154,6 +154,14 @@ impl Player {
                 self.gamemode.load() == GameMode::Creative,
             );
         }
+        self.living_entity.check_climbing(self);
+        let landed_in_liquid = entity.velocity.load().y < f64::from(1.0e-5_f32)
+            && (entity.is_in_water() || entity.touching_lava.load(Ordering::Relaxed));
+        if ground || landed_in_liquid || self.living_entity.climbing.load(Ordering::Relaxed)
+            || self.gamemode.load() == GameMode::Spectator || entity.is_fall_flying()
+            || Self::is_auto_spin_attack() {
+            self.living_entity.try_reset_impulse_context();
+        }
         self.update_gliding();
     }
 }

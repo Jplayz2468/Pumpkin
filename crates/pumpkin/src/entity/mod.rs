@@ -4,6 +4,7 @@ mod climbing;
 mod vehicle_control;
 mod fall_distance;
 mod fluid_current;
+mod impulse_context;
 pub mod inside_effects;
 pub(crate) mod support;
 mod baby_dimensions_data;
@@ -431,13 +432,6 @@ pub trait EntityBase: Send + Sync + std::any::Any {
             falling.hurt_on_landing(&self.get_entity().world.load(), distance);
             return false;
         }
-        if self
-            .get_entity()
-            .entity_type
-            .has_tag(&tag::EntityType::MINECRAFT_FALL_DAMAGE_IMMUNE)
-        {
-            return false;
-        }
         if self.get_player().is_some_and(|player| {
             player
                 .abilities
@@ -445,6 +439,29 @@ pub trait EntityBase: Send + Sync + std::any::Any {
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
                 .allow_flying
         }) {
+            return false;
+        }
+        if distance >= 2.0
+            && let Some(player) = self.get_player()
+        {
+            player.increment_stat(
+                pumpkin_data::statistic::StatisticCategory::Custom,
+                pumpkin_data::statistic::CustomStatistic::FallOneCm as i32,
+                (distance * 100.0).round() as i32,
+            );
+        }
+        let distance = self.get_living_entity().map_or(distance, |living| {
+            living
+                .impulse_context
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .fall_distance(distance, self.get_entity().pos.load().y)
+        });
+        if self
+            .get_entity()
+            .entity_type
+            .has_tag(&tag::EntityType::MINECRAFT_FALL_DAMAGE_IMMUNE)
+        {
             return false;
         }
         let passengers = self
@@ -4890,6 +4907,10 @@ impl Entity {
                 return;
             }
             _ => {}
+        }
+        if let Some(player) = self.world.load().get_player_by_id(self.entity_id) {
+            player.living_entity.try_reset_impulse_context();
+            if player.is_flying() { return; }
         }
         self.fall_distance.store(0.0);
         self.movement_multiplier.store(multiplier);

@@ -1375,3 +1375,11 @@ Added ordinary landing dust with the landing block state and Java positioning/co
 rules. World particle recipients use the source distance limit, and block-particle
 payloads use each client's state registry. 128 real Java packet fixtures match;
 remaining mace/splash/other-particle/Bedrock/live-render gates stay open.
+
+
+### Impulse-limited falls
+
+Shared impulse context now covers wind-charge/mace protection, grace/persistence,
+landing/reset hooks, mace dust and source fall sounds. Enchantment motion targets
+the affected entity. 1,000 Java context cases and the 481-test background run pass;
+ENGINE_GAPS.md retains the remaining integration and full-parity gates.

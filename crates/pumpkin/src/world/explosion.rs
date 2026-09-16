@@ -494,6 +494,11 @@ impl<'a> Explosion<'a> {
                 (1.0 - distance) * exposure * knockback_multiplier * (1.0 - knockback_resistance);
             let knockback = direction * knockback_power;
             entity.add_velocity(knockback);
+            if let Some(player) = entity_base.get_player() {
+                let ignore = self.source.is_some_and(|source| source.get_entity().entity_type == &EntityType::WIND_CHARGE);
+                player.living_entity.impulse_context.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .set_ignore(ignore, entity.pos.load());
+            }
         }
     }
 

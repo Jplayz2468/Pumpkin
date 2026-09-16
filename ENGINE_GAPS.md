@@ -257,10 +257,10 @@ whole inside-effect pipeline matches Java yet.
    direct movement and portal/passenger transitions, remaining contextual shapes and
    live gameplay verification. SulfurCube's omnidirectional override belongs to its
    still-missing entity implementation; the shared hook is present.
-3. Finish fall/inside-effect integration: landing/splash particles, impulse-limited
-   fall damage, teleport resets, complete fluid-interaction/eye tracking and vehicle
-   passenger boxes. Landing fluid refresh, common water/stuck-block resets and
-   removal of proximity-based fall exemptions are implemented below.
+3. Finish fall/inside-effect integration: splash effects, complete fluid/eye tracking,
+   vehicle passenger boxes, remaining teleport transitions and auto-spin state.
+   Landing dust, impulse fall-damage context, fluid refresh, common water/stuck
+   resets and removal of proximity-based exemptions are implemented below.
 4. Continue D02–D06 and remaining block-system gates listed above. Do not treat this
    bounded movement checkpoint as full engine or block parity.
 
@@ -347,3 +347,34 @@ whole inside-effect pipeline matches Java yet.
 - No live particle render verified. Mace extra-landing dust, splash effects,
   non-Block particle payloads and Bedrock particle translation remain separate
   gates, along with the listed impulse/fluid/vehicle and D02–D06 work.
+
+
+## Shared impulse fall protection and landing effects
+
+- Living entities persist the source impulse impact position and grace counter,
+  including the legacy-named `current_explosion_impact_pos` NBT field. Grace ticks
+  after movement. Disabling new protection clears grace while retaining the impact
+  until the normal reset path, matching Java's setter semantics.
+- Fall distance is limited by the impact height before passenger propagation and
+  damage calculation. Landing above the impact resets immediately; landing below
+  respects grace, and positive fall damage clears the context. Player distance
+  statistics use the original distance before this adjustment.
+- Player wind-charge explosion hits, mace impact-height reuse/vertical velocity,
+  grounded-mace extra landing dust and enchantment post-impulse grace are connected.
+  The enchantment motion update now addresses the target player rather than a
+  different enchantment owner.
+- Reset hooks cover accepted player landing/liquid/climbing/spectator/gliding
+  movement, stuck blocks (including flying-player behavior), game-mode changes,
+  respawn, ender pearls and successful random-consume teleports. The auto-spin hook
+  uses the existing stub and still needs the actual riptide/auto-spin state engine.
+- Fall sounds use calculated damage and play before damage application, with the
+  player's/monster's/default sound family and the actual block fall sound. Silent
+  entities suppress both sounds. Per-mob overridden fall behavior still belongs to
+  the paused mob passes.
+- **1,000 real Java LivingEntity/MaceItem transition and fall-clamp cases** match,
+  including NBT roundtrips. Final background run 4 passed **481 tests**, with the
+  same two previously separately passing socket tests excluded. This does not
+  verify live wind-charge/mace/teleport/packet sequencing or all advancement state.
+- Remaining engine gates stay open; in particular fluid/eye/vehicle interaction,
+  splash effects, auto-spin, full teleport/passenger transitions, D02–D06 and the
+  outstanding block-system/live-world comparisons. Full mob passes remain paused.

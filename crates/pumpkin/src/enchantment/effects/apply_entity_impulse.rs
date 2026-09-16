@@ -86,10 +86,22 @@ impl ApplyEntityImpulse {
         entity.velocity_dirty.store(true, Ordering::SeqCst);
         entity.send_velocity();
 
-        let player = owner
-            .cloned()
-            .or_else(|| world.get_player_by_id(entity.entity_id));
-
+        if let Some(target) = world.get_entity_by_id(entity.entity_id)
+            && let Some(living) = target.get_living_entity()
+        {
+            living
+                .impulse_context
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .apply_grace(10);
+        }
+        // The effect changes the target's motion; the enchantment owner can be a
+        // different player (for example an attacker applying an effect to a victim).
+        let player = world.get_player_by_id(entity.entity_id).or_else(|| {
+            owner
+                .filter(|player| player.living_entity.entity.entity_id == entity.entity_id)
+                .cloned()
+        });
         if let Some(player) = player {
             player.set_velocity(new_velocity);
         }

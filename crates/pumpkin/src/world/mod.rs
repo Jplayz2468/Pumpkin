@@ -1327,6 +1327,7 @@ impl World {
         state: BlockStateId,
         position: Vector3<f64>,
         count: i32,
+        offset: Vector3<f32>,
     ) {
         use pumpkin_protocol::ser::NetworkWriteExt;
         let mut data = Vec::new();
@@ -1340,7 +1341,7 @@ impl World {
             false,
             false,
             position,
-            Vector3::new(0.0, 0.0, 0.0),
+            offset,
             0.15,
             count,
             VarInt(Particle::Block as i32),

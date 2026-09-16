@@ -132,6 +132,8 @@ pub struct LivingEntity {
 
     /// The position where the entity was last climbing, used for death messages
     pub climbing_pos: AtomicCell<Option<BlockPos>>,
+    pub(crate) impulse_context: std::sync::Mutex<super::impulse_context::ImpulseContext>,
+    pub(crate) extra_particles_on_fall: AtomicBool,
 
     /// The entity ID of the entity that last attacked this living entity.
     pub last_attacker_id: AtomicI32,
@@ -340,6 +342,8 @@ impl LivingEntity {
             jumping_cooldown: AtomicU8::new(0),
             climbing: AtomicBool::new(false),
             climbing_pos: AtomicCell::new(None),
+            impulse_context: std::sync::Mutex::new(super::impulse_context::ImpulseContext::default()),
+            extra_particles_on_fall: AtomicBool::new(false),
             last_attacker_id: AtomicI32::new(0),
             last_attacked_time: AtomicI32::new(0),
             last_attacking_id: AtomicI32::new(0),
@@ -1935,7 +1939,7 @@ impl LivingEntity {
         self.check_climbing(caller);
     }
 
-    fn check_climbing(&self, caller: &dyn EntityBase) {
+    pub(crate) fn check_climbing(&self, caller: &dyn EntityBase) {
         let pos = self.entity.block_pos.load();
         let world = self.entity.world.load();
         let state = world.get_block_state(&pos);
@@ -2022,6 +2026,20 @@ impl LivingEntity {
         ground: bool,
         dont_damage: bool,
     ) {
+        if caller.get_player().is_some()
+            && ground
+            && self.fall_distance.load() > 0.0
+            && self.extra_particles_on_fall.swap(false, Relaxed)
+        {
+            let world = self.entity.world.load();
+            let pos = self.entity.get_pos_with_y_offset(0.2).0;
+            world.spawn_block_particles(
+                world.get_block_state_id(&pos),
+                pos.to_f64().add_raw(0.5, 1.0, 0.5),
+                (50.0 * self.fall_distance.load()).clamp(0.0, 200.0) as i32,
+                Vector3::new(0.3, 0.3, 0.3),
+            );
+        }
         if !self.entity.is_in_water() {
             self.entity.update_fluid_state(caller);
         }
@@ -2046,7 +2064,12 @@ impl LivingEntity {
                     position.z = f64::from(on_pos.0.z) + 0.5 + z_diff / max_diff * 0.5;
                 }
                 let scale = (f64::from(0.2_f32) + power / 15.0).min(2.5);
-                world.spawn_block_particles(on_state.id, position, (150.0 * scale) as i32);
+                world.spawn_block_particles(
+                    on_state.id,
+                    position,
+                    (150.0 * scale) as i32,
+                    Vector3::new(0.0, 0.0, 0.0),
+                );
             }
         }
         let distance = super::fall_distance::accumulate(
@@ -2087,6 +2110,19 @@ impl LivingEntity {
             self.fall_distance.store(0.0);
             self.climbing_pos.store(None);
         }
+    }
+
+    pub(crate) fn reset_impulse_context(&self) {
+        self.impulse_context
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .reset();
+    }
+    pub(crate) fn try_reset_impulse_context(&self) {
+        self.impulse_context
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .try_reset();
     }
 
     pub fn handle_fall_damage(
@@ -2145,16 +2181,6 @@ impl LivingEntity {
             return false;
         }
 
-        if fall_distance >= 2.0
-            && let Some(player) = caller.get_player()
-        {
-            player.increment_stat(
-                StatisticCategory::Custom,
-                CustomStatistic::FallOneCm as i32,
-                (fall_distance * 100.0).round() as i32,
-            );
-        }
-
         let damage = calculate_fall_damage(
             f64::from(fall_distance),
             self.get_attribute_value(&Attributes::SAFE_FALL_DISTANCE),
@@ -2162,22 +2188,45 @@ impl LivingEntity {
             self.get_attribute_value(&Attributes::FALL_DAMAGE_MULTIPLIER),
         );
         if damage > 0.0 {
-            let check_damage = self.damage(caller, damage, damage_type);
-            if check_damage {
-                self.entity
-                    .play_sound(Self::get_fall_sound(fall_distance as i32));
+            self.reset_impulse_context();
+            if !self.entity.is_silent() {
+                let player = caller.get_player().is_some();
+                let hostile = super::is_monster_type(self.entity.entity_type);
+                let category = if player {
+                    SoundCategory::Players
+                } else if hostile {
+                    SoundCategory::Hostile
+                } else {
+                    SoundCategory::Neutral
+                };
+                let sound = match (player, hostile, damage > 4.0) {
+                    (true, _, true) => Sound::EntityPlayerBigFall,
+                    (true, _, false) => Sound::EntityPlayerSmallFall,
+                    (_, true, true) => Sound::EntityHostileBigFall,
+                    (_, true, false) => Sound::EntityHostileSmallFall,
+                    (_, _, true) => Sound::EntityGenericBigFall,
+                    _ => Sound::EntityGenericSmallFall,
+                };
+                let world = self.entity.world.load();
+                let pos = self.entity.pos.load();
+                world.play_sound(sound, category, &pos);
+                let below = BlockPos::floored(pos.x, pos.y - f64::from(0.2_f32), pos.z);
+                let (block, state) = world.get_block_and_state(&below);
+                if !state.is_air() {
+                    let sound = pumpkin_data::sound_type::sound_type_for_block(block.id);
+                    world.play_sound_fine(
+                        sound.fall_sound,
+                        category,
+                        &pos,
+                        sound.volume * 0.5,
+                        sound.pitch * 0.75,
+                    );
+                }
             }
+            self.damage(caller, damage, damage_type);
             return true;
         }
         false
-    }
-
-    const fn get_fall_sound(distance: i32) -> Sound {
-        if distance > 4 {
-            Sound::EntityGenericBigFall
-        } else {
-            Sound::EntityGenericSmallFall
-        }
     }
 
     #[allow(clippy::redundant_closure_for_method_calls)]
@@ -2823,6 +2872,8 @@ impl LivingEntity {
     }
 
     pub fn reset_state(&self) {
+        self.reset_impulse_context();
+        self.extra_particles_on_fall.store(false, Relaxed);
         self.entity.reset_state();
 
         // Restore to maximum health for this entity type
@@ -2903,6 +2954,10 @@ impl LivingEntity {
 
 impl LivingEntity {
     pub fn write_living_nbt(&self, nbt: &mut NbtCompound) {
+        self.impulse_context
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .write_nbt(nbt);
         let attributes = self
             .attributes
             .read()
@@ -2970,6 +3025,10 @@ impl LivingEntity {
     }
 
     pub fn read_living_nbt_non_mut(&self, nbt: &NbtCompound) {
+        self.impulse_context
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .read_nbt(nbt);
         // Restore base values before clamping health; only permanent modifiers
         // are stored. Age/effects/equipment recreate their transient modifiers.
         if let Some(saved) = nbt.get_list("attributes") {
@@ -3807,6 +3866,8 @@ impl EntityBase for LivingEntity {
             self.entity.tick_frozen(caller);
         }
 
+        self.impulse_context.lock().unwrap_or_else(std::sync::PoisonError::into_inner).tick();
+
         // Coalesce velocity sends to once per tick.
         if self.entity.velocity_dirty.swap(false, Ordering::SeqCst) {
             self.entity.send_velocity();
@@ -4152,6 +4213,7 @@ impl LivingEntity {
                     let destination = self.entity.pos.load();
                     if destination != center {
                         self.fall_distance.store(0.0);
+                        self.reset_impulse_context();
                         // Vanilla broadcasts entity event 46 (teleport particles) on success.
                         world.send_entity_status(&self.entity, EntityStatus::Teleport, None);
                         world.emit_game_event("teleport", center);
