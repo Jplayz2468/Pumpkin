@@ -5,12 +5,18 @@
 
 pub mod animal_make_love;
 pub mod animal_panic;
+pub mod baby_follow_adult;
 pub mod charge_attack;
 pub mod count_down_cooldown_ticks;
+pub mod do_nothing;
 pub mod follow_temptation;
 pub mod gate;
 pub mod look_at_target_sink;
 pub mod move_to_target_sink;
+pub mod random_look_around;
 pub mod random_stroll;
+pub mod set_entity_look_target_sometimes;
 pub mod set_walk_target_from_look_target;
 pub mod start_attacking;
+pub mod swim;
+pub mod trigger_if;

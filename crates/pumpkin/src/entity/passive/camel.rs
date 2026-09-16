@@ -53,46 +53,22 @@ impl CamelEntity {
             Arc::downgrade(&mob_arc)
         };
 
-        {
-            // IMPORTANT, read before touching this block: `Camel.registerGoals`
-            // (world/entity/animal/camel/Camel.java:161-163) is a complete override with an
-            // EMPTY body. Camel registers *zero* GoalSelector/TargetSelector goals in
-            // vanilla — none of AbstractHorse's base list applies (not even FloatGoal), and
-            // Camel doesn't call `addBehaviourGoals` either. All real camel AI (wandering,
-            // idle looking, feeding) is driven instead by the Brain/Activity system
-            // (`CamelAi.java`, using sensors + memory), which this crate has scaffolding
-            // for under `entity/ai/brain/` (registry/memory/behavior/sensor) but no
-            // `CamelAi`-equivalent port. Sit/stand and dash are separately driven by direct
-            // `mobInteract`/`tick`/`travel` logic in `Camel.java` (not goals at all;
-            // `CamelEntity` here has no sit-toggle or dash-trigger logic yet — see
-            // `is_dashing`/`set_dashing` above, which only expose the synced flag).
-            //
-            // The GoalSelector list below (Swim/EscapeDanger/Breed/Tempt/FollowParent/
-            // Wander/LookAt/RandomLook) therefore has NO counterpart in real vanilla Camel
-            // goals at all — it predates this audit as a pragmatic stand-in so camels move
-            // and breed instead of standing motionless. Deleting it would be a strict
-            // regression (a fully inert mob) in exchange for literal `registerGoals` parity,
-            // and porting genuine parity means porting `CamelAi`'s Brain activities, which
-            // is a materially larger feature than a goal-list audit. Left in place,
-            // unchanged, and flagged here as BLOCKED rather than silently "fixed" either way.
-            let mut goal_selector = mob_arc
-                .mob_entity
-                .goals_selector
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(1, EscapeDangerGoal::new(2.0));
-            goal_selector.add_goal(2, BreedGoal::new(1.0));
-            goal_selector.add_goal(3, Box::new(TemptGoal::new(1.25, TEMPT_ITEMS)));
-            goal_selector.add_goal(4, Box::new(FollowParentGoal::new(1.0)));
-            goal_selector.add_goal(6, Box::new(WanderAroundGoal::new(0.7)));
-            goal_selector.add_goal(
-                7,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
-            );
-            goal_selector.add_goal(8, Box::new(RandomLookAroundGoal::default()));
-        };
+        // `Camel.registerGoals` is a complete override with an EMPTY body: a vanilla
+        // camel registers zero goals, and all of its AI -- wandering, idle looking,
+        // feeding, breeding -- comes from the Brain in `CamelAi.java`. The goal list that
+        // used to stand in here has been replaced by that brain; `run_goal_ai` is false
+        // for the camel, so the goal selector no longer runs at all.
+        //
+        // Sit/stand and dash are driven by `mobInteract`/`tick`/`travel` in vanilla rather
+        // than by either system. Dash is exposed here as a synced flag only, and there is
+        // still no sitting state, which is why the brain omits `RandomSitting` and the
+        // `refuseToMove` gates -- see `camel_brain`.
+        *mob_arc
+            .mob_entity
+            .brain
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some(super::camel_brain::build());
 
         mob_arc
     }
@@ -170,6 +146,15 @@ impl Mob for CamelEntity {
         if let Some(saddle) = nbt.get_bool("Saddle") {
             self.set_saddled(saddle);
         }
+    }
+
+    /// `Camel.registerGoals` is empty: the camel is a brain mob, driven by `CamelAi`.
+    fn run_goal_ai(&self) -> bool {
+        false
+    }
+
+    fn uses_brain_navigation(&self) -> bool {
+        true
     }
 
     fn get_mob_entity(&self) -> &MobEntity {

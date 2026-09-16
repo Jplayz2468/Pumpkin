@@ -4,6 +4,7 @@ pub mod armadillo;
 pub mod axolotl;
 pub mod bee;
 pub mod camel;
+pub mod camel_brain;
 pub mod camel_husk;
 pub mod cat;
 pub mod chicken;
