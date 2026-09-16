@@ -1699,8 +1699,8 @@ impl<T: Mob + Send + 'static> EntityBase for T {
         }
     }
 
-    fn is_collidable(&self, _entity: Option<Box<dyn EntityBase>>) -> bool {
-        true
+    fn is_collidable(&self, entity: Option<Box<dyn EntityBase>>) -> bool {
+        self.can_be_collided_with(entity.as_deref())
     }
 
     fn can_hit(&self) -> bool {

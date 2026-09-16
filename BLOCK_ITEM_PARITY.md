@@ -1296,3 +1296,16 @@ entities replay their previous inside contacts and run base entity ticking. step
 now precedes inside effects for all affected grounded entities. Regression library
 final run 3 passed 459 tests; see ENGINE_GAPS.md for integration evidence and the
 remaining engine gates. Full mob passes remain paused.
+
+### Voxel grids, step-up and borders
+
+Preserved static voxel grids for every block state and used them for collision and
+step-height selection. Shared movement now gathers entity and border collisions.
+Border interpolation, saved settings, outside-border damage and packet timing are
+implemented. Java step/border oracles and background checks passed; dynamic shape
+construction and live gameplay remain explicit gates in ENGINE_GAPS.md. Mob passes
+remain paused.
+
+Static collision verification now covers 81 motions per block state (all 32,366),
+matching Java output fingerprints. This verifies static clipping geometry and grids,
+not each block's gameplay lifecycle or contextual/dynamic shape behavior.

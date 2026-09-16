@@ -356,8 +356,57 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         false
     }
 
-    fn is_collidable(&self, _entity: Option<Box<dyn EntityBase>>) -> bool {
+    fn is_collidable(&self, entity: Option<Box<dyn EntityBase>>) -> bool {
+        self.can_be_collided_with(entity.as_deref())
+    }
+
+    fn can_be_collided_with(&self, other: Option<&dyn EntityBase>) -> bool {
+        let entity = self.get_entity();
+        if self
+            .cast_any()
+            .is::<crate::entity::vehicle::boat::BoatEntity>()
+        {
+            return true;
+        }
+        let alive = !entity.is_removed()
+            && self
+                .get_living_entity()
+                .is_none_or(|living| living.health.load() > 0.0);
+        if entity.entity_type == &EntityType::SHULKER {
+            return alive;
+        }
+        if let Some(ghast) = self
+            .cast_any()
+            .downcast_ref::<crate::entity::passive::happy_ghast::HappyGhastEntity>()
+        {
+            use crate::entity::ageable::AgeableMob;
+            return !ghast.is_baby()
+                && alive
+                && (ghast.is_on_still_timeout()
+                    || (entity.has_passengers()
+                        && other.is_some_and(|other| {
+                            other.get_entity().entity_type == &EntityType::HAPPY_GHAST
+                        })));
+        }
         false
+    }
+
+    fn can_collide_with(&self, other: &dyn EntityBase) -> bool {
+        let entity = self.get_entity();
+        if entity.entity_id == other.get_entity().entity_id
+            || other.is_spectator()
+            || other.get_entity().is_removed()
+        {
+            return false;
+        }
+        let vehicle = self
+            .cast_any()
+            .is::<crate::entity::vehicle::boat::BoatEntity>()
+            || self
+                .cast_any()
+                .is::<crate::entity::vehicle::minecart::MinecartEntity>();
+        (other.can_be_collided_with(Some(self.get_entity())) || (vehicle && other.is_pushable()))
+            && entity.root_vehicle_id() != other.get_entity().root_vehicle_id()
     }
 
     fn is_ignoring_block_triggers(&self) -> bool {
@@ -1583,41 +1632,64 @@ impl Entity {
         movement: Vector3<f64>,
         caller: &dyn EntityBase,
     ) -> Vector3<f64> {
-        self.on_ground.store(false, Ordering::Relaxed);
-        self.horizontal_collision.store(false, Ordering::Relaxed);
+        let was_grounded = self.on_ground.load(Ordering::Relaxed);
+        let adjusted = self.collide_movement(caller, movement, was_grounded);
+        use crate::entity::ai::control::collision_response;
+        self.horizontal_collision.store(
+            collision_response::clipped(movement.x, adjusted.x)
+                || collision_response::clipped(movement.z, adjusted.z),
+            Ordering::Relaxed,
+        );
+        self.on_ground.store(
+            movement.y < 0.0 && movement.y != adjusted.y,
+            Ordering::Relaxed,
+        );
+        adjusted
+    }
+
+    fn collide_movement(
+        &self,
+        caller: &dyn EntityBase,
+        movement: Vector3<f64>,
+        grounded: bool,
+    ) -> Vector3<f64> {
+        use crate::entity::ai::control::collision_shapes::{self, Box3};
         if movement.length_squared() == 0.0 {
             return movement;
         }
-
-        let bounding_box = self.bounding_box.load();
-
-        let (collisions, _) = self
-            .world
-            .load()
-            .get_block_collisions(bounding_box.stretch(movement), caller);
-
-        if collisions.is_empty() {
-            return movement;
-        }
-
-        use crate::entity::ai::control::{collision_response, collision_shapes};
-        let box_data = |b: &BoundingBox| collision_shapes::Box3 {
+        let world = self.world.load();
+        let bounds = self.bounding_box.load();
+        let entity_colliders = world.get_entity_collisions(caller, bounds.stretch(movement));
+        let box_data = |b: &BoundingBox| Box3 {
             min: [b.min.x, b.min.y, b.min.z],
             max: [b.max.x, b.max.y, b.max.z],
         };
-        let shapes: Vec<_> = collisions.iter().map(box_data).collect();
-        let (adjusted, _) = collision_shapes::collide(
-            [movement.x, movement.y, movement.z],
-            box_data(&bounding_box),
-            &shapes,
-        );
-        self.horizontal_collision.store(
-            collision_response::clipped(movement.x, adjusted[0])
-                || collision_response::clipped(movement.z, adjusted[2]),
-            Ordering::Relaxed,
-        );
-        let below = movement.y < 0.0 && movement.y != adjusted[1];
-        self.on_ground.store(below, Ordering::Relaxed);
+        let boxes = |area| world.collect_movement_collisions(caller, area, &entity_colliders);
+        let motion = [movement.x, movement.y, movement.z];
+        let bounds_data = box_data(&bounds);
+        let (mut adjusted, _) =
+            collision_shapes::collide_voxels(motion, bounds_data, &boxes(bounds.stretch(movement)));
+        let max_step = caller.get_living_entity().map_or(0.0, |living| {
+            living.get_attribute_value(&pumpkin_data::attributes::Attributes::STEP_HEIGHT) as f32
+        });
+        if let Some((feet, query)) =
+            collision_shapes::step_query(motion, adjusted, bounds_data, grounded, max_step)
+        {
+            let shapes = boxes(BoundingBox::new_array(query.min, query.max));
+            let coordinates: Vec<f64> = shapes
+                .iter()
+                .flat_map(|shape| shape.coordinates[1].iter().copied())
+                .collect();
+            adjusted = collision_shapes::step_up(
+                motion,
+                adjusted,
+                bounds_data,
+                feet,
+                &shapes,
+                &coordinates,
+                max_step,
+            );
+        }
         Vector3::new(adjusted[0], adjusted[1], adjusted[2])
     }
 
@@ -2464,20 +2536,7 @@ impl Entity {
         let adjusted = if self.no_physics.load(Ordering::Relaxed) {
             motion
         } else {
-            use crate::entity::ai::control::collision_shapes::{self, Box3};
-            let bounds = self.bounding_box.load();
-            let (collisions, _) = self
-                .world
-                .load()
-                .get_block_collisions(bounds.stretch(motion), caller);
-            let to_box = |b: &BoundingBox| Box3 {
-                min: [b.min.x, b.min.y, b.min.z],
-                max: [b.max.x, b.max.y, b.max.z],
-            };
-            let shapes: Vec<_> = collisions.iter().map(to_box).collect();
-            let (movement, _) =
-                collision_shapes::collide([motion.x, motion.y, motion.z], to_box(&bounds), &shapes);
-            Vector3::new(movement[0], movement[1], movement[2])
+            self.collide_movement(caller, motion, self.on_ground.load(Ordering::Relaxed))
         };
         let from = self.pos.load();
         self.move_pos(adjusted);
@@ -4200,6 +4259,22 @@ impl Entity {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clone()
+    }
+
+    fn root_vehicle_id(&self) -> i32 {
+        let mut root = self.entity_id;
+        let mut parent = self.get_vehicle();
+        let mut seen = HashSet::new();
+        seen.insert(root);
+        while let Some(vehicle) = parent {
+            let base = vehicle.get_entity();
+            if !seen.insert(base.entity_id) {
+                break;
+            }
+            root = base.entity_id;
+            parent = base.get_vehicle();
+        }
+        root
     }
 
     pub fn is_leashed(&self) -> bool {

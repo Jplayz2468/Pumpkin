@@ -38,10 +38,9 @@ BaseCommandBlock.performCommand and CommandBlock.executeChain.
 ## Still open, in priority order
 
 1. **D01: movement and inside effects.** Full piston movement side effects,
-   step-up/entity collision interactions, scaffolding climbing and remaining
-   specialized movement/inside-effect lifecycle paths. Next concrete movement work:
-   port Entity.collide step-up candidates/STEP_HEIGHT and gather entity/world-border
-   colliders alongside blocks; ordinary movement currently clips against blocks only.
+   dynamic/contextual voxel-grid construction, scaffolding climbing and remaining
+   specialized movement/inside-effect lifecycle paths. Step-up and entity/border
+   collision gathering are implemented below; gameplay integration remains unproven.
 2. **D02: loot engine.** Full function/predicate/component contexts, reloadable
    tables and persistent named random streams. Vault now uses the existing loot
    evaluator; unsupported evaluator behavior is not fixed by its new lifecycle.
@@ -119,3 +118,41 @@ whole inside-effect pipeline matches Java yet.
 - Final background library run 3 (including shared stepOn): **459 passed, 0 failed**,
   with two previously separately passing socket tests excluded. No live world/client
   comparison.
+
+## Voxel clipping, step-up and world borders
+
+- Movement now clips using voxel coordinate grids and occupied boxes together,
+  including entities already overlapping a partial block. Exported all 32,366 static
+  state grids; checked that every existing collision box endpoint belongs to its grid.
+- Added Entity.collide's grounded/landing branch, STEP_HEIGHT, sorted float step
+  candidates, skipped height and first horizontal improvement rule. Piston movement
+  uses the same collision query. Block queries retain the whole intersecting shape.
+- Movement gathering includes collidable entities, excludes spectators/removed
+  entities/shared vehicle trees, and includes the border only near its inner margin.
+  Shared collision predicates distinguish boats, pushable vehicle contacts and
+  conditional shulker/happy-ghast solidity. No full per-mob pass was performed.
+- Border bounds follow tick interpolation, previous-tick extents, absolute clamping,
+  rounded collision planes and interrupted size changes. Commands query current size.
+  Outside-border damage uses the buffer and damage rate. Timed changes and settings
+  save/load through each dimension's canonical data/minecraft/world_border.dat,
+  including periodic autosave. Packet durations/warning times adapt at 1.21.11.
+- Java oracle: 400 clipping/step cases and 180 border state transitions passed.
+  Background run 9: pumpkin **464 passed**, pumpkin-data **73 passed**,
+  pumpkin-protocol **111 passed**; two previously separately passing socket tests
+  excluded. All 32,366 static states match Java clipping fingerprints for 81 motions
+  each (2,621,646 simulated motions). This uses empty collision context at the origin.
+  Final call-site refinement run 10 passed the same **648 tests** across the three
+  crates, with the same two socket-test exclusions.
+- Still unproven: exact optimized grids for dynamic moving-piston unions and other
+  contextual shapes, collision/query ordering under live movement, full piston
+  restitution and packet validation. No live server/client comparison this pass.
+
+Next concrete D01 verification: generate moving-piston shape/grid cases using
+PistonMovingBlockEntity(BlockPos.ZERO, MOVING_PISTON, movedState, direction,
+extending, isSourcePiston), set its progress field and compare the complete
+optimized grid with Rust VoxelShape::from_boxes. Contextual/static-shape probes
+do not cover that union optimizer or its direction-specific NOCLIP branch.
+
+Also verify degenerate border extents when a custom absolute limit clamps both
+sides to one integer coordinate: Java's outside shape can become Shapes.INFINITY;
+the current four-plane construction needs that edge case covered.

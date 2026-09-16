@@ -410,6 +410,7 @@ impl World {
             NbtCompound::new()
         };
 
+        let worldborder = Worldborder::load(&level.level_folder.dim_folder, &level_info.load());
         Arc::new_cyclic(|self_reference| Self {
             self_reference: self_reference.clone(),
             sound_random: std::sync::Mutex::new(
@@ -425,14 +426,7 @@ impl World {
             entities: ArcSwap::new(Arc::new(Vec::new())),
             scoreboard: std::sync::Mutex::new(Scoreboard::default()),
             handling_tick: std::sync::atomic::AtomicBool::new(false),
-            worldborder: std::sync::Mutex::new(Worldborder::new(
-                0.0,
-                0.0,
-                5.999_996_8E7,
-                0,
-                5,
-                300,
-            )),
+            worldborder: std::sync::Mutex::new(worldborder),
             level_time: std::sync::Mutex::new(LevelTime::new()),
             dimension,
             weather: std::sync::Mutex::new(Weather::new()),
@@ -1639,6 +1633,10 @@ impl World {
 
         // 1. Environment tick: weather, sleeping check, sky brightness, game time
         // Reference: Vanilla Java 26.2 `ServerLevel.java:359-383`
+        self.worldborder
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .tick();
         self.tick_environment();
 
         // 2. Pending scheduled ticks: blockTicks, then fluidTicks
@@ -2084,6 +2082,7 @@ impl World {
             if self.level.autosave_ticks > 0 && self.level.save_enabled.load(Relaxed) {
                 let autosave = self.level.autosave_ticks as i64;
                 if autosave > 0 && level_time.world_age % autosave == 0 {
+                    self.save_world_border();
                     self.level.should_save.store(true, Relaxed);
                     self.level.level_channel.notify();
                 }
@@ -2573,6 +2572,75 @@ impl World {
         state.get_block_collision_shapes_at(pos).collect()
     }
 
+    pub fn get_entity_collisions(
+        &self,
+        source: &dyn EntityBase,
+        area: BoundingBox,
+    ) -> Vec<BoundingBox> {
+        let size = area.max - area.min;
+        if (size.x + size.y + size.z) / 3.0 < 1.0e-7 {
+            return Vec::new();
+        }
+        self.get_all_at_box(&area.expand(1.0e-7, 1.0e-7, 1.0e-7))
+            .into_iter()
+            .filter(|entity| source.can_collide_with(entity.as_ref()))
+            .map(|entity| entity.get_entity().bounding_box.load())
+            .collect()
+    }
+
+    pub fn collect_movement_collisions(
+        &self,
+        source: &dyn EntityBase,
+        area: BoundingBox,
+        entities: &[BoundingBox],
+    ) -> Vec<crate::entity::ai::control::collision_shapes::VoxelShape> {
+        use crate::entity::ai::control::collision_shapes::{Box3, VoxelShape};
+        let data = |b: &BoundingBox| Box3 {
+            min: [b.min.x, b.min.y, b.min.z],
+            max: [b.max.x, b.max.y, b.max.z],
+        };
+        let mut colliders: Vec<_> = entities
+            .iter()
+            .map(|b| VoxelShape::from_box(data(b)))
+            .collect();
+        colliders.extend(
+            self.worldborder
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .collision_boxes(source.get_entity().pos.load(), area)
+                .iter()
+                .map(|b| VoxelShape::from_box(data(b))),
+        );
+        let (blocks, positions) = self.get_block_collisions(area, source);
+        let mut start = 0;
+        for (end, pos) in positions {
+            let (block, state) = self.get_block_and_state(&pos);
+            let local_boxes: Vec<_> = blocks[start..end]
+                .iter()
+                .map(|shape| data(&shape.shift(pos.to_f64().multiply(-1.0, -1.0, -1.0))))
+                .collect();
+            let shape = if block == &Block::MOVING_PISTON
+                || block.has_tag(&pumpkin_data::tag::Block::MINECRAFT_SHULKER_BOXES)
+                || block == &Block::POWDER_SNOW
+                || block == &Block::SCAFFOLDING
+            {
+                VoxelShape::from_boxes(local_boxes)
+            } else {
+                VoxelShape {
+                    boxes: local_boxes,
+                    coordinates: state.collision_coordinates_at(&pos),
+                }
+            };
+            colliders.push(shape.translated([
+                f64::from(pos.0.x),
+                f64::from(pos.0.y),
+                f64::from(pos.0.z),
+            ]));
+            start = end;
+        }
+        colliders
+    }
+
     // For adjusting movement
     pub fn get_block_collisions(
         &self,
@@ -2595,42 +2663,24 @@ impl World {
             }
 
             let block = Block::from_state_id(state.id);
-            let mut collided = false;
-
-            if block == &Block::POWDER_SNOW {
-                if let Some(shape) =
-                    crate::block::blocks::powder_snow::collision_shape_for_entity(entity, &pos)
-                {
-                    let shape = shape.at_pos(pos);
-                    if shape.intersects(&bounding_box) {
-                        collided = true;
-                        collisions.push(shape);
-                    }
-                }
+            let local: Vec<_> = if block == &Block::POWDER_SNOW {
+                crate::block::blocks::powder_snow::collision_shape_for_entity(entity, &pos)
+                    .into_iter()
+                    .collect()
             } else if block == &Block::SCAFFOLDING {
-                for shape in crate::block::blocks::scaffolding::ScaffoldingBlock::collision_boxes(
+                crate::block::blocks::scaffolding::ScaffoldingBlock::collision_boxes(
                     state.id,
                     &pos,
                     entity.get_entity().bounding_box.load().min.y,
                     entity.get_entity().is_sneaking(),
-                ) {
-                    let shape = shape.at_pos(pos);
-                    if shape.intersects(&bounding_box) {
-                        collided = true;
-                        collisions.push(shape);
-                    }
-                }
+                )
             } else {
-                for shape in self.block_collision_boxes(&pos) {
-                    let shape = shape.at_pos(pos);
-                    if shape.intersects(&bounding_box) {
-                        collided = true;
-                        collisions.push(shape);
-                    }
-                }
-            }
-
-            if collided {
+                self.block_collision_boxes(&pos)
+            };
+            let shapes: Vec<_> = local.into_iter().map(|shape| shape.at_pos(pos)).collect();
+            if shapes.iter().any(|shape| shape.intersects(&bounding_box)) {
+                // BlockCollisions returns the complete VoxelShape once it intersects.
+                collisions.extend(shapes);
                 positions.push((collisions.len(), pos));
             }
         }
@@ -8028,7 +8078,19 @@ impl World {
         }
     }
 
+    fn save_world_border(&self) {
+        if let Err(error) = self
+            .worldborder
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .save(&self.level.level_folder.dim_folder)
+        {
+            tracing::warn!("Failed to save world border: {error}");
+        }
+    }
+
     pub async fn save(&self) {
+        self.save_world_border();
         for entity in self.entities.load().iter() {
             self.save_entity(entity).await;
         }

@@ -1,3 +1,5 @@
+#[path = "generated/collision_step_coords.rs"]
+mod collision_step_coords;
 use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos, vector3::Vector3};
 
 use crate::block_properties::{COLLISION_SHAPES, NoteblockInstrument};
@@ -182,6 +184,23 @@ impl BlockState {
             .to_block()
             .set_waterlogged(self.id, value)
             .map(BlockStateId::to_state)
+    }
+
+    /// Full vanilla voxel grid, including internal coordinates that affect step-up choice.
+    pub fn collision_coordinates(&self) -> [&'static [f64]; 3] {
+        collision_step_coords::GRIDS[collision_step_coords::STATE_GRID[self.id.0 as usize] as usize]
+    }
+
+    pub fn collision_coordinates_at(&self, pos: &BlockPos) -> [Vec<f64>; 3] {
+        let offset = Block::from_state_id(self.id).shape_offset_delta(pos);
+        let offset = [offset.x, offset.y, offset.z];
+        let coordinates = self.collision_coordinates();
+        std::array::from_fn(|axis| {
+            coordinates[axis]
+                .iter()
+                .map(|value| value + offset[axis])
+                .collect()
+        })
     }
 
     pub fn get_block_collision_shapes(&self) -> impl Iterator<Item = BoundingBox> + '_ {
@@ -459,6 +478,39 @@ mod tests {
 
     fn assert_close(actual: f64, expected: f64) {
         assert!((actual - expected).abs() < 1.0e-6, "{actual} != {expected}");
+    }
+
+    #[test]
+    fn exported_voxel_grids_cover_every_collision_box() {
+        assert_eq!(
+            super::collision_step_coords::STATE_GRID.len(),
+            usize::from(BlockStateId::COUNT)
+        );
+        for id in 0..BlockStateId::COUNT {
+            let state = BlockStateId::new(id).unwrap().to_state();
+            let coordinates = state.collision_coordinates();
+            for shape in state.get_block_collision_shapes() {
+                for (axis, (min, max)) in [
+                    (shape.min.x, shape.max.x),
+                    (shape.min.y, shape.max.y),
+                    (shape.min.z, shape.max.z),
+                ]
+                .into_iter()
+                .enumerate()
+                {
+                    assert!(
+                        coordinates[axis]
+                            .iter()
+                            .any(|value| (value - min).abs() < 1.0e-7)
+                            && coordinates[axis]
+                                .iter()
+                                .any(|value| (value - max).abs() < 1.0e-7),
+                        "state {id}, axis {axis}, box {min}..{max}, grid {:?}",
+                        coordinates[axis]
+                    );
+                }
+            }
+        }
     }
 
     #[test]

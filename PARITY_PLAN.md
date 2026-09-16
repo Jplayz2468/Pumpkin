@@ -276,7 +276,7 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 
 | ID | Work | Impact / routing |
 | --- | --- | --- |
-| D01 | Swept collision, inside-effect ordering/deduplication, dynamic shapes and movement | Swept traversal and step collector are oracle-checked; fluid integration, support selection and item replay are wired. Step-up/entity collisions and specialized movement paths remain. |
+| D01 | Swept collision, inside-effect ordering/deduplication, dynamic shapes and movement | Swept traversal and step collector are oracle-checked; fluid integration, support selection and item replay are wired. Step-up and entity/border gathering are implemented; dynamic shape grids, specialized movement and gameplay verification remain. |
 | D02 | Loot functions, predicates, random sequences, contexts and reward rules | Blocks, containers, fishing and other item results; no placeholder loot claims. |
 | D03 | Neighbor/scheduled-tick ordering, chunk edges and block-entity lifecycle | Includes opener recheck timing and experimental redstone orientation. |
 | D04 | Entity random streams, custom environment attributes and nonplayer behavior | Includes breathing, piglin container anger and other documented entity dependencies. |

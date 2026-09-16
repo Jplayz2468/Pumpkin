@@ -22,9 +22,14 @@ impl ClientPacket for CSetBorderWarningDelay {
     fn write_packet_data(
         &self,
         mut write: impl std::io::Write,
-        _version: &JavaMinecraftVersion,
+        version: &JavaMinecraftVersion,
     ) -> Result<(), crate::ser::WritingError> {
-        write.write_var_int(&self.warning_time)?;
+        let warning = if *version < JavaMinecraftVersion::V_1_21_11 {
+            VarInt(self.warning_time.0 / 20)
+        } else {
+            self.warning_time
+        };
+        write.write_var_int(&warning)?;
         Ok(())
     }
 }

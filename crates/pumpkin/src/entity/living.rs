@@ -3922,6 +3922,15 @@ impl EntityBase for LivingEntity {
     #[allow(clippy::too_many_lines)]
     fn tick(&self, caller: &dyn EntityBase, server: &Server) {
         self.entity.tick(caller, server);
+        if caller.get_player().is_some() && self.health.load() > 0.0 && !self.entity.is_in_wall() {
+            let damage = self.entity.world.load().worldborder
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .damage_at(self.entity.pos.load(), self.entity.bounding_box.load());
+            if let Some(damage) = damage {
+                caller.damage(caller, damage, DamageType::OUTSIDE_BORDER);
+            }
+        }
         let stingers = self.stinger_count.load(Relaxed);
         if stingers > 0 {
             if self.remove_stinger_time.load(Relaxed) <= 0 {

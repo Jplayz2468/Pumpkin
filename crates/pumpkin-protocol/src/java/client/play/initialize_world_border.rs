@@ -28,7 +28,7 @@ pub struct CInitializeWorldBorder {
     pub portal_teleport_boundary: VarInt,
     /// Distance in blocks from the border where the screen starts to tint red.
     pub warning_blocks: VarInt,
-    /// Time in seconds that a player must be on a collision course with
+    /// Time in ticks that a player must be on a collision course with
     /// the border before the warning tint appears.
     pub warning_time: VarInt,
 }
@@ -63,16 +63,76 @@ impl ClientPacket for CInitializeWorldBorder {
     fn write_packet_data(
         &self,
         mut write: impl std::io::Write,
-        _version: &JavaMinecraftVersion,
+        version: &JavaMinecraftVersion,
     ) -> Result<(), crate::ser::WritingError> {
         write.write_f64_be(self.x)?;
         write.write_f64_be(self.z)?;
         write.write_f64_be(self.old_diameter)?;
         write.write_f64_be(self.new_diameter)?;
-        write.write_var_long(&self.speed)?;
+        // The public packet field retains milliseconds for compatibility with plugins.
+        let duration = if *version >= JavaMinecraftVersion::V_1_21_11 {
+            VarLong(self.speed.0 / 50)
+        } else {
+            self.speed
+        };
+        write.write_var_long(&duration)?;
         write.write_var_int(&self.portal_teleport_boundary)?;
         write.write_var_int(&self.warning_blocks)?;
-        write.write_var_int(&self.warning_time)?;
+        let warning = if *version < JavaMinecraftVersion::V_1_21_11 {
+            VarInt(self.warning_time.0 / 20)
+        } else {
+            self.warning_time
+        };
+        write.write_var_int(&warning)?;
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::java::client::play::{CSetBorderLerpSize, CSetBorderWarningDelay};
+    #[test]
+    fn border_packets_convert_legacy_milliseconds_and_seconds() {
+        for (version, duration, warning) in [
+            (JavaMinecraftVersion::V_1_21_9, 5000, 15),
+            (JavaMinecraftVersion::V_1_21_11, 100, 300),
+            (JavaMinecraftVersion::V_26_2, 100, 300),
+        ] {
+            let mut bytes = Vec::new();
+            CInitializeWorldBorder::new(
+                0.0,
+                0.0,
+                100.0,
+                20.0,
+                5000_i64.into(),
+                29999984.into(),
+                5.into(),
+                300.into(),
+            )
+            .write_packet_data(&mut bytes, &version)
+            .unwrap();
+            let mut cursor = std::io::Cursor::new(bytes);
+            cursor.set_position(32);
+            assert_eq!(VarLong::decode(&mut cursor).unwrap().0, duration);
+            assert_eq!(VarInt::decode(&mut cursor).unwrap().0, 29999984);
+            assert_eq!(VarInt::decode(&mut cursor).unwrap().0, 5);
+            assert_eq!(VarInt::decode(&mut cursor).unwrap().0, warning);
+            let mut bytes = Vec::new();
+            CSetBorderLerpSize::new(100.0, 20.0, 5000_i64.into())
+                .write_packet_data(&mut bytes, &version)
+                .unwrap();
+            let mut cursor = std::io::Cursor::new(bytes);
+            cursor.set_position(16);
+            assert_eq!(VarLong::decode(&mut cursor).unwrap().0, duration);
+            let mut bytes = Vec::new();
+            CSetBorderWarningDelay::new(300.into())
+                .write_packet_data(&mut bytes, &version)
+                .unwrap();
+            assert_eq!(
+                VarInt::decode(&mut std::io::Cursor::new(bytes)).unwrap().0,
+                warning
+            );
+        }
     }
 }

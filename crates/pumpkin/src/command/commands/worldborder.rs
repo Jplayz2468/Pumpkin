@@ -68,7 +68,7 @@ fn set_size(
             .worldborder
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let current = border.new_diameter;
+        let current = border.diameter();
 
         if (current - distance).abs() < f64::EPSILON {
             return Err(ERROR_SAME_SIZE.create_without_context());
@@ -169,7 +169,7 @@ fn get_size(source: &CommandSource) -> Result<i32, CommandSyntaxError> {
         .worldborder
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
-        .new_diameter;
+        .diameter();
 
     source.send_feedback(
         TextComponent::translate_cross(
@@ -193,7 +193,7 @@ fn set_damage_amount(
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-    if (border.damage_per_block - damage_per_block).abs() < f32::EPSILON {
+    if border.damage_per_block == f64::from(damage_per_block) {
         return Err(ERROR_SAME_DAMAGE_AMOUNT.create_without_context());
     }
 
@@ -218,7 +218,7 @@ fn set_damage_buffer(source: &CommandSource, distance: f32) -> Result<i32, Comma
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner);
 
-    if (border.buffer - distance).abs() < f32::EPSILON {
+    if border.buffer == f64::from(distance) {
         return Err(ERROR_SAME_DAMAGE_BUFFER.create_without_context());
     }
 
@@ -307,7 +307,7 @@ impl CommandExecutor for SetSizeExecutor {
                 .worldborder
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .new_diameter;
+                .diameter();
             current + distance
         } else {
             distance

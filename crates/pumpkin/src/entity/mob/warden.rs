@@ -180,8 +180,6 @@ impl WardenEntity {
             .worldborder
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let half = border.new_diameter / 2.0;
-        let limit = f64::from(border.portal_teleport_boundary);
         warden_target::eligible(
             &TargetFacts {
                 living: living.is_some(),
@@ -199,12 +197,7 @@ impl WardenEntity {
                     .is_some_and(|l| l.health.load() <= 0.0 || l.dead.load(Ordering::Relaxed)),
             },
             [bounds.min.x, bounds.min.z, bounds.max.x, bounds.max.z],
-            [
-                (border.center_x - half).max(-limit),
-                (border.center_z - half).max(-limit),
-                (border.center_x + half).min(limit),
-                (border.center_z + half).min(limit),
-            ],
+            border.bounds(),
         )
     }
 
@@ -1126,12 +1119,7 @@ impl WardenEntity {
                 .worldborder
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            let half = border.new_diameter / 2.0;
-            let limit = f64::from(border.portal_teleport_boundary);
-            f64::from(position[0]) >= (border.center_x - half).max(-limit)
-                && f64::from(position[0]) < (border.center_x + half).min(limit)
-                && f64::from(position[2]) >= (border.center_z - half).max(-limit)
-                && f64::from(position[2]) < (border.center_z + half).min(limit)
+            border.contains(f64::from(position[0]), f64::from(position[2]))
         };
         let angry = {
             let state = self
