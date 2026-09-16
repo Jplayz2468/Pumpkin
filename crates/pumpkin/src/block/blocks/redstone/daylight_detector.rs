@@ -1,14 +1,12 @@
 use std::sync::Arc;
 
-use crate::block::entities::daylight_detector::DaylightDetectorBlockEntity;
 use pumpkin_data::game_event::GameEvent;
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::BlockFlags;
 
 use crate::block::{
-    BlockActionResult, BlockBehaviour, BrokenArgs, EmitsRedstonePowerArgs, GetRedstonePowerArgs,
-    NormalUseArgs, PlacedArgs,
+    BlockActionResult, BlockBehaviour, EmitsRedstonePowerArgs, GetRedstonePowerArgs, NormalUseArgs,
 };
 use crate::world::World;
 
@@ -18,15 +16,6 @@ type DaylightDetectorProperties = pumpkin_data::block_properties::DaylightDetect
 pub struct DaylightDetectorBlock;
 
 impl BlockBehaviour for DaylightDetectorBlock {
-    fn placed(&self, args: PlacedArgs<'_>) {
-        args.world
-            .add_block_entity(Arc::new(DaylightDetectorBlockEntity::new(*args.position)));
-    }
-
-    fn broken(&self, args: BrokenArgs<'_>) {
-        args.world.remove_block_entity(args.position);
-    }
-
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
         let player_abilities = args
             .player
@@ -93,6 +82,9 @@ impl DaylightDetectorBlock {
 
     pub fn update_signal_strength(world: &Arc<World>, block_pos: &BlockPos) {
         let (block, state) = world.get_block_and_state(block_pos);
+        if block != &pumpkin_data::Block::DAYLIGHT_DETECTOR {
+            return;
+        }
         let mut props = DaylightDetectorProperties::from_state_id(state.id);
 
         let target = Self::calculate_signal_strength(

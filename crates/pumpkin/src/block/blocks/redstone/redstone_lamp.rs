@@ -20,6 +20,10 @@ impl BlockBehaviour for RedstoneLamp {
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+
         {
             let state = args.world.get_block_state(args.position);
             let mut props = RedstoneLampProperties::from_state_id(state.id);
@@ -47,6 +51,10 @@ impl BlockBehaviour for RedstoneLamp {
     }
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+
         let state = args.world.get_block_state(args.position);
         let props = RedstoneLampProperties::from_state_id(state.id);
         let is_lit = props.lit;

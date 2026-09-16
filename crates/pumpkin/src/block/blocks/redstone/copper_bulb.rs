@@ -4,11 +4,10 @@ use crate::block::blocks::weathering_copper::{
     get_first, get_next, get_previous, get_weather_state,
 };
 use crate::block::{
-    BlockBehaviour, BlockMetadata, GetComparatorOutputArgs, OnNeighborUpdateArgs, OnPlaceArgs,
+    BlockBehaviour, BlockMetadata, GetComparatorOutputArgs, OnNeighborUpdateArgs, PlacedArgs,
     RandomTickArgs,
 };
 use pumpkin_data::BlockId;
-use pumpkin_data::BlockStateId;
 use pumpkin_data::sound::{Sound, SoundCategory};
 use pumpkin_world::world::BlockFlags;
 
@@ -57,22 +56,21 @@ impl BlockMetadata for CopperBulbBlock {
 }
 
 impl BlockBehaviour for CopperBulbBlock {
-    fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        let mut props = CopperBulbLikeProperties::default(args.block);
-        let is_receiving_power = block_receives_redstone_power(args.world, args.position);
-        if is_receiving_power {
-            props.lit = true;
-            args.world.play_block_sound(
-                Sound::BlockCopperBulbTurnOn,
-                SoundCategory::Blocks,
-                *args.position,
-            );
-            props.powered = true;
-        }
-        props.to_state_id(args.block)
+    fn placed(&self, args: PlacedArgs<'_>) {
+        self.on_neighbor_update(OnNeighborUpdateArgs {
+            world: args.world,
+            block: args.block,
+            position: args.position,
+            source_block: args.block,
+            notify: args.notify,
+        });
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+
         {
             let state = args.world.get_block_state(args.position);
             let mut props = CopperBulbLikeProperties::from_state_id(state.id);

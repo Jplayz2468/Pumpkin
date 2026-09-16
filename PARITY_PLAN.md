@@ -18,7 +18,7 @@
 | B04 | Signs, banners, heads and light | 4 | Reviewed; item/component/protocol dependencies queued |
 | B05 | Portals and gateways | 4 | Reviewed; transition/entity dependencies queued |
 | B06 | Administrative and invisible blocks | 6 | Reviewed; execution/structure/protocol dependencies queued |
-| B07 | Redstone and pistons | 33 | Pending batch closure; reuse prior ports |
+| B07 | Redstone and pistons | 33 | Reviewed; movement/ordering dependencies queued |
 | B08 | Building shapes and placement | 15 | Pending batch closure; reuse prior ports |
 | B09 | Plants and crops | 54 | Pending batch closure; reuse prior ports |
 | B10 | Sculk and bees | 8 | Pending batch closure; reuse prior ports |
@@ -69,39 +69,39 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B06 | [structure_block.rs](crates/pumpkin/src/block/blocks/structure_block.rs) | Reviewed |
 | B06 | [structure_void.rs](crates/pumpkin/src/block/blocks/structure_void.rs) | Reviewed |
 | B06 | [test_block.rs](crates/pumpkin/src/block/blocks/test_block.rs) | Reviewed |
-| B07 | [piston/mod.rs](crates/pumpkin/src/block/blocks/piston/mod.rs) | Pending |
-| B07 | [piston/piston.rs](crates/pumpkin/src/block/blocks/piston/piston.rs) | Pending |
-| B07 | [piston/piston_extension.rs](crates/pumpkin/src/block/blocks/piston/piston_extension.rs) | Pending |
-| B07 | [piston/piston_head.rs](crates/pumpkin/src/block/blocks/piston/piston_head.rs) | Pending |
-| B07 | [redstone/abstract_redstone_gate.rs](crates/pumpkin/src/block/blocks/redstone/abstract_redstone_gate.rs) | Pending |
+| B07 | [piston/mod.rs](crates/pumpkin/src/block/blocks/piston/mod.rs) | Reviewed |
+| B07 | [piston/piston.rs](crates/pumpkin/src/block/blocks/piston/piston.rs) | Reviewed |
+| B07 | [piston/piston_extension.rs](crates/pumpkin/src/block/blocks/piston/piston_extension.rs) | Reviewed |
+| B07 | [piston/piston_head.rs](crates/pumpkin/src/block/blocks/piston/piston_head.rs) | Reviewed |
+| B07 | [redstone/abstract_redstone_gate.rs](crates/pumpkin/src/block/blocks/redstone/abstract_redstone_gate.rs) | Reviewed |
 | B07 | [redstone/bell.rs](crates/pumpkin/src/block/blocks/redstone/bell.rs) | Carried |
 | B07 | [redstone/buttons.rs](crates/pumpkin/src/block/blocks/redstone/buttons.rs) | Carried |
 | B07 | [redstone/comparator.rs](crates/pumpkin/src/block/blocks/redstone/comparator.rs) | Carried |
-| B07 | [redstone/copper_bulb.rs](crates/pumpkin/src/block/blocks/redstone/copper_bulb.rs) | Pending |
-| B07 | [redstone/daylight_detector.rs](crates/pumpkin/src/block/blocks/redstone/daylight_detector.rs) | Pending |
+| B07 | [redstone/copper_bulb.rs](crates/pumpkin/src/block/blocks/redstone/copper_bulb.rs) | Reviewed |
+| B07 | [redstone/daylight_detector.rs](crates/pumpkin/src/block/blocks/redstone/daylight_detector.rs) | Reviewed |
 | B07 | [redstone/lever.rs](crates/pumpkin/src/block/blocks/redstone/lever.rs) | Carried |
-| B07 | [redstone/lightning_rod.rs](crates/pumpkin/src/block/blocks/redstone/lightning_rod.rs) | Pending |
-| B07 | [redstone/mod.rs](crates/pumpkin/src/block/blocks/redstone/mod.rs) | Pending |
-| B07 | [redstone/observer.rs](crates/pumpkin/src/block/blocks/redstone/observer.rs) | Pending |
-| B07 | [redstone/pressure_plate/mod.rs](crates/pumpkin/src/block/blocks/redstone/pressure_plate/mod.rs) | Pending |
-| B07 | [redstone/pressure_plate/plate.rs](crates/pumpkin/src/block/blocks/redstone/pressure_plate/plate.rs) | Pending |
-| B07 | [redstone/pressure_plate/weighted.rs](crates/pumpkin/src/block/blocks/redstone/pressure_plate/weighted.rs) | Pending |
+| B07 | [redstone/lightning_rod.rs](crates/pumpkin/src/block/blocks/redstone/lightning_rod.rs) | Reviewed |
+| B07 | [redstone/mod.rs](crates/pumpkin/src/block/blocks/redstone/mod.rs) | Reviewed |
+| B07 | [redstone/observer.rs](crates/pumpkin/src/block/blocks/redstone/observer.rs) | Reviewed |
+| B07 | [redstone/pressure_plate/mod.rs](crates/pumpkin/src/block/blocks/redstone/pressure_plate/mod.rs) | Reviewed |
+| B07 | [redstone/pressure_plate/plate.rs](crates/pumpkin/src/block/blocks/redstone/pressure_plate/plate.rs) | Reviewed |
+| B07 | [redstone/pressure_plate/weighted.rs](crates/pumpkin/src/block/blocks/redstone/pressure_plate/weighted.rs) | Reviewed |
 | B07 | [redstone/rails/activator_rail.rs](crates/pumpkin/src/block/blocks/redstone/rails/activator_rail.rs) | Carried |
-| B07 | [redstone/rails/common.rs](crates/pumpkin/src/block/blocks/redstone/rails/common.rs) | Pending |
+| B07 | [redstone/rails/common.rs](crates/pumpkin/src/block/blocks/redstone/rails/common.rs) | Carried |
 | B07 | [redstone/rails/detector_rail.rs](crates/pumpkin/src/block/blocks/redstone/rails/detector_rail.rs) | Carried |
-| B07 | [redstone/rails/mod.rs](crates/pumpkin/src/block/blocks/redstone/rails/mod.rs) | Pending |
+| B07 | [redstone/rails/mod.rs](crates/pumpkin/src/block/blocks/redstone/rails/mod.rs) | Carried |
 | B07 | [redstone/rails/powered_rail.rs](crates/pumpkin/src/block/blocks/redstone/rails/powered_rail.rs) | Carried |
 | B07 | [redstone/rails/rail.rs](crates/pumpkin/src/block/blocks/redstone/rails/rail.rs) | Carried |
-| B07 | [redstone/redstone_block.rs](crates/pumpkin/src/block/blocks/redstone/redstone_block.rs) | Pending |
-| B07 | [redstone/redstone_lamp.rs](crates/pumpkin/src/block/blocks/redstone/redstone_lamp.rs) | Pending |
-| B07 | [redstone/redstone_ore.rs](crates/pumpkin/src/block/blocks/redstone/redstone_ore.rs) | Pending |
+| B07 | [redstone/redstone_block.rs](crates/pumpkin/src/block/blocks/redstone/redstone_block.rs) | Reviewed |
+| B07 | [redstone/redstone_lamp.rs](crates/pumpkin/src/block/blocks/redstone/redstone_lamp.rs) | Reviewed |
+| B07 | [redstone/redstone_ore.rs](crates/pumpkin/src/block/blocks/redstone/redstone_ore.rs) | Reviewed |
 | B07 | [redstone/redstone_torch.rs](crates/pumpkin/src/block/blocks/redstone/redstone_torch.rs) | Carried |
-| B07 | [redstone/redstone_wire.rs](crates/pumpkin/src/block/blocks/redstone/redstone_wire.rs) | Pending |
+| B07 | [redstone/redstone_wire.rs](crates/pumpkin/src/block/blocks/redstone/redstone_wire.rs) | Reviewed |
 | B07 | [redstone/repeater.rs](crates/pumpkin/src/block/blocks/redstone/repeater.rs) | Carried |
 | B07 | [redstone/sculk_sensor.rs](crates/pumpkin/src/block/blocks/redstone/sculk_sensor.rs) | Carried |
 | B07 | [redstone/target_block.rs](crates/pumpkin/src/block/blocks/redstone/target_block.rs) | Carried |
-| B07 | [redstone/tripwire.rs](crates/pumpkin/src/block/blocks/redstone/tripwire.rs) | Pending |
-| B07 | [redstone/tripwire_hook.rs](crates/pumpkin/src/block/blocks/redstone/tripwire_hook.rs) | Pending |
+| B07 | [redstone/tripwire.rs](crates/pumpkin/src/block/blocks/redstone/tripwire.rs) | Reviewed |
+| B07 | [redstone/tripwire_hook.rs](crates/pumpkin/src/block/blocks/redstone/tripwire_hook.rs) | Reviewed |
 | B08 | [chain.rs](crates/pumpkin/src/block/blocks/chain.rs) | Pending |
 | B08 | [end_rod.rs](crates/pumpkin/src/block/blocks/end_rod.rs) | Pending |
 | B08 | [fences.rs](crates/pumpkin/src/block/blocks/fences.rs) | Pending |
@@ -413,3 +413,16 @@ Item source inventory:
 - I01/B14: game-master item placement and block-state components, barrier bucket
   operations restricted to creative players, test block cloning and invisible shapes.
 - D06: jigsaw/test-instance editors and test runner lifecycle.
+
+### B07 open dependencies
+
+- D01/D03: contextual conductor/support shapes, vanilla HashSet neighbor order,
+  experimental redstone orientation/evaluator, exact movement flag and scheduled
+  update ordering. The world still suppresses shape updates for MOVED separately
+  from Java's known-shape flag, so piston sequencing needs a shared-engine pass.
+- D03/D04: piston BE swept collision shapes, player pushes, slime velocity and
+  honey carry, removal/finish timing and moved-block loot. Current movement uses
+  simplified swept boxes and omits players; source-handler review is not parity.
+- D02/I01: moving-piston loot and pick-block data; contextual ore BlockItem checks.
+- D04/D06: minecart movement/command carts, precise entity collision dispatch and
+  redstone BE/network integration retain the limitations from the carried ports.

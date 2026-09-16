@@ -110,6 +110,10 @@ impl BlockBehaviour for LightningRodBlock {
     }
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+
         let mut props =
             LightningRodLikeProperties::from_state_id(args.world.get_block_state_id(args.position));
         props.powered = false;

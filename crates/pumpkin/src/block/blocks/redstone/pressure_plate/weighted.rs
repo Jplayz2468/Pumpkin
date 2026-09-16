@@ -97,7 +97,11 @@ impl PressurePlate for WeightedPressurePlateBlock {
         let count = world
             .get_all_at_box(&aabb)
             .iter()
-            .filter(|entity| !entity.is_spectator() && !entity.is_ignoring_block_triggers())
+            .filter(|entity| {
+                !entity.get_entity().is_removed()
+                    && !entity.is_spectator()
+                    && !entity.is_ignoring_block_triggers()
+            })
             .count();
         calculate_weighted_signal(count, weight)
     }

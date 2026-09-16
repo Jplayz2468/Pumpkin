@@ -110,13 +110,13 @@ impl BlockBehaviour for TripwireBlock {
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
         let state = args.world.get_block_state_id(args.position);
-        if TripwireProperties::from_state_id(state).powered {
+        if state.to_block() == args.block && TripwireProperties::from_state_id(state).powered {
             let bounds = Self::detection_box(state).at_pos(*args.position);
-            let pressed = args
-                .world
-                .get_all_at_box(&bounds)
-                .iter()
-                .any(|entity| !entity.is_spectator() && !entity.is_ignoring_block_triggers());
+            let pressed = args.world.get_all_at_box(&bounds).iter().any(|entity| {
+                entity.get_entity().is_alive()
+                    && !entity.is_spectator()
+                    && !entity.is_ignoring_block_triggers()
+            });
             Self::check_pressed(args.world, args.position, pressed);
         }
     }

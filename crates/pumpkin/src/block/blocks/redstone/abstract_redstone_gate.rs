@@ -85,6 +85,13 @@ pub trait RedstoneGateBlock<T: Send + Sync + BlockProperties + RedstoneGateBlock
         // neighbour with source `this` (the diode, not the block that poked).
         args.world
             .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
+        for direction in BlockDirection::all() {
+            args.world.update_neighbors_at(
+                &args.position.offset(direction.to_offset()),
+                args.block,
+                None,
+            );
+        }
     }
 
     fn update_powered(&self, world: &World, pos: BlockPos, state: &BlockState, block: &Block);
@@ -132,7 +139,7 @@ pub trait RedstoneGateBlock<T: Send + Sync + BlockProperties + RedstoneGateBlock
         let facing = props.get_facing();
         let front_pos = pos.offset(facing.opposite().to_offset());
         world.update_neighbor(&front_pos, block);
-        world.update_neighbors(&front_pos, Some(facing.to_block_direction()));
+        world.update_neighbors_at(&front_pos, block, Some(facing.to_block_direction()));
     }
 
     fn on_place(&self, player: &Player, block: &Block) -> BlockStateId {
@@ -167,7 +174,7 @@ pub trait RedstoneGateBlock<T: Send + Sync + BlockProperties + RedstoneGateBlock
     where
         Self: Send + Sync,
     {
-        if args.moved || Block::from_state_id(args.old_state_id) == args.block {
+        if args.moved {
             return;
         }
         RedstoneGateBlock::update_target(

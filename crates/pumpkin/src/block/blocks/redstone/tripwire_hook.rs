@@ -91,7 +91,9 @@ impl BlockBehaviour for TripwireHookBlock {
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
         let state_id = args.world.get_block_state_id(args.position);
-        Self::update(args.world, *args.position, state_id, false, true, -1, None);
+        if state_id.to_block() == args.block {
+            Self::update(args.world, *args.position, state_id, false, true, -1, None);
+        }
     }
 
     fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {

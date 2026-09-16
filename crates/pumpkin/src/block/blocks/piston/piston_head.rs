@@ -6,7 +6,7 @@ use pumpkin_world::world::{BlockAccessor, BlockFlags};
 
 use crate::block::{
     BlockBehaviour, BrokenArgs, CanPlaceAtArgs, GetStateForNeighborUpdateArgs,
-    OnNeighborUpdateArgs, PathComputationType,
+    OnNeighborUpdateArgs, OnStateReplacedArgs, PathComputationType,
 };
 
 use super::piston::PistonProps;
@@ -62,18 +62,23 @@ fn can_survive(
 pub struct PistonHeadBlock;
 
 impl BlockBehaviour for PistonHeadBlock {
-    fn broken(&self, args: BrokenArgs<'_>) {
-        // Vanilla `PistonHeadBlock.affectNeighborsAfterRemoval` (`PistonHeadBlock.java:82`):
-        // breaking the arm takes the base with it, but only when the base is genuinely this
-        // arm's base. This used to accept any extended piston behind the head regardless of
-        // kind or facing, so breaking a head could destroy a neighbouring piston.
-        let head = PistonHeadProperties::from_state_id(args.state.id);
+    fn player_will_destroy(&self, args: BrokenArgs<'_>) {
+        if args.player.gamemode.load() == pumpkin_util::gamemode::GameMode::Creative {
+            let head = PistonHeadProperties::from_state_id(args.state.id);
+            let pos = base_pos(args.position, head);
+            let (block, state) = args.world.get_block_and_state_id(&pos);
+            if is_fitting_base(head, block, state) {
+                args.world.break_block(&pos, None, BlockFlags::SKIP_DROPS);
+            }
+        }
+    }
+
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
+        let head = PistonHeadProperties::from_state_id(args.old_state_id);
         let pos = base_pos(args.position, head);
-        let (base_block, base_state_id) = args.world.get_block_and_state_id(&pos);
-        if is_fitting_base(head, base_block, base_state_id) {
-            // TODO: use player; vanilla drops the piston here (`destroyBlock(basePos, true)`)
-            // and only skips drops for a creative-mode break (`playerWillDestroy`).
-            args.world.break_block(&pos, None, BlockFlags::SKIP_DROPS);
+        let (block, state) = args.world.get_block_and_state_id(&pos);
+        if is_fitting_base(head, block, state) {
+            args.world.break_block(&pos, None, BlockFlags::NOTIFY_ALL);
         }
     }
 
@@ -115,7 +120,9 @@ impl BlockBehaviour for PistonHeadBlock {
     /// block above was not a redstone block -- a special case of this rule.
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
         let head_state_id = args.world.get_block_state_id(args.position);
-        if !can_survive(args.world.as_ref(), args.position, head_state_id) {
+        if head_state_id.to_block() != args.block
+            || !can_survive(args.world.as_ref(), args.position, head_state_id)
+        {
             return;
         }
         let head = PistonHeadProperties::from_state_id(head_state_id);

@@ -89,7 +89,8 @@ impl PressurePlate for PressurePlateBlock {
         let aabb = detection_box_at(pos);
         let mobs_only = Self::is_mobs_only(block);
         if world.get_all_at_box(&aabb).iter().any(|entity| {
-            !entity.is_spectator()
+            !entity.get_entity().is_removed()
+                && !entity.is_spectator()
                 && !entity.is_ignoring_block_triggers()
                 && (!mobs_only || entity.get_living_entity().is_some())
         }) {

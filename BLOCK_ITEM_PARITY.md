@@ -1176,3 +1176,27 @@ so they must not be used to reconstruct audit completion.
 - Corrected sign placement to test source WATER specifically, matching the Java
   fluid-type comparison. B06 passed all 123 existing block tests in the background.
   Remaining execution, structure and protocol work is listed in PARITY_PLAN.md.
+
+## B07: redstone and piston source pass
+
+- Reused the earlier rail, switch, comparator/repeater, torch, sensor and target
+  ports. Reviewed remaining redstone handlers, wiring and piston resolver/events.
+- Copper bulbs evaluate power after placement. Daylight detectors preserve their
+  BEs. Added stale-callback guards and removed-entity filtering for plates/tripwire.
+- Wire removal now runs for all replacements with the piston-move exception,
+  evaluates old-state power without restoring a removed wire, advertises signal
+  capability, and respects mayBuild when changing dot/cross shape.
+- Repaired diode removal's always-true early return and source-block notifications.
+- Piston head removal drops its fitting base, with creative pre-removal suppression;
+  removed the base handler's redundant deletion of unrelated moving pieces.
+- Sticky resolver visits newly appended branches. Retraction uses the event type,
+  actual pulled position/direction and extending moving-piece finalization. Piston
+  sounds use level RNG; state-attributed activation/deactivation events now emit.
+  Placement preserves an existing mover and player placement checks power again.
+- Aligned local move/retraction flags with the available shape/BE side-effect flags.
+  Shared MOVED flag semantics and simplified moving-BE collision remain explicit
+  dependencies; this is not a claim of complete piston or redstone parity.
+- Background runs 13–15: 123 block tests passed each. Full library run: 446 passed,
+  two localhost-bind tests failed under sandbox restrictions; those exact two
+  passed on the authorized unsandboxed rerun. All 448 passed across the two runs.
+  Final flag-only follow-up is included in the next background block run.

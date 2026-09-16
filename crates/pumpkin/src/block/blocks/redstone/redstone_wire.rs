@@ -14,9 +14,9 @@ use pumpkin_world::world::{BlockAccessor, BlockFlags};
 
 use crate::block::registry::BlockActionResult;
 use crate::block::{
-    BlockBehaviour, BrokenArgs, CanPlaceAtArgs, GetRedstonePowerArgs,
-    GetStateForNeighborUpdateArgs, NormalUseArgs, OnNeighborUpdateArgs, OnPlaceArgs, PlacedArgs,
-    PrepareArgs,
+    BlockBehaviour, CanPlaceAtArgs, EmitsRedstonePowerArgs, GetRedstonePowerArgs,
+    GetStateForNeighborUpdateArgs, NormalUseArgs, OnNeighborUpdateArgs, OnPlaceArgs,
+    OnStateReplacedArgs, PlacedArgs, PrepareArgs,
 };
 use crate::world::World;
 
@@ -49,12 +49,16 @@ impl BlockBehaviour for RedstoneWireBlock {
         update_neighbors_of_neighboring_wires(args.world, args.position);
     }
 
-    fn broken(&self, args: BrokenArgs<'_>) {
+    fn on_state_replaced(&self, args: OnStateReplacedArgs<'_>) {
+        if args.moved {
+            return;
+        }
         for direction in BlockDirection::all() {
             let neighbor_pos = args.position.offset(direction.to_offset());
             update_neighbors_at(args.world, &neighbor_pos, &Block::REDSTONE_WIRE);
         }
 
+        update_power_strength_from_state(args.world, args.position, args.old_state_id);
         update_neighbors_of_neighboring_wires(args.world, args.position);
     }
 
@@ -133,6 +137,15 @@ impl BlockBehaviour for RedstoneWireBlock {
     }
 
     fn normal_use(&self, args: NormalUseArgs<'_>) -> BlockActionResult {
+        if !args
+            .player
+            .abilities
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .allow_modify_world
+        {
+            return BlockActionResult::Pass;
+        }
         let state = args.world.get_block_state(args.position);
         let wire = RedstoneWireProperties::from_state_id(state.id);
 
@@ -175,12 +188,19 @@ impl BlockBehaviour for RedstoneWireBlock {
     }
 
     fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
         if can_survive(args.world.as_ref(), args.position) {
             update_power_strength(args.world, args.position);
         } else {
             args.world
                 .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
         }
+    }
+
+    fn emits_redstone_power(&self, _args: EmitsRedstonePowerArgs<'_>) -> bool {
+        true
     }
 
     fn get_weak_redstone_power(&self, args: GetRedstonePowerArgs<'_>) -> u8 {
@@ -282,14 +302,20 @@ pub fn update_power_strength(world: &Arc<World>, pos: &BlockPos) {
         return;
     }
 
-    let mut wire = RedstoneWireProperties::from_state_id(state.id);
+    update_power_strength_from_state(world, pos, state.id);
+}
+
+fn update_power_strength_from_state(world: &Arc<World>, pos: &BlockPos, state_id: BlockStateId) {
+    let mut wire = RedstoneWireProperties::from_state_id(state_id);
     let target_strength = calculate_target_strength(world, pos);
 
     if wire.power != target_strength {
         wire.power = target_strength;
         let new_state_id = wire.to_state_id(&Block::REDSTONE_WIRE);
 
-        world.set_block_state(pos, new_state_id, BlockFlags::NOTIFY_LISTENERS);
+        if world.get_block_state_id(pos) == state_id {
+            world.set_block_state(pos, new_state_id, BlockFlags::NOTIFY_LISTENERS);
+        }
 
         let mut to_update = Vec::with_capacity(7);
         to_update.push(*pos);

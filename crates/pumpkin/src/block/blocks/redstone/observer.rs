@@ -40,6 +40,10 @@ impl BlockBehaviour for ObserverBlock {
     }
 
     fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        if args.world.get_block(args.position) != args.block {
+            return;
+        }
+
         let state = args.world.get_block_state(args.position);
         let mut props = ObserverLikeProperties::from_state_id(state.id);
 
