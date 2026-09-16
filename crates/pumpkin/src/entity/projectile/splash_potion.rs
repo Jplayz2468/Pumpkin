@@ -26,7 +26,6 @@ impl SplashPotionEntity {
         let thrown = ThrownItemEntity {
             entity,
             owner_id: None,
-            collides_with_projectiles: false,
             has_hit: AtomicBool::new(false),
             gravity: GRAVITY,
         };

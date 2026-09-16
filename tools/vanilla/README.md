@@ -168,3 +168,18 @@ java -cp '/tmp:../comparison/downloads/classpath/*' ProjectileRayOracle > crates
 java -cp '/tmp:../comparison/downloads/classpath/*' BorderRayOracle > crates/pumpkin/src/world/border_ray_cases.json
 java -cp '/tmp:../comparison/downloads/classpath/*' BorderDeflectionOracle > crates/pumpkin/src/entity/projectile/border_deflection_cases.json
 ```
+
+## Projectile owner collision
+
+`ProjectileOwnerOracle.java` invokes actual Projectile.checkLeftOwner and
+canHitEntity for 1,200 stateful cases. The probe supplies an owner/root/passenger
+tree, boxes and pickability; Java performs swept-range intersection, the exit latch,
+once-per-tick suppression and vehicle-group immunity. Query counters verify that
+already-checked/latched states do not repeat the owner-tree scan. This does not
+validate live spatial membership, owner UUID persistence or every entity's own
+pickability override.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*:/tmp' -d /tmp tools/vanilla/ProjectileOwnerOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' ProjectileOwnerOracle > crates/pumpkin/src/entity/projectile/owner_cases.json
+```

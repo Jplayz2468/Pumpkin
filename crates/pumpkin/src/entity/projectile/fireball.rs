@@ -36,7 +36,6 @@ impl FireballEntity {
         let thrown = ThrownItemEntity {
             entity,
             owner_id: None,
-            collides_with_projectiles: false,
             has_hit: AtomicBool::new(false),
             gravity: 0.0,
         };
@@ -73,7 +72,6 @@ impl FireballEntity {
         let thrown = ThrownItemEntity {
             entity,
             owner_id: None,
-            collides_with_projectiles: false,
             has_hit: AtomicBool::new(false),
             gravity: 0.0,
         };

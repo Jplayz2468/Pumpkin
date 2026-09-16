@@ -563,6 +563,72 @@ pub trait EntityBase: Send + Sync + std::any::Any {
         false
     }
 
+    /// Shared picking policy; projectile hit eligibility additionally checks life.
+    fn is_pickable(&self) -> bool {
+        let entity = self.get_entity();
+        let kind = entity.entity_type;
+        if kind == &EntityType::ENDER_DRAGON {
+            return false;
+        }
+        if let Some(stand) = self
+            .cast_any()
+            .downcast_ref::<decoration::armor_stand::ArmorStandEntity>()
+        {
+            return !entity.is_removed() && !stand.is_marker();
+        }
+        if self.get_living_entity().is_some() {
+            return !entity.is_removed() && !self.is_spectator();
+        }
+        if matches!(
+            kind.resource_name,
+            "painting"
+                | "item_frame"
+                | "glow_item_frame"
+                | "leash_knot"
+                | "end_crystal"
+                | "interaction"
+                | "shulker_bullet"
+        ) {
+            return true;
+        }
+        if kind == &EntityType::TNT
+            || kind == &EntityType::FALLING_BLOCK
+            || self.cast_any().is::<vehicle::boat::BoatEntity>()
+            || self.cast_any().is::<vehicle::minecart::MinecartEntity>()
+        {
+            return !entity.is_removed();
+        }
+        if projectile::is_projectile(kind) {
+            use pumpkin_data::tag::Taggable;
+            if !kind.has_tag(&pumpkin_data::tag::EntityType::MINECRAFT_REDIRECTABLE_PROJECTILE) {
+                return false;
+            }
+            if let Some(arrow) = self
+                .cast_any()
+                .downcast_ref::<projectile::arrow::ArrowEntity>()
+            {
+                return !arrow.in_ground.load(Relaxed);
+            }
+            if let Some(trident) = self
+                .cast_any()
+                .downcast_ref::<projectile::trident::TridentEntity>()
+            {
+                return !trident.in_ground.load(Relaxed);
+            }
+            return true;
+        }
+        false
+    }
+
+    fn can_be_hit_by_projectile(&self) -> bool {
+        self.get_entity().entity_type != &EntityType::INTERACTION
+            && !self.get_entity().is_removed()
+            && self
+                .get_living_entity()
+                .is_none_or(|living| living.health.load() > 0.0)
+            && self.is_pickable()
+    }
+
     fn is_collidable(&self, entity: Option<Box<dyn EntityBase>>) -> bool {
         self.can_be_collided_with(entity.as_deref())
     }
@@ -1274,6 +1340,7 @@ pub struct Entity {
     /// Transient: loading an entity starts this clock at zero.
     pub tick_count: AtomicI32,
     pub projectile_has_been_shot: AtomicBool,
+    pub projectile_owner_collision: std::sync::Mutex<projectile::owner_collision::OwnerCollision>,
 
     pub current_biome: ArcSwap<&'static Biome>,
     pub last_biome_update_pos: AtomicCell<BlockPos>,
@@ -1447,6 +1514,7 @@ impl Entity {
             age: AtomicI32::new(0),
             tick_count: AtomicI32::new(0),
             projectile_has_been_shot: AtomicBool::new(false),
+            projectile_owner_collision: std::sync::Mutex::default(),
             current_biome: ArcSwap::new(Arc::new(current_biome)),
             last_biome_update_pos: AtomicCell::new(BlockPos::new(floor_x, floor_y, floor_z)),
             portal_cooldown: AtomicU32::new(0),
@@ -4544,7 +4612,7 @@ impl Entity {
             .clone()
     }
 
-    fn root_vehicle_id(&self) -> i32 {
+    pub(crate) fn root_vehicle_id(&self) -> i32 {
         let mut root = self.entity_id;
         let mut parent = self.get_vehicle();
         let mut seen = HashSet::new();
@@ -5088,6 +5156,10 @@ impl Entity {
     pub fn write_nbt(&self, nbt: &mut NbtCompound) {
         if projectile::is_projectile(self.entity_type) {
             nbt.put_bool("HasBeenShot", self.projectile_has_been_shot.load(Relaxed));
+            self.projectile_owner_collision
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .write(nbt);
         }
 
         let position = self.pos.load();
@@ -5168,6 +5240,10 @@ impl Entity {
         self.fall_distance.store(fall_distance::read(nbt));
         self.projectile_has_been_shot
             .store(nbt.get_bool("HasBeenShot").unwrap_or(false), Relaxed);
+        self.projectile_owner_collision
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .read(nbt);
 
         if let Some(position) = nbt.get_list("Pos")
             && position.len() >= 3

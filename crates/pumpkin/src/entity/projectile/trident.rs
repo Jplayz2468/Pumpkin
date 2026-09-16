@@ -128,33 +128,6 @@ impl TridentEntity {
             velocity.y.atan2(len) as f32 * 57.295_776,
         );
     }
-
-    fn should_skip_collision(&self, self_ent: &Entity, other: &Arc<dyn EntityBase>) -> bool {
-        let other_ent = other.get_entity();
-
-        // Don't collide with self
-        if other_ent.entity_id == self_ent.entity_id {
-            return true;
-        }
-
-        // Skip owner for initial frames (5 ticks)
-        if Some(other_ent.entity_id) == self.owner_id
-            && self_ent.tick_count.load(Ordering::Relaxed) < 5
-        {
-            return true;
-        }
-
-        // Skip other projectiles and item entities
-        if other_ent.entity_type == &pumpkin_data::entity::EntityType::ARROW
-            || other_ent.entity_type == &pumpkin_data::entity::EntityType::TRIDENT
-            || other_ent.entity_type == &pumpkin_data::entity::EntityType::ITEM
-            || other_ent.entity_type == &pumpkin_data::entity::EntityType::FALLING_BLOCK
-        {
-            return true;
-        }
-
-        false
-    }
 }
 
 impl EntityBase for TridentEntity {
@@ -209,9 +182,8 @@ impl EntityBase for TridentEntity {
 
         // Move trident
         let new_pos = start_pos.add(&velocity);
-        let hit = collision_on_segment(caller, start_pos, new_pos, |candidate| {
-            self.should_skip_collision(entity, candidate)
-        });
+        super::check_left_owner(caller);
+        let hit = collision_on_segment(caller, start_pos, new_pos, |_| false);
         let new_pos = hit.as_ref().map_or(new_pos, ProjectileHit::hit_pos);
         entity.record_inside_movement(start_pos, new_pos, None);
         entity.set_pos(new_pos);

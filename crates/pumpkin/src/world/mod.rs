@@ -1790,8 +1790,10 @@ impl World {
             {
                 for (entity, entity_chunk) in &tickable {
                     entity.get_entity().tick_count.fetch_add(1, Relaxed);
+                    crate::entity::projectile::begin_tick(entity.as_ref());
                     crate::entity::projectile::emit_shoot_event(entity.as_ref());
                     entity.tick(entity.as_ref(), server_ref);
+                    crate::entity::projectile::check_left_owner(entity.as_ref());
                     entity.get_entity().flush_pending_inside_effects(entity.as_ref());
 
                     let entity_inner = entity.get_entity();

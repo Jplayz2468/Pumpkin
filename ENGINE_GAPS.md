@@ -510,3 +510,34 @@ whole inside-effect pipeline matches Java yet.
 - Final background run 6 passed **491 engine tests** after the construction/search
   refinements, with those same two socket exclusions. No live client/server
   comparison was performed.
+
+## Projectile owner collision and target eligibility
+
+- Replaced the five-tick owner exemption and three entity-type exclusion lists
+  with Projectile's shared owner-group rule. The complete root-vehicle/passenger
+  tree is protected until no pickable member intersects the projectile's swept
+  box plus one block. Leaving that range latches permanently; duplicate checks
+  in the same tick are suppressed. Removed owners resolve as absent.
+- Added shared pickability and projectile-hit predicates. Dead living entities,
+  spectators, marker armor stands and Interaction targets no longer absorb these
+  projectiles; falling blocks/TNT, pickable decorations, vehicles, shulker bullets
+  and tagged redirectable projectiles use their source eligibility rules.
+  Removed the obsolete collides_with_projectiles flag from thrown constructors.
+- Arrows/tridents check owner range before their movement query; the shared world
+  lifecycle checks remaining projectile paths after their tick. Arrow pierced-ID
+  exclusion remains local. This does not fix each projectile's complete tick order.
+- Entity NBT now saves the true LeftOwner latch and restores it with the transient
+  check guard reset. This does **not** restore the owner's identity: current
+  projectile owner fields still use runtime IDs. UUID owner persistence and
+  cross-dimension owner lookup remain required, along with PvP team rules,
+  deflection callbacks, dragon-part targeting, arrow many-hit/piercing queries,
+  and the separate fishing-hook/shulker-bullet query implementations.
+- Actual Java Projectile.checkLeftOwner/canHitEntity fixtures cover **1,200 cases**
+  of repeated checks, tick/reset boundaries, owner absence, pickable passenger
+  boxes, permanent exit and same/different vehicle groups. Rust persistence checks
+  cover absent/true LeftOwner data and resetting the transient guard. Background
+  run 2 passed **493 engine tests**, with the same two socket-test exclusions.
+  Source inspection supports target-type dispatch; no full live-world hit test or
+  full mob pass was performed.
+- Final background run 3 passed **493 engine tests** after excluding removed
+  owners from resolution, with the same two socket-test exclusions.

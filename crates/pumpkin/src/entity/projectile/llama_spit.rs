@@ -24,7 +24,6 @@ impl LlamaSpitEntity {
         let thrown = ThrownItemEntity {
             entity,
             owner_id: None,
-            collides_with_projectiles: false,
             has_hit: AtomicBool::new(false),
             gravity: LLAMA_SPIT_GRAVITY,
         };
@@ -46,7 +45,6 @@ impl LlamaSpitEntity {
         let thrown = ThrownItemEntity {
             entity,
             owner_id: Some(shooter.entity_id),
-            collides_with_projectiles: false,
             has_hit: AtomicBool::new(false),
             gravity: LLAMA_SPIT_GRAVITY,
         };

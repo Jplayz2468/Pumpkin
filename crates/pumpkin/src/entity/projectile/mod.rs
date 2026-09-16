@@ -9,6 +9,7 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 pub mod arrow;
+pub mod owner_collision;
 pub mod egg;
 pub mod ender_pearl;
 pub mod evoker_fangs;
@@ -99,6 +100,91 @@ pub fn emit_shoot_event(projectile: &dyn EntityBase) {
     }
 }
 
+/// Reset only the transient check guard. The persistent latch survives ticks/load.
+pub fn begin_tick(projectile: &dyn EntityBase) {
+    let entity = projectile.get_entity();
+    if is_projectile(entity.entity_type) {
+        entity
+            .projectile_owner_collision
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .begin_tick();
+    }
+}
+
+pub fn check_left_owner(projectile: &dyn EntityBase) {
+    let entity = projectile.get_entity();
+    if !is_projectile(entity.entity_type) {
+        return;
+    }
+    entity
+        .projectile_owner_collision
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .check(|| {
+            let world = entity.world.load();
+            let Some(mut root) = projectile
+                .get_owner_id()
+                .and_then(|id| world.get_entity_by_id(id))
+                .filter(|owner| !owner.get_entity().is_removed())
+            else {
+                return true;
+            };
+            let mut seen = std::collections::HashSet::new();
+            seen.insert(root.get_entity().entity_id);
+            while let Some(parent) = root.get_entity().get_vehicle() {
+                if !seen.insert(parent.get_entity().entity_id) {
+                    break;
+                }
+                root = parent;
+            }
+            let search = entity
+                .bounding_box
+                .load()
+                .stretch(entity.velocity.load())
+                .expand(1.0, 1.0, 1.0);
+            seen.clear();
+            let mut pending = vec![root];
+            let members = std::iter::from_fn(|| {
+                while let Some(member) = pending.pop() {
+                    let base = member.get_entity();
+                    if !seen.insert(base.entity_id) {
+                        continue;
+                    }
+                    pending.extend(
+                        base.passengers
+                            .lock()
+                            .unwrap_or_else(std::sync::PoisonError::into_inner)
+                            .iter()
+                            .cloned(),
+                    );
+                    return Some((member.is_pickable(), base.bounding_box.load()));
+                }
+                None
+            });
+            owner_collision::outside_owner_range(search, members)
+        });
+}
+
+pub fn can_hit_entity(projectile: &dyn EntityBase, candidate: &dyn EntityBase) -> bool {
+    if !candidate.can_be_hit_by_projectile() {
+        return false;
+    }
+    let entity = projectile.get_entity();
+    let owner = projectile
+        .get_owner_id()
+        .and_then(|id| entity.world.load().get_entity_by_id(id))
+        .filter(|owner| !owner.get_entity().is_removed());
+    let same_vehicle = owner.as_ref().is_some_and(|owner| {
+        owner.get_entity().root_vehicle_id() == candidate.get_entity().root_vehicle_id()
+    });
+    entity
+        .projectile_owner_collision
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .allows_hit(true, owner.is_some(), same_vehicle)
+}
+
 /// Projectile.onHit emits after the hit callback, using the impacted block's
 /// resulting state. Preserve the projectile context even if the callback removes it.
 pub fn handle_hit(projectile: &dyn EntityBase, hit: ProjectileHit) {
@@ -144,7 +230,6 @@ pub fn apply_on_projectile_spawned(
 pub struct ThrownItemEntity {
     pub entity: Entity,
     pub owner_id: Option<i32>,
-    pub collides_with_projectiles: bool,
     pub has_hit: AtomicBool,
     pub gravity: f64,
 }
@@ -157,7 +242,6 @@ impl ThrownItemEntity {
         Self {
             entity,
             owner_id: Some(owner.entity_id),
-            collides_with_projectiles: false,
             has_hit: AtomicBool::new(false),
             gravity,
         }
@@ -230,9 +314,7 @@ impl ThrownItemEntity {
 
         // Update position
         let new_pos = start_pos.add(&delta);
-        let hit = collision_on_segment(caller, start_pos, new_pos, |candidate| {
-            self.should_skip_collision(entity, candidate)
-        });
+        let hit = collision_on_segment(caller, start_pos, new_pos, |_| false);
         let new_pos = hit.as_ref().map_or(new_pos, ProjectileHit::hit_pos);
         entity.record_inside_movement(start_pos, new_pos, None);
         entity.set_pos(new_pos);
@@ -266,33 +348,6 @@ impl ThrownItemEntity {
             handle_hit(caller, h);
             entity.remove();
         }
-    }
-
-    /// Returns if collision should be skipped (e.g. owner or projectile vs projectile)
-    fn should_skip_collision(&self, self_ent: &Entity, other: &Arc<dyn EntityBase>) -> bool {
-        let other_ent = other.get_entity();
-        if other_ent.entity_id == self_ent.entity_id {
-            return true;
-        }
-
-        // Skip owner for initial frames
-        if Some(other_ent.entity_id) == self.owner_id
-            && self_ent.tick_count.load(Ordering::Relaxed) < 5
-        {
-            return true;
-        }
-
-        // Projectiles should pass through lingering clouds
-        if *other_ent.entity_type == EntityType::AREA_EFFECT_CLOUD {
-            return true;
-        }
-
-        // Projectile vs projectile logic
-        if !self.collides_with_projectiles && is_projectile(other_ent.entity_type) {
-            return true;
-        }
-
-        false
     }
 
     const fn get_entity(&self) -> &Entity {
@@ -333,8 +388,8 @@ fn collision_on_segment(
         .into_iter()
         .filter(|candidate| {
             candidate.get_entity().entity_id != entity.entity_id
-                && !candidate.get_entity().is_removed()
                 && !candidate.is_spectator()
+                && can_hit_entity(caller, candidate.as_ref())
                 && !should_skip(candidate)
         })
         .map(|candidate| {
