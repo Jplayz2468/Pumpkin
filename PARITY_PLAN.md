@@ -476,3 +476,9 @@ functions are implemented and compared through the production generator with Jav
 D02 still includes 292 other built-in function declarations, full contexts/predicates,
 reloads and live integration; other engine/block gates remain. Full mob passes stay
 paused. See ENGINE_GAPS.md for the exact evidence and limits.
+
+
+Shared loot components checkpoint: 86 additional damage/potion/copy-state function
+declarations now execute, with Java property identity metadata and 704 comparison
+cases. Remaining D02 function declarations: 206, plus context/predicate/reload work.
+Other engine/block gates remain open; full mob passes remain paused.

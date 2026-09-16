@@ -127,6 +127,14 @@ pub enum LootFunctionKind {
         limit: i32,
     },
     ExplosionDecay,
+    SetDamage {
+        damage: LootNumberProvider,
+        add: bool,
+    },
+    SetPotion(&'static str),
+    CopyState {
+        properties: &'static [(&'static str, u32)],
+    },
     /// Retain unsupported functions explicitly for the remaining component/function work.
     Unsupported(&'static str),
 }

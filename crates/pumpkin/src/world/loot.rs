@@ -465,6 +465,86 @@ fn apply_functions(
                         .count() as i32;
                 }
             }
+            LootFunctionKind::SetDamage { damage, add } => {
+                use pumpkin_data::data_component_impl::DamageImpl;
+                if current > 0
+                    && !output.stack.is_unbreakable()
+                    && output.stack.get_data_component::<DamageImpl>().is_some()
+                    && let Some(max) = output.stack.get_max_damage()
+                {
+                    let initial = output.stack.get_damage().clamp(0, max);
+                    let base = if add {
+                        1.0 - initial as f32 / max as f32
+                    } else {
+                        0.0
+                    };
+                    let remaining = (number_float(damage, rng) + base).clamp(0.0, 1.0);
+                    let value = java_floor((1.0 - remaining) * max as f32).clamp(0, max);
+                    // An explicit zero must replace an existing/default damage component.
+                    output
+                        .stack
+                        .set_data_component(DamageImpl { damage: value });
+                }
+            }
+            LootFunctionKind::SetPotion(name) => {
+                use pumpkin_data::data_component_impl::PotionContentsImpl;
+                if let Some(potion) = pumpkin_data::potion::Potion::from_name(
+                    name.strip_prefix("minecraft:").unwrap_or(name),
+                ) {
+                    let mut contents = (current > 0)
+                        .then(|| {
+                            output
+                                .stack
+                                .get_data_component::<PotionContentsImpl>()
+                                .cloned()
+                        })
+                        .flatten()
+                        .unwrap_or(PotionContentsImpl {
+                            potion_id: None,
+                            custom_color: None,
+                            custom_effects: Vec::new(),
+                            custom_name: None,
+                        });
+                    contents.potion_id = Some(i32::from(potion.id));
+                    output.stack.set_data_component(contents);
+                }
+            }
+            LootFunctionKind::CopyState { properties } => {
+                use pumpkin_data::data_component_impl::BlockStateImpl;
+                if let Some(state) = params.block_state {
+                    let block = pumpkin_data::Block::from_state_id(state.id);
+                    let values = block
+                        .properties(state.id)
+                        .map(|properties| properties.to_props())
+                        .unwrap_or_default();
+                    let mut stored = (current > 0)
+                        .then(|| {
+                            output
+                                .stack
+                                .get_data_component::<BlockStateImpl>()
+                                .map(|state| state.properties.to_vec())
+                        })
+                        .flatten()
+                        .unwrap_or_default();
+                    for (name, identity) in properties {
+                        if pumpkin_data::loot_table::block_property_identity(block.name, name)
+                            != Some(*identity)
+                        {
+                            continue;
+                        }
+                        if let Some((_, value)) = values.iter().find(|(key, _)| key == name) {
+                            if let Some((_, old)) = stored.iter_mut().find(|(key, _)| key == name) {
+                                *old = (*value).into();
+                            } else {
+                                stored.push(((*name).into(), (*value).into()));
+                            }
+                        }
+                    }
+                    output.stack.set_data_component(BlockStateImpl {
+                        properties: stored.into(),
+                    });
+                }
+            }
             LootFunctionKind::Unsupported(_) => {}
         }
     }
@@ -1324,5 +1404,188 @@ mod tree_tests {
                 expected
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod component_tests {
+    use super::*;
+    use pumpkin_data::data_component::DataComponent;
+    use pumpkin_data::data_component_impl::{
+        BlockStateImpl, DamageImpl, MaxDamageImpl, PotionContentsImpl, UnbreakableImpl,
+    };
+    use pumpkin_data::potion::Potion;
+    use serde_json::{Value, json};
+    mod compiled {
+        include!("loot_component_test_tables.rs");
+    }
+
+    fn compare<R: pumpkin_util::random::RandomImpl>(case: &Value, mut rng: R) {
+        let name = case["item"]
+            .as_str()
+            .unwrap()
+            .strip_prefix("minecraft:")
+            .unwrap();
+        let mut stack = ItemStack::new(1, Item::from_registry_key(name).unwrap());
+        for component in [
+            DataComponent::MaxDamage,
+            DataComponent::Damage,
+            DataComponent::Unbreakable,
+            DataComponent::PotionContents,
+            DataComponent::BlockState,
+        ] {
+            stack.remove_data_component(component);
+        }
+        if let Some(max) = case["max"].as_i64() {
+            stack.set_data_component(MaxDamageImpl {
+                max_damage: max as i32,
+            });
+        }
+        if let Some(damage) = case["initial"].as_i64() {
+            stack.set_data_component(DamageImpl {
+                damage: damage as i32,
+            });
+        }
+        if case["unbreakable"].as_bool().unwrap() {
+            stack.set_data_component(UnbreakableImpl);
+        }
+        if case["metadata"].as_bool().unwrap() {
+            stack.set_data_component(PotionContentsImpl {
+                potion_id: Some(i32::from(Potion::WATER.id)),
+                custom_color: Some(123456),
+                custom_name: Some("retained".to_owned()),
+                custom_effects: Vec::new(),
+            });
+            stack.set_data_component(BlockStateImpl {
+                properties: vec![
+                    ("retained".into(), "yes".into()),
+                    ("honey_level".into(), "2".into()),
+                    ("age".into(), "4".into()),
+                ]
+                .into(),
+            });
+        }
+        let mut params = LootContextParameters::default();
+        params
+            .dynamic_drops
+            .insert("minecraft:input".to_owned(), vec![stack]);
+        if let Some(context) = case["context"].as_object() {
+            let block = pumpkin_data::Block::from_registry_key(
+                context["block"]
+                    .as_str()
+                    .unwrap()
+                    .strip_prefix("minecraft:")
+                    .unwrap(),
+            )
+            .unwrap();
+            let properties: Vec<_> = context["properties"]
+                .as_object()
+                .unwrap()
+                .iter()
+                .map(|(key, value)| (key.as_str(), value.as_str().unwrap()))
+                .collect();
+            params.block_state = Some(
+                if properties.is_empty() {
+                    block.default_state.id
+                } else {
+                    block.from_properties(&properties).to_state_id(block)
+                }
+                .to_state(),
+            );
+        }
+        let mut output = Vec::new();
+        run_table(
+            &compiled::TABLES[case["table"].as_u64().unwrap() as usize],
+            &params,
+            LootFacts::from_params(&params),
+            &mut rng,
+            &mut Vec::new(),
+            &mut |item, _| {
+                let potion = item.stack.get_data_component::<PotionContentsImpl>().map(|potion| json!({
+                "id": potion.potion_id.and_then(|id| Potion::from_id(id as u8)).map(|p| format!("minecraft:{}",p.name)),
+                "color": potion.custom_color, "name": potion.custom_name, "effects": potion.custom_effects.len(),
+            }));
+                let state = item
+                    .stack
+                    .get_data_component::<BlockStateImpl>()
+                    .map(|state| {
+                        state
+                            .properties
+                            .iter()
+                            .map(|(key, value)| (key.to_string(), Value::String(value.to_string())))
+                            .collect::<serde_json::Map<_, _>>()
+                    });
+                let name = item.stack.item.registry_key;
+                output.push(json!({"item": if name.contains(':') {name.to_owned()} else {format!("minecraft:{name}")}, "count": item.visible_count(), "damage": item.stack.get_data_component::<DamageImpl>().map(|d| d.damage), "potion": potion, "state": state}));
+            },
+        );
+        let mut expected = case["output"].clone();
+        for item in expected.as_array_mut().unwrap() {
+            for field in ["damage", "potion", "state"] {
+                item.as_object_mut()
+                    .unwrap()
+                    .entry(field)
+                    .or_insert(Value::Null);
+            }
+            if let Some(potion) = item["potion"].as_object_mut() {
+                for field in ["id", "color", "name"] {
+                    potion.entry(field).or_insert(Value::Null);
+                }
+            }
+        }
+        assert_eq!(json!(output), expected, "{case}");
+        assert_eq!(
+            rng.next_i64(),
+            case["next"].as_i64().unwrap(),
+            "random consumption: {case}"
+        );
+    }
+
+    #[test]
+    fn component_functions_match_java_through_the_production_generator() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("loot_component_cases.json")).unwrap();
+        assert_eq!(compiled::TABLES.len(), 11);
+        assert_eq!(cases.len(), 704);
+        for case in cases {
+            let seed = case["seed"].as_i64().unwrap() as u64;
+            if case["kind"] == 0 {
+                compare(&case, LegacyRand::from_seed(seed));
+            } else {
+                compare(&case, Xoroshiro::from_seed(seed));
+            }
+        }
+    }
+
+    #[test]
+    fn all_java_property_names_exist_in_the_generated_block_registry() {
+        let blocks: std::collections::BTreeMap<String, std::collections::BTreeMap<String, u32>> =
+            serde_json::from_str(include_str!("../../../../assets/block_property_ids.json"))
+                .unwrap();
+        for (name, ids) in &blocks {
+            let block =
+                pumpkin_data::Block::from_registry_key(name.strip_prefix("minecraft:").unwrap())
+                    .unwrap();
+            let properties = block
+                .properties(block.default_state.id)
+                .map(|properties| properties.to_props())
+                .unwrap_or_default();
+            assert_eq!(properties.len(), ids.len(), "{name}");
+            for (property, _) in properties {
+                assert_eq!(
+                    pumpkin_data::loot_table::block_property_identity(name, property),
+                    ids.get(property).copied(),
+                    "{name}:{property}"
+                );
+            }
+        }
+        assert_ne!(
+            pumpkin_data::loot_table::block_property_identity("wheat", "age"),
+            pumpkin_data::loot_table::block_property_identity("sugar_cane", "age")
+        );
+        assert_eq!(
+            pumpkin_data::loot_table::block_property_identity("beehive", "honey_level"),
+            pumpkin_data::loot_table::block_property_identity("bee_nest", "honey_level")
+        );
     }
 }

@@ -979,3 +979,36 @@ whole inside-effect pipeline matches Java yet.
   Enchanted-count handling currently uses the supplied attacker/tool facts rather
   than a complete equipment/context model. Tag expansion is source-ported but not
   covered by the new Java fixture matrix. The other D01–D06/block gates remain open.
+
+
+## Loot damage, potion contents and block-state copying
+
+- Added ordered `set_damage`, `set_potion` and `copy_state` execution: **28 damage,
+  48 potion and 10 block-state declarations** now execute through the shared loot
+  pipeline. This reduces the remaining unsupported function declarations to **206**.
+- Damage uses Java's remaining-durability fraction, additive mode, clamping and
+  floor conversion. Empty, unbreakable or component-ineligible items skip both the
+  mutation and provider sampling. Explicit zero damage replaces the component.
+- Setting a potion preserves existing custom color, effects and name; empty-stack
+  updates use the empty component baseline. State copying merges selected values
+  while retaining unrelated values, filters properties absent from the declared
+  block, and compares actual Java Property identities on the context block. Honey
+  levels now use the normal function; the duplicate handwritten hive copy is gone.
+- `BlockPropertyIdentityOracle` exports Java Property.equals groups for **1,196
+  blocks, 2,060 property assignments and 121 identities**. The generated runtime
+  lookup distinguishes same-named properties with different domains, such as wheat
+  and sugar-cane age. An exhaustive name check agrees with the current Rust block
+  registry; this check does not prove every state transition or property value.
+- `LootComponentOracle` supplies 11 JSON tables compiled by the production emitter.
+  **704 actual Java cases** compare damage/components and following RNG output with
+  both random sources, missing/zero durability components, unbreakable/empty items,
+  additive damage, metadata preservation, absent block context, unknown properties,
+  shared properties and incompatible same-name properties. Fixture item prototypes
+  and initial components are explicitly bound; no ServerLevel or live client is used.
+- Final background run 1 passed **524 engine, 241 world and 66 utility tests**, with
+  the same two previously separately passing localhost tests excluded. No full mob
+  pass was performed.
+- Remaining: other component/enchantment/smelting/map/name functions and full loot
+  contexts, predicates and reloads, plus the other D01–D06/block gates. The existing
+  block-entity copy-components fallback is still broader than a complete loot-function
+  implementation and remains part of D02. Full mob passes remain paused.

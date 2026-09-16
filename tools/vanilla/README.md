@@ -247,3 +247,21 @@ javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/LootTreeOr
 java -cp '/tmp:../comparison/downloads/classpath/*' LootTreeOracle crates/pumpkin/src/world/loot_tree_tables.json crates/pumpkin/src/world/loot_tree_cases.json
 cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_tree_test_tables
 ```
+
+
+## Loot components and Java block property identity
+
+`BlockPropertyIdentityOracle.java` groups every registered block property using the
+actual Java Property.equals implementations, ordered deterministically by block and
+property name. Its asset drives copy-state compatibility in the generated evaluator.
+`LootComponentOracle.java` writes 11 JSON inputs and 704 cases for damage, potion and
+copy-state functions, including following RNG values. It binds explicit fixture item
+prototypes/components and uses a minimal context, without starting a ServerLevel.
+The same production code generator compiles the JSON inputs into Rust test tables.
+
+```sh
+javac -cp '../comparison/downloads/classpath/*' -d /tmp tools/vanilla/BlockPropertyIdentityOracle.java tools/vanilla/LootComponentOracle.java
+java -cp '/tmp:../comparison/downloads/classpath/*' BlockPropertyIdentityOracle assets/block_property_ids.json
+java -cp '/tmp:../comparison/downloads/classpath/*' LootComponentOracle crates/pumpkin/src/world/loot_component_tables.json crates/pumpkin/src/world/loot_component_cases.json
+cargo run --offline --manifest-path tools/pumpkin-codegen/Cargo.toml -- loot_table loot_component_test_tables
+```

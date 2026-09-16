@@ -1784,7 +1784,9 @@ pub static BLOCKS_BEE_NEST: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                    kind: LootFunctionKind::CopyState {
+                        properties: &[("honey_level", 31u32)],
+                    },
                 },
             ],
         }],
@@ -1812,7 +1814,9 @@ pub static BLOCKS_BEEHIVE: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                            kind: LootFunctionKind::CopyState {
+                                properties: &[("honey_level", 31u32)],
+                            },
                         },
                     ],
                 },
@@ -5347,7 +5351,9 @@ pub static BLOCKS_COPPER_GOLEM_STATUE: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                    kind: LootFunctionKind::CopyState {
+                        properties: &[("copper_golem_pose", 64u32)],
+                    },
                 },
             ],
         }],
@@ -8582,7 +8588,9 @@ pub static BLOCKS_EXPOSED_COPPER_GOLEM_STATUE: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                    kind: LootFunctionKind::CopyState {
+                        properties: &[("copper_golem_pose", 64u32)],
+                    },
                 },
             ],
         }],
@@ -14592,7 +14600,9 @@ pub static BLOCKS_OXIDIZED_COPPER_GOLEM_STATUE: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                    kind: LootFunctionKind::CopyState {
+                        properties: &[("copper_golem_pose", 64u32)],
+                    },
                 },
             ],
         }],
@@ -23499,7 +23509,9 @@ pub static BLOCKS_WAXED_COPPER_GOLEM_STATUE: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                    kind: LootFunctionKind::CopyState {
+                        properties: &[("copper_golem_pose", 64u32)],
+                    },
                 },
             ],
         }],
@@ -23767,7 +23779,9 @@ pub static BLOCKS_WAXED_EXPOSED_COPPER_GOLEM_STATUE: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                    kind: LootFunctionKind::CopyState {
+                        properties: &[("copper_golem_pose", 64u32)],
+                    },
                 },
             ],
         }],
@@ -24069,7 +24083,9 @@ pub static BLOCKS_WAXED_OXIDIZED_COPPER_GOLEM_STATUE: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                    kind: LootFunctionKind::CopyState {
+                        properties: &[("copper_golem_pose", 64u32)],
+                    },
                 },
             ],
         }],
@@ -24354,7 +24370,9 @@ pub static BLOCKS_WAXED_WEATHERED_COPPER_GOLEM_STATUE: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                    kind: LootFunctionKind::CopyState {
+                        properties: &[("copper_golem_pose", 64u32)],
+                    },
                 },
             ],
         }],
@@ -24639,7 +24657,9 @@ pub static BLOCKS_WEATHERED_COPPER_GOLEM_STATUE: LootTable = LootTable {
                 },
                 LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:copy_state"),
+                    kind: LootFunctionKind::CopyState {
+                        properties: &[("copper_golem_pose", 64u32)],
+                    },
                 },
             ],
         }],
@@ -26214,7 +26234,13 @@ pub static CHESTS_ANCIENT_CITY: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.8f32),
+                                    &LootNumberProvider::Constant(1f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -26454,7 +26480,7 @@ pub static CHESTS_ANCIENT_CITY: LootTable = LootTable {
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:strong_regeneration"),
                         },
                     ],
                 },
@@ -26706,7 +26732,13 @@ pub static CHESTS_BASTION_BRIDGE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.1f32),
+                                    &LootNumberProvider::Constant(0.5f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -27075,7 +27107,13 @@ pub static CHESTS_BASTION_HOGLIN_STABLE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.15f32),
+                                    &LootNumberProvider::Constant(0.8f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -27091,7 +27129,13 @@ pub static CHESTS_BASTION_HOGLIN_STABLE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.15f32),
+                                    &LootNumberProvider::Constant(0.95f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -27539,7 +27583,13 @@ pub static CHESTS_BASTION_OTHER: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.1f32),
+                                    &LootNumberProvider::Constant(0.9f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -27670,7 +27720,13 @@ pub static CHESTS_BASTION_OTHER: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.1f32),
+                                    &LootNumberProvider::Constant(0.9f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -28161,7 +28217,13 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.8f32),
+                                    &LootNumberProvider::Constant(1f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -28177,7 +28239,13 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.8f32),
+                                    &LootNumberProvider::Constant(1f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -28193,7 +28261,13 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.8f32),
+                                    &LootNumberProvider::Constant(1f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -28209,7 +28283,13 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.8f32),
+                                    &LootNumberProvider::Constant(1f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -28225,7 +28305,13 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.8f32),
+                                    &LootNumberProvider::Constant(1f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -28241,7 +28327,13 @@ pub static CHESTS_BASTION_TREASURE: LootTable = LootTable {
                     functions: &[
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                            kind: LootFunctionKind::SetDamage {
+                                damage: LootNumberProvider::Uniform(
+                                    &LootNumberProvider::Constant(0.8f32),
+                                    &LootNumberProvider::Constant(1f32),
+                                ),
+                                add: false,
+                            },
                         },
                         LootFunction {
                             condition: LootCondition::None,
@@ -28741,7 +28833,7 @@ pub static CHESTS_BURIED_TREASURE: LootTable = LootTable {
             condition: LootCondition::None,
             functions: &[LootFunction {
                 condition: LootCondition::None,
-                kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                kind: LootFunctionKind::SetPotion("minecraft:water_breathing"),
             }],
         },
         LootPool {
@@ -32403,7 +32495,13 @@ pub static CHESTS_TRIAL_CHAMBERS_CORRIDOR: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.4f32),
+                                &LootNumberProvider::Constant(0.9f32),
+                            ),
+                            add: false,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -32442,7 +32540,13 @@ pub static CHESTS_TRIAL_CHAMBERS_CORRIDOR: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.15f32),
+                                &LootNumberProvider::Constant(0.8f32),
+                            ),
+                            add: false,
+                        },
                     },
                 ],
             },
@@ -32461,7 +32565,13 @@ pub static CHESTS_TRIAL_CHAMBERS_CORRIDOR: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.15f32),
+                                &LootNumberProvider::Constant(0.8f32),
+                            ),
+                            add: false,
+                        },
                     },
                 ],
             },
@@ -32709,7 +32819,13 @@ pub static CHESTS_TRIAL_CHAMBERS_INTERSECTION: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.1f32),
+                                &LootNumberProvider::Constant(0.5f32),
+                            ),
+                            add: false,
+                        },
                     },
                 ],
             },
@@ -32728,7 +32844,13 @@ pub static CHESTS_TRIAL_CHAMBERS_INTERSECTION: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.1f32),
+                                &LootNumberProvider::Constant(0.5f32),
+                            ),
+                            add: false,
+                        },
                     },
                 ],
             },
@@ -32826,7 +32948,13 @@ pub static CHESTS_TRIAL_CHAMBERS_INTERSECTION_BARREL: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.4f32),
+                                &LootNumberProvider::Constant(0.9f32),
+                            ),
+                            add: false,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -32849,7 +32977,13 @@ pub static CHESTS_TRIAL_CHAMBERS_INTERSECTION_BARREL: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.15f32),
+                                &LootNumberProvider::Constant(0.8f32),
+                            ),
+                            add: false,
+                        },
                     },
                 ],
             },
@@ -32884,7 +33018,13 @@ pub static CHESTS_TRIAL_CHAMBERS_INTERSECTION_BARREL: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.15f32),
+                                &LootNumberProvider::Constant(0.8f32),
+                            ),
+                            add: false,
+                        },
                     },
                 ],
             },
@@ -32919,7 +33059,13 @@ pub static CHESTS_TRIAL_CHAMBERS_INTERSECTION_BARREL: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.15f32),
+                                &LootNumberProvider::Constant(0.8f32),
+                            ),
+                            add: false,
+                        },
                     },
                 ],
             },
@@ -32938,7 +33084,13 @@ pub static CHESTS_TRIAL_CHAMBERS_INTERSECTION_BARREL: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.15f32),
+                                &LootNumberProvider::Constant(0.8f32),
+                            ),
+                            add: false,
+                        },
                     },
                 ],
             },
@@ -33088,7 +33240,7 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_COMMON: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:poison"),
                     },
                 ],
             },
@@ -33336,7 +33488,7 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_OMINOUS_COMMON: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:strong_slowness"),
                     },
                 ],
             },
@@ -33559,7 +33711,13 @@ pub static CHESTS_TRIAL_CHAMBERS_REWARD_RARE: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                    kind: LootFunctionKind::SetDamage {
+                        damage: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(0.5f32),
+                            &LootNumberProvider::Constant(1f32),
+                        ),
+                        add: false,
+                    },
                 }],
             },
             LootEntry {
@@ -33751,7 +33909,7 @@ pub static CHESTS_TRIAL_CHAMBERS_SUPPLY: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:poison"),
                     },
                 ],
             },
@@ -33773,7 +33931,7 @@ pub static CHESTS_TRIAL_CHAMBERS_SUPPLY: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:slowness"),
                     },
                 ],
             },
@@ -33904,7 +34062,7 @@ pub static CHESTS_TRIAL_CHAMBERS_SUPPLY: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:regeneration"),
                     },
                 ],
             },
@@ -33923,7 +34081,7 @@ pub static CHESTS_TRIAL_CHAMBERS_SUPPLY: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:strength"),
                     },
                 ],
             },
@@ -33942,7 +34100,13 @@ pub static CHESTS_TRIAL_CHAMBERS_SUPPLY: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0.15f32),
+                                &LootNumberProvider::Constant(0.8f32),
+                            ),
+                            add: false,
+                        },
                     },
                 ],
             },
@@ -36987,7 +37151,7 @@ pub static DISPENSERS_TRIAL_CHAMBERS_CHAMBER: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:slowness"),
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -37009,7 +37173,7 @@ pub static DISPENSERS_TRIAL_CHAMBERS_CHAMBER: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:poison"),
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -37031,7 +37195,7 @@ pub static DISPENSERS_TRIAL_CHAMBERS_CHAMBER: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:weakness"),
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -37053,7 +37217,7 @@ pub static DISPENSERS_TRIAL_CHAMBERS_CHAMBER: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:slowness"),
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -37075,7 +37239,7 @@ pub static DISPENSERS_TRIAL_CHAMBERS_CHAMBER: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:poison"),
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -37097,7 +37261,7 @@ pub static DISPENSERS_TRIAL_CHAMBERS_CHAMBER: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:weakness"),
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -37119,7 +37283,7 @@ pub static DISPENSERS_TRIAL_CHAMBERS_CHAMBER: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:healing"),
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -37362,7 +37526,7 @@ pub static ENTITIES_BOGGED: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:poison"),
                     },
                 ],
             }],
@@ -39274,7 +39438,7 @@ pub static ENTITIES_PARCHED: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:weakness"),
                     },
                 ],
             }],
@@ -40627,7 +40791,7 @@ pub static ENTITIES_STRAY: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:slowness"),
                     },
                 ],
             }],
@@ -42185,7 +42349,13 @@ pub static GAMEPLAY_FISHING_JUNK: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                    kind: LootFunctionKind::SetDamage {
+                        damage: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(0f32),
+                            &LootNumberProvider::Constant(0.9f32),
+                        ),
+                        add: false,
+                    },
                 }],
             },
             LootEntry {
@@ -42209,7 +42379,7 @@ pub static GAMEPLAY_FISHING_JUNK: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                    kind: LootFunctionKind::SetPotion("minecraft:water"),
                 }],
             },
             LootEntry {
@@ -42226,7 +42396,13 @@ pub static GAMEPLAY_FISHING_JUNK: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                    kind: LootFunctionKind::SetDamage {
+                        damage: LootNumberProvider::Uniform(
+                            &LootNumberProvider::Constant(0f32),
+                            &LootNumberProvider::Constant(0.9f32),
+                        ),
+                        add: false,
+                    },
                 }],
             },
             LootEntry {
@@ -42311,7 +42487,13 @@ pub static GAMEPLAY_FISHING_TREASURE: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0f32),
+                                &LootNumberProvider::Constant(0.25f32),
+                            ),
+                            add: false,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -42327,7 +42509,13 @@ pub static GAMEPLAY_FISHING_TREASURE: LootTable = LootTable {
                 functions: &[
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_damage"),
+                        kind: LootFunctionKind::SetDamage {
+                            damage: LootNumberProvider::Uniform(
+                                &LootNumberProvider::Constant(0f32),
+                                &LootNumberProvider::Constant(0.25f32),
+                            ),
+                            add: false,
+                        },
                     },
                     LootFunction {
                         condition: LootCondition::None,
@@ -42604,7 +42792,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:swiftness"),
                     },
                 ],
             },
@@ -42626,7 +42814,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:slowness"),
                     },
                 ],
             },
@@ -42648,7 +42836,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:strength"),
                     },
                 ],
             },
@@ -42670,7 +42858,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:healing"),
                     },
                 ],
             },
@@ -42692,7 +42880,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:harming"),
                     },
                 ],
             },
@@ -42714,7 +42902,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:leaping"),
                     },
                 ],
             },
@@ -42736,7 +42924,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:regeneration"),
                     },
                 ],
             },
@@ -42758,7 +42946,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:fire_resistance"),
                     },
                 ],
             },
@@ -42780,7 +42968,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:water_breathing"),
                     },
                 ],
             },
@@ -42802,7 +42990,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:invisibility"),
                     },
                 ],
             },
@@ -42824,7 +43012,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:night_vision"),
                     },
                 ],
             },
@@ -42846,7 +43034,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:weakness"),
                     },
                 ],
             },
@@ -42868,7 +43056,7 @@ pub static GAMEPLAY_HERO_OF_THE_VILLAGE_FLETCHER_GIFT: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:poison"),
                     },
                 ],
             },
@@ -43202,7 +43390,7 @@ pub static GAMEPLAY_PIGLIN_BARTERING: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                    kind: LootFunctionKind::SetPotion("minecraft:fire_resistance"),
                 }],
             },
             LootEntry {
@@ -43212,7 +43400,7 @@ pub static GAMEPLAY_PIGLIN_BARTERING: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                    kind: LootFunctionKind::SetPotion("minecraft:fire_resistance"),
                 }],
             },
             LootEntry {
@@ -43222,7 +43410,7 @@ pub static GAMEPLAY_PIGLIN_BARTERING: LootTable = LootTable {
                 condition: LootCondition::None,
                 functions: &[LootFunction {
                     condition: LootCondition::None,
-                    kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                    kind: LootFunctionKind::SetPotion("minecraft:water"),
                 }],
             },
             LootEntry {
@@ -44329,7 +44517,7 @@ pub static SPAWNERS_OMINOUS_TRIAL_CHAMBER_CONSUMABLES: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:regeneration"),
                     },
                 ],
             },
@@ -44348,7 +44536,7 @@ pub static SPAWNERS_OMINOUS_TRIAL_CHAMBER_CONSUMABLES: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:strength"),
                     },
                 ],
             },
@@ -44441,7 +44629,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_CONSUMABLES: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:regeneration"),
                     },
                 ],
             },
@@ -44460,7 +44648,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_CONSUMABLES: LootTable = LootTable {
                     },
                     LootFunction {
                         condition: LootCondition::None,
-                        kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                        kind: LootFunctionKind::SetPotion("minecraft:swiftness"),
                     },
                 ],
             },
@@ -44492,7 +44680,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_ITEMS_TO_DROP_WHEN_OMINOUS: LootTable = LootTa
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:wind_charged"),
                         },
                     ],
                 },
@@ -44511,7 +44699,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_ITEMS_TO_DROP_WHEN_OMINOUS: LootTable = LootTa
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:oozing"),
                         },
                     ],
                 },
@@ -44530,7 +44718,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_ITEMS_TO_DROP_WHEN_OMINOUS: LootTable = LootTa
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:weaving"),
                         },
                     ],
                 },
@@ -44549,7 +44737,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_ITEMS_TO_DROP_WHEN_OMINOUS: LootTable = LootTa
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:infested"),
                         },
                     ],
                 },
@@ -44568,7 +44756,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_ITEMS_TO_DROP_WHEN_OMINOUS: LootTable = LootTa
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:strength"),
                         },
                     ],
                 },
@@ -44587,7 +44775,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_ITEMS_TO_DROP_WHEN_OMINOUS: LootTable = LootTa
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:swiftness"),
                         },
                     ],
                 },
@@ -44606,7 +44794,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_ITEMS_TO_DROP_WHEN_OMINOUS: LootTable = LootTa
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:slow_falling"),
                         },
                     ],
                 },
@@ -44646,7 +44834,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_ITEMS_TO_DROP_WHEN_OMINOUS: LootTable = LootTa
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:poison"),
                         },
                     ],
                 },
@@ -44665,7 +44853,7 @@ pub static SPAWNERS_TRIAL_CHAMBER_ITEMS_TO_DROP_WHEN_OMINOUS: LootTable = LootTa
                         },
                         LootFunction {
                             condition: LootCondition::None,
-                            kind: LootFunctionKind::Unsupported("minecraft:set_potion"),
+                            kind: LootFunctionKind::SetPotion("minecraft:strong_slowness"),
                         },
                     ],
                 },
@@ -47478,4 +47666,4460 @@ pub fn get_loot_table(key: &str) -> Option<&'static LootTable> {
 #[must_use]
 pub fn get_chest_loot_table(key: &str) -> Option<&'static LootTable> {
     get_loot_table(key)
+}
+pub fn block_property_identity(block: &str, property: &str) -> Option<u32> {
+    match block.strip_prefix("minecraft:").unwrap_or(block) {
+        "acacia_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "acacia_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "acacia_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "acacia_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "acacia_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "acacia_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "acacia_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "acacia_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "acacia_sapling" => match property {
+            "stage" => Some(17u32),
+            _ => None,
+        },
+        "acacia_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "acacia_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "acacia_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "acacia_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "acacia_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "acacia_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "acacia_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "acacia_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "activator_rail" => match property {
+            "powered" => Some(2u32),
+            "shape" => Some(22u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "amethyst_cluster" => match property {
+            "facing" => Some(23u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "andesite_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "andesite_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "andesite_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "anvil" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "attached_melon_stem" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "attached_pumpkin_stem" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "azalea_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo" => match property {
+            "age" => Some(29u32),
+            "leaves" => Some(30u32),
+            "stage" => Some(17u32),
+            _ => None,
+        },
+        "bamboo_block" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "bamboo_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "bamboo_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "bamboo_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "bamboo_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "bamboo_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo_mosaic_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo_mosaic_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "bamboo_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bamboo_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "barrel" => match property {
+            "facing" => Some(23u32),
+            "open" => Some(5u32),
+            _ => None,
+        },
+        "barrier" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "basalt" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "bee_nest" => match property {
+            "facing" => Some(1u32),
+            "honey_level" => Some(31u32),
+            _ => None,
+        },
+        "beehive" => match property {
+            "facing" => Some(1u32),
+            "honey_level" => Some(31u32),
+            _ => None,
+        },
+        "beetroots" => match property {
+            "age" => Some(32u32),
+            _ => None,
+        },
+        "bell" => match property {
+            "attachment" => Some(33u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "big_dripleaf" => match property {
+            "facing" => Some(1u32),
+            "tilt" => Some(34u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "big_dripleaf_stem" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "birch_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "birch_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "birch_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "birch_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "birch_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "birch_sapling" => match property {
+            "stage" => Some(17u32),
+            _ => None,
+        },
+        "birch_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "birch_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "black_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "black_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "black_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "black_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "black_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "black_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "black_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "black_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "blackstone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "blackstone_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "blackstone_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "blast_furnace" => match property {
+            "facing" => Some(1u32),
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "blue_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "blue_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "blue_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "blue_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "blue_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "blue_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "blue_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "blue_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "bone_block" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "brain_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "brain_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "brain_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "brewing_stand" => match property {
+            "has_bottle_0" => Some(39u32),
+            "has_bottle_1" => Some(40u32),
+            "has_bottle_2" => Some(41u32),
+            _ => None,
+        },
+        "brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "brown_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "brown_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "brown_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "brown_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "brown_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "brown_mushroom_block" => match property {
+            "down" => Some(42u32),
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "up" => Some(27u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "brown_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "brown_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "brown_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "bubble_column" => match property {
+            "drag" => Some(43u32),
+            _ => None,
+        },
+        "bubble_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bubble_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "bubble_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cactus" => match property {
+            "age" => Some(44u32),
+            _ => None,
+        },
+        "cake" => match property {
+            "bites" => Some(45u32),
+            _ => None,
+        },
+        "calibrated_sculk_sensor" => match property {
+            "facing" => Some(1u32),
+            "power" => Some(46u32),
+            "sculk_sensor_phase" => Some(47u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "campfire" => match property {
+            "facing" => Some(1u32),
+            "lit" => Some(38u32),
+            "signal_fire" => Some(48u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "carrots" => match property {
+            "age" => Some(49u32),
+            _ => None,
+        },
+        "carved_pumpkin" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "cave_vines" => match property {
+            "age" => Some(50u32),
+            "berries" => Some(51u32),
+            _ => None,
+        },
+        "cave_vines_plant" => match property {
+            "berries" => Some(51u32),
+            _ => None,
+        },
+        "chain_command_block" => match property {
+            "conditional" => Some(52u32),
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "cherry_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "cherry_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "cherry_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "cherry_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "cherry_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cherry_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cherry_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "cherry_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "cherry_sapling" => match property {
+            "stage" => Some(17u32),
+            _ => None,
+        },
+        "cherry_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cherry_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cherry_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cherry_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cherry_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cherry_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cherry_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cherry_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "chipped_anvil" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "chiseled_bookshelf" => match property {
+            "facing" => Some(1u32),
+            "slot_0_occupied" => Some(54u32),
+            "slot_1_occupied" => Some(55u32),
+            "slot_2_occupied" => Some(56u32),
+            "slot_3_occupied" => Some(57u32),
+            "slot_4_occupied" => Some(58u32),
+            "slot_5_occupied" => Some(59u32),
+            _ => None,
+        },
+        "chorus_flower" => match property {
+            "age" => Some(60u32),
+            _ => None,
+        },
+        "chorus_plant" => match property {
+            "down" => Some(42u32),
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "up" => Some(27u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "cinnabar_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cinnabar_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cinnabar_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "cinnabar_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cinnabar_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cinnabar_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "cobbled_deepslate_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cobbled_deepslate_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cobbled_deepslate_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "cobblestone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cobblestone_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cobblestone_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "cocoa" => match property {
+            "age" => Some(61u32),
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "command_block" => match property {
+            "conditional" => Some(52u32),
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "comparator" => match property {
+            "facing" => Some(1u32),
+            "mode" => Some(62u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "composter" => match property {
+            "level" => Some(63u32),
+            _ => None,
+        },
+        "conduit" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "copper_bars" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "copper_bulb" => match property {
+            "lit" => Some(38u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "copper_chain" => match property {
+            "axis" => Some(16u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "copper_chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "copper_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "copper_golem_statue" => match property {
+            "copper_golem_pose" => Some(64u32),
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "copper_grate" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "copper_lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "copper_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "copper_wall_torch" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "crafter" => match property {
+            "crafting" => Some(66u32),
+            "orientation" => Some(67u32),
+            "triggered" => Some(68u32),
+            _ => None,
+        },
+        "creaking_heart" => match property {
+            "axis" => Some(16u32),
+            "creaking_heart_state" => Some(69u32),
+            "natural" => Some(70u32),
+            _ => None,
+        },
+        "creeper_head" => match property {
+            "powered" => Some(2u32),
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "creeper_wall_head" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "crimson_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "crimson_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "crimson_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "crimson_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "crimson_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "crimson_hyphae" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "crimson_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "crimson_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "crimson_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "crimson_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "crimson_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "crimson_stem" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "crimson_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "crimson_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "crimson_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cut_copper_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cut_copper_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cut_red_sandstone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cut_sandstone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cyan_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "cyan_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "cyan_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "cyan_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "cyan_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "cyan_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "cyan_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "cyan_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "damaged_anvil" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "dark_oak_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "dark_oak_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "dark_oak_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "dark_oak_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "dark_oak_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_oak_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_oak_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "dark_oak_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "dark_oak_sapling" => match property {
+            "stage" => Some(17u32),
+            _ => None,
+        },
+        "dark_oak_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_oak_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_oak_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_oak_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_oak_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_oak_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_oak_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_oak_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "dark_prismarine_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dark_prismarine_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "daylight_detector" => match property {
+            "inverted" => Some(71u32),
+            "power" => Some(46u32),
+            _ => None,
+        },
+        "dead_brain_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_brain_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_brain_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_bubble_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_bubble_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_bubble_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_fire_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_fire_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_fire_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_horn_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_horn_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_horn_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_tube_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_tube_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dead_tube_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "decorated_pot" => match property {
+            "cracked" => Some(72u32),
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "deepslate" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "deepslate_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "deepslate_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "deepslate_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "deepslate_redstone_ore" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "deepslate_tile_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "deepslate_tile_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "deepslate_tile_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "detector_rail" => match property {
+            "powered" => Some(2u32),
+            "shape" => Some(22u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "diorite_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "diorite_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "diorite_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "dispenser" => match property {
+            "facing" => Some(23u32),
+            "triggered" => Some(68u32),
+            _ => None,
+        },
+        "dragon_head" => match property {
+            "powered" => Some(2u32),
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "dragon_wall_head" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "dried_ghast" => match property {
+            "facing" => Some(1u32),
+            "hydration" => Some(73u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "dropper" => match property {
+            "facing" => Some(23u32),
+            "triggered" => Some(68u32),
+            _ => None,
+        },
+        "end_portal_frame" => match property {
+            "eye" => Some(74u32),
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "end_rod" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "end_stone_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "end_stone_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "end_stone_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "ender_chest" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "exposed_copper_bars" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "exposed_copper_bulb" => match property {
+            "lit" => Some(38u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "exposed_copper_chain" => match property {
+            "axis" => Some(16u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "exposed_copper_chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "exposed_copper_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "exposed_copper_golem_statue" => match property {
+            "copper_golem_pose" => Some(64u32),
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "exposed_copper_grate" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "exposed_copper_lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "exposed_copper_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "exposed_cut_copper_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "exposed_cut_copper_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "exposed_lightning_rod" => match property {
+            "facing" => Some(23u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "farmland" => match property {
+            "moisture" => Some(75u32),
+            _ => None,
+        },
+        "fire" => match property {
+            "age" => Some(44u32),
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "up" => Some(27u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "fire_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "fire_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "fire_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "flowering_azalea_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "frosted_ice" => match property {
+            "age" => Some(32u32),
+            _ => None,
+        },
+        "furnace" => match property {
+            "facing" => Some(1u32),
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "glow_lichen" => match property {
+            "down" => Some(42u32),
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "granite_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "granite_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "granite_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "grass_block" => match property {
+            "snowy" => Some(76u32),
+            _ => None,
+        },
+        "gray_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "gray_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "gray_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "gray_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "gray_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "gray_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "gray_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "gray_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "green_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "green_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "green_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "green_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "green_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "green_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "green_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "green_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "grindstone" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "hanging_roots" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "hay_block" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "heavy_core" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "heavy_weighted_pressure_plate" => match property {
+            "power" => Some(46u32),
+            _ => None,
+        },
+        "hopper" => match property {
+            "enabled" => Some(77u32),
+            "facing" => Some(78u32),
+            _ => None,
+        },
+        "horn_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "horn_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "horn_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "infested_deepslate" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "iron_bars" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "iron_chain" => match property {
+            "axis" => Some(16u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "iron_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "iron_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jack_o_lantern" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "jigsaw" => match property {
+            "orientation" => Some(67u32),
+            _ => None,
+        },
+        "jukebox" => match property {
+            "has_record" => Some(79u32),
+            _ => None,
+        },
+        "jungle_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "jungle_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "jungle_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "jungle_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "jungle_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jungle_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jungle_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "jungle_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "jungle_sapling" => match property {
+            "stage" => Some(17u32),
+            _ => None,
+        },
+        "jungle_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jungle_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jungle_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jungle_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jungle_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jungle_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jungle_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "jungle_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "kelp" => match property {
+            "age" => Some(50u32),
+            _ => None,
+        },
+        "ladder" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "large_amethyst_bud" => match property {
+            "facing" => Some(23u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "large_fern" => match property {
+            "half" => Some(3u32),
+            _ => None,
+        },
+        "lava" => match property {
+            "level" => Some(80u32),
+            _ => None,
+        },
+        "leaf_litter" => match property {
+            "facing" => Some(1u32),
+            "segment_amount" => Some(81u32),
+            _ => None,
+        },
+        "lectern" => match property {
+            "facing" => Some(1u32),
+            "has_book" => Some(82u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "lever" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "light" => match property {
+            "level" => Some(80u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "light_blue_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "light_blue_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "light_blue_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "light_blue_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "light_blue_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "light_blue_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "light_blue_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "light_blue_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "light_gray_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "light_gray_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "light_gray_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "light_gray_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "light_gray_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "light_gray_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "light_gray_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "light_gray_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "light_weighted_pressure_plate" => match property {
+            "power" => Some(46u32),
+            _ => None,
+        },
+        "lightning_rod" => match property {
+            "facing" => Some(23u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "lilac" => match property {
+            "half" => Some(3u32),
+            _ => None,
+        },
+        "lime_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "lime_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "lime_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "lime_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "lime_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "lime_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "lime_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "lime_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "loom" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "magenta_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "magenta_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "magenta_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "magenta_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "magenta_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "magenta_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "magenta_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "magenta_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "mangrove_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "mangrove_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "mangrove_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "mangrove_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "mangrove_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "mangrove_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "mangrove_propagule" => match property {
+            "age" => Some(83u32),
+            "hanging" => Some(65u32),
+            "stage" => Some(17u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_roots" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mangrove_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "medium_amethyst_bud" => match property {
+            "facing" => Some(23u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "melon_stem" => match property {
+            "age" => Some(49u32),
+            _ => None,
+        },
+        "mossy_cobblestone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mossy_cobblestone_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mossy_cobblestone_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "mossy_stone_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mossy_stone_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mossy_stone_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "moving_piston" => match property {
+            "facing" => Some(23u32),
+            "type" => Some(84u32),
+            _ => None,
+        },
+        "mud_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mud_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "mud_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "muddy_mangrove_roots" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "mushroom_stem" => match property {
+            "down" => Some(42u32),
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "up" => Some(27u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "mycelium" => match property {
+            "snowy" => Some(76u32),
+            _ => None,
+        },
+        "nether_brick_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "nether_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "nether_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "nether_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "nether_portal" => match property {
+            "axis" => Some(85u32),
+            _ => None,
+        },
+        "nether_wart" => match property {
+            "age" => Some(32u32),
+            _ => None,
+        },
+        "note_block" => match property {
+            "instrument" => Some(86u32),
+            "note" => Some(87u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "oak_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "oak_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "oak_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "oak_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "oak_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oak_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oak_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "oak_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "oak_sapling" => match property {
+            "stage" => Some(17u32),
+            _ => None,
+        },
+        "oak_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oak_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oak_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oak_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oak_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oak_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oak_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oak_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "observer" => match property {
+            "facing" => Some(23u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "ochre_froglight" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "orange_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "orange_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "orange_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "orange_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "orange_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "orange_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "orange_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "orange_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "oxidized_copper_bars" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "oxidized_copper_bulb" => match property {
+            "lit" => Some(38u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "oxidized_copper_chain" => match property {
+            "axis" => Some(16u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oxidized_copper_chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oxidized_copper_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "oxidized_copper_golem_statue" => match property {
+            "copper_golem_pose" => Some(64u32),
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oxidized_copper_grate" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oxidized_copper_lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oxidized_copper_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oxidized_cut_copper_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oxidized_cut_copper_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "oxidized_lightning_rod" => match property {
+            "facing" => Some(23u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_hanging_moss" => match property {
+            "tip" => Some(88u32),
+            _ => None,
+        },
+        "pale_moss_carpet" => match property {
+            "bottom" => Some(89u32),
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "pale_oak_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "pale_oak_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "pale_oak_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "pale_oak_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "pale_oak_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_oak_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_oak_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "pale_oak_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "pale_oak_sapling" => match property {
+            "stage" => Some(17u32),
+            _ => None,
+        },
+        "pale_oak_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_oak_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_oak_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_oak_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_oak_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_oak_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_oak_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pale_oak_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "pearlescent_froglight" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "peony" => match property {
+            "half" => Some(3u32),
+            _ => None,
+        },
+        "petrified_oak_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "piglin_head" => match property {
+            "powered" => Some(2u32),
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "piglin_wall_head" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "pink_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "pink_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "pink_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "pink_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "pink_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "pink_petals" => match property {
+            "facing" => Some(1u32),
+            "flower_amount" => Some(90u32),
+            _ => None,
+        },
+        "pink_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "pink_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "pink_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "piston" => match property {
+            "extended" => Some(91u32),
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "piston_head" => match property {
+            "facing" => Some(23u32),
+            "short" => Some(92u32),
+            "type" => Some(84u32),
+            _ => None,
+        },
+        "pitcher_crop" => match property {
+            "age" => Some(83u32),
+            "half" => Some(3u32),
+            _ => None,
+        },
+        "pitcher_plant" => match property {
+            "half" => Some(3u32),
+            _ => None,
+        },
+        "player_head" => match property {
+            "powered" => Some(2u32),
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "player_wall_head" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "podzol" => match property {
+            "snowy" => Some(76u32),
+            _ => None,
+        },
+        "pointed_dripstone" => match property {
+            "thickness" => Some(93u32),
+            "vertical_direction" => Some(94u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_andesite_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_andesite_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_basalt" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "polished_blackstone_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_blackstone_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_blackstone_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "polished_blackstone_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "polished_blackstone_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "polished_blackstone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_blackstone_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_blackstone_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "polished_cinnabar_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_cinnabar_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_cinnabar_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "polished_deepslate_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_deepslate_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_deepslate_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "polished_diorite_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_diorite_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_granite_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_granite_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_sulfur_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_sulfur_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_sulfur_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "polished_tuff_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_tuff_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "polished_tuff_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "potatoes" => match property {
+            "age" => Some(49u32),
+            _ => None,
+        },
+        "potent_sulfur" => match property {
+            "potent_sulfur_state" => Some(95u32),
+            _ => None,
+        },
+        "powder_snow_cauldron" => match property {
+            "level" => Some(96u32),
+            _ => None,
+        },
+        "powered_rail" => match property {
+            "powered" => Some(2u32),
+            "shape" => Some(22u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "prismarine_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "prismarine_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "prismarine_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "prismarine_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "prismarine_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "pumpkin_stem" => match property {
+            "age" => Some(49u32),
+            _ => None,
+        },
+        "purple_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "purple_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "purple_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "purple_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "purple_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "purple_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "purple_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "purple_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "purpur_pillar" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "purpur_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "purpur_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "quartz_pillar" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "quartz_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "quartz_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "rail" => match property {
+            "shape" => Some(97u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "red_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "red_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "red_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "red_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "red_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "red_mushroom_block" => match property {
+            "down" => Some(42u32),
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "up" => Some(27u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "red_nether_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "red_nether_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "red_nether_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "red_sandstone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "red_sandstone_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "red_sandstone_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "red_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "red_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "red_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "redstone_lamp" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "redstone_ore" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "redstone_torch" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "redstone_wall_torch" => match property {
+            "facing" => Some(1u32),
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "redstone_wire" => match property {
+            "east" => Some(98u32),
+            "north" => Some(99u32),
+            "power" => Some(46u32),
+            "south" => Some(100u32),
+            "west" => Some(101u32),
+            _ => None,
+        },
+        "repeater" => match property {
+            "delay" => Some(102u32),
+            "facing" => Some(1u32),
+            "locked" => Some(103u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "repeating_command_block" => match property {
+            "conditional" => Some(52u32),
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "resin_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "resin_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "resin_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "resin_clump" => match property {
+            "down" => Some(42u32),
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "respawn_anchor" => match property {
+            "charges" => Some(104u32),
+            _ => None,
+        },
+        "rose_bush" => match property {
+            "half" => Some(3u32),
+            _ => None,
+        },
+        "sandstone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sandstone_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sandstone_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "scaffolding" => match property {
+            "bottom" => Some(89u32),
+            "distance" => Some(105u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sculk_catalyst" => match property {
+            "bloom" => Some(106u32),
+            _ => None,
+        },
+        "sculk_sensor" => match property {
+            "power" => Some(46u32),
+            "sculk_sensor_phase" => Some(47u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sculk_shrieker" => match property {
+            "can_summon" => Some(107u32),
+            "shrieking" => Some(108u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sculk_vein" => match property {
+            "down" => Some(42u32),
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "sea_pickle" => match property {
+            "pickles" => Some(109u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "skeleton_skull" => match property {
+            "powered" => Some(2u32),
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "skeleton_wall_skull" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "small_amethyst_bud" => match property {
+            "facing" => Some(23u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "small_dripleaf" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "smoker" => match property {
+            "facing" => Some(1u32),
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "smooth_quartz_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "smooth_quartz_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "smooth_red_sandstone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "smooth_red_sandstone_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "smooth_sandstone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "smooth_sandstone_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "smooth_stone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sniffer_egg" => match property {
+            "hatch" => Some(110u32),
+            _ => None,
+        },
+        "snow" => match property {
+            "layers" => Some(111u32),
+            _ => None,
+        },
+        "soul_campfire" => match property {
+            "facing" => Some(1u32),
+            "lit" => Some(38u32),
+            "signal_fire" => Some(48u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "soul_lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "soul_wall_torch" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "spruce_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "spruce_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "spruce_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "spruce_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "spruce_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "spruce_leaves" => match property {
+            "distance" => Some(14u32),
+            "persistent" => Some(15u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "spruce_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "spruce_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "spruce_sapling" => match property {
+            "stage" => Some(17u32),
+            _ => None,
+        },
+        "spruce_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "spruce_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "spruce_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "spruce_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "spruce_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "spruce_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "spruce_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "spruce_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "sticky_piston" => match property {
+            "extended" => Some(91u32),
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "stone_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "stone_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "stone_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "stone_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "stone_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "stone_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "stone_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "stonecutter" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "stripped_acacia_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_acacia_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_bamboo_block" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_birch_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_birch_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_cherry_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_cherry_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_crimson_hyphae" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_crimson_stem" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_dark_oak_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_dark_oak_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_jungle_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_jungle_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_mangrove_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_mangrove_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_oak_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_oak_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_pale_oak_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_pale_oak_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_spruce_log" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_spruce_wood" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_warped_hyphae" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "stripped_warped_stem" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "structure_block" => match property {
+            "mode" => Some(112u32),
+            _ => None,
+        },
+        "sugar_cane" => match property {
+            "age" => Some(44u32),
+            _ => None,
+        },
+        "sulfur_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sulfur_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sulfur_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "sulfur_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sulfur_spike" => match property {
+            "thickness" => Some(93u32),
+            "vertical_direction" => Some(94u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sulfur_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "sulfur_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "sunflower" => match property {
+            "half" => Some(3u32),
+            _ => None,
+        },
+        "suspicious_gravel" => match property {
+            "dusted" => Some(113u32),
+            _ => None,
+        },
+        "suspicious_sand" => match property {
+            "dusted" => Some(113u32),
+            _ => None,
+        },
+        "sweet_berry_bush" => match property {
+            "age" => Some(32u32),
+            _ => None,
+        },
+        "tall_grass" => match property {
+            "half" => Some(3u32),
+            _ => None,
+        },
+        "tall_seagrass" => match property {
+            "half" => Some(3u32),
+            _ => None,
+        },
+        "target" => match property {
+            "power" => Some(46u32),
+            _ => None,
+        },
+        "test_block" => match property {
+            "mode" => Some(114u32),
+            _ => None,
+        },
+        "tnt" => match property {
+            "unstable" => Some(115u32),
+            _ => None,
+        },
+        "torchflower_crop" => match property {
+            "age" => Some(29u32),
+            _ => None,
+        },
+        "trapped_chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "trial_spawner" => match property {
+            "ominous" => Some(116u32),
+            "trial_spawner_state" => Some(117u32),
+            _ => None,
+        },
+        "tripwire" => match property {
+            "attached" => Some(12u32),
+            "disarmed" => Some(118u32),
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "powered" => Some(2u32),
+            "south" => Some(8u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "tripwire_hook" => match property {
+            "attached" => Some(12u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "tube_coral" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "tube_coral_fan" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "tube_coral_wall_fan" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "tuff_brick_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "tuff_brick_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "tuff_brick_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "tuff_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "tuff_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "tuff_wall" => match property {
+            "east" => Some(24u32),
+            "north" => Some(25u32),
+            "south" => Some(26u32),
+            "up" => Some(27u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(28u32),
+            _ => None,
+        },
+        "turtle_egg" => match property {
+            "eggs" => Some(119u32),
+            "hatch" => Some(110u32),
+            _ => None,
+        },
+        "twisting_vines" => match property {
+            "age" => Some(50u32),
+            _ => None,
+        },
+        "vault" => match property {
+            "facing" => Some(1u32),
+            "ominous" => Some(116u32),
+            "vault_state" => Some(120u32),
+            _ => None,
+        },
+        "verdant_froglight" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "vine" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "up" => Some(27u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "wall_torch" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "warped_button" => match property {
+            "face" => Some(0u32),
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "warped_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "warped_fence" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "warped_fence_gate" => match property {
+            "facing" => Some(1u32),
+            "in_wall" => Some(11u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "warped_hanging_sign" => match property {
+            "attached" => Some(12u32),
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "warped_hyphae" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "warped_pressure_plate" => match property {
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "warped_shelf" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            "side_chain" => Some(18u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "warped_sign" => match property {
+            "rotation" => Some(13u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "warped_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "warped_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "warped_stem" => match property {
+            "axis" => Some(16u32),
+            _ => None,
+        },
+        "warped_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "warped_wall_hanging_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "warped_wall_sign" => match property {
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "water" => match property {
+            "level" => Some(80u32),
+            _ => None,
+        },
+        "water_cauldron" => match property {
+            "level" => Some(96u32),
+            _ => None,
+        },
+        "waxed_copper_bars" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "waxed_copper_bulb" => match property {
+            "lit" => Some(38u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "waxed_copper_chain" => match property {
+            "axis" => Some(16u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_copper_chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_copper_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "waxed_copper_golem_statue" => match property {
+            "copper_golem_pose" => Some(64u32),
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_copper_grate" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_copper_lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_copper_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_cut_copper_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_cut_copper_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_exposed_copper_bars" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "waxed_exposed_copper_bulb" => match property {
+            "lit" => Some(38u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "waxed_exposed_copper_chain" => match property {
+            "axis" => Some(16u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_exposed_copper_chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_exposed_copper_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "waxed_exposed_copper_golem_statue" => match property {
+            "copper_golem_pose" => Some(64u32),
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_exposed_copper_grate" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_exposed_copper_lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_exposed_copper_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_exposed_cut_copper_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_exposed_cut_copper_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_exposed_lightning_rod" => match property {
+            "facing" => Some(23u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_lightning_rod" => match property {
+            "facing" => Some(23u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_oxidized_copper_bars" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "waxed_oxidized_copper_bulb" => match property {
+            "lit" => Some(38u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "waxed_oxidized_copper_chain" => match property {
+            "axis" => Some(16u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_oxidized_copper_chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_oxidized_copper_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "waxed_oxidized_copper_golem_statue" => match property {
+            "copper_golem_pose" => Some(64u32),
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_oxidized_copper_grate" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_oxidized_copper_lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_oxidized_copper_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_oxidized_cut_copper_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_oxidized_cut_copper_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_oxidized_lightning_rod" => match property {
+            "facing" => Some(23u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_weathered_copper_bars" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "waxed_weathered_copper_bulb" => match property {
+            "lit" => Some(38u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "waxed_weathered_copper_chain" => match property {
+            "axis" => Some(16u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_weathered_copper_chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_weathered_copper_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "waxed_weathered_copper_golem_statue" => match property {
+            "copper_golem_pose" => Some(64u32),
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_weathered_copper_grate" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_weathered_copper_lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_weathered_copper_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_weathered_cut_copper_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_weathered_cut_copper_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "waxed_weathered_lightning_rod" => match property {
+            "facing" => Some(23u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weathered_copper_bars" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "weathered_copper_bulb" => match property {
+            "lit" => Some(38u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "weathered_copper_chain" => match property {
+            "axis" => Some(16u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weathered_copper_chest" => match property {
+            "facing" => Some(1u32),
+            "type" => Some(53u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weathered_copper_door" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(3u32),
+            "hinge" => Some(4u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "weathered_copper_golem_statue" => match property {
+            "copper_golem_pose" => Some(64u32),
+            "facing" => Some(1u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weathered_copper_grate" => match property {
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weathered_copper_lantern" => match property {
+            "hanging" => Some(65u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weathered_copper_trapdoor" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "open" => Some(5u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weathered_cut_copper_slab" => match property {
+            "type" => Some(19u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weathered_cut_copper_stairs" => match property {
+            "facing" => Some(1u32),
+            "half" => Some(20u32),
+            "shape" => Some(21u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weathered_lightning_rod" => match property {
+            "facing" => Some(23u32),
+            "powered" => Some(2u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "weeping_vines" => match property {
+            "age" => Some(50u32),
+            _ => None,
+        },
+        "wheat" => match property {
+            "age" => Some(49u32),
+            _ => None,
+        },
+        "white_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "white_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "white_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "white_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "white_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "white_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "white_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "white_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "wildflowers" => match property {
+            "facing" => Some(1u32),
+            "flower_amount" => Some(90u32),
+            _ => None,
+        },
+        "wither_skeleton_skull" => match property {
+            "powered" => Some(2u32),
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "wither_skeleton_wall_skull" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        "yellow_banner" => match property {
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "yellow_bed" => match property {
+            "facing" => Some(1u32),
+            "occupied" => Some(35u32),
+            "part" => Some(36u32),
+            _ => None,
+        },
+        "yellow_candle" => match property {
+            "candles" => Some(37u32),
+            "lit" => Some(38u32),
+            "waterlogged" => Some(9u32),
+            _ => None,
+        },
+        "yellow_candle_cake" => match property {
+            "lit" => Some(38u32),
+            _ => None,
+        },
+        "yellow_glazed_terracotta" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "yellow_shulker_box" => match property {
+            "facing" => Some(23u32),
+            _ => None,
+        },
+        "yellow_stained_glass_pane" => match property {
+            "east" => Some(6u32),
+            "north" => Some(7u32),
+            "south" => Some(8u32),
+            "waterlogged" => Some(9u32),
+            "west" => Some(10u32),
+            _ => None,
+        },
+        "yellow_wall_banner" => match property {
+            "facing" => Some(1u32),
+            _ => None,
+        },
+        "zombie_head" => match property {
+            "powered" => Some(2u32),
+            "rotation" => Some(13u32),
+            _ => None,
+        },
+        "zombie_wall_head" => match property {
+            "facing" => Some(1u32),
+            "powered" => Some(2u32),
+            _ => None,
+        },
+        _ => None,
+    }
 }

@@ -639,23 +639,6 @@ fn drop_loot_inner(
                         pumpkin_data::block_properties::DecoratedPotLikeProperties::from_state_id(state.id).cracked))
                 {
                     block_entity.write_dropped_stack_components(stack);
-                    // Both hive loot tables copy bees and honey only on their
-                    // silk-touch branch. A normal hive drop must not duplicate bees.
-                    if is_hive && let Some(state) = params.block_state {
-                        let honey =
-                            pumpkin_data::block_properties::BeeNestLikeProperties::from_state_id(
-                                state.id,
-                            )
-                            .honey_level;
-                        stack.set_data_component(
-                            pumpkin_data::data_component_impl::BlockStateImpl {
-                                properties: std::borrow::Cow::Owned(vec![(
-                                    "honey_level".into(),
-                                    honey.to_string().into(),
-                                )]),
-                            },
-                        );
-                    }
                 }
             }
         }

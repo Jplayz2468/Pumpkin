@@ -1515,3 +1515,12 @@ pool and table levels; large counts split without wrapping. Decorated pots use t
 shared dynamic sherd path, and amethyst checks its item tag. ENGINE_GAPS.md records
 576 additional Java cases and the remaining functions/context/reload work. Full
 block certification and mob passes remain separate, unfinished gates.
+
+
+### Loot item components and property identity
+
+Damage, potion contents and block-state copying now execute in the shared loot
+pipeline. Honey-level copying uses its normal function. State copying uses exported
+Java property identities across all 1,196 blocks, so matching names with different
+value domains are kept distinct. ENGINE_GAPS.md records 704 Java comparison cases
+and the remaining 206 unsupported function declarations and broader engine gates.

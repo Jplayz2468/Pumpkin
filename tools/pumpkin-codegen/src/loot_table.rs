@@ -509,6 +509,35 @@ fn number_tokens(value: &serde_json::Value) -> TokenStream {
     }
 }
 
+type BlockPropertyIds = std::collections::BTreeMap<String, std::collections::BTreeMap<String, u32>>;
+fn block_property_ids() -> &'static BlockPropertyIds {
+    static IDS: std::sync::OnceLock<BlockPropertyIds> = std::sync::OnceLock::new();
+    IDS.get_or_init(|| {
+        serde_json::from_str(
+            &fs::read_to_string("../../assets/block_property_ids.json")
+                .expect("Java block property identities"),
+        )
+        .expect("block property identity JSON")
+    })
+}
+fn property_lookup_tokens() -> TokenStream {
+    let blocks: Vec<_> = block_property_ids()
+        .iter()
+        .filter(|(_, properties)| !properties.is_empty())
+        .map(|(block, properties)| {
+            let block = block.strip_prefix("minecraft:").unwrap_or(block);
+            let properties: Vec<_> = properties
+                .iter()
+                .map(|(name, id)| quote! { #name => Some(#id), })
+                .collect();
+            quote! { #block => match property { #(#properties)* _ => None }, }
+        })
+        .collect();
+    quote! { pub fn block_property_identity(block: &str, property: &str) -> Option<u32> {
+        match block.strip_prefix("minecraft:").unwrap_or(block) { #(#blocks)* _ => None }
+    } }
+}
+
 fn functions_tokens(functions: &[EntryFunctionStruct]) -> TokenStream {
     let functions: Vec<_> = functions.iter().map(|function| {
         let condition = condition_to_tokens(combine_conditions(&function.conditions));
@@ -525,6 +554,25 @@ fn functions_tokens(functions: &[EntryFunctionStruct]) -> TokenStream {
                 let option = |v: &serde_json::Value| if v.is_null() { quote! {None} } else { let n=number_tokens(v); quote! {Some(#n)} };
                 let min = option(min); let max = option(max);
                 quote! { LootFunctionKind::LimitCount { min: #min, max: #max } }
+            }
+            "minecraft:set_damage" => {
+                let damage = number_tokens(field("damage")); let add = field("add").as_bool().unwrap_or(false);
+                quote! { LootFunctionKind::SetDamage { damage: #damage, add: #add } }
+            }
+            "minecraft:set_potion" => {
+                let id = field("id").as_str().expect("potion identifier");
+                quote! { LootFunctionKind::SetPotion(#id) }
+            }
+            "minecraft:copy_state" => {
+                let block = field("block").as_str().expect("copy_state block");
+                let declared = block_property_ids().get(block).expect("copy_state known block");
+                let mut properties = Vec::new();
+                let mut seen = std::collections::HashSet::new();
+                for property in field("properties").as_array().expect("copy_state properties") {
+                    let name = property.as_str().expect("copy_state property name");
+                    if let Some(id) = declared.get(name) && seen.insert(name) { properties.push(quote! { (#name, #id) }); }
+                }
+                quote! { LootFunctionKind::CopyState { properties: &[#(#properties),*] } }
             }
             "minecraft:explosion_decay" => quote! { LootFunctionKind::ExplosionDecay },
             "minecraft:apply_bonus" => {
@@ -725,9 +773,11 @@ pub fn build() -> TokenStream {
         }
     });
 
+    let property_lookup = property_lookup_tokens();
     quote! {
         pub use pumpkin_util::loot_table::*;
         #all_tokens
+        #property_lookup
     }
 }
 
@@ -738,6 +788,16 @@ pub fn build_fixtures() -> TokenStream {
             .expect("loot oracle tables"),
     )
     .expect("loot oracle JSON");
+    let tables: Vec<_> = tables.iter().map(table_tokens).collect();
+    quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
+}
+
+pub fn build_component_fixtures() -> TokenStream {
+    let tables: Vec<ChestLootTableJson> = serde_json::from_str(
+        &fs::read_to_string("../../crates/pumpkin/src/world/loot_component_tables.json")
+            .expect("loot component tables"),
+    )
+    .expect("loot component JSON");
     let tables: Vec<_> = tables.iter().map(table_tokens).collect();
     quote! { use pumpkin_util::loot_table::*; pub static TABLES: &[LootTable] = &[#(#tables),*]; }
 }
