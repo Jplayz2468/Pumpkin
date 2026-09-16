@@ -109,32 +109,37 @@ const fn get_fill_sound(item: &Item) -> Sound {
     }
 }
 
-/// ItemUtils.createFilledResult for an interaction stack (either hand).
-pub(crate) fn exchange_bucket_stack(player: &Player, stack: &mut ItemStack, result: &'static Item) {
-    if player.gamemode.load() == GameMode::Creative {
-        let already_has = player
-            .inventory
-            .main_inventory
-            .read()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .iter()
-            .any(|item| item.item.id == result.id);
-        if already_has {
-            return;
+/// ItemUtils.createFilledResult, including component-aware creative deduplication.
+pub(crate) fn exchange_filled_result(
+    player: &Player,
+    stack: &mut ItemStack,
+    mut result: ItemStack,
+    limit_creative_stack_size: bool,
+) {
+    use pumpkin_inventory::{inventory::Inventory, screen_handler::InventoryPlayer};
+
+    let creative = player.has_infinite_materials();
+    if creative && limit_creative_stack_size {
+        if !player.inventory.contains_any_predicate(&|existing| {
+            !existing.is_empty() && existing.are_items_and_components_equal(&result)
+        }) {
+            // Vanilla discards an uninserted creative result in this branch.
+            player.inventory.insert_stack_anywhere(&mut result);
         }
-    } else {
+        return;
+    }
+    if !creative {
         stack.decrement(1);
-        if stack.is_empty() {
-            *stack = ItemStack::new(1, result);
-            return;
-        }
     }
-    let mut filled = ItemStack::new(1, result);
-    if !player.inventory.insert_stack_anywhere(&mut filled) && !filled.is_empty() {
-        player
-            .world()
-            .drop_stack(&player.position().to_block_pos(), filled);
+    if stack.is_empty() {
+        *stack = result;
+    } else if !player.inventory.insert_stack_anywhere(&mut result) && !result.is_empty() {
+        InventoryPlayer::drop_item(player, result, false);
     }
+}
+
+pub(crate) fn exchange_bucket_stack(player: &Player, stack: &mut ItemStack, result: &'static Item) {
+    exchange_filled_result(player, stack, ItemStack::new(1, result), true);
 }
 
 fn give_player_bucket_item(player: &Player, item: &'static Item) {

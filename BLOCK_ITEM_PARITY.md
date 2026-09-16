@@ -954,3 +954,33 @@ so they must not be used to reconstruct audit completion.
   generic nonplayer breathing and underwater vehicle dismount, effect/protocol
   differences, and previously recorded block/item dependencies. This source
   implementation does not establish complete parity.
+
+
+## Latest continuation: cauldron interactions and filled-result exchange
+
+- All four cauldrons accept the three full buckets, including replacing an already
+  full cauldron. Lava/powder-snow emptying underwater consumes the interaction
+  without changing the hand or block. Bucket pickup requires full layered levels.
+- Bottles produce water potions with explicit fresh potion contents. Only plain
+  water potions refill water/empty cauldrons. Centered sounds, source item/custom
+  statistics, null-source fluid events and lower-level BLOCK_CHANGE events follow
+  the corresponding source handlers, including the water handler's consumed-stack
+  ITEM_USED lookup. Existing cauldron-level cancellation hooks cover each mutation.
+- Dye washing requires CAULDRON_CAN_REMOVE_DYE and precedes individual item
+  handlers. Banners lose only their last pattern; colored shulker boxes preserve
+  their component patch on a single uncolored result. Creative washing retains
+  the original and grants the cleaned result on every use.
+- Shared ItemUtils filled-result exchange now compares item AND components across
+  the inventory, preserves creative originals, discards uninserted limited creative
+  results, replaces exhausted survival hands and drops overflow without ownership.
+  Existing bucket-stack exchange delegates to this helper.
+- Filled cauldron collision callbacks filter the wall/content-shape union. Water
+  extinguishes fire; burning entities melt powder snow to water before lowering
+  it, with player spawn protection and projectile-owner interaction rules. Lava
+  clears freezing, ignites for 15 seconds and applies four lava damage. Negative
+  fire-immunity countdowns survive extinguishing. Lava drip plugin levels report 3.
+- Still open: the engine's swept collision/effect ordering and deduplication,
+  vanilla lava-hurt sound gating/entity random stream, broader inventory insertion
+  semantics and the legacy main-hand bucket-use path. These are source changes,
+  not a completed parity result. Rustfmt and diff whitespace review only; no
+  compilation, tests or gameplay runs.

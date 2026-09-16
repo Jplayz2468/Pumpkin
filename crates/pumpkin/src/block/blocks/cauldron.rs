@@ -1,15 +1,21 @@
-use std::sync::Arc;
+use std::sync::{Arc, atomic::Ordering};
 
 use crate::block::registry::BlockActionResult;
 use crate::block::{
     BlockBehaviour, BlockMetadata, GetComparatorOutputArgs, PathComputationType, UseWithItemArgs,
 };
+use crate::item::items::bucket::exchange_filled_result;
+use crate::plugin::block::cauldron_level_change::CauldronChangeReason;
 use pumpkin_data::block_properties::WaterCauldronLikeProperties;
+use pumpkin_data::data_component::DataComponent;
+use pumpkin_data::data_component_impl::{BannerPatternsImpl, DyedColorImpl, PotionContentsImpl};
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::sound::{Sound, SoundCategory};
+use pumpkin_data::statistic::{CustomStatistic, StatisticCategory};
 use pumpkin_data::tag::Taggable;
-use pumpkin_data::{Block, BlockId, BlockState};
+use pumpkin_data::{Block, BlockId, BlockState, BlockStateId};
+use pumpkin_util::math::{boundingbox::BoundingBox, position::BlockPos};
 use pumpkin_world::world::BlockFlags;
 
 pub struct CauldronBlock;
@@ -49,15 +55,37 @@ fn fire_cauldron_change(
     !event.cancelled
 }
 
-fn give_item_or_drop(
-    player: &crate::entity::player::Player,
-    world: &std::sync::Arc<crate::world::World>,
-    item: &'static Item,
+fn fill_state(block: &Block, level: u8) -> BlockStateId {
+    if level == 0 {
+        return Block::CAULDRON.default_state.id;
+    }
+    if block == &Block::LAVA_CAULDRON {
+        return block.default_state.id;
+    }
+    let mut props = WaterCauldronLikeProperties::default(block);
+    props.level = level;
+    props.to_state_id(block)
+}
+
+fn fill_level(block: &Block, state: &BlockState) -> u8 {
+    match block.id {
+        BlockId::WATER_CAULDRON | BlockId::POWDER_SNOW_CAULDRON => {
+            WaterCauldronLikeProperties::from_state_id(state.id).level
+        }
+        BlockId::LAVA_CAULDRON => 3,
+        _ => 0,
+    }
+}
+
+fn change_level(
+    world: &Arc<crate::world::World>,
+    pos: &BlockPos,
+    state: BlockStateId,
+    lower: bool,
 ) {
-    let mut stack = ItemStack::new(1, item);
-    let was_added = player.inventory.insert_stack_anywhere(&mut stack);
-    if !was_added && !stack.is_empty() {
-        world.drop_stack(&player.position().to_block_pos(), stack);
+    world.set_block_state(pos, state, BlockFlags::NOTIFY_ALL);
+    if lower {
+        world.emit_game_event_from_entity("block_change", pos.to_centered_f64(), None, Some(state));
     }
 }
 
@@ -82,7 +110,11 @@ impl BlockBehaviour for CauldronBlock {
             args.world,
             *args.position,
             i32::from(old_level),
-            i32::from(old_level + 1),
+            if fluid == &pumpkin_data::Fluid::LAVA {
+                3
+            } else {
+                i32::from(old_level + 1)
+            },
             crate::plugin::block::cauldron_level_change::CauldronChangeReason::NaturalFill,
             None,
         ) {
@@ -112,325 +144,286 @@ impl BlockBehaviour for CauldronBlock {
         args.world.sync_world_event(event, *args.position, 0);
     }
 
-    #[allow(clippy::too_many_lines)]
     fn use_with_item(&self, args: UseWithItemArgs<'_>) -> BlockActionResult {
-        let item_id = args.item_stack.item.id;
-        let block_id = args.block.id;
-        let gamemode = args.player.gamemode.load();
+        let item = args.item_stack.item;
+        let state = args.world.get_block_state(args.position);
+        let level = fill_level(args.block, state);
+        let water = args.block == &Block::WATER_CAULDRON;
+        let pass = BlockActionResult::PassToDefaultBlockAction;
+        let allow = |new_level: u8, reason| {
+            fire_cauldron_change(
+                args.world,
+                *args.position,
+                i32::from(level),
+                i32::from(new_level),
+                reason,
+                Some(Arc::clone(args.player) as Arc<dyn crate::entity::EntityBase>),
+            )
+        };
 
-        if block_id == BlockId::CAULDRON {
-            if item_id == Item::WATER_BUCKET.id {
-                if !fire_cauldron_change(
+        // Tag dispatch precedes item dispatch, including custom tag membership.
+        if water
+            && item
+                .is_tagged_with("minecraft:cauldron_can_remove_dye")
+                .unwrap_or(false)
+        {
+            if args
+                .item_stack
+                .get_data_component::<DyedColorImpl>()
+                .is_none()
+            {
+                return pass;
+            }
+            if !allow(level - 1, CauldronChangeReason::Unknown) {
+                return BlockActionResult::Pass;
+            }
+            args.item_stack
+                .remove_data_component(DataComponent::DyedColor);
+            args.player.increment_stat(
+                StatisticCategory::Custom,
+                CustomStatistic::CleanArmor as i32,
+                1,
+            );
+            change_level(
+                args.world,
+                args.position,
+                fill_state(&Block::WATER_CAULDRON, level - 1),
+                true,
+            );
+            return BlockActionResult::Success;
+        }
+
+        // Built-in banner and dyed shulker registrations are item identities, not tags.
+        let banner = item.registry_key.ends_with("_banner");
+        let dyed_shulker = item.registry_key.ends_with("_shulker_box");
+        if water && (banner || dyed_shulker) {
+            let mut cleaned = args.item_stack.copy_with_count(1);
+            let stat = if banner {
+                let Some(mut patterns) = args
+                    .item_stack
+                    .get_data_component::<BannerPatternsImpl>()
+                    .cloned()
+                else {
+                    return pass;
+                };
+                if patterns.layers.pop().is_none() {
+                    return pass;
+                }
+                cleaned.set_data_component(patterns);
+                CustomStatistic::CleanBanner
+            } else {
+                cleaned.item = &Item::SHULKER_BOX;
+                CustomStatistic::CleanShulkerBox
+            };
+            if !allow(level - 1, CauldronChangeReason::Unknown) {
+                return BlockActionResult::Pass;
+            }
+            exchange_filled_result(args.player, args.item_stack, cleaned, false);
+            args.player
+                .increment_stat(StatisticCategory::Custom, stat as i32, 1);
+            change_level(
+                args.world,
+                args.position,
+                fill_state(&Block::WATER_CAULDRON, level - 1),
+                true,
+            );
+            return BlockActionResult::Success;
+        }
+
+        let (result, next_block, next_level, reason, stat, sound, event, lower) = if item
+            == &Item::WATER_BUCKET
+            || item == &Item::LAVA_BUCKET
+            || item == &Item::POWDER_SNOW_BUCKET
+        {
+            if item != &Item::WATER_BUCKET {
+                let (fluid, _) = args.world.get_fluid_and_fluid_state(&args.position.up());
+                if fluid.is_tagged_with("minecraft:water").unwrap_or(false) {
+                    return BlockActionResult::Consume;
+                }
+            }
+            let (block, sound) = if item == &Item::WATER_BUCKET {
+                (&Block::WATER_CAULDRON, Sound::ItemBucketEmpty)
+            } else if item == &Item::LAVA_BUCKET {
+                (&Block::LAVA_CAULDRON, Sound::ItemBucketEmptyLava)
+            } else {
+                (
+                    &Block::POWDER_SNOW_CAULDRON,
+                    Sound::ItemBucketEmptyPowderSnow,
+                )
+            };
+            (
+                ItemStack::new(1, &Item::BUCKET),
+                block,
+                3,
+                CauldronChangeReason::BucketEmpty,
+                CustomStatistic::FillCauldron,
+                sound,
+                "fluid_place",
+                false,
+            )
+        } else if item == &Item::BUCKET && level == 3 {
+            let (filled, sound) = match args.block.id {
+                BlockId::WATER_CAULDRON => (&Item::WATER_BUCKET, Sound::ItemBucketFill),
+                BlockId::LAVA_CAULDRON => (&Item::LAVA_BUCKET, Sound::ItemBucketFillLava),
+                BlockId::POWDER_SNOW_CAULDRON => {
+                    (&Item::POWDER_SNOW_BUCKET, Sound::ItemBucketFillPowderSnow)
+                }
+                _ => return pass,
+            };
+            (
+                ItemStack::new(1, filled),
+                &Block::CAULDRON,
+                0,
+                CauldronChangeReason::BucketFill,
+                CustomStatistic::UseCauldron,
+                sound,
+                "fluid_pickup",
+                false,
+            )
+        } else if item == &Item::GLASS_BOTTLE && water {
+            let mut potion = ItemStack::new(1, &Item::POTION);
+            potion.set_data_component(PotionContentsImpl {
+                potion_id: Some(pumpkin_data::potion::Potion::WATER.id as i32),
+                custom_color: None,
+                custom_effects: Vec::new(),
+                custom_name: None,
+            });
+            (
+                potion,
+                &Block::WATER_CAULDRON,
+                level - 1,
+                CauldronChangeReason::BottleFill,
+                CustomStatistic::UseCauldron,
+                Sound::ItemBottleFill,
+                "fluid_pickup",
+                true,
+            )
+        } else if item == &Item::POTION && (water || args.block == &Block::CAULDRON) && level < 3 {
+            if !args
+                .item_stack
+                .get_data_component::<PotionContentsImpl>()
+                .is_some_and(|potion| {
+                    potion.potion_id == Some(pumpkin_data::potion::Potion::WATER.id as i32)
+                        && potion.custom_effects.is_empty()
+                })
+            {
+                return pass;
+            }
+            (
+                ItemStack::new(1, &Item::GLASS_BOTTLE),
+                &Block::WATER_CAULDRON,
+                level + 1,
+                CauldronChangeReason::BottleEmpty,
+                CustomStatistic::UseCauldron,
+                Sound::ItemBottleEmpty,
+                "fluid_place",
+                false,
+            )
+        } else {
+            return pass;
+        };
+        if !allow(next_level, reason) {
+            return BlockActionResult::Pass;
+        }
+        // WATER's potion handler reads the consumed original stack for ITEM_USED.
+        let used = if water
+            && item == &Item::POTION
+            && args.item_stack.item_count == 1
+            && args.player.gamemode.load() != pumpkin_util::GameMode::Creative
+        {
+            &Item::AIR
+        } else {
+            item
+        };
+        exchange_filled_result(args.player, args.item_stack, result, true);
+        args.player
+            .increment_stat(StatisticCategory::Custom, stat as i32, 1);
+        args.player
+            .increment_stat(StatisticCategory::Used, i32::from(used.id), 1);
+        change_level(
+            args.world,
+            args.position,
+            fill_state(next_block, next_level),
+            lower,
+        );
+        args.world.play_sound(
+            sound,
+            SoundCategory::Blocks,
+            &args.position.to_centered_f64(),
+        );
+        args.world
+            .emit_game_event_from_entity(event, args.position.to_centered_f64(), None, None);
+        BlockActionResult::Success
+    }
+
+    fn on_entity_collision(&self, args: crate::block::OnEntityCollisionArgs<'_>) {
+        let level = fill_level(args.block, args.state);
+        if level == 0 {
+            return;
+        }
+        let entity = args.entity.get_entity();
+        let body = entity.bounding_box.load();
+        let contents = BoundingBox::new_array(
+            [0.125, 0.25, 0.125],
+            [0.875, f64::from(6 + 3 * level) / 16.0, 0.875],
+        )
+        .at_pos(*args.position);
+        // The engine supplies one broad inside box; filter the filled-shape union here.
+        if !body.intersects(&contents)
+            && !args
+                .world
+                .block_collision_boxes(args.position)
+                .iter()
+                .any(|shape| body.intersects(&shape.at_pos(*args.position)))
+        {
+            return;
+        }
+        if args.block == &Block::LAVA_CAULDRON {
+            entity.set_frozen_ticks(0);
+            if !entity.fire_immune.load(Ordering::Relaxed) {
+                args.entity.set_on_fire_for(15.0);
+                args.entity.damage_with_context(
+                    args.entity,
+                    4.0,
+                    pumpkin_data::damage::DamageType::LAVA,
+                    None,
+                    None,
+                    None,
+                );
+            }
+        } else {
+            let may_interact = if let Some(player) = args.entity.get_player() {
+                !args.world.is_in_spawn_protection(player, args.position)
+            } else {
+                !crate::entity::projectile::is_projectile(entity.entity_type)
+                    || crate::entity::projectile::may_interact(
+                        args.entity,
+                        args.world,
+                        args.position,
+                    )
+            };
+            if entity.is_on_fire()
+                && may_interact
+                && fire_cauldron_change(
                     args.world,
                     *args.position,
-                    0,
-                    3,
-                    crate::plugin::block::cauldron_level_change::CauldronChangeReason::BucketEmpty,
-                    Some(Arc::clone(args.player) as Arc<dyn crate::entity::EntityBase>),
-                ) {
-                    return BlockActionResult::Pass;
-                }
-                let state_id = Block::WATER_CAULDRON
-                    .from_properties(&[("level", "3")])
-                    .to_state_id(&Block::WATER_CAULDRON);
-                args.world
-                    .set_block_state(args.position, state_id, BlockFlags::NOTIFY_ALL);
-                args.world.play_sound(
-                    Sound::ItemBucketEmpty,
-                    SoundCategory::Blocks,
-                    &args.position.to_f64(),
-                );
-                args.item_stack.decrement_unless_creative(gamemode, 1);
-                give_item_or_drop(args.player, args.world, &Item::BUCKET);
-                args.player.increment_stat(
-                    pumpkin_data::statistic::StatisticCategory::Custom,
-                    pumpkin_data::statistic::CustomStatistic::FillCauldron as i32,
-                    1,
-                );
-                return BlockActionResult::Success;
-            } else if item_id == Item::LAVA_BUCKET.id {
-                args.world.set_block_state(
+                    i32::from(level),
+                    i32::from(level - 1),
+                    CauldronChangeReason::Extinguish,
+                    args.world.get_entity_by_id(entity.entity_id),
+                )
+            {
+                // Burning entities melt powder snow into water before lowering it.
+                change_level(
+                    args.world,
                     args.position,
-                    Block::LAVA_CAULDRON.default_state.id,
-                    BlockFlags::NOTIFY_ALL,
+                    fill_state(&Block::WATER_CAULDRON, level - 1),
+                    true,
                 );
-                args.world.play_sound(
-                    Sound::ItemBucketEmptyLava,
-                    SoundCategory::Blocks,
-                    &args.position.to_f64(),
-                );
-                args.item_stack.decrement_unless_creative(gamemode, 1);
-                give_item_or_drop(args.player, args.world, &Item::BUCKET);
-                args.player.increment_stat(
-                    pumpkin_data::statistic::StatisticCategory::Custom,
-                    pumpkin_data::statistic::CustomStatistic::FillCauldron as i32,
-                    1,
-                );
-                return BlockActionResult::Success;
-            } else if item_id == Item::POWDER_SNOW_BUCKET.id {
-                let state_id = Block::POWDER_SNOW_CAULDRON
-                    .from_properties(&[("level", "3")])
-                    .to_state_id(&Block::POWDER_SNOW_CAULDRON);
-                args.world
-                    .set_block_state(args.position, state_id, BlockFlags::NOTIFY_ALL);
-                args.world.play_sound(
-                    Sound::ItemBucketEmptyPowderSnow,
-                    SoundCategory::Blocks,
-                    &args.position.to_f64(),
-                );
-                args.item_stack.decrement_unless_creative(gamemode, 1);
-                give_item_or_drop(args.player, args.world, &Item::BUCKET);
-                args.player.increment_stat(
-                    pumpkin_data::statistic::StatisticCategory::Custom,
-                    pumpkin_data::statistic::CustomStatistic::FillCauldron as i32,
-                    1,
-                );
-                return BlockActionResult::Success;
-            } else if item_id == Item::POTION.id {
-                let state_id = Block::WATER_CAULDRON
-                    .from_properties(&[("level", "1")])
-                    .to_state_id(&Block::WATER_CAULDRON);
-                args.world
-                    .set_block_state(args.position, state_id, BlockFlags::NOTIFY_ALL);
-                args.world.play_sound(
-                    Sound::ItemBottleEmpty,
-                    SoundCategory::Blocks,
-                    &args.position.to_f64(),
-                );
-                args.item_stack.decrement_unless_creative(gamemode, 1);
-                give_item_or_drop(args.player, args.world, &Item::GLASS_BOTTLE);
-                args.player.increment_stat(
-                    pumpkin_data::statistic::StatisticCategory::Custom,
-                    pumpkin_data::statistic::CustomStatistic::UseCauldron as i32,
-                    1,
-                );
-                return BlockActionResult::Success;
             }
+            // clearFire preserves the negative fire-immunity countdown.
+            entity.fire_ticks.fetch_min(0, Ordering::Relaxed);
         }
-
-        if item_id == Item::BUCKET.id {
-            let state_id = args.world.get_block_state_id(args.position);
-            let (filled_item, sound) = if block_id == BlockId::WATER_CAULDRON {
-                let props = WaterCauldronLikeProperties::from_state_id(state_id);
-                if props.level == 3 {
-                    (Some(&Item::WATER_BUCKET), Sound::ItemBucketFill)
-                } else {
-                    (None, Sound::ItemBucketFill)
-                }
-            } else if block_id == BlockId::LAVA_CAULDRON {
-                (Some(&Item::LAVA_BUCKET), Sound::ItemBucketFillLava)
-            } else if block_id == BlockId::POWDER_SNOW_CAULDRON {
-                let props = WaterCauldronLikeProperties::from_state_id(state_id);
-                if props.level == 3 {
-                    (
-                        Some(&Item::POWDER_SNOW_BUCKET),
-                        Sound::ItemBucketFillPowderSnow,
-                    )
-                } else {
-                    (None, Sound::ItemBucketFillPowderSnow)
-                }
-            } else {
-                (None, Sound::ItemBucketFill)
-            };
-
-            if let Some(result_item) = filled_item {
-                args.world.set_block_state(
-                    args.position,
-                    Block::CAULDRON.default_state.id,
-                    BlockFlags::NOTIFY_ALL,
-                );
-                args.world
-                    .play_sound(sound, SoundCategory::Blocks, &args.position.to_f64());
-                args.item_stack.decrement_unless_creative(gamemode, 1);
-                give_item_or_drop(args.player, args.world, result_item);
-                args.player.increment_stat(
-                    pumpkin_data::statistic::StatisticCategory::Custom,
-                    pumpkin_data::statistic::CustomStatistic::UseCauldron as i32,
-                    1,
-                );
-                return BlockActionResult::Success;
-            }
-        }
-
-        if block_id == BlockId::WATER_CAULDRON {
-            let state_id = args.world.get_block_state_id(args.position);
-            let props = WaterCauldronLikeProperties::from_state_id(state_id);
-            if props.level > 0 {
-                if item_id == Item::POTION.id && props.level < 3 {
-                    let next_level_str = match props.level {
-                        1 => "2",
-                        _ => "3",
-                    };
-                    let new_state_id = Block::WATER_CAULDRON
-                        .from_properties(&[("level", next_level_str)])
-                        .to_state_id(&Block::WATER_CAULDRON);
-                    args.world
-                        .set_block_state(args.position, new_state_id, BlockFlags::NOTIFY_ALL);
-                    args.world.play_sound(
-                        Sound::ItemBottleEmpty,
-                        SoundCategory::Blocks,
-                        &args.position.to_f64(),
-                    );
-                    args.item_stack.decrement_unless_creative(gamemode, 1);
-                    give_item_or_drop(args.player, args.world, &Item::GLASS_BOTTLE);
-                    args.player.increment_stat(
-                        pumpkin_data::statistic::StatisticCategory::Custom,
-                        pumpkin_data::statistic::CustomStatistic::UseCauldron as i32,
-                        1,
-                    );
-                    return BlockActionResult::Success;
-                }
-
-                if item_id == Item::GLASS_BOTTLE.id {
-                    let next_level = props.level - 1;
-                    if next_level > 0 {
-                        let next_level_str = match next_level {
-                            2 => "2",
-                            _ => "1",
-                        };
-                        let new_state_id = Block::WATER_CAULDRON
-                            .from_properties(&[("level", next_level_str)])
-                            .to_state_id(&Block::WATER_CAULDRON);
-                        args.world.set_block_state(
-                            args.position,
-                            new_state_id,
-                            BlockFlags::NOTIFY_ALL,
-                        );
-                    } else {
-                        args.world.set_block_state(
-                            args.position,
-                            Block::CAULDRON.default_state.id,
-                            BlockFlags::NOTIFY_ALL,
-                        );
-                    }
-                    args.world.play_sound(
-                        Sound::ItemBottleFill,
-                        SoundCategory::Blocks,
-                        &args.position.to_f64(),
-                    );
-                    args.item_stack.decrement_unless_creative(gamemode, 1);
-                    give_item_or_drop(args.player, args.world, &Item::POTION);
-                    args.player.increment_stat(
-                        pumpkin_data::statistic::StatisticCategory::Custom,
-                        pumpkin_data::statistic::CustomStatistic::UseCauldron as i32,
-                        1,
-                    );
-                    return BlockActionResult::Success;
-                }
-
-                if args
-                    .item_stack
-                    .item
-                    .has_tag(&pumpkin_data::tag::Item::MINECRAFT_SHULKER_BOXES)
-                    && args.item_stack.item.id != Item::SHULKER_BOX.id
-                {
-                    let next_level = props.level - 1;
-                    if next_level > 0 {
-                        let next_level_str = match next_level {
-                            2 => "2",
-                            _ => "1",
-                        };
-                        let new_state_id = Block::WATER_CAULDRON
-                            .from_properties(&[("level", next_level_str)])
-                            .to_state_id(&Block::WATER_CAULDRON);
-                        args.world.set_block_state(
-                            args.position,
-                            new_state_id,
-                            BlockFlags::NOTIFY_ALL,
-                        );
-                    } else {
-                        args.world.set_block_state(
-                            args.position,
-                            Block::CAULDRON.default_state.id,
-                            BlockFlags::NOTIFY_ALL,
-                        );
-                    }
-                    args.item_stack.item = &Item::SHULKER_BOX;
-                    args.player.increment_stat(
-                        pumpkin_data::statistic::StatisticCategory::Custom,
-                        pumpkin_data::statistic::CustomStatistic::CleanShulkerBox as i32,
-                        1,
-                    );
-                    return BlockActionResult::Success;
-                }
-
-                if args
-                    .item_stack
-                    .get_data_component::<pumpkin_data::data_component_impl::BannerPatternsImpl>()
-                    .is_some()
-                {
-                    let next_level = props.level - 1;
-                    if next_level > 0 {
-                        let next_level_str = match next_level {
-                            2 => "2",
-                            _ => "1",
-                        };
-                        let new_state_id = Block::WATER_CAULDRON
-                            .from_properties(&[("level", next_level_str)])
-                            .to_state_id(&Block::WATER_CAULDRON);
-                        args.world.set_block_state(
-                            args.position,
-                            new_state_id,
-                            BlockFlags::NOTIFY_ALL,
-                        );
-                    } else {
-                        args.world.set_block_state(
-                            args.position,
-                            Block::CAULDRON.default_state.id,
-                            BlockFlags::NOTIFY_ALL,
-                        );
-                    }
-                    args.item_stack.remove_data_component(
-                        pumpkin_data::data_component::DataComponent::BannerPatterns,
-                    );
-                    args.player.increment_stat(
-                        pumpkin_data::statistic::StatisticCategory::Custom,
-                        pumpkin_data::statistic::CustomStatistic::CleanBanner as i32,
-                        1,
-                    );
-                    return BlockActionResult::Success;
-                }
-
-                if args
-                    .item_stack
-                    .get_data_component::<pumpkin_data::data_component_impl::DyedColorImpl>()
-                    .is_some()
-                {
-                    let next_level = props.level - 1;
-                    if next_level > 0 {
-                        let next_level_str = match next_level {
-                            2 => "2",
-                            _ => "1",
-                        };
-                        let new_state_id = Block::WATER_CAULDRON
-                            .from_properties(&[("level", next_level_str)])
-                            .to_state_id(&Block::WATER_CAULDRON);
-                        args.world.set_block_state(
-                            args.position,
-                            new_state_id,
-                            BlockFlags::NOTIFY_ALL,
-                        );
-                    } else {
-                        args.world.set_block_state(
-                            args.position,
-                            Block::CAULDRON.default_state.id,
-                            BlockFlags::NOTIFY_ALL,
-                        );
-                    }
-                    args.item_stack.remove_data_component(
-                        pumpkin_data::data_component::DataComponent::DyedColor,
-                    );
-                    args.player.increment_stat(
-                        pumpkin_data::statistic::StatisticCategory::Custom,
-                        pumpkin_data::statistic::CustomStatistic::CleanArmor as i32,
-                        1,
-                    );
-                    return BlockActionResult::Success;
-                }
-            }
-        }
-
-        BlockActionResult::PassToDefaultBlockAction
     }
 
     fn get_comparator_output(&self, args: GetComparatorOutputArgs<'_>) -> Option<u8> {
