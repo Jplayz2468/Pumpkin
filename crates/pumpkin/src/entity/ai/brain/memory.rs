@@ -22,6 +22,16 @@ pub enum MemoryValue {
     Float(f32),
     Position(pumpkin_util::math::position::BlockPos),
     Vec3(pumpkin_util::math::vector3::Vector3<f64>),
+    /// Vanilla's `WalkTarget`: where to go, how fast, and how close counts as arrived.
+    /// Kept as one value because `MoveToTargetSink` needs all three together.
+    WalkTarget {
+        destination: pumpkin_util::math::vector3::Vector3<f64>,
+        speed: f32,
+        close_enough: i32,
+    },
+    /// The damage type of a `hurt_by` memory. Vanilla stores the whole `DamageSource`;
+    /// the type is the part behaviours actually test, through tags like `panic_causes`.
+    DamageType(pumpkin_data::damage::DamageType),
     /// An entity, referenced by id so a memory never keeps a removed entity alive.
     EntityId(i32),
     EntityIds(Vec<i32>),

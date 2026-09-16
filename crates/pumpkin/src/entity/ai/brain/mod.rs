@@ -16,9 +16,11 @@
 //! machinery it and the rest should move onto.
 
 pub mod behavior;
+pub mod behaviors;
 pub mod memory;
 pub mod registry;
 pub mod sensor;
+pub mod sensors;
 
 #[cfg(test)]
 mod tests;

@@ -477,3 +477,132 @@ fn generated_registries_match_the_jar_counts() {
     assert_eq!(Activity::Core.name(), "core");
     assert_eq!(MemoryModuleType::AttackTarget.name(), "attack_target");
 }
+
+// ── behaviour ports ─────────────────────────────────────────────────────────
+//
+// Only the actor-agnostic behaviours are covered here. The rest are
+// `Behavior<MobActor>` and need a live world to resolve the mob, so they are
+// exercised on the server rather than in unit tests.
+
+mod behaviors {
+    use super::*;
+    use crate::entity::ai::brain::behaviors::count_down_cooldown_ticks::CountDownCooldownTicks;
+    use crate::entity::ai::brain::behaviors::gate::{GateBehavior, OrderPolicy, RunningPolicy};
+    use crate::entity::ai::brain::memory::MemoryValue;
+
+    fn memories_with(memory: MemoryModuleType, value: MemoryValue) -> MemoryMap {
+        let mut memories = MemoryMap::new();
+        memories.register(memory);
+        memories.set(memory, value);
+        memories
+    }
+
+    /// `CountDownCooldownTicks` is how every brain cooldown expires: one per tick, then
+    /// the memory is erased so the gated behaviour becomes eligible again.
+    #[test]
+    fn cooldown_counts_down_one_per_tick_then_erases_itself() {
+        let mut slot: BehaviorSlot<()> =
+            BehaviorSlot::new(Box::new(CountDownCooldownTicks::new(
+                MemoryModuleType::ChargeCooldownTicks,
+            )));
+        let mut memories = memories_with(
+            MemoryModuleType::ChargeCooldownTicks,
+            MemoryValue::Int(3),
+        );
+
+        let mut ctx = BehaviorContext {
+            actor: &(),
+            memories: &mut memories,
+            time: 0,
+        };
+        assert!(slot.try_start(&mut ctx, 100));
+
+        for expected in [2, 1, 0] {
+            let mut ctx = BehaviorContext {
+                actor: &(),
+                memories: &mut memories,
+                time: 0,
+            };
+            slot.tick_or_stop(&mut ctx);
+            assert_eq!(
+                memories.get(MemoryModuleType::ChargeCooldownTicks),
+                Some(&MemoryValue::Int(expected)),
+                "cooldown should tick down one per tick"
+            );
+        }
+
+        // At zero the behaviour stops, and stopping erases the memory.
+        let mut ctx = BehaviorContext {
+            actor: &(),
+            memories: &mut memories,
+            time: 0,
+        };
+        slot.tick_or_stop(&mut ctx);
+        assert_eq!(slot.status(), BehaviorStatus::Stopped);
+        assert!(
+            !memories.has(MemoryModuleType::ChargeCooldownTicks),
+            "an expired cooldown must be erased, not left at zero"
+        );
+    }
+
+    /// `RunOne` stops at the first child that starts; `TryAll` starts every child that
+    /// will. Getting this backwards would make a gate run far more than vanilla does.
+    #[test]
+    fn gate_running_policy_decides_how_many_children_start() {
+        for (policy, expected) in [
+            (RunningPolicy::RunOne, vec!["a:start"]),
+            (RunningPolicy::TryAll, vec!["a:start", "b:start"]),
+        ] {
+            let entries = log();
+            let mut slot: BehaviorSlot<()> = BehaviorSlot::new(Box::new(GateBehavior::new(
+                vec![],
+                OrderPolicy::Ordered,
+                policy,
+                vec![
+                    BehaviorSlot::new(Box::new(Recorder::new("a", entries.clone()))),
+                    BehaviorSlot::new(Box::new(Recorder::new("b", entries.clone()))),
+                ],
+            )));
+            let mut memories = MemoryMap::new();
+            let mut ctx = BehaviorContext {
+                actor: &(),
+                memories: &mut memories,
+                time: 0,
+            };
+            assert!(slot.try_start(&mut ctx, 100));
+            assert_eq!(*entries.lock().unwrap(), expected);
+        }
+    }
+
+    /// A gate stops when its last child does, so an idle activity does not sit "running"
+    /// with nothing underneath it.
+    #[test]
+    fn gate_stops_once_no_child_is_still_running() {
+        let entries = log();
+        let mut slot: BehaviorSlot<()> = BehaviorSlot::new(Box::new(GateBehavior::new(
+            vec![],
+            OrderPolicy::Ordered,
+            RunningPolicy::TryAll,
+            vec![BehaviorSlot::new(Box::new(Recorder::new(
+                "only",
+                entries.clone(),
+            )))],
+        )));
+        let mut memories = MemoryMap::new();
+        let mut ctx = BehaviorContext {
+            actor: &(),
+            memories: &mut memories,
+            time: 0,
+        };
+        assert!(slot.try_start(&mut ctx, 100));
+
+        // The child runs a single tick by default, so the gate has nothing left.
+        let mut ctx = BehaviorContext {
+            actor: &(),
+            memories: &mut memories,
+            time: 0,
+        };
+        slot.tick_or_stop(&mut ctx);
+        assert_eq!(slot.status(), BehaviorStatus::Stopped);
+    }
+}

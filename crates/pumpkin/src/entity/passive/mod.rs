@@ -23,6 +23,7 @@ pub mod llama;
 pub mod mooshroom;
 pub mod mule;
 pub mod nautilus;
+pub mod nautilus_brain;
 pub mod zombie_nautilus;
 pub mod ocelot;
 pub mod panda;

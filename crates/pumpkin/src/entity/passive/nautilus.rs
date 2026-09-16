@@ -21,10 +21,6 @@ use pumpkin_data::entity::EntityType;
 
 use crate::entity::{
     Entity, EntityBase,
-    ai::goal::{
-        look_around::RandomLookAroundGoal, look_at_entity::LookAtEntityGoal, swim::SwimGoal,
-        wander_around::WanderAroundGoal,
-    },
     custom_sound::CustomSound,
     mob::{Mob, MobEntity},
     passive::animal::Animal,
@@ -62,28 +58,14 @@ impl NautilusEntity {
             Arc::downgrade(&mob_arc)
         };
 
-        // Vanilla drives the nautilus from a brain rather than goals. Its idle
-        // activity is a weighted choice between `RandomStroll.swim(1.0)` and
-        // `SetWalkTargetFromLookTarget`, over a `LookAtTargetSink` core
-        // behaviour (NautilusAi.initIdleActivity/initCoreActivity). The goals
-        // below reproduce that visible behaviour -- swimming about and looking
-        // around -- without a brain implementation, which is why a nautilus
-        // moves at all instead of standing still.
-        {
-            let mut goal_selector = mob_arc
-                .mob_entity
-                .goals_selector
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-
-            goal_selector.add_goal(0, Box::new(SwimGoal::default()));
-            goal_selector.add_goal(4, Box::new(WanderAroundGoal::new(1.0)));
-            goal_selector.add_goal(
-                5,
-                LookAtEntityGoal::with_default(mob_weak, &EntityType::PLAYER, 6.0),
-            );
-            goal_selector.add_goal(6, Box::new(RandomLookAroundGoal::default()));
-        }
+        // NautilusAi: the nautilus is a brain mob, not a goal mob. The brain owns its
+        // movement and looking, so goal AI is switched off for it in `run_goal_ai`.
+        *mob_arc
+            .mob_entity
+            .brain
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) =
+            Some(super::nautilus_brain::build());
 
         mob_arc
     }
@@ -282,6 +264,15 @@ impl Mob for NautilusEntity {
         if let Some(owner) = nbt.get_uuid("Owner") {
             self.owner.store(Some(owner));
         }
+    }
+
+    /// `Nautilus` is a brain mob: `NautilusAi` replaces the goal selector entirely.
+    fn run_goal_ai(&self) -> bool {
+        false
+    }
+
+    fn uses_brain_navigation(&self) -> bool {
+        true
     }
 
     fn get_mob_entity(&self) -> &MobEntity {
