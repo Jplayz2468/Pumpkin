@@ -2,7 +2,7 @@
 
 ## Working agreement
 
-- Finish a bounded source pass across blocks, then items. Reuse documented work; do not restart it.
+- Finish a bounded source pass across blocks, then mobs (user priority on 2026-09-15); retain the item queue for afterwards. Reuse documented work; do not restart it.
 - Batch related fixes. Move shared-engine work to the dependency queue below instead of expanding the current batch.
 - A reviewed batch means its block handlers were compared and local fixes made. It does **not** mean verified 1:1 parity.
 - Background tests are now authorized (2026-09-15). Keep useful work moving while they run; inspect finished results without waiting loops. Historical no-test statements in the log describe earlier work.
@@ -19,11 +19,11 @@
 | B05 | Portals and gateways | 4 | Reviewed; transition/entity dependencies queued |
 | B06 | Administrative and invisible blocks | 6 | Reviewed; execution/structure/protocol dependencies queued |
 | B07 | Redstone and pistons | 33 | Reviewed; movement/ordering dependencies queued |
-| B08 | Building shapes and placement | 15 | Pending batch closure; reuse prior ports |
-| B09 | Plants and crops | 54 | Pending batch closure; reuse prior ports |
-| B10 | Sculk and bees | 8 | Pending batch closure; reuse prior ports |
-| B11 | Terrain, growth and physical effects | 32 | Pending batch closure; reuse prior ports |
-| B12 | Containers and furnishings | 23 | Pending batch closure; reuse prior ports |
+| B08 | Building shapes and placement | 15 | Reviewed; shared collision/fluid dependencies queued |
+| B09 | Plants and crops | 54 | Carried source passes; documented dependencies retained |
+| B10 | Sculk and bees | 8 | Carried source passes; documented dependencies retained |
+| B11 | Terrain, growth and physical effects | 32 | Carried source passes; documented dependencies retained |
+| B12 | Containers and furnishings | 23 | Carried source passes; documented dependencies retained |
 | B13 | Remaining blocks and shared module routing | 23 | Pending batch closure; reuse prior ports |
 | B14 | Vanilla registry, inheritance and data coverage | registry gate | Pending batch closure; reuse prior ports |
 
@@ -102,77 +102,77 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B07 | [redstone/target_block.rs](crates/pumpkin/src/block/blocks/redstone/target_block.rs) | Carried |
 | B07 | [redstone/tripwire.rs](crates/pumpkin/src/block/blocks/redstone/tripwire.rs) | Reviewed |
 | B07 | [redstone/tripwire_hook.rs](crates/pumpkin/src/block/blocks/redstone/tripwire_hook.rs) | Reviewed |
-| B08 | [chain.rs](crates/pumpkin/src/block/blocks/chain.rs) | Pending |
-| B08 | [end_rod.rs](crates/pumpkin/src/block/blocks/end_rod.rs) | Pending |
-| B08 | [fences.rs](crates/pumpkin/src/block/blocks/fences.rs) | Pending |
-| B08 | [glass_panes.rs](crates/pumpkin/src/block/blocks/glass_panes.rs) | Pending |
-| B08 | [glazed_terracotta.rs](crates/pumpkin/src/block/blocks/glazed_terracotta.rs) | Pending |
-| B08 | [heavy_core.rs](crates/pumpkin/src/block/blocks/heavy_core.rs) | Pending |
-| B08 | [iron_bars.rs](crates/pumpkin/src/block/blocks/iron_bars.rs) | Pending |
-| B08 | [ladder.rs](crates/pumpkin/src/block/blocks/ladder.rs) | Pending |
-| B08 | [lanterns.rs](crates/pumpkin/src/block/blocks/lanterns.rs) | Pending |
-| B08 | [scaffolding.rs](crates/pumpkin/src/block/blocks/scaffolding.rs) | Pending |
-| B08 | [slabs.rs](crates/pumpkin/src/block/blocks/slabs.rs) | Pending |
-| B08 | [stairs.rs](crates/pumpkin/src/block/blocks/stairs.rs) | Pending |
-| B08 | [torches.rs](crates/pumpkin/src/block/blocks/torches.rs) | Pending |
+| B08 | [chain.rs](crates/pumpkin/src/block/blocks/chain.rs) | Reviewed |
+| B08 | [end_rod.rs](crates/pumpkin/src/block/blocks/end_rod.rs) | Reviewed |
+| B08 | [fences.rs](crates/pumpkin/src/block/blocks/fences.rs) | Reviewed |
+| B08 | [glass_panes.rs](crates/pumpkin/src/block/blocks/glass_panes.rs) | Reviewed |
+| B08 | [glazed_terracotta.rs](crates/pumpkin/src/block/blocks/glazed_terracotta.rs) | Reviewed |
+| B08 | [heavy_core.rs](crates/pumpkin/src/block/blocks/heavy_core.rs) | Reviewed |
+| B08 | [iron_bars.rs](crates/pumpkin/src/block/blocks/iron_bars.rs) | Reviewed |
+| B08 | [ladder.rs](crates/pumpkin/src/block/blocks/ladder.rs) | Reviewed |
+| B08 | [lanterns.rs](crates/pumpkin/src/block/blocks/lanterns.rs) | Reviewed |
+| B08 | [scaffolding.rs](crates/pumpkin/src/block/blocks/scaffolding.rs) | Reviewed |
+| B08 | [slabs.rs](crates/pumpkin/src/block/blocks/slabs.rs) | Reviewed |
+| B08 | [stairs.rs](crates/pumpkin/src/block/blocks/stairs.rs) | Reviewed |
+| B08 | [torches.rs](crates/pumpkin/src/block/blocks/torches.rs) | Reviewed |
 | B08 | [walls.rs](crates/pumpkin/src/block/blocks/walls.rs) | Carried |
-| B08 | [weathering_copper.rs](crates/pumpkin/src/block/blocks/weathering_copper.rs) | Pending |
+| B08 | [weathering_copper.rs](crates/pumpkin/src/block/blocks/weathering_copper.rs) | Reviewed |
 | B09 | [plant/azalea.rs](crates/pumpkin/src/block/blocks/plant/azalea.rs) | Carried |
 | B09 | [plant/bamboo.rs](crates/pumpkin/src/block/blocks/plant/bamboo.rs) | Carried |
 | B09 | [plant/bamboo_sapling.rs](crates/pumpkin/src/block/blocks/plant/bamboo_sapling.rs) | Carried |
 | B09 | [plant/big_dripleaf.rs](crates/pumpkin/src/block/blocks/plant/big_dripleaf.rs) | Carried |
 | B09 | [plant/big_dripleaf_stem.rs](crates/pumpkin/src/block/blocks/plant/big_dripleaf_stem.rs) | Carried |
-| B09 | [plant/bush.rs](crates/pumpkin/src/block/blocks/plant/bush.rs) | Pending |
-| B09 | [plant/cactus.rs](crates/pumpkin/src/block/blocks/plant/cactus.rs) | Pending |
-| B09 | [plant/cactus_flower.rs](crates/pumpkin/src/block/blocks/plant/cactus_flower.rs) | Pending |
-| B09 | [plant/cave_vines.rs](crates/pumpkin/src/block/blocks/plant/cave_vines.rs) | Pending |
+| B09 | [plant/bush.rs](crates/pumpkin/src/block/blocks/plant/bush.rs) | Carried |
+| B09 | [plant/cactus.rs](crates/pumpkin/src/block/blocks/plant/cactus.rs) | Carried |
+| B09 | [plant/cactus_flower.rs](crates/pumpkin/src/block/blocks/plant/cactus_flower.rs) | Reviewed |
+| B09 | [plant/cave_vines.rs](crates/pumpkin/src/block/blocks/plant/cave_vines.rs) | Carried |
 | B09 | [plant/chorus_flower.rs](crates/pumpkin/src/block/blocks/plant/chorus_flower.rs) | Carried |
 | B09 | [plant/chorus_plant.rs](crates/pumpkin/src/block/blocks/plant/chorus_plant.rs) | Carried |
-| B09 | [plant/cocoa.rs](crates/pumpkin/src/block/blocks/plant/cocoa.rs) | Pending |
-| B09 | [plant/crop/beetroot.rs](crates/pumpkin/src/block/blocks/plant/crop/beetroot.rs) | Pending |
-| B09 | [plant/crop/carrot.rs](crates/pumpkin/src/block/blocks/plant/crop/carrot.rs) | Pending |
-| B09 | [plant/crop/gourds/attached_stem.rs](crates/pumpkin/src/block/blocks/plant/crop/gourds/attached_stem.rs) | Pending |
-| B09 | [plant/crop/gourds/mod.rs](crates/pumpkin/src/block/blocks/plant/crop/gourds/mod.rs) | Pending |
-| B09 | [plant/crop/gourds/stem.rs](crates/pumpkin/src/block/blocks/plant/crop/gourds/stem.rs) | Pending |
-| B09 | [plant/crop/mod.rs](crates/pumpkin/src/block/blocks/plant/crop/mod.rs) | Pending |
-| B09 | [plant/crop/nether_wart.rs](crates/pumpkin/src/block/blocks/plant/crop/nether_wart.rs) | Pending |
-| B09 | [plant/crop/pitcher_crop.rs](crates/pumpkin/src/block/blocks/plant/crop/pitcher_crop.rs) | Pending |
-| B09 | [plant/crop/potatoes.rs](crates/pumpkin/src/block/blocks/plant/crop/potatoes.rs) | Pending |
-| B09 | [plant/crop/sweet_berry_bush.rs](crates/pumpkin/src/block/blocks/plant/crop/sweet_berry_bush.rs) | Pending |
-| B09 | [plant/crop/torch_flower.rs](crates/pumpkin/src/block/blocks/plant/crop/torch_flower.rs) | Pending |
-| B09 | [plant/crop/wheat.rs](crates/pumpkin/src/block/blocks/plant/crop/wheat.rs) | Pending |
-| B09 | [plant/dry_vegetation.rs](crates/pumpkin/src/block/blocks/plant/dry_vegetation.rs) | Pending |
-| B09 | [plant/eyeblossom.rs](crates/pumpkin/src/block/blocks/plant/eyeblossom.rs) | Pending |
-| B09 | [plant/flower.rs](crates/pumpkin/src/block/blocks/plant/flower.rs) | Pending |
-| B09 | [plant/flowerbed.rs](crates/pumpkin/src/block/blocks/plant/flowerbed.rs) | Pending |
+| B09 | [plant/cocoa.rs](crates/pumpkin/src/block/blocks/plant/cocoa.rs) | Carried |
+| B09 | [plant/crop/beetroot.rs](crates/pumpkin/src/block/blocks/plant/crop/beetroot.rs) | Reviewed |
+| B09 | [plant/crop/carrot.rs](crates/pumpkin/src/block/blocks/plant/crop/carrot.rs) | Carried |
+| B09 | [plant/crop/gourds/attached_stem.rs](crates/pumpkin/src/block/blocks/plant/crop/gourds/attached_stem.rs) | Carried |
+| B09 | [plant/crop/gourds/mod.rs](crates/pumpkin/src/block/blocks/plant/crop/gourds/mod.rs) | Carried |
+| B09 | [plant/crop/gourds/stem.rs](crates/pumpkin/src/block/blocks/plant/crop/gourds/stem.rs) | Carried |
+| B09 | [plant/crop/mod.rs](crates/pumpkin/src/block/blocks/plant/crop/mod.rs) | Carried |
+| B09 | [plant/crop/nether_wart.rs](crates/pumpkin/src/block/blocks/plant/crop/nether_wart.rs) | Reviewed |
+| B09 | [plant/crop/pitcher_crop.rs](crates/pumpkin/src/block/blocks/plant/crop/pitcher_crop.rs) | Carried |
+| B09 | [plant/crop/potatoes.rs](crates/pumpkin/src/block/blocks/plant/crop/potatoes.rs) | Carried |
+| B09 | [plant/crop/sweet_berry_bush.rs](crates/pumpkin/src/block/blocks/plant/crop/sweet_berry_bush.rs) | Carried |
+| B09 | [plant/crop/torch_flower.rs](crates/pumpkin/src/block/blocks/plant/crop/torch_flower.rs) | Carried |
+| B09 | [plant/crop/wheat.rs](crates/pumpkin/src/block/blocks/plant/crop/wheat.rs) | Carried |
+| B09 | [plant/dry_vegetation.rs](crates/pumpkin/src/block/blocks/plant/dry_vegetation.rs) | Carried |
+| B09 | [plant/eyeblossom.rs](crates/pumpkin/src/block/blocks/plant/eyeblossom.rs) | Carried |
+| B09 | [plant/flower.rs](crates/pumpkin/src/block/blocks/plant/flower.rs) | Reviewed |
+| B09 | [plant/flowerbed.rs](crates/pumpkin/src/block/blocks/plant/flowerbed.rs) | Carried |
 | B09 | [plant/fungus.rs](crates/pumpkin/src/block/blocks/plant/fungus.rs) | Carried |
-| B09 | [plant/growing.rs](crates/pumpkin/src/block/blocks/plant/growing.rs) | Pending |
+| B09 | [plant/growing.rs](crates/pumpkin/src/block/blocks/plant/growing.rs) | Carried |
 | B09 | [plant/hanging_moss.rs](crates/pumpkin/src/block/blocks/plant/hanging_moss.rs) | Carried |
 | B09 | [plant/hanging_roots.rs](crates/pumpkin/src/block/blocks/plant/hanging_roots.rs) | Carried |
-| B09 | [plant/kelp.rs](crates/pumpkin/src/block/blocks/plant/kelp.rs) | Pending |
-| B09 | [plant/leaf_litter.rs](crates/pumpkin/src/block/blocks/plant/leaf_litter.rs) | Pending |
+| B09 | [plant/kelp.rs](crates/pumpkin/src/block/blocks/plant/kelp.rs) | Carried |
+| B09 | [plant/leaf_litter.rs](crates/pumpkin/src/block/blocks/plant/leaf_litter.rs) | Carried |
 | B09 | [plant/lily_pad.rs](crates/pumpkin/src/block/blocks/plant/lily_pad.rs) | Carried |
 | B09 | [plant/mangrove_propagule.rs](crates/pumpkin/src/block/blocks/plant/mangrove_propagule.rs) | Carried |
-| B09 | [plant/mod.rs](crates/pumpkin/src/block/blocks/plant/mod.rs) | Pending |
+| B09 | [plant/mod.rs](crates/pumpkin/src/block/blocks/plant/mod.rs) | Carried |
 | B09 | [plant/mushroom_plant.rs](crates/pumpkin/src/block/blocks/plant/mushroom_plant.rs) | Carried |
-| B09 | [plant/nether_sprouts.rs](crates/pumpkin/src/block/blocks/plant/nether_sprouts.rs) | Pending |
-| B09 | [plant/roots.rs](crates/pumpkin/src/block/blocks/plant/roots.rs) | Pending |
+| B09 | [plant/nether_sprouts.rs](crates/pumpkin/src/block/blocks/plant/nether_sprouts.rs) | Reviewed |
+| B09 | [plant/roots.rs](crates/pumpkin/src/block/blocks/plant/roots.rs) | Reviewed |
 | B09 | [plant/sapling.rs](crates/pumpkin/src/block/blocks/plant/sapling.rs) | Carried |
 | B09 | [plant/sea_pickles.rs](crates/pumpkin/src/block/blocks/plant/sea_pickles.rs) | Carried |
-| B09 | [plant/seagrass.rs](crates/pumpkin/src/block/blocks/plant/seagrass.rs) | Pending |
-| B09 | [plant/segmented.rs](crates/pumpkin/src/block/blocks/plant/segmented.rs) | Pending |
-| B09 | [plant/short_plant.rs](crates/pumpkin/src/block/blocks/plant/short_plant.rs) | Pending |
+| B09 | [plant/seagrass.rs](crates/pumpkin/src/block/blocks/plant/seagrass.rs) | Carried |
+| B09 | [plant/segmented.rs](crates/pumpkin/src/block/blocks/plant/segmented.rs) | Carried |
+| B09 | [plant/short_plant.rs](crates/pumpkin/src/block/blocks/plant/short_plant.rs) | Carried |
 | B09 | [plant/small_dripleaf.rs](crates/pumpkin/src/block/blocks/plant/small_dripleaf.rs) | Carried |
-| B09 | [plant/spore_blossom.rs](crates/pumpkin/src/block/blocks/plant/spore_blossom.rs) | Pending |
+| B09 | [plant/spore_blossom.rs](crates/pumpkin/src/block/blocks/plant/spore_blossom.rs) | Carried |
 | B09 | [plant/sugar_cane.rs](crates/pumpkin/src/block/blocks/plant/sugar_cane.rs) | Carried |
-| B09 | [plant/tall_plant.rs](crates/pumpkin/src/block/blocks/plant/tall_plant.rs) | Pending |
-| B09 | [plant/tall_seagrass.rs](crates/pumpkin/src/block/blocks/plant/tall_seagrass.rs) | Pending |
-| B09 | [plant/tree_grower.rs](crates/pumpkin/src/block/blocks/plant/tree_grower.rs) | Pending |
-| B09 | [plant/twisting_vines.rs](crates/pumpkin/src/block/blocks/plant/twisting_vines.rs) | Pending |
-| B09 | [plant/weeping_vines.rs](crates/pumpkin/src/block/blocks/plant/weeping_vines.rs) | Pending |
-| B09 | [plant/wither_rose.rs](crates/pumpkin/src/block/blocks/plant/wither_rose.rs) | Pending |
+| B09 | [plant/tall_plant.rs](crates/pumpkin/src/block/blocks/plant/tall_plant.rs) | Carried |
+| B09 | [plant/tall_seagrass.rs](crates/pumpkin/src/block/blocks/plant/tall_seagrass.rs) | Carried |
+| B09 | [plant/tree_grower.rs](crates/pumpkin/src/block/blocks/plant/tree_grower.rs) | Carried |
+| B09 | [plant/twisting_vines.rs](crates/pumpkin/src/block/blocks/plant/twisting_vines.rs) | Carried |
+| B09 | [plant/weeping_vines.rs](crates/pumpkin/src/block/blocks/plant/weeping_vines.rs) | Carried |
+| B09 | [plant/wither_rose.rs](crates/pumpkin/src/block/blocks/plant/wither_rose.rs) | Carried |
 | B10 | [beehive.rs](crates/pumpkin/src/block/blocks/beehive.rs) | Carried |
-| B10 | [sculk/mod.rs](crates/pumpkin/src/block/blocks/sculk/mod.rs) | Pending |
+| B10 | [sculk/mod.rs](crates/pumpkin/src/block/blocks/sculk/mod.rs) | Reviewed |
 | B10 | [sculk/sculk_catalyst.rs](crates/pumpkin/src/block/blocks/sculk/sculk_catalyst.rs) | Carried |
 | B10 | [sculk/sculk_shrieker.rs](crates/pumpkin/src/block/blocks/sculk/sculk_shrieker.rs) | Carried |
 | B10 | [sculk/sculk_vein.rs](crates/pumpkin/src/block/blocks/sculk/sculk_vein.rs) | Carried |
@@ -185,7 +185,7 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B11 | [coral/coral_block.rs](crates/pumpkin/src/block/blocks/coral/coral_block.rs) | Carried |
 | B11 | [coral/coral_fan.rs](crates/pumpkin/src/block/blocks/coral/coral_fan.rs) | Carried |
 | B11 | [coral/coral_plant.rs](crates/pumpkin/src/block/blocks/coral/coral_plant.rs) | Carried |
-| B11 | [coral/mod.rs](crates/pumpkin/src/block/blocks/coral/mod.rs) | Pending |
+| B11 | [coral/mod.rs](crates/pumpkin/src/block/blocks/coral/mod.rs) | Reviewed |
 | B11 | [dirt_path.rs](crates/pumpkin/src/block/blocks/dirt_path.rs) | Carried |
 | B11 | [dragon_egg.rs](crates/pumpkin/src/block/blocks/dragon_egg.rs) | Carried |
 | B11 | [dried_ghast.rs](crates/pumpkin/src/block/blocks/dried_ghast.rs) | Carried |
@@ -193,7 +193,7 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | B11 | [falling.rs](crates/pumpkin/src/block/blocks/falling.rs) | Carried |
 | B11 | [farmland.rs](crates/pumpkin/src/block/blocks/farmland.rs) | Carried |
 | B11 | [fire/fire.rs](crates/pumpkin/src/block/blocks/fire/fire.rs) | Carried |
-| B11 | [fire/mod.rs](crates/pumpkin/src/block/blocks/fire/mod.rs) | Pending |
+| B11 | [fire/mod.rs](crates/pumpkin/src/block/blocks/fire/mod.rs) | Reviewed |
 | B11 | [fire/soul_fire.rs](crates/pumpkin/src/block/blocks/fire/soul_fire.rs) | Carried |
 | B11 | [frogspawn.rs](crates/pumpkin/src/block/blocks/frogspawn.rs) | Carried |
 | B11 | [grass_block.rs](crates/pumpkin/src/block/blocks/grass_block.rs) | Carried |
@@ -270,7 +270,7 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 
 - Account for every entry in [the vanilla block source inventory](PARITY_VANILLA_BLOCK_SOURCES.md), including classes with no dedicated Rust file.
 - Reconcile runtime registry IDs and vanilla Blocks.java constructors with handlers or inherited/default behavior. A registered ID alone does not close the gate.
-- Compare generated properties/defaults/shapes, tags and block loot declarations. Record unhandled behavior here before moving to items.
+- Compare generated properties/defaults/shapes, tags and block loot declarations. Record unhandled behavior here and retain unresolved coverage work when moving to mobs.
 
 ## Shared dependency queue
 
@@ -284,7 +284,7 @@ Statuses: **Reviewed** = this batch compared the source; **Carried** = documente
 | D06 | Protocol/version and Bedrock behavior | Keep distinct from Java source coverage. |
 | D07 | Integration and background test failures | Fix compiler/API mismatches in one batch; separate these from gameplay source review. |
 
-## Item batches (after B14)
+## Item batches (after the requested mob pass)
 
 - I01: placement, buckets, bottles, tools and block interaction items.
 - I02: crafting/processing menus, enchanting, repairs, inventory transfers and shared item components.
@@ -426,3 +426,20 @@ Item source inventory:
 - D02/I01: moving-piston loot and pick-block data; contextual ore BlockItem checks.
 - D04/D06: minecart movement/command carts, precise entity collision dispatch and
   redstone BE/network integration retain the limitations from the carried ports.
+
+### B08–B12 retained dependencies
+
+- B08 / D01 / I01: context-sensitive scaffolding collision, climbing and placement
+  extension; fluid-container acceptance, full shape/data comparison. Fence lead
+  binding shares the existing item helper; exact leash knot lifecycle remains D04.
+- B09 / D01–D03: feature-cache buffering versus interleaved world callbacks/RNG,
+  configured tree/provider/height-view behavior, liquid containers, double-plant
+  mining/drop ordering and non-world light access. Prior vegetation/crop source
+  logs remain the evidence, not a new complete gameplay verification.
+- B10 / D01–D04/D06: vibration traversal/dispatch, warden and bee entity lifecycle,
+  spreader/worldgen stream interactions and client synchronization retain the
+  limits documented in the earlier sculk and bee passes.
+- B11 / D01–D04: falling collision/landing pipeline, effect aggregation, fluid
+  scheduling and loot contexts remain shared work across the carried terrain ports.
+- B12 / D02–D06/I02: locks, loot, names/components, menus/recipes, opener timing,
+  collision and protocol dependencies from each container/furnishing log remain.

@@ -26,9 +26,24 @@ impl BlockBehaviour for GlassPaneBlock {
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        let pane_props = GlassPaneProperties::from_state_id(args.state_id);
-        super::schedule_waterlogged_tick(args.world, args.position, pane_props.waterlogged);
-        compute_pane_state(pane_props, args.world, args.block, args.position)
+        let mut props = GlassPaneProperties::from_state_id(args.state_id);
+        super::schedule_waterlogged_tick(args.world, args.position, props.waterlogged);
+        if args.direction.is_horizontal() {
+            let connected = GlassPaneProperties::from_state_id(compute_pane_state(
+                props,
+                args.world,
+                args.block,
+                args.position,
+            ));
+            match args.direction {
+                BlockDirection::North => props.north = connected.north,
+                BlockDirection::East => props.east = connected.east,
+                BlockDirection::South => props.south = connected.south,
+                BlockDirection::West => props.west = connected.west,
+                _ => {}
+            }
+        }
+        props.to_state_id(args.block)
     }
 
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {

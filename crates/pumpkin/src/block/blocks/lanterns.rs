@@ -1,11 +1,11 @@
 use crate::block::{
     BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs, PathComputationType,
 };
-use crate::world::World;
 use pumpkin_data::tag::Taggable;
 use pumpkin_data::{BlockDirection, BlockState, BlockStateId, tag};
 use pumpkin_macros::pumpkin_block_from_tag;
 use pumpkin_util::math::position::BlockPos;
+use pumpkin_world::world::BlockAccessor;
 
 #[pumpkin_block_from_tag("minecraft:lanterns")]
 pub struct LanternBlock;
@@ -19,32 +19,25 @@ impl BlockBehaviour for LanternBlock {
         // corresponding to each orientation rather than always preferring ceilings.
         for direction in super::vine::get_nearest_looking_directions(
             args.player,
-            args.replacing != crate::block::BlockIsReplacing::None,
-            args.direction,
+            *args.position == args.use_item_on.position,
+            args.direction.opposite(),
         ) {
             if !matches!(direction, BlockDirection::Up | BlockDirection::Down) {
                 continue;
             }
             props.hanging = direction == BlockDirection::Up;
             if can_survive(args.world, args.position, props.hanging) {
-                break;
+                return props.to_state_id(args.block);
             }
         }
 
-        props.to_state_id(args.block)
+        pumpkin_data::BlockStateId::AIR
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        args.world.is_some_and(|world| {
-            if args.player.is_some() {
-                can_survive(world, args.position, false) || can_survive(world, args.position, true)
-            } else {
-                let props = pumpkin_data::block_properties::LanternLikeProperties::from_state_id(
-                    args.state.id,
-                );
-                can_survive(world, args.position, props.hanging)
-            }
-        })
+        let props =
+            pumpkin_data::block_properties::LanternLikeProperties::from_state_id(args.state.id);
+        can_survive(args.block_accessor, args.position, props.hanging)
     }
 
     fn get_state_for_neighbor_update(
@@ -73,7 +66,7 @@ impl BlockBehaviour for LanternBlock {
     }
 }
 
-fn can_survive(world: &World, position: &BlockPos, hanging: bool) -> bool {
+fn can_survive(world: &dyn BlockAccessor, position: &BlockPos, hanging: bool) -> bool {
     // Block.canSupportCenter rejects unstable bottom faces; an unrelated support
     // on the other side cannot hold a lantern with this orientation.
     let direction = if hanging {

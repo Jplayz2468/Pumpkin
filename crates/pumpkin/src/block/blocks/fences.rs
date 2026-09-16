@@ -1,6 +1,6 @@
 use super::is_exception_for_connection;
 use crate::block::{
-    BlockBehaviour, GetStateForNeighborUpdateArgs, OnPlaceArgs, PathComputationType,
+    BlockBehaviour, GetStateForNeighborUpdateArgs, NormalUseArgs, OnPlaceArgs, PathComputationType,
 };
 use crate::world::World;
 use pumpkin_data::block_properties::HorizontalFacing;
@@ -16,6 +16,10 @@ type FenceProperties = pumpkin_data::block_properties::OakFenceLikeProperties;
 pub struct FenceBlock;
 
 impl BlockBehaviour for FenceBlock {
+    fn normal_use(&self, args: NormalUseArgs<'_>) -> crate::block::registry::BlockActionResult {
+        crate::item::items::lead::LeadItem::bind_player_mobs(args.player, *args.position)
+    }
+
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
         let mut fence_props = FenceProperties::default(args.block);
         fence_props.waterlogged = args.replacing.water_source();
@@ -27,9 +31,24 @@ impl BlockBehaviour for FenceBlock {
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        let fence_props = FenceProperties::from_state_id(args.state_id);
-        super::schedule_waterlogged_tick(args.world, args.position, fence_props.waterlogged);
-        compute_fence_state(fence_props, args.world, args.block, args.position)
+        let mut props = FenceProperties::from_state_id(args.state_id);
+        super::schedule_waterlogged_tick(args.world, args.position, props.waterlogged);
+        if args.direction.is_horizontal() {
+            let connected = FenceProperties::from_state_id(compute_fence_state(
+                props,
+                args.world,
+                args.block,
+                args.position,
+            ));
+            match args.direction {
+                BlockDirection::North => props.north = connected.north,
+                BlockDirection::East => props.east = connected.east,
+                BlockDirection::South => props.south = connected.south,
+                BlockDirection::West => props.west = connected.west,
+                _ => {}
+            }
+        }
+        props.to_state_id(args.block)
     }
 
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {
@@ -86,7 +105,9 @@ fn connects_to(from: &Block, to: &Block, to_state: &BlockState, direction: Block
         }
     }
 
-    *from != Block::NETHER_BRICK_FENCE && to.has_tag(&tag::Block::C_FENCES_WOODEN)
+    to.has_tag(&tag::Block::MINECRAFT_FENCES)
+        && from.has_tag(&tag::Block::MINECRAFT_WOODEN_FENCES)
+            == to.has_tag(&tag::Block::MINECRAFT_WOODEN_FENCES)
 }
 
 #[cfg(test)]

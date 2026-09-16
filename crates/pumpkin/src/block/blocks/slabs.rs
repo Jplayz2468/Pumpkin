@@ -3,7 +3,8 @@ use pumpkin_data::{BlockDirection, BlockState, BlockStateId};
 use pumpkin_macros::pumpkin_block_from_tag;
 
 use crate::block::{
-    BlockBehaviour, BlockIsReplacing, CanUpdateAtArgs, OnPlaceArgs, PathComputationType,
+    BlockBehaviour, BlockIsReplacing, CanUpdateAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
+    PathComputationType,
 };
 
 type SlabProperties = pumpkin_data::block_properties::ResinBrickSlabLikeProperties;
@@ -36,6 +37,15 @@ impl BlockBehaviour for SlabBlock {
         };
 
         slab_props.to_state_id(args.block)
+    }
+
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        let props = SlabProperties::from_state_id(args.state_id);
+        super::schedule_waterlogged_tick(args.world, args.position, props.waterlogged);
+        args.state_id
     }
 
     fn can_update_at(&self, args: CanUpdateAtArgs<'_>) -> bool {

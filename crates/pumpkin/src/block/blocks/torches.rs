@@ -1,8 +1,5 @@
-use crate::block::BlockIsReplacing;
-use crate::entity::EntityBase;
 use pumpkin_data::BlockStateId;
-use pumpkin_data::block_properties::Facing;
-use pumpkin_data::{Block, FacingExt, HorizontalFacingExt};
+use pumpkin_data::{Block, HorizontalFacingExt};
 use pumpkin_data::{BlockDirection, BlockId};
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::world::BlockAccessor;
@@ -32,73 +29,61 @@ impl BlockMetadata for TorchBlock {
 
 impl BlockBehaviour for TorchBlock {
     fn on_place(&self, args: OnPlaceArgs<'_>) -> BlockStateId {
-        if args.direction == BlockDirection::Down {
-            let support_block = args.world.get_block_state(&args.position.down());
-            if support_block.is_center_solid(BlockDirection::Up) {
-                return args.block.default_state.id;
+        let directions = super::vine::get_nearest_looking_directions(
+            args.player,
+            *args.position == args.use_item_on.position,
+            args.direction.opposite(),
+        );
+        let (standing, wall) = match args.block.id {
+            BlockId::TORCH | BlockId::WALL_TORCH => (&Block::TORCH, &Block::WALL_TORCH),
+            BlockId::SOUL_TORCH | BlockId::SOUL_WALL_TORCH => {
+                (&Block::SOUL_TORCH, &Block::SOUL_WALL_TORCH)
             }
-        }
-        let mut directions = args.player.get_entity().get_entity_facing_order();
-
-        if args.replacing == BlockIsReplacing::None {
-            let face = args.direction.to_facing();
-            let mut i = 0;
-            while i < directions.len() && directions[i] != face {
-                i += 1;
+            _ => (&Block::COPPER_TORCH, &Block::COPPER_WALL_TORCH),
+        };
+        let wall_state = directions.iter().find_map(|direction| {
+            if !direction.is_horizontal() || !can_place_at(args.world, args.position, *direction) {
+                return None;
             }
-
-            if i > 0 {
-                directions.copy_within(0..i, 1);
-                directions[0] = face;
+            let mut props = WallTorchProps::default(wall);
+            props.facing = direction.opposite().to_cardinal_direction();
+            Some(props.to_state_id(wall))
+        });
+        for direction in directions {
+            if direction == BlockDirection::Up {
+                continue;
             }
-        } else if directions[0] == Facing::Down {
-            let support_block = args.world.get_block_state(&args.position.down());
-            if support_block.is_center_solid(BlockDirection::Up) {
-                return args.block.default_state.id;
-            }
-        }
-
-        for dir in directions {
-            if dir != Facing::Up
-                && dir != Facing::Down
-                && can_place_at(args.world, args.position, dir.to_block_direction())
-            {
-                let wall_block = {
-                    if args.block == &Block::TORCH {
-                        Block::WALL_TORCH
-                    } else if args.block == &Block::SOUL_TORCH {
-                        Block::SOUL_WALL_TORCH
-                    } else {
-                        Block::COPPER_WALL_TORCH
-                    }
-                };
-                let mut torch_props = WallTorchProps::default(&wall_block);
-                if let Some(facing) = dir.opposite().to_horizontal_facing() {
-                    torch_props.facing = facing;
-                    return torch_props.to_state_id(&wall_block);
+            if direction == BlockDirection::Down {
+                if args
+                    .world
+                    .get_block_state(&args.position.down())
+                    .is_center_solid(BlockDirection::Up)
+                {
+                    return standing.default_state.id;
                 }
+            } else if let Some(state) = wall_state {
+                return state;
             }
         }
-
-        let support_block = args.world.get_block_state(&args.position.down());
-        if support_block.is_center_solid(BlockDirection::Up) {
-            args.block.default_state.id
-        } else {
-            BlockStateId::AIR
-        }
+        BlockStateId::AIR
     }
 
     fn can_place_at(&self, args: CanPlaceAtArgs<'_>) -> bool {
-        let support_block = args.block_accessor.get_block_state(&args.position.down());
-        if support_block.is_center_solid(BlockDirection::Up) {
-            return true;
+        if matches!(
+            args.block.id,
+            BlockId::WALL_TORCH | BlockId::SOUL_WALL_TORCH | BlockId::COPPER_WALL_TORCH
+        ) {
+            let props = WallTorchProps::from_state_id(args.state.id);
+            can_place_at(
+                args.block_accessor,
+                args.position,
+                props.facing.to_block_direction().opposite(),
+            )
+        } else {
+            args.block_accessor
+                .get_block_state(&args.position.down())
+                .is_center_solid(BlockDirection::Up)
         }
-        for dir in BlockDirection::horizontal() {
-            if can_place_at(args.block_accessor, args.position, dir.to_block_direction()) {
-                return true;
-            }
-        }
-        false
     }
 
     fn get_state_for_neighbor_update(

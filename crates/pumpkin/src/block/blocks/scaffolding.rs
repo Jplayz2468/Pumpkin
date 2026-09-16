@@ -4,9 +4,12 @@ use pumpkin_data::{Block, BlockDirection, BlockStateId};
 use pumpkin_macros::pumpkin_block;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_world::tick::TickPriority;
-use pumpkin_world::world::BlockAccessor;
+use pumpkin_world::world::{BlockAccessor, BlockFlags};
 
-use crate::block::{BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs};
+use crate::block::{
+    BlockBehaviour, CanPlaceAtArgs, GetStateForNeighborUpdateArgs, OnPlaceArgs,
+    OnScheduledTickArgs, PlacedArgs,
+};
 
 #[pumpkin_block("minecraft:scaffolding")]
 pub struct ScaffoldingBlock;
@@ -16,13 +19,13 @@ impl ScaffoldingBlock {
     pub fn get_distance(world: &dyn BlockAccessor, pos: &BlockPos) -> u8 {
         let below_pos = pos.down();
         let (below_block, below_state) = world.get_block_and_state(&below_pos);
-        if below_block == &Block::SCAFFOLDING {
-            return ScaffoldingLikeProperties::from_state_id(below_state.id).distance;
-        } else if below_state.is_side_solid(BlockDirection::Up) && below_block.is_solid() {
+        let mut min_dist = if below_block == &Block::SCAFFOLDING {
+            ScaffoldingLikeProperties::from_state_id(below_state.id).distance
+        } else if below_state.is_side_solid(BlockDirection::Up) {
             return 0;
-        }
-
-        let mut min_dist = 7u8;
+        } else {
+            7
+        };
         for dir in BlockDirection::horizontal() {
             let neighbor_pos = pos.offset(dir.to_offset());
             let (neighbor_block, neighbor_state) = world.get_block_and_state(&neighbor_pos);
@@ -70,13 +73,44 @@ impl BlockBehaviour for ScaffoldingBlock {
                 TickPriority::Normal,
             );
         }
-        let distance = Self::get_distance(args.world, args.position);
-        if distance == 7 {
-            return Block::AIR.default_state.id;
+        args.world
+            .schedule_block_tick(args.block, *args.position, 1, TickPriority::Normal);
+        args.state_id
+    }
+
+    fn placed(&self, args: PlacedArgs<'_>) {
+        args.world
+            .schedule_block_tick(args.block, *args.position, 1, TickPriority::Normal);
+    }
+
+    fn state_changed(&self, args: PlacedArgs<'_>) {
+        self.placed(args);
+    }
+
+    fn on_scheduled_tick(&self, args: OnScheduledTickArgs<'_>) {
+        let state = args.world.get_block_state_id(args.position);
+        if state.to_block() != args.block {
+            return;
         }
-        let mut new_props = props;
-        new_props.distance = distance;
-        new_props.bottom = Self::is_bottom(args.world, args.position, distance);
-        new_props.to_state_id(args.block)
+        let props = ScaffoldingLikeProperties::from_state_id(state);
+        let mut updated = props;
+        updated.distance = Self::get_distance(args.world.as_ref(), args.position);
+        updated.bottom = Self::is_bottom(args.world.as_ref(), args.position, updated.distance);
+        let new_state = updated.to_state_id(args.block);
+        if updated.distance == 7 {
+            if props.distance == 7 {
+                crate::entity::falling::FallingEntity::replace_spawn(
+                    args.world,
+                    *args.position,
+                    new_state,
+                );
+            } else {
+                args.world
+                    .break_block(args.position, None, BlockFlags::NOTIFY_ALL);
+            }
+        } else if new_state != state {
+            args.world
+                .set_block_state(args.position, new_state, BlockFlags::NOTIFY_ALL);
+        }
     }
 }

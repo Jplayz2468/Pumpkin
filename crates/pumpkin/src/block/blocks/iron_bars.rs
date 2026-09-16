@@ -40,9 +40,24 @@ impl BlockBehaviour for IronBarsBlock {
         &self,
         args: GetStateForNeighborUpdateArgs<'_>,
     ) -> BlockStateId {
-        let bars_props = IronBarsProperties::from_state_id(args.state_id);
-        super::schedule_waterlogged_tick(args.world, args.position, bars_props.waterlogged);
-        compute_bars_state(bars_props, args.world, args.block, args.position)
+        let mut props = IronBarsProperties::from_state_id(args.state_id);
+        super::schedule_waterlogged_tick(args.world, args.position, props.waterlogged);
+        if args.direction.is_horizontal() {
+            let connected = IronBarsProperties::from_state_id(compute_bars_state(
+                props,
+                args.world,
+                args.block,
+                args.position,
+            ));
+            match args.direction {
+                BlockDirection::North => props.north = connected.north,
+                BlockDirection::East => props.east = connected.east,
+                BlockDirection::South => props.south = connected.south,
+                BlockDirection::West => props.west = connected.west,
+                _ => {}
+            }
+        }
+        props.to_state_id(args.block)
     }
 
     fn is_pathfindable(&self, _state: &BlockState, _computation_type: PathComputationType) -> bool {

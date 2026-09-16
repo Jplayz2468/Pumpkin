@@ -882,8 +882,11 @@ impl BlockBehaviour for WeatheringCopperStairBlock {
         StairBlock.on_place(args)
     }
 
-    fn on_neighbor_update(&self, args: OnNeighborUpdateArgs<'_>) {
-        StairBlock.on_neighbor_update(args);
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        StairBlock.get_state_for_neighbor_update(args)
     }
 
     fn rotate(
@@ -1028,6 +1031,13 @@ impl BlockBehaviour for WeatheringCopperSlabBlock {
 
     fn can_update_at(&self, args: CanUpdateAtArgs<'_>) -> bool {
         SlabBlock.can_update_at(args)
+    }
+
+    fn get_state_for_neighbor_update(
+        &self,
+        args: GetStateForNeighborUpdateArgs<'_>,
+    ) -> BlockStateId {
+        SlabBlock.get_state_for_neighbor_update(args)
     }
 
     fn random_tick(&self, mut args: RandomTickArgs<'_>) {

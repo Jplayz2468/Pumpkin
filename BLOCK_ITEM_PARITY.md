@@ -1200,3 +1200,24 @@ so they must not be used to reconstruct audit completion.
   two localhost-bind tests failed under sandbox restrictions; those exact two
   passed on the authorized unsandboxed rerun. All 448 passed across the two runs.
   Final flag-only follow-up is included in the next background block run.
+
+## B08–B12: building fixes and carried source reviews
+
+- Building source pass: ladders now validate their stored facing, choose context
+  directions and retain/schedule water. Lanterns reject unsupported placement and
+  validate the selected orientation. Torches share standing/wall selection order.
+- Stairs use shape callbacks and the exact half-height boundary; slabs schedule
+  water ticks, including unwaxed copper wrappers. Fence/pane/bar connections update
+  only the notified side. Fences now bind the player's existing leashed mobs using
+  the shared lead helper, even with an empty hand.
+- Scaffolding now considers horizontal support even above another scaffold and
+  updates distance/bottom on a scheduled tick. Newly unsupported supported blocks
+  drop; already-distance-seven blocks become falling entities.
+- B09 carries the documented vegetation, crop and growing-plant ports; checked
+  the simple root/flower/cactus-flower, beetroot/nether-wart and shared module paths.
+  B10 carries bee/sculk passes, B11 terrain/physics passes, and B12 all documented
+  container/furnishing passes. Their existing limitations stay in PARITY_PLAN.
+- Background block runs 16–18 each passed all 123 tests. Existing unit coverage
+  does not verify every changed gameplay path.
+- User priority changed: move to mobs after the bounded block pass, keeping the
+  original item queue and unresolved block engine dependencies for later work.

@@ -45,6 +45,16 @@ impl ItemBehaviour for LeadItem {
             return BlockActionResult::Pass;
         }
 
+        Self::bind_player_mobs(player, location)
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl LeadItem {
+    pub(crate) fn bind_player_mobs(player: &Player, location: BlockPos) -> BlockActionResult {
         let world = player.world();
         let center = Vector3::new(
             f64::from(location.0.x) + 0.5,
@@ -78,6 +88,9 @@ impl ItemBehaviour for LeadItem {
             .into_iter()
             .filter(|entity_base| {
                 let ent = entity_base.get_entity();
+                if !ent.is_alive() {
+                    return false;
+                }
                 ent.leashed_to
                     .try_lock()
                     .ok()
@@ -129,13 +142,9 @@ impl ItemBehaviour for LeadItem {
                 location.to_centered_f64(),
                 Some(player.living_entity.entity.entity_id),
             );
-            BlockActionResult::Success
+            BlockActionResult::SuccessServer
         } else {
             BlockActionResult::Pass
         }
-    }
-
-    fn as_any(&self) -> &dyn std::any::Any {
-        self
     }
 }
