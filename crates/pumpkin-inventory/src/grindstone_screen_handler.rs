@@ -492,3 +492,53 @@ impl ScreenHandler for GrindstoneScreenHandler {
         }
     }
 }
+
+/// Differential comparison against the real Java 26.2 `GrindstoneMenu`.
+/// Fixtures come from `tools/vanilla/GrindstoneOracle.java`.
+#[cfg(test)]
+mod java_parity_tests {
+    use super::*;
+    use crate::test_support::java_parity::{build, describe, expected};
+    use serde_json::Value;
+
+    #[test]
+    fn grindstone_results_match_java() {
+        let cases: Vec<Value> =
+            serde_json::from_str(include_str!("grindstone_cases.json")).expect("grindstone fixtures");
+        assert!(cases.len() > 600, "fixture looks truncated");
+
+        let mut mismatches: Vec<String> = Vec::new();
+        for (index, case) in cases.iter().enumerate() {
+            let input = build(&case["input"]);
+            let additional = build(&case["additional"]);
+
+            let result = describe(&GrindstoneScreenHandler::compute_result(&input, &additional));
+            let experience_input = GrindstoneScreenHandler::get_experience_from_item(&input);
+            let experience_additional = GrindstoneScreenHandler::get_experience_from_item(&additional);
+
+            let want_result = expected(&case["result"]);
+            let want_input = case["experience_input"].as_i64().expect("xp") as i32;
+            let want_additional = case["experience_additional"].as_i64().expect("xp") as i32;
+
+            if result != want_result
+                || experience_input != want_input
+                || experience_additional != want_additional
+            {
+                mismatches.push(format!(
+                    "case {index}: input={} additional={}\n  \
+                     result java={want_result}\n         rust={result}\n  \
+                     xp java=({want_input},{want_additional}) rust=({experience_input},{experience_additional})",
+                    case["input"], case["additional"]
+                ));
+            }
+        }
+
+        assert!(
+            mismatches.is_empty(),
+            "{} of {} grindstone cases differ from Java:\n{}",
+            mismatches.len(),
+            cases.len(),
+            mismatches.iter().take(15).cloned().collect::<Vec<_>>().join("\n")
+        );
+    }
+}

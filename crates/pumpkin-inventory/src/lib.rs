@@ -58,6 +58,8 @@ pub mod screen_handler;
 pub mod slot;
 pub mod smithing_table_screen_handler;
 pub mod stonecutter_screen_handler;
+#[cfg(test)]
+mod test_support;
 pub mod sync_handler;
 pub mod viewer;
 pub mod window_property;
