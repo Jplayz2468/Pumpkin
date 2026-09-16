@@ -4,6 +4,8 @@ use super::{Controls, Goal};
 use crate::entity::ai::goal::try_find_water::TryFindWaterGoal;
 use crate::entity::ai::goal::wander_around::WanderAroundGoal;
 use crate::entity::{ai::pathfinder::NavigatorGoal, mob::Mob};
+use pumpkin_data::tag;
+use pumpkin_data::tag::Taggable;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
 
@@ -58,16 +60,27 @@ impl EscapeDangerGoal {
     /// are themselves members of `PANIC_CAUSES` (tag.rs:7309-7346), so it does not add a
     /// case vanilla lacks; it only exists because the generic "was hit recently" check
     /// below can't see that a currently-burning mob is (re-)taking fire damage every tick.
+    /// `PanicGoal.shouldPanic` (PanicGoal.java:61-63): the last damage source must
+    /// still be live -- `getLastDamageSource` clears it after 40 ticks -- and must
+    /// carry the goal's damage-type tag, `panic_causes` by default.
+    ///
+    /// This reads the last damage of *any* kind, not just damage with an attacker.
+    /// Vanilla records `lastDamageSource` for every successful hit, so a mob flees
+    /// a cactus, a fall or a fire; keying off the attacker alone meant it only ever
+    /// fled things that punched it.
     fn is_in_danger(mob: &dyn Mob) -> bool {
         let living = &mob.get_mob_entity().living_entity;
 
-        if living.entity.fire_ticks.load(Relaxed) > 0 {
-            return true;
+        let Some(damage_type) = living.last_damage_type.load() else {
+            return false;
+        };
+        if !damage_type.has_tag(&tag::DamageType::MINECRAFT_PANIC_CAUSES) {
+            return false;
         }
 
-        let last_attacked = living.last_attacked_time.load(Relaxed);
+        let last_damage = living.last_damage_time.load(Relaxed);
         let age = living.entity.tick_count.load(Relaxed);
-        recently_attacked(age, last_attacked)
+        recently_attacked(age, last_damage)
     }
 
     /// Port of `PanicGoal.lookForWater` (PanicGoal.java:92-97), used only while on fire.

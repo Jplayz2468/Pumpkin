@@ -139,6 +139,13 @@ pub struct LivingEntity {
     pub last_attacker_id: AtomicI32,
     /// The tick at which this entity was last attacked (entity age).
     pub last_attacked_time: AtomicI32,
+    /// The tick of the last damage of any kind, attacker or not (entity age).
+    /// `LivingEntity.lastDamageStamp`, which `PanicGoal.shouldPanic` reads
+    /// through `getLastDamageSource`. Unlike `last_attacked_time` this is set
+    /// for environmental damage too, so a mob flees a cactus or a fall.
+    pub last_damage_time: AtomicI32,
+    /// The damage type of that last damage. `LivingEntity.lastDamageSource`.
+    pub last_damage_type: AtomicCell<Option<DamageType>>,
 
     /// The entity ID of the entity this living entity last attacked.
     pub last_attacking_id: AtomicI32,
@@ -347,6 +354,8 @@ impl LivingEntity {
             extra_particles_on_fall: AtomicBool::new(false),
             last_attacker_id: AtomicI32::new(0),
             last_attacked_time: AtomicI32::new(0),
+            last_damage_time: AtomicI32::new(0),
+            last_damage_type: AtomicCell::new(None),
             last_attacking_id: AtomicI32::new(0),
             last_attack_time: AtomicI32::new(0),
             combat_tracker: std::sync::Mutex::new(CombatTracker::new()),
@@ -3654,6 +3663,12 @@ impl LivingEntity {
         // (LivingEntity.java:1366-1372, crediting a wolf's owner when the wolf lands the
         // hit) is not ported -- `LivingEntity` here has no visibility into `Wolf`'s
         // tame/owner state. Only the direct-player branch is implemented.
+        // LivingEntity.java:1266-1269 records the damage source for any successful
+        // hit, with no attacker required, which is what PanicGoal keys off.
+        self.last_damage_time
+            .store(self.entity.tick_count.load(Relaxed), Relaxed);
+        self.last_damage_type.store(Some(damage_type));
+
         if let Some(attacker) = cause {
             let attacker_id = attacker.get_entity().entity_id;
             self.last_attacker_id.store(attacker_id, Relaxed);
