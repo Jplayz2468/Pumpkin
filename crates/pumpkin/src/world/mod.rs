@@ -20,6 +20,7 @@ use tracing::{debug, error, info, trace, warn};
 mod active_chunks;
 mod block_ray;
 mod fluid_flow;
+mod sound_delivery;
 pub use block_ray::{RayFluidHandling, RayHit};
 mod block_interaction_shapes;
 pub mod chunker;
@@ -1407,7 +1408,7 @@ impl World {
             pitch,
             self.next_sound_seed(),
         );
-        self.broadcast_packet_all(&packet);
+        self.broadcast_sound(&packet, *position, None);
     }
 
     pub fn play_sound_event_expect(
@@ -1428,7 +1429,7 @@ impl World {
             1.0,
             seed,
         );
-        self.broadcast_packet_except(&[player.gameprofile.id], &packet);
+        self.broadcast_sound(&packet, *position, Some(player.gameprofile.id));
     }
 
     pub fn play_sound_fine(
@@ -1463,7 +1464,7 @@ impl World {
             pitch,
             seed,
         );
-        self.broadcast_packet_all(&packet);
+        self.broadcast_sound(&packet, *position, None);
     }
 
     /// Spawns a cluster of particles in the world for all players in range.
@@ -1537,20 +1538,7 @@ impl World {
     ) {
         let seed = self.next_sound_seed();
         let packet = CSoundEffect::new(IdOr::Id(sound_id), category, position, volume, pitch, seed);
-
-        // Calculate the number of chunks the sound can be heard from based on its volume.
-        let audible_chunks = f64::from(volume.max(1.0)).ceil() as i32;
-        let chunk_pos = BlockPos::floored_v(*position).chunk_position();
-
-        let players = self.players.load();
-        let recipients = players.iter().filter(|p| {
-            let center = p.get_entity().chunk_pos.load();
-            // If the sound reaches their chunk, send it!
-            is_within_chebyshev_distance(chunk_pos, center, audible_chunks)
-        });
-
-        let recipients_by_version = Self::collect_java_recipients_by_version(recipients);
-        Self::broadcast_java_grouped(&packet, recipients_by_version);
+        self.broadcast_sound(&packet, *position, None);
     }
 
     pub fn play_sound_raw_expect(
@@ -1564,23 +1552,7 @@ impl World {
     ) {
         let seed = self.next_sound_seed();
         let packet = CSoundEffect::new(IdOr::Id(sound_id), category, position, volume, pitch, seed);
-
-        let audible_chunks = f64::from(volume.max(1.0)).ceil() as i32;
-        let chunk_pos = BlockPos::floored_v(*position).chunk_position();
-
-        let players = self.players.load();
-        let recipients = players.iter().filter(|p| {
-            // Skip the expected player
-            if p.gameprofile.id == player.gameprofile.id {
-                return false;
-            }
-
-            let center = p.get_entity().chunk_pos.load();
-            is_within_chebyshev_distance(chunk_pos, center, audible_chunks)
-        });
-
-        let recipients_by_version = Self::collect_java_recipients_by_version(recipients);
-        Self::broadcast_java_grouped(&packet, recipients_by_version);
+        self.broadcast_sound(&packet, *position, Some(player.gameprofile.id));
     }
 
     pub fn play_block_sound(&self, sound: Sound, category: SoundCategory, position: BlockPos) {

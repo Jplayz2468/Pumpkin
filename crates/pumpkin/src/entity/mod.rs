@@ -3660,9 +3660,35 @@ impl Entity {
 
     /// Plays sound at this entity's position with the entity's sound category
     pub fn play_sound(&self, sound: Sound) {
-        self.world
-            .load()
-            .play_sound(sound, SoundCategory::Neutral, &self.pos.load());
+        self.play_sound_fine(sound, 1.0, 1.0);
+    }
+
+    pub fn play_sound_fine(&self, sound: Sound, volume: f32, pitch: f32) {
+        let world = self.world.load();
+        // Player overrides Entity.playSound: exclude its local prediction and do
+        // not consult the ordinary entity Silent flag.
+        if let Some(player) = world.get_player_by_id(self.entity_id) {
+            world.play_sound_raw_expect(
+                &player,
+                sound as u16,
+                SoundCategory::Players,
+                &self.pos.load(),
+                volume,
+                pitch,
+            );
+            return;
+        }
+        if self.is_silent() {
+            return;
+        }
+        let category = if self.entity_type == &EntityType::RABBIT {
+            world
+                .get_entity_by_id(self.entity_id)
+                .map_or(SoundCategory::Neutral, |entity| entity.get_sound_category())
+        } else {
+            EntityBase::get_sound_category(self)
+        };
+        world.play_sound_fine(sound, category, &self.pos.load(), volume, pitch);
     }
 
     /// Sets a field that was renamed in 26.1, writing it under BOTH names.

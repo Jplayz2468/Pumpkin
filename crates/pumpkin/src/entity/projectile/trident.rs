@@ -8,9 +8,9 @@ use crate::{
 use pumpkin_data::damage::DamageType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
-use pumpkin_data::sound::{Sound, SoundCategory};
-use pumpkin_protocol::IdOr;
-use pumpkin_protocol::java::client::play::{CEntityVelocity, CSoundEffect};
+use pumpkin_data::sound::Sound;
+use pumpkin_util::random::RandomImpl;
+use pumpkin_protocol::java::client::play::CEntityVelocity;
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -330,22 +330,9 @@ impl EntityBase for TridentEntity {
                 entity.set_pos(hit_pos);
 
                 // Play sound
-                let sound_packet = CSoundEffect::new(
-                    IdOr::Id(Sound::ItemTridentHitGround as u16),
-                    SoundCategory::Neutral,
-                    &hit_pos,
-                    1.0,
-                    1.0,
-                    0,
-                );
-                let chunk_pos = entity.chunk_pos.load();
-                world.broadcast_to_chunk(chunk_pos, &sound_packet);
+                entity.play_sound_fine(Sound::ItemTridentHitGround, 1.0, 1.2_f32 / (entity.random().next_f32() * 0.2_f32 + 0.9_f32));
             }
-            ProjectileHit::Entity {
-                entity: target,
-                hit_pos,
-                ..
-            } => {
+            ProjectileHit::Entity { entity: target, .. } => {
                 let mut damage = Self::BASE_DAMAGE;
 
                 // Apply Impaling enchantment extra damage
@@ -370,16 +357,7 @@ impl EntityBase for TridentEntity {
                 target.damage(&*target, damage_val, DamageType::TRIDENT);
 
                 // Play hit sound
-                let sound_packet = CSoundEffect::new(
-                    IdOr::Id(Sound::ItemTridentHit as u16),
-                    SoundCategory::Neutral,
-                    &hit_pos,
-                    1.0,
-                    1.0,
-                    0,
-                );
-                let chunk_pos = entity.chunk_pos.load();
-                world.broadcast_to_chunk(chunk_pos, &sound_packet);
+                entity.play_sound_fine(Sound::ItemTridentHit, 1.0, 1.0);
 
                 // Standard bounce/fall-back behavior
                 entity.velocity.store(Vector3::new(0.0, -0.1, 0.0));

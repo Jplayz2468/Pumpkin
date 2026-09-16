@@ -217,10 +217,74 @@ mod tests {
         let y = cursor.get_i32_be().unwrap();
         let z = cursor.get_i32_be().unwrap();
 
-        // position should be floor(input * 8), applied exactly once
+        // Position truncates input * 8 toward zero, applied exactly once
         // (2.5 * 8 = 20, 3.5 * 8 = 28, 4.5 * 8 = 36)
         assert_eq!(x, 20);
         assert_eq!(y, 28);
         assert_eq!(z, 36);
+    }
+    #[test]
+    fn java_positional_and_entity_sound_packet_bytes() {
+        let data: serde_json::Value =
+            serde_json::from_str(include_str!("sound_packet_cases.json")).unwrap();
+        assert_eq!(
+            data["registry_size"].as_u64().unwrap() as usize,
+            pumpkin_data::sound::Sound::slice().len()
+        );
+        // World sound delivery relies on the canonical registry having variable range.
+        assert!(data["fixed_ranges"].as_object().unwrap().is_empty());
+        for (i, case) in data["packets"].as_array().unwrap().iter().enumerate() {
+            let sound = if case[1].as_bool().unwrap() {
+                IdOr::Id(case[0].as_u64().unwrap() as u16)
+            } else {
+                IdOr::Value(SoundEvent {
+                    sound_name: "minecraft:test.sound".into(),
+                    range: case[2].as_f64().map(|r| r as f32),
+                })
+            };
+            let coord = |axis: usize| f64::from_bits(case[3][axis].as_u64().unwrap());
+            let volume = f32::from_bits(case[4].as_u64().unwrap() as u32);
+            let pitch = f32::from_bits(case[5].as_u64().unwrap() as u32);
+            let seed = case[6].as_i64().unwrap();
+            let mut position = CSoundEffect::new(
+                sound.clone(),
+                SoundCategory::Master,
+                &Vector3::new(coord(0), coord(1), coord(2)),
+                volume,
+                pitch,
+                seed,
+            );
+            let mut entity = crate::java::client::play::CEntitySoundEffect::new(
+                sound,
+                SoundCategory::Master,
+                VarInt(i as i32 * 19 - 700),
+                volume,
+                pitch,
+                seed,
+            );
+            let category = VarInt((i % (SoundCategory::Ui as usize + 1)) as i32);
+            position.sound_category = category;
+            entity.sound_category = category;
+            let mut a = Vec::new();
+            let mut b = Vec::new();
+            position
+                .write_packet_data(&mut a, &JavaMinecraftVersion::V_26_2)
+                .unwrap();
+            entity
+                .write_packet_data(&mut b, &JavaMinecraftVersion::V_26_2)
+                .unwrap();
+            for (actual, field) in [(&a, 7), (&b, 8)] {
+                let expected: Vec<_> = case[field]
+                    .as_str()
+                    .unwrap()
+                    .as_bytes()
+                    .chunks_exact(2)
+                    .map(|digits| {
+                        u8::from_str_radix(std::str::from_utf8(digits).unwrap(), 16).unwrap()
+                    })
+                    .collect();
+                assert_eq!(*actual, expected, "packet {i}/{field}");
+            }
+        }
     }
 }

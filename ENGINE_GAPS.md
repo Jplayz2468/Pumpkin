@@ -449,3 +449,31 @@ whole inside-effect pipeline matches Java yet.
   Bedrock spin metadata and live client collision/launch verification. These are
   explicit integration gates, not grounds to call D01/D04/D06 complete. Full mob
   passes remain paused.
+
+## Shared sound delivery
+
+- World registered, component and custom positional sounds now use ServerLevel's
+  strict 3D recipient radius at the original double position. Normal range is 16
+  blocks, scaled by float volume above one; direct SoundEvents honor fixed range.
+  Removed the chunk-square approximation and unbounded component/custom broadcast.
+  Player-excluded sounds use the same filter and still draw one world sound seed.
+- A canonical registry probe confirms all built-in Java 26.2 SoundEvents use
+  variable range. Direct component events retain independent fixed-range values.
+- Added a shared entity-attached sound sender. Riptide attaches to the player and
+  a thrown trident attaches to the projectile. Pre-1.14 clients receive positional
+  fallback using the same seed and recipient filter.
+- Generic entity sound calls now use the entity's category and Silent flag, plus
+  Player's local-prediction exclusion/override. Arrow/trident impact calls use this
+  path instead of chunk broadcasts with a constant zero seed; randomized ground
+  and arrow-hit pitch advances the shared entity RNG.
+- **320 actual Java 26.2 packet byte strings** (160 positional + 160 attached)
+  match, including inline fixed-range events, negative positions/entity IDs, float
+  fields and seeds. Recipient regression checks cover vertical/diagonal/exact-range
+  edges and filtering before packet-coordinate truncation.
+- Background run 1 passed **488 engine + 114 protocol tests**. Run 2 also passed
+  **488 engine tests** after generic entity/projectile sender integration; the same
+  two previously separately passing socket tests were excluded.
+- Still open: Bedrock sound translation/live playback, older-client direct-holder
+  named-sound fallback and category/name compatibility, remaining entity sound
+  overrides/RNG consumers, and full projectile behavior/spatial lifecycle. Packet
+  and radius checks do not certify live client audibility or the complete engine.

@@ -141,10 +141,12 @@ impl ItemBehaviour for TridentItem {
             if entity.on_ground.load(std::sync::atomic::Ordering::Relaxed) {
                 entity.move_entity(player, Vector3::new(0.0, f64::from(1.199_999_9_f32), 0.0));
             }
-            world.play_sound(
+            world.play_entity_sound(
+                entity,
                 sound,
                 pumpkin_data::sound::SoundCategory::Players,
-                &player.position(),
+                1.0,
+                1.0,
             );
 
             player.living_entity.clear_active_hand();
@@ -177,12 +179,15 @@ impl ItemBehaviour for TridentItem {
             TridentEntity::new_shot(entity, player.get_entity(), thrown_stack.clone(), pickup);
         trident.set_velocity_from_rotation(pitch, yaw, 0.0, 2.5, 1.0);
         trident.apply_on_projectile_spawned(&thrown_stack);
-        world.spawn_entity(Arc::new(trident));
+        let trident = Arc::new(trident);
+        world.spawn_entity(trident.clone());
 
-        world.play_sound(
+        world.play_entity_sound(
+            trident.get_entity(),
             sound,
             pumpkin_data::sound::SoundCategory::Players,
-            &player.position(),
+            1.0,
+            1.0,
         );
 
         if player.gamemode.load() != GameMode::Creative {

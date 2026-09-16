@@ -17,9 +17,9 @@ use pumpkin_data::entity::EntityType;
 use pumpkin_data::item::Item;
 use pumpkin_data::item_stack::ItemStack;
 use pumpkin_data::particle::Particle;
-use pumpkin_data::sound::{Sound, SoundCategory};
-use pumpkin_protocol::IdOr;
-use pumpkin_protocol::java::client::play::{CEntityVelocity, CSoundEffect, Metadata};
+use pumpkin_data::sound::Sound;
+use pumpkin_util::random::RandomImpl;
+use pumpkin_protocol::java::client::play::{CEntityVelocity, Metadata};
 use pumpkin_util::math::boundingbox::BoundingBox;
 use pumpkin_util::math::position::BlockPos;
 use pumpkin_util::math::vector3::Vector3;
@@ -913,17 +913,8 @@ impl EntityBase for ArrowEntity {
                 entity.set_synced_data(pumpkin_data::tracked_data::abstract_arrow::IN_GROUND, true);
 
                 // Play sound with vanilla pitch formula
-                let sound_pitch = 1.2 / (rand::random::<f32>() * 0.2 + 0.9);
-                let sound_packet = CSoundEffect::new(
-                    IdOr::Id(Sound::EntityArrowHit as u16),
-                    SoundCategory::Neutral,
-                    &hit_pos,
-                    1.0,
-                    sound_pitch,
-                    0,
-                );
-                let chunk_pos = entity.chunk_pos.load();
-                world.broadcast_to_chunk(chunk_pos, &sound_packet);
+                let sound_pitch = 1.2_f32 / (entity.random().next_f32() * 0.2_f32 + 0.9_f32);
+                entity.play_sound_fine(Sound::EntityArrowHit, 1.0, sound_pitch);
 
                 // Reset critical flag and pierce level
                 self.set_critical(false);
@@ -992,17 +983,8 @@ impl EntityBase for ArrowEntity {
                     }
 
                     // Play hit sound
-                    let sound_pitch = 1.2 / (rand::random::<f32>() * 0.2 + 0.9);
-                    let sound_packet = CSoundEffect::new(
-                        IdOr::Id(Sound::EntityArrowHit as u16),
-                        SoundCategory::Neutral,
-                        &hit_pos,
-                        1.0,
-                        sound_pitch,
-                        0,
-                    );
-                    let chunk_pos = entity.chunk_pos.load();
-                    world.broadcast_to_chunk(chunk_pos, &sound_packet);
+                    let sound_pitch = 1.2_f32 / (entity.random().next_f32() * 0.2_f32 + 0.9_f32);
+                    entity.play_sound_fine(Sound::EntityArrowHit, 1.0, sound_pitch);
 
                     if Self::should_apply_post_hurt_effects(damage_succeeded) {
                         let item_stack = self

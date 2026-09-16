@@ -1399,3 +1399,11 @@ collision for ground lift, dispatches touch attacks, and clears state on expiry 
 contact. Player pose and impulse fall protection use that state. Trident release
 retains active-hand identity and uses enchantment-selected sounds. See ENGINE_GAPS.md
 for verification and the remaining shoulder/item-reference/client integration gates.
+
+### Shared sound radius and source attachment
+
+Block/item/component sounds now share Java's strict 3D recipient radius and direct
+fixed-range handling. Trident launch sounds follow their source entity; generic
+entity/impact sounds use source category, silence and sound-seed rules. Byte-level
+Java packet comparisons and boundary checks are recorded in ENGINE_GAPS.md; legacy
+client/Bedrock compatibility and live playback remain open.
